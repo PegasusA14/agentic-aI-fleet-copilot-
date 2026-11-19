@@ -1,6 +1,11 @@
 from __future__ import annotations
 
+import json
+import sqlite3
 from typing import Any
+
+from fleet_copilot.data.loader import connect, create_schema, finalize, insert_rows
+from fleet_copilot.data.parse import parse_ndjson
 
 _CHECKS = [
     {"check_id": "disk_encryption", "status": "pass", "severity": "high"},
@@ -43,3 +48,14 @@ def make_row(
         else:
             row[key] = value
     return row
+
+
+def make_conn(raw_rows: list[dict[str, Any]]) -> sqlite3.Connection:
+    """In-memory database built from raw rows; fails loudly if any row is invalid."""
+    conn = connect(":memory:")
+    create_schema(conn)
+    parsed = parse_ndjson(json.dumps(r) for r in raw_rows)
+    assert not parsed.quarantined, parsed.quarantined
+    assert not insert_rows(conn, parsed.rows)
+    finalize(conn, "test-sha")
+    return conn
