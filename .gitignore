@@ -1,0 +1,73 @@
+# ── Secrets / local env ───────────────────────────────────────────
+.env
+.env.*
+!.env.example
+
+# ── Python ────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+.mypy_cache/
+.coverage
+htmlcov/
+build/
+
+# ── Frontend ──────────────────────────────────────────────────────
+node_modules/
+frontend/dist/
+frontend/.vite/
+*.tsbuildinfo
+playwright-report/
+test-results/
+
+# ── Runtime state & generated output (rebuilt from data/*.ndjson) ─
+var/
+*.db
+*.db-journal
+*.db-wal
+*.db-shm
+*.sqlite
+*.sqlite3
+evals/reports/
+.langgraph_api/
+
+# ── Local-only brief and design docs (not part of the deliverable) ─
+docs/
+HANDOFF.md
+
+# ── IDE / OS ──────────────────────────────────────────────────────
+.idea/
+.vscode/
+*.swp
+.DS_Store
+
+# ── AI-agent & design-tooling state (not part of the deliverable) ─
+.claude/
+.impeccable/
+.superpowers/
+.agents/
+.agent/
+.cursor/
+.windsurf/
+.codex/
+.gemini/
+.opencode/
+.aider*
+.mcp.json
+.superdesign/
+.playwright-mcp/
+.claude-plugin/
+/.skills/
+/skills/
+skills-lock.json
+CLAUDE.md
+AGENTS.md
+GEMINI.md
+# design-skill outputs (impeccable and similar)
+PRODUCT.md
+DESIGN.md
+DESIGN.json
