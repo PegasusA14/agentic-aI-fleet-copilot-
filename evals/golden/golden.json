@@ -1,0 +1,527 @@
+{
+  "meta": {
+    "as_of": "2026-06-12T11:00:00Z",
+    "dataset_sha256": "fb0ee31ffeeb731b919fc4d5124098c9c5b68cf3fba35eed5092a9f73655c4de",
+    "policy": {
+      "low_disk_free_pct_below": 10,
+      "memory_used_pct_at_least": [
+        85,
+        90
+      ],
+      "stale_hours": 48,
+      "windows_days": [
+        7,
+        30
+      ]
+    }
+  },
+  "tenants": {
+    "acme-001": {
+      "battery_30": {
+        "missing_latest": [
+          "MT7PJB7N5LRE"
+        ],
+        "no_reading": [],
+        "notable": {
+          "7VP16KHV88LM": {
+            "capacity_change_pct": -4.185833,
+            "service_streak": 14
+          },
+          "8NM23J95R5I6": {
+            "capacity_change_pct": -4.229533,
+            "service_streak": 21
+          },
+          "M4XVHUV1MEPZ": {
+            "capacity_change_pct": -4.227833,
+            "service_streak": 20
+          }
+        }
+      },
+      "compliance_trend": {
+        "os_up_to_date": {
+          "30": {
+            "1LYSSFD074BB": {
+              "change_at": null,
+              "kind": "persistent_failure"
+            },
+            "7VP16KHV88LM": {
+              "change_at": null,
+              "kind": "persistent_failure"
+            },
+            "8NM23J95R5I6": {
+              "change_at": null,
+              "kind": "persistent_failure"
+            },
+            "9MXJVZ1I0DKA": {
+              "change_at": null,
+              "kind": "persistent_failure"
+            },
+            "DSYPSES7SKBB": {
+              "change_at": null,
+              "kind": "persistent_failure"
+            },
+            "M4XVHUV1MEPZ": {
+              "change_at": null,
+              "kind": "persistent_failure"
+            },
+            "MT7PJB7N5LRE": {
+              "change_at": null,
+              "kind": "persistent_failure"
+            },
+            "Q3VUITEGQ400": {
+              "change_at": null,
+              "kind": "persistent_failure"
+            },
+            "XSU9UUDGU6AC": {
+              "change_at": null,
+              "kind": "persistent_failure"
+            }
+          }
+        },
+        "screen_lock": {
+          "30": {
+            "1LYSSFD074BB": {
+              "change_at": "2026-05-22T09:41:00Z",
+              "kind": "transition"
+            },
+            "8NM23J95R5I6": {
+              "change_at": "2026-05-30T08:38:00Z",
+              "kind": "transition"
+            },
+            "DLT35MHGTH2D": {
+              "change_at": "2026-06-01T10:14:00Z",
+              "kind": "transition"
+            },
+            "DSYPSES7SKBB": {
+              "change_at": "2026-06-01T10:20:00Z",
+              "kind": "transition"
+            },
+            "MT7PJB7N5LRE": {
+              "change_at": "2026-05-28T09:32:00Z",
+              "kind": "transition"
+            }
+          }
+        }
+      },
+      "devices": [
+        "1LYSSFD074BB",
+        "7VP16KHV88LM",
+        "8NM23J95R5I6",
+        "9MXJVZ1I0DKA",
+        "DLT35MHGTH2D",
+        "DSYPSES7SKBB",
+        "M4XVHUV1MEPZ",
+        "MT7PJB7N5LRE",
+        "Q3VUITEGQ400",
+        "XSU9UUDGU6AC"
+      ],
+      "disk_trend_lt10": {
+        "30": {
+          "8NM23J95R5I6": "onset",
+          "MT7PJB7N5LRE": "sustained"
+        },
+        "7": {
+          "8NM23J95R5I6": "sustained",
+          "MT7PJB7N5LRE": "sustained"
+        }
+      },
+      "failing_high_severity": {
+        "all": [],
+        "laptop": []
+      },
+      "failing_latest": {
+        "all": {
+          "disk_encryption": [],
+          "os_up_to_date": [
+            "1LYSSFD074BB",
+            "7VP16KHV88LM",
+            "8NM23J95R5I6",
+            "9MXJVZ1I0DKA",
+            "DSYPSES7SKBB",
+            "M4XVHUV1MEPZ",
+            "MT7PJB7N5LRE",
+            "Q3VUITEGQ400",
+            "XSU9UUDGU6AC"
+          ],
+          "screen_lock": [
+            "1LYSSFD074BB",
+            "8NM23J95R5I6",
+            "DLT35MHGTH2D",
+            "DSYPSES7SKBB",
+            "MT7PJB7N5LRE"
+          ]
+        },
+        "laptop": {
+          "disk_encryption": [],
+          "os_up_to_date": [
+            "1LYSSFD074BB",
+            "7VP16KHV88LM",
+            "8NM23J95R5I6",
+            "9MXJVZ1I0DKA",
+            "DSYPSES7SKBB",
+            "M4XVHUV1MEPZ",
+            "MT7PJB7N5LRE",
+            "Q3VUITEGQ400",
+            "XSU9UUDGU6AC"
+          ],
+          "screen_lock": [
+            "1LYSSFD074BB",
+            "8NM23J95R5I6",
+            "DSYPSES7SKBB",
+            "MT7PJB7N5LRE"
+          ]
+        }
+      },
+      "laptops": [
+        "1LYSSFD074BB",
+        "7VP16KHV88LM",
+        "8NM23J95R5I6",
+        "9MXJVZ1I0DKA",
+        "DSYPSES7SKBB",
+        "M4XVHUV1MEPZ",
+        "MT7PJB7N5LRE",
+        "Q3VUITEGQ400",
+        "XSU9UUDGU6AC"
+      ],
+      "low_disk_lt10": {
+        "devices": [
+          "8NM23J95R5I6",
+          "MT7PJB7N5LRE"
+        ],
+        "population": 10
+      },
+      "macos_below_15": {
+        "devices": [
+          "1LYSSFD074BB",
+          "7VP16KHV88LM",
+          "MT7PJB7N5LRE",
+          "XSU9UUDGU6AC"
+        ],
+        "out_of_scope": [
+          "8NM23J95R5I6",
+          "9MXJVZ1I0DKA",
+          "M4XVHUV1MEPZ"
+        ],
+        "population": 7,
+        "unknown_version": []
+      },
+      "memory_trend": {
+        "85": {
+          "30": {
+            "M4XVHUV1MEPZ": "sustained"
+          },
+          "7": {
+            "M4XVHUV1MEPZ": "sustained"
+          }
+        },
+        "90": {
+          "30": {
+            "M4XVHUV1MEPZ": "sustained"
+          },
+          "7": {
+            "M4XVHUV1MEPZ": "sustained"
+          }
+        }
+      }
+    },
+    "globex-002": {
+      "battery_30": {
+        "missing_latest": [],
+        "no_reading": [],
+        "notable": {}
+      },
+      "compliance_trend": {
+        "os_up_to_date": {
+          "30": {
+            "4SEFDLPTKXAM": {
+              "change_at": null,
+              "kind": "persistent_failure"
+            },
+            "CUXW0BQSV1B7": {
+              "change_at": null,
+              "kind": "persistent_failure"
+            },
+            "Q1AFVLH3YV33": {
+              "change_at": null,
+              "kind": "persistent_failure"
+            },
+            "QPZSXKINA7GP": {
+              "change_at": null,
+              "kind": "persistent_failure"
+            }
+          }
+        },
+        "screen_lock": {
+          "30": {
+            "CUXW0BQSV1B7": {
+              "change_at": "2026-06-05T09:11:00Z",
+              "kind": "transition"
+            },
+            "JRZSGXVMKE6M": {
+              "change_at": "2026-05-30T11:27:00Z",
+              "kind": "transition"
+            }
+          }
+        }
+      },
+      "devices": [
+        "4SEFDLPTKXAM",
+        "CUXW0BQSV1B7",
+        "DXUCJ272DCYX",
+        "E4V0SB5I0MYU",
+        "IZ6K51CBZR8F",
+        "JRZSGXVMKE6M",
+        "Q1AFVLH3YV33",
+        "QPZSXKINA7GP"
+      ],
+      "disk_trend_lt10": {
+        "30": {
+          "E4V0SB5I0MYU": "onset",
+          "JRZSGXVMKE6M": "onset"
+        },
+        "7": {
+          "E4V0SB5I0MYU": "sustained",
+          "JRZSGXVMKE6M": "sustained"
+        }
+      },
+      "failing_high_severity": {
+        "all": [],
+        "laptop": []
+      },
+      "failing_latest": {
+        "all": {
+          "disk_encryption": [],
+          "os_up_to_date": [
+            "4SEFDLPTKXAM",
+            "CUXW0BQSV1B7",
+            "Q1AFVLH3YV33",
+            "QPZSXKINA7GP"
+          ],
+          "screen_lock": [
+            "CUXW0BQSV1B7",
+            "JRZSGXVMKE6M"
+          ]
+        },
+        "laptop": {
+          "disk_encryption": [],
+          "os_up_to_date": [
+            "4SEFDLPTKXAM",
+            "CUXW0BQSV1B7",
+            "Q1AFVLH3YV33",
+            "QPZSXKINA7GP"
+          ],
+          "screen_lock": [
+            "CUXW0BQSV1B7",
+            "JRZSGXVMKE6M"
+          ]
+        }
+      },
+      "laptops": [
+        "4SEFDLPTKXAM",
+        "CUXW0BQSV1B7",
+        "DXUCJ272DCYX",
+        "E4V0SB5I0MYU",
+        "IZ6K51CBZR8F",
+        "JRZSGXVMKE6M",
+        "Q1AFVLH3YV33",
+        "QPZSXKINA7GP"
+      ],
+      "low_disk_lt10": {
+        "devices": [
+          "E4V0SB5I0MYU",
+          "JRZSGXVMKE6M"
+        ],
+        "population": 8
+      },
+      "macos_below_15": {
+        "devices": [
+          "4SEFDLPTKXAM",
+          "QPZSXKINA7GP"
+        ],
+        "out_of_scope": [
+          "CUXW0BQSV1B7",
+          "E4V0SB5I0MYU",
+          "JRZSGXVMKE6M"
+        ],
+        "population": 5,
+        "unknown_version": []
+      },
+      "memory_trend": {
+        "85": {
+          "30": {
+            "CUXW0BQSV1B7": "intermittent",
+            "JRZSGXVMKE6M": "intermittent"
+          },
+          "7": {
+            "CUXW0BQSV1B7": "intermittent",
+            "JRZSGXVMKE6M": "sustained"
+          }
+        },
+        "90": {
+          "30": {
+            "CUXW0BQSV1B7": "isolated",
+            "JRZSGXVMKE6M": "intermittent"
+          },
+          "7": {
+            "CUXW0BQSV1B7": "isolated",
+            "JRZSGXVMKE6M": "intermittent"
+          }
+        }
+      }
+    },
+    "initech-003": {
+      "battery_30": {
+        "missing_latest": [],
+        "no_reading": [],
+        "notable": {}
+      },
+      "compliance_trend": {
+        "os_up_to_date": {
+          "30": {
+            "DARFCP0BQM2G": {
+              "change_at": null,
+              "kind": "persistent_failure"
+            },
+            "I3JLKILKQTAC": {
+              "change_at": null,
+              "kind": "persistent_failure"
+            },
+            "RLD7WV7J82SH": {
+              "change_at": null,
+              "kind": "persistent_failure"
+            },
+            "SPKRRDF0L786": {
+              "change_at": null,
+              "kind": "persistent_failure"
+            },
+            "W2656QDAE2ZJ": {
+              "change_at": null,
+              "kind": "persistent_failure"
+            },
+            "XZYK11QTPWEC": {
+              "change_at": null,
+              "kind": "persistent_failure"
+            }
+          }
+        },
+        "screen_lock": {
+          "30": {
+            "2MAN6T4DJD95": {
+              "change_at": "2026-06-05T10:47:00Z",
+              "kind": "transition"
+            },
+            "SPKRRDF0L786": {
+              "change_at": "2026-05-26T09:13:00Z",
+              "kind": "transition"
+            },
+            "XZYK11QTPWEC": {
+              "change_at": "2026-06-01T11:11:00Z",
+              "kind": "transition"
+            }
+          }
+        }
+      },
+      "devices": [
+        "2MAN6T4DJD95",
+        "DARFCP0BQM2G",
+        "I3JLKILKQTAC",
+        "RLD7WV7J82SH",
+        "SPKRRDF0L786",
+        "W2656QDAE2ZJ",
+        "XZYK11QTPWEC"
+      ],
+      "disk_trend_lt10": {
+        "30": {
+          "DARFCP0BQM2G": "onset",
+          "RLD7WV7J82SH": "sustained"
+        },
+        "7": {
+          "DARFCP0BQM2G": "sustained",
+          "RLD7WV7J82SH": "sustained"
+        }
+      },
+      "failing_high_severity": {
+        "all": [],
+        "laptop": []
+      },
+      "failing_latest": {
+        "all": {
+          "disk_encryption": [],
+          "os_up_to_date": [
+            "DARFCP0BQM2G",
+            "I3JLKILKQTAC",
+            "RLD7WV7J82SH",
+            "SPKRRDF0L786",
+            "W2656QDAE2ZJ",
+            "XZYK11QTPWEC"
+          ],
+          "screen_lock": [
+            "2MAN6T4DJD95",
+            "SPKRRDF0L786",
+            "XZYK11QTPWEC"
+          ]
+        },
+        "laptop": {
+          "disk_encryption": [],
+          "os_up_to_date": [
+            "DARFCP0BQM2G",
+            "SPKRRDF0L786",
+            "W2656QDAE2ZJ",
+            "XZYK11QTPWEC"
+          ],
+          "screen_lock": [
+            "2MAN6T4DJD95",
+            "SPKRRDF0L786",
+            "XZYK11QTPWEC"
+          ]
+        }
+      },
+      "laptops": [
+        "2MAN6T4DJD95",
+        "DARFCP0BQM2G",
+        "SPKRRDF0L786",
+        "W2656QDAE2ZJ",
+        "XZYK11QTPWEC"
+      ],
+      "low_disk_lt10": {
+        "devices": [
+          "DARFCP0BQM2G",
+          "RLD7WV7J82SH"
+        ],
+        "population": 7
+      },
+      "macos_below_15": {
+        "devices": [
+          "DARFCP0BQM2G",
+          "RLD7WV7J82SH",
+          "SPKRRDF0L786",
+          "XZYK11QTPWEC"
+        ],
+        "out_of_scope": [
+          "2MAN6T4DJD95",
+          "W2656QDAE2ZJ"
+        ],
+        "population": 5,
+        "unknown_version": []
+      },
+      "memory_trend": {
+        "85": {
+          "30": {
+            "I3JLKILKQTAC": "sustained"
+          },
+          "7": {
+            "I3JLKILKQTAC": "sustained"
+          }
+        },
+        "90": {
+          "30": {
+            "I3JLKILKQTAC": "intermittent"
+          },
+          "7": {
+            "I3JLKILKQTAC": "intermittent"
+          }
+        }
+      }
+    }
+  }
+}
