@@ -194,9 +194,12 @@ class FleetRepository:
         ids = [r["snapshot_id"] for r in rows]
         marks = ",".join("?" for _ in ids)
         checks: dict[int, dict[str, ComplianceCheck]] = {i: {} for i in ids}
+        # `compliance` has no company column, so it is tenant-filtered through its snapshot
         for c in self._conn.execute(
-            f"SELECT snapshot_id, check_id, status, severity FROM compliance WHERE snapshot_id IN ({marks})",
-            ids,
+            "SELECT c.snapshot_id, c.check_id, c.status, c.severity "
+            "FROM compliance c JOIN snapshots s ON s.snapshot_id = c.snapshot_id "
+            f"WHERE s.company_id = ? AND c.snapshot_id IN ({marks})",
+            [self._ctx.company_id, *ids],
         ):
             checks[c["snapshot_id"]][c["check_id"]] = ComplianceCheck(c["status"], c["severity"])
         out = []
