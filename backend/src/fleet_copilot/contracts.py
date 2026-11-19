@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
+
+from fleet_copilot.evidence import EvidenceRef
 
 OutcomeType = Literal[
     "answer",
@@ -39,7 +40,7 @@ class Claim(_Model):
 
 class ScopeInfo(_Model):
     company_id: str
-    as_of: datetime
+    as_of: AwareDatetime
     rule: str | None = None
     population: int | None = None
     calculation: str | None = None
@@ -92,6 +93,16 @@ class AnswerEnvelope(_Model):
             raise ValueError(f"{self.outcome} outcome must not carry claims or evidence")
         if self.outcome == "answer" and not self.claims:
             raise ValueError("answer outcome requires at least one claim")
+        for item in self.evidence:
+            self._check_ref(item.ref)
+        if len({item.ref for item in self.evidence}) != len(self.evidence):
+            raise ValueError("duplicate evidence refs")
+        for claim in self.claims:
+            for ref in claim.refs:
+                self._check_ref(ref)
+        if self.proposal is not None:
+            for ref in self.proposal.evidence_refs:
+                self._check_ref(ref)
         known = {item.ref for item in self.evidence}
         for claim in self.claims:
             missing = [r for r in claim.refs if r not in known]
@@ -104,6 +115,15 @@ class AnswerEnvelope(_Model):
             if missing:
                 raise ValueError(f"proposal cites refs without evidence: {missing}")
         return self
+
+    def _check_ref(self, ref: str) -> None:
+        """A reference must follow the evidence grammar and point into this envelope's own tenant."""
+        try:
+            parsed = EvidenceRef.parse(ref)
+        except ValueError:
+            raise ValueError(f"evidence ref {ref!r} is malformed") from None
+        if parsed.company_id != self.scope.company_id:
+            raise ValueError(f"evidence ref {ref!r} belongs to another company")
 
 
 class TraceEvent(_Model):

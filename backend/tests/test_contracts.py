@@ -1,5 +1,6 @@
 import json
-from datetime import UTC, datetime
+import re
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 from pydantic import ValidationError
@@ -23,6 +24,7 @@ SCOPE = ScopeInfo(
     population=10,
 )
 REF = "acme-001/MT7PJB7N5LRE@2026-06-12T08:39:00Z#disk"
+FOREIGN_REF = "globex-002/MT7PJB7N5LRE@2026-06-12T08:39:00Z#disk"
 
 
 def envelope(**overrides):
@@ -150,6 +152,86 @@ def test_unknown_fields_and_outcomes_are_rejected():
         envelope(surprise="x")
     with pytest.raises(ValidationError, match="Input should be"):
         envelope(outcome="maybe")
+
+
+def evidence_only(*refs):
+    """An envelope that carries only evidence, so the evidence rules are the ones that can fire."""
+    return envelope(
+        outcome="no_match",
+        claims=[],
+        evidence=[EvidenceItem(ref=r, label="disk", value="v") for r in refs],
+    )
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [
+        "not-a-ref",
+        "",
+        "acme-001/MT7PJB7N5LRE@2026-06-12#disk",  # timestamp is not a full UTC instant
+        "acme-001/MT7PJB7N5LRE@2026-06-12T08:39:00Z",  # no path
+        "acme-001@2026-06-12T08:39:00Z#disk",  # no device
+    ],
+)
+def test_a_malformed_evidence_ref_is_rejected(bad):
+    with pytest.raises(ValidationError, match=re.escape(f"evidence ref {bad!r} is malformed")):
+        evidence_only(bad)
+
+
+def test_an_evidence_ref_from_another_company_is_rejected():
+    with pytest.raises(
+        ValidationError, match=re.escape(f"evidence ref {FOREIGN_REF!r} belongs to another company")
+    ):
+        evidence_only(REF, FOREIGN_REF)
+
+
+def test_a_claim_citing_another_companys_ref_is_rejected():
+    foreign_claim = [Claim(text="x", refs=[FOREIGN_REF])]
+    # listed as evidence too, so the only thing wrong with it is the tenant
+    both = [EvidenceItem(ref=r, label="disk", value="v") for r in (REF, FOREIGN_REF)]
+    with pytest.raises(ValidationError, match="belongs to another company"):
+        envelope(claims=foreign_claim, evidence=both)
+    # not listed as evidence: the claim itself is what is refused, not just the missing evidence
+    with pytest.raises(ValidationError, match="belongs to another company"):
+        envelope(claims=foreign_claim)
+
+
+def test_a_malformed_claim_ref_is_rejected_before_the_missing_evidence_rule():
+    with pytest.raises(ValidationError, match=re.escape("evidence ref 'junk' is malformed")):
+        envelope(claims=[Claim(text="x", refs=["junk"])])
+
+
+def test_a_proposal_citing_another_companys_ref_is_rejected():
+    both = [EvidenceItem(ref=r, label="disk", value="v") for r in (REF, FOREIGN_REF)]
+    foreign_card = card(evidence_refs=[FOREIGN_REF])
+    with pytest.raises(ValidationError, match="belongs to another company"):
+        envelope(outcome="proposal", claims=[], evidence=both, proposal=foreign_card)
+    # not listed as evidence: the proposal's own ref is what is refused
+    with pytest.raises(ValidationError, match="belongs to another company"):
+        envelope(outcome="proposal", claims=[], proposal=foreign_card)
+
+
+def test_a_malformed_proposal_ref_is_rejected():
+    with pytest.raises(ValidationError, match=re.escape("evidence ref 'junk' is malformed")):
+        envelope(outcome="proposal", claims=[], proposal=card(evidence_refs=["junk"]))
+
+
+def test_duplicate_evidence_refs_are_rejected():
+    with pytest.raises(ValidationError, match="duplicate evidence refs"):
+        evidence_only(REF, REF)
+    other = "acme-001/MT7PJB7N5LRE@2026-06-11T08:39:00Z#disk"
+    assert len(evidence_only(REF, other).evidence) == 2
+
+
+def test_scope_as_of_must_carry_a_time_zone():
+    naive = datetime(2026, 6, 12, 11, 0)
+    with pytest.raises(ValidationError, match="timezone"):
+        ScopeInfo(company_id="acme-001", as_of=naive)
+    with pytest.raises(ValidationError, match="timezone"):
+        ScopeInfo.model_validate({"company_id": "acme-001", "as_of": "2026-06-12T11:00:00"})
+    plus_two = timezone(timedelta(hours=2))
+    assert ScopeInfo(company_id="acme-001", as_of=naive.replace(tzinfo=plus_two)).as_of.utcoffset()
+    assert ScopeInfo.model_validate({"company_id": "a", "as_of": "2026-06-12T11:00:00Z"}).as_of.tzinfo
 
 
 def test_trace_event_kinds_are_closed():
