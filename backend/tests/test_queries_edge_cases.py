@@ -98,3 +98,82 @@ def test_compliance_transition_cites_the_last_pass_the_first_fail_and_the_latest
         "acme-001/A@2026-06-11T09:00:00Z#compliance[screen_lock]",
         "acme-001/A@2026-06-12T09:00:00Z#compliance[screen_lock]",
     )
+
+
+def battery(condition="Normal", capacity=5000, cycles=100):
+    return {
+        "battery_present": True,
+        "condition": condition,
+        "cycle_count": cycles,
+        "full_charge_capacity": capacity,
+        "percentage": 80,
+    }
+
+
+def day(n, hour=9):
+    return f"2026-06-{n:02d}T{hour:02d}:00:00Z"
+
+
+def test_battery_service_streak_start_is_cited():
+    conditions = ["Normal", "Normal", "Service Recommended", "Service Recommended", "Service Recommended"]
+    rows = [make_row("L", ts=day(8 + i), battery=battery(c)) for i, c in enumerate(conditions)]
+    finding = q.battery_overview(repo_for(rows), AS_OF, 30).findings[0]
+    assert finding.values["service_streak"] == 3
+    assert finding.values["first_service_at"] == day(10)
+    assert "acme-001/L@2026-06-10T09:00:00Z#battery" in finding.refs
+    assert len(finding.refs) == len(set(finding.refs))
+
+
+def test_battery_capacity_baseline_and_latest_are_cited_when_early_readings_lack_capacity():
+    rows = [
+        make_row("L", ts=day(10), battery=battery(capacity=None)),
+        make_row("L", ts=day(11), battery=battery(capacity=5000)),
+        make_row("L", ts=day(12), battery=battery(capacity=4000)),
+    ]
+    finding = q.battery_overview(repo_for(rows), AS_OF, 30).findings[0]
+    assert finding.values["capacity_change_pct"] == -20.0
+    assert "acme-001/L@2026-06-11T09:00:00Z#battery" in finding.refs  # the 5000 baseline
+    assert "acme-001/L@2026-06-12T09:00:00Z#battery" in finding.refs  # the 4000 reading
+    assert "acme-001/L@2026-06-10T09:00:00Z#battery" not in finding.refs  # reported no capacity
+
+
+def test_single_service_reading_yields_no_duplicate_refs():
+    rows = [make_row("L", ts=day(12), battery=battery("Service Recommended"))]
+    finding = q.battery_overview(repo_for(rows), AS_OF, 30).findings[0]
+    assert finding.refs == ("acme-001/L@2026-06-12T09:00:00Z#battery",)
+    assert len(finding.refs) == len(set(finding.refs))
+
+
+def test_latest_value_is_cited_even_when_the_latest_snapshot_is_not_in_breach():
+    rows = [make_row("A", ts=day(d)) for d in (8, 9, 10, 11)]
+    rows.append(make_row("A", ts=day(12), memory={"total_memory_bytes": 100, "used_memory_bytes": 10}))
+    finding = q.memory_trend(repo_for(rows), AS_OF, 7, threshold_pct=40.0).findings[0]
+    assert finding.values["trend"] == "recovering"
+    assert finding.values["latest_value"] == 10.0
+    assert finding.refs[-1] == "acme-001/A@2026-06-12T09:00:00Z#memory"
+    assert len(finding.refs) == 5
+    assert len(finding.refs) == len(set(finding.refs))
+
+
+def test_disk_trend_cites_disk_snapshots():
+    rows = [make_row("A", ts=day(d)) for d in (8, 9, 10, 11, 12)]  # default disk is 50% free
+    finding = q.disk_trend(repo_for(rows), AS_OF, 7, threshold_pct=60.0).findings[0]
+    assert finding.values["trend"] == "sustained"
+    assert len(finding.refs) == 5
+    assert all(ref.endswith("#disk") for ref in finding.refs)
+
+
+def test_trend_queries_disclose_staleness():
+    old = [make_row("OLD", ts=day(d)) for d in (1, 2, 3, 4, 5)]
+    old[2:] = [with_status(r, "screen_lock", "fail") for r in old[2:]]
+    fresh = [make_row("FRESH", ts=day(d)) for d in (8, 9, 10, 11, 12)]
+    repo = repo_for(old + fresh)
+    memory = q.memory_trend(repo, AS_OF, window_days=30, threshold_pct=40.0)
+    assert [f.device_id for f in memory.findings] == ["FRESH", "OLD"]
+    assert memory.stale == ("OLD",)
+    disk = q.disk_trend(repo, AS_OF, window_days=30, threshold_pct=60.0)
+    assert disk.stale == ("OLD",)
+    compliance = q.compliance_trend(repo, AS_OF, check_id="screen_lock", window_days=30)
+    assert [f.device_id for f in compliance.findings] == ["OLD"]
+    assert compliance.findings[0].values["kind"] == "transition"
+    assert compliance.stale == ("OLD",)

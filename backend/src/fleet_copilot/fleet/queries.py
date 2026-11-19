@@ -155,9 +155,11 @@ def _breach_trend(
 ) -> QueryResult:
     since = window_start(as_of, window_days)
     devices = repo.list_devices()
-    findings, insufficient = [], []
+    findings, insufficient, stale = [], [], []
     for device in devices:
         snaps = repo.snapshots(device.device_id, since=since)
+        if snaps and is_stale(snaps[-1].collected_at, as_of):
+            stale.append(device.device_id)
         flags = [breached(s) for s in snaps]
         trend = classify_breach_trend(flags)
         if trend == "insufficient":
@@ -173,12 +175,20 @@ def _breach_trend(
                         "latest_value": value(snaps[-1]),
                         "window_days": window_days,
                     },
-                    tuple(str(s.ref(path)) for s, flag in zip(snaps, flags, strict=True) if flag),
+                    # every breached snapshot, plus the latest one so `latest_value` is always cited
+                    tuple(
+                        dict.fromkeys(
+                            [str(s.ref(path)) for s, flag in zip(snaps, flags, strict=True) if flag]
+                            + [str(snaps[-1].ref(path))]
+                        )
+                    ),
                 )
             )
     findings.sort(key=lambda f: f.device_id)
     excluded = {"insufficient_history": tuple(sorted(insufficient))} if insufficient else {}
-    return QueryResult(tuple(findings), len(devices), as_of, rule, excluded=excluded)
+    return QueryResult(
+        tuple(findings), len(devices), as_of, rule, excluded=excluded, stale=tuple(sorted(stale))
+    )
 
 
 def memory_trend(
@@ -212,9 +222,11 @@ def compliance_trend(
 ) -> QueryResult:
     since = window_start(as_of, window_days)
     devices = repo.list_devices()
-    findings, insufficient = [], []
+    findings, insufficient, stale = [], [], []
     for device in devices:
         snaps = [s for s in repo.snapshots(device.device_id, since=since) if check_id in s.compliance]
+        if snaps and is_stale(snaps[-1].collected_at, as_of):
+            stale.append(device.device_id)
         trend = classify_compliance([s.compliance[check_id].status for s in snaps])
         if trend.kind == "insufficient":
             insufficient.append(device.device_id)
@@ -239,7 +251,7 @@ def compliance_trend(
     excluded = {"insufficient_history": tuple(sorted(insufficient))} if insufficient else {}
     return QueryResult(
         tuple(findings), len(devices), as_of,
-        f"{check_id} over the last {window_days} days", excluded=excluded,
+        f"{check_id} over the last {window_days} days", excluded=excluded, stale=tuple(sorted(stale)),
     )
 
 
@@ -268,6 +280,13 @@ def battery_overview(repo: FleetRepository, as_of: datetime, window_days: int = 
         )
         declining = signals.capacity_change_pct is not None and signals.capacity_change_pct < -1.0
         if declining or signals.service_streak > 0:
+            # cite what each value rests on: the two readings the capacity change was measured between,
+            # the latest reading (cycles, condition) and the snapshot where the service streak began
+            with_capacity = [s for s in snaps if s.battery.full_charge_capacity is not None]
+            cited = [with_capacity[0], with_capacity[-1]] if with_capacity else []
+            cited.append(snaps[-1])
+            if signals.service_streak > 0:
+                cited.append(snaps[len(snaps) - signals.service_streak])
             findings.append(
                 Finding(
                     device.device_id, device.hostname,
@@ -280,7 +299,7 @@ def battery_overview(repo: FleetRepository, as_of: datetime, window_days: int = 
                         "readings": signals.readings,
                         "latest_reading_at": iso_z(snaps[-1].collected_at),
                     },
-                    (str(snaps[0].ref("battery")), str(snaps[-1].ref("battery"))),
+                    tuple(dict.fromkeys(str(s.ref("battery")) for s in cited)),
                 )
             )
     findings.sort(key=lambda f: f.device_id)
