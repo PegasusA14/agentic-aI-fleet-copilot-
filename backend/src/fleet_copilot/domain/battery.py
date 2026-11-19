@@ -22,7 +22,9 @@ class BatterySignals:
     readings: int
     # change between the first and last readings that report a capacity (readings without one are skipped)
     capacity_change_pct: float | None
-    cycles_latest: int | None  # taken from the strictly latest reading, even if that reading has no capacity
+    cycles_latest: (
+        int | None
+    )  # taken from the strictly latest reading, even if that reading has no capacity
     latest_condition: str | None
     service_streak: int  # consecutive latest readings with the vendor 'Service Recommended' flag
     first_service_at: datetime | None  # start of that streak

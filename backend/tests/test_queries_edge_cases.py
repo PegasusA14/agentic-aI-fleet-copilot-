@@ -19,8 +19,12 @@ def with_status(row, check_id, status):
 
 
 def test_unknown_and_non_macos_versions_are_reported_separately():
-    windows = make_row("W", os={"product_name": "Windows", "product_version": "10 22H2", "hostname": "w"})
-    unknown = make_row("U", os={"product_name": "macOS", "product_version": "Sonoma", "hostname": "u"})
+    windows = make_row(
+        "W", os={"product_name": "Windows", "product_version": "10 22H2", "hostname": "w"}
+    )
+    unknown = make_row(
+        "U", os={"product_name": "macOS", "product_version": "Sonoma", "hostname": "u"}
+    )
     result = q.macos_below(repo_for([make_row("A"), unknown, windows]), AS_OF, "15")
     assert [f.device_id for f in result.findings] == ["A"]
     assert result.excluded == {"out_of_scope": ("W",), "unknown_version": ("U",)}
@@ -64,13 +68,18 @@ def test_battery_missing_in_the_latest_snapshot_is_disclosed():
 
 
 def test_laptop_with_no_battery_readings_in_the_window_is_excluded():
-    rows = [make_row("L", ts="2026-04-01T09:00:00Z"), make_row("L", ts="2026-06-12T09:00:00Z", battery=None)]
+    rows = [
+        make_row("L", ts="2026-04-01T09:00:00Z"),
+        make_row("L", ts="2026-06-12T09:00:00Z", battery=None),
+    ]
     result = q.battery_overview(repo_for(rows), AS_OF, 7)
     assert result.excluded["no_reading"] == ("L",)
 
 
 def test_sparse_history_is_insufficient_not_a_trend():
-    result = q.memory_trend(repo_for([make_row("A"), make_row("B", ts="2026-06-11T09:00:00Z")]), AS_OF, 7, 1.0)
+    result = q.memory_trend(
+        repo_for([make_row("A"), make_row("B", ts="2026-06-11T09:00:00Z")]), AS_OF, 7, 1.0
+    )
     assert result.findings == ()
     assert result.excluded["insufficient_history"] == ("A", "B")
 
@@ -90,7 +99,9 @@ def test_compliance_transition_cites_the_last_pass_the_first_fail_and_the_latest
         with_status(make_row("A", ts="2026-06-11T09:00:00Z"), "screen_lock", "fail"),
         with_status(make_row("A", ts="2026-06-12T09:00:00Z"), "screen_lock", "fail"),
     ]
-    finding = q.compliance_trend(repo_for(rows), AS_OF, check_id="screen_lock", window_days=7).findings[0]
+    finding = q.compliance_trend(
+        repo_for(rows), AS_OF, check_id="screen_lock", window_days=7
+    ).findings[0]
     assert finding.values["kind"] == "transition"
     assert finding.values["change_at"] == "2026-06-11T09:00:00Z"
     assert finding.refs == (
@@ -115,7 +126,13 @@ def day(n, hour=9):
 
 
 def test_battery_service_streak_start_is_cited():
-    conditions = ["Normal", "Normal", "Service Recommended", "Service Recommended", "Service Recommended"]
+    conditions = [
+        "Normal",
+        "Normal",
+        "Service Recommended",
+        "Service Recommended",
+        "Service Recommended",
+    ]
     rows = [make_row("L", ts=day(8 + i), battery=battery(c)) for i, c in enumerate(conditions)]
     finding = q.battery_overview(repo_for(rows), AS_OF, 30).findings[0]
     assert finding.values["service_streak"] == 3
@@ -146,7 +163,9 @@ def test_single_service_reading_yields_no_duplicate_refs():
 
 def test_latest_value_is_cited_even_when_the_latest_snapshot_is_not_in_breach():
     rows = [make_row("A", ts=day(d)) for d in (8, 9, 10, 11)]
-    rows.append(make_row("A", ts=day(12), memory={"total_memory_bytes": 100, "used_memory_bytes": 10}))
+    rows.append(
+        make_row("A", ts=day(12), memory={"total_memory_bytes": 100, "used_memory_bytes": 10})
+    )
     finding = q.memory_trend(repo_for(rows), AS_OF, 7, threshold_pct=40.0).findings[0]
     assert finding.values["trend"] == "recovering"
     assert finding.values["latest_value"] == 10.0

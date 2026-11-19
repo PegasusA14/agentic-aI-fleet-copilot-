@@ -24,7 +24,9 @@ def main(argv: list[str] | None = None) -> int:
     )
     print(f"Quarantined rows: {len(report.quarantined)}")
     print(f"Dataset sha256 {report.sha256}")
-    print(f"Data spans {report.min_collected_at} to {report.max_collected_at}; as of {report.max_collected_at}")
+    print(
+        f"Data spans {report.min_collected_at} to {report.max_collected_at}; as of {report.max_collected_at}"
+    )
     return 0
 
 

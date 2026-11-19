@@ -94,8 +94,13 @@ def dataset_as_of(conn: sqlite3.Connection) -> datetime:
 
 def _device(row: sqlite3.Row) -> Device:
     return Device(
-        row["company_id"], row["device_id"], row["employee_id"], row["hostname"],
-        row["os_name"], row["model_name"], row["form_factor"],
+        row["company_id"],
+        row["device_id"],
+        row["employee_id"],
+        row["hostname"],
+        row["os_name"],
+        row["model_name"],
+        row["form_factor"],
     )
 
 
@@ -209,16 +214,31 @@ class FleetRepository:
             battery = None
             if r["battery_present"] is not None:
                 battery = BatteryBlock(
-                    bool(r["battery_present"]), r["battery_condition"], r["battery_cycle_count"],
-                    r["battery_full_charge_capacity"], r["battery_percentage"],
+                    bool(r["battery_present"]),
+                    r["battery_condition"],
+                    r["battery_cycle_count"],
+                    r["battery_full_charge_capacity"],
+                    r["battery_percentage"],
                 )
             out.append(
                 Snapshot(
-                    r["snapshot_id"], r["company_id"], r["device_id"], r["employee_id"],
-                    parse_ts(r["collected_at"]), r["hostname"], r["os_name"], r["os_version"],
-                    r["model_name"], r["disk_mount"], r["disk_size_bytes"], r["disk_available_bytes"],
-                    bool(r["disk_encrypted"]), r["mem_total_bytes"], r["mem_used_bytes"],
-                    battery, checks[r["snapshot_id"]],
+                    r["snapshot_id"],
+                    r["company_id"],
+                    r["device_id"],
+                    r["employee_id"],
+                    parse_ts(r["collected_at"]),
+                    r["hostname"],
+                    r["os_name"],
+                    r["os_version"],
+                    r["model_name"],
+                    r["disk_mount"],
+                    r["disk_size_bytes"],
+                    r["disk_available_bytes"],
+                    bool(r["disk_encrypted"]),
+                    r["mem_total_bytes"],
+                    r["mem_used_bytes"],
+                    battery,
+                    checks[r["snapshot_id"]],
                 )
             )
         return out

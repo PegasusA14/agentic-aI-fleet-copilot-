@@ -83,7 +83,9 @@ def test_resolve_returns_the_cited_values(conn):
     "ref",
     [
         EvidenceRef("globex-002", "G1", "2026-06-12T10:00:00Z", "os"),  # foreign company
-        EvidenceRef("acme-001", "G1", "2026-06-12T10:00:00Z", "os"),  # forged company, foreign device
+        EvidenceRef(
+            "acme-001", "G1", "2026-06-12T10:00:00Z", "os"
+        ),  # forged company, foreign device
         EvidenceRef("acme-001", "A1", "2026-06-12T09:30:00Z", "os"),  # no such snapshot
         EvidenceRef("acme-001", "A1", "2026-06-12T09:00:00Z", "bogus"),  # unknown path
         EvidenceRef("acme-001", "A2", "2026-06-12T09:00:00Z", "battery"),  # block absent

@@ -231,7 +231,9 @@ def test_scope_as_of_must_carry_a_time_zone():
         ScopeInfo.model_validate({"company_id": "acme-001", "as_of": "2026-06-12T11:00:00"})
     plus_two = timezone(timedelta(hours=2))
     assert ScopeInfo(company_id="acme-001", as_of=naive.replace(tzinfo=plus_two)).as_of.utcoffset()
-    assert ScopeInfo.model_validate({"company_id": "a", "as_of": "2026-06-12T11:00:00Z"}).as_of.tzinfo
+    assert ScopeInfo.model_validate(
+        {"company_id": "a", "as_of": "2026-06-12T11:00:00Z"}
+    ).as_of.tzinfo
 
 
 def test_trace_event_kinds_are_closed():

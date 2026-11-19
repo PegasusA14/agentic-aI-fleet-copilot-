@@ -11,6 +11,7 @@ test:
 
 lint:
 	cd backend && uv run ruff check src tests
+	cd backend && uv run ruff format --check src tests
 
 golden:
 	python3 evals/golden/oracle.py

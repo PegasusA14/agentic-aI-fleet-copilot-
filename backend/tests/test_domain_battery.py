@@ -52,12 +52,20 @@ def test_cycles_latest_comes_from_the_strictly_latest_reading():
 
 
 def test_streak_resets_when_the_latest_reading_is_normal():
-    readings = [reading(1, "Service Recommended"), reading(2, "Service Recommended"), reading(3, "Normal")]
+    readings = [
+        reading(1, "Service Recommended"),
+        reading(2, "Service Recommended"),
+        reading(3, "Normal"),
+    ]
     assert battery_signals(readings).service_streak == 0
 
 
 def test_readings_are_ordered_before_analysis():
-    readings = [reading(3, "Service Recommended", 3900), reading(1, "Normal", 4000), reading(2, "Normal", 3950)]
+    readings = [
+        reading(3, "Service Recommended", 3900),
+        reading(1, "Normal", 4000),
+        reading(2, "Normal", 3950),
+    ]
     signals = battery_signals(readings)
     assert signals.capacity_change_pct == pytest.approx(-2.5)
     assert signals.service_streak == 1

@@ -54,7 +54,8 @@ def low_disk(repo: FleetRepository, as_of: datetime, threshold_pct: float = 10.0
         if pct < threshold_pct:
             findings.append(
                 Finding(
-                    device.device_id, device.hostname,
+                    device.device_id,
+                    device.hostname,
                     {
                         "free_pct": pct,
                         "size_bytes": snap.disk_size_bytes,
@@ -66,7 +67,9 @@ def low_disk(repo: FleetRepository, as_of: datetime, threshold_pct: float = 10.0
             )
     findings.sort(key=lambda f: (f.values["free_pct"], f.device_id))
     return QueryResult(
-        tuple(findings), len(pairs), as_of,
+        tuple(findings),
+        len(pairs),
+        as_of,
         f"primary volume free space < {threshold_pct:g}% at the latest snapshot",
         stale=_stale(pairs, as_of),
     )
@@ -86,7 +89,8 @@ def macos_below(repo: FleetRepository, as_of: datetime, target: str = "15") -> Q
         elif verdict == "older":
             findings.append(
                 Finding(
-                    device.device_id, device.hostname,
+                    device.device_id,
+                    device.hostname,
                     {"os_version": snap.os_version, "collected_at": iso_z(snap.collected_at)},
                     (str(snap.ref("os")),),
                 )
@@ -98,8 +102,12 @@ def macos_below(repo: FleetRepository, as_of: datetime, target: str = "15") -> Q
         excluded["unknown_version"] = tuple(sorted(unknown))
     findings.sort(key=lambda f: f.device_id)
     return QueryResult(
-        tuple(findings), in_scope, as_of, f"macOS devices with version < {target}",
-        excluded=excluded, stale=_stale(pairs, as_of),
+        tuple(findings),
+        in_scope,
+        as_of,
+        f"macOS devices with version < {target}",
+        excluded=excluded,
+        stale=_stale(pairs, as_of),
     )
 
 
@@ -111,7 +119,9 @@ def compliance_failures(
     severity: str | None = None,
     form_factor: str | None = None,
 ) -> QueryResult:
-    devices = [d for d in repo.list_devices() if form_factor is None or d.form_factor == form_factor]
+    devices = [
+        d for d in repo.list_devices() if form_factor is None or d.form_factor == form_factor
+    ]
     pairs = _latest_pairs(repo, devices)
     findings = []
     for device, snap in pairs:
@@ -125,9 +135,12 @@ def compliance_failures(
         if failing:
             findings.append(
                 Finding(
-                    device.device_id, device.hostname,
+                    device.device_id,
+                    device.hostname,
                     {
-                        "failing": [{"check_id": cid, "severity": c.severity} for cid, c in failing],
+                        "failing": [
+                            {"check_id": cid, "severity": c.severity} for cid, c in failing
+                        ],
                         "collected_at": iso_z(snap.collected_at),
                     },
                     tuple(str(snap.ref(f"compliance[{cid}]")) for cid, _ in failing),
@@ -141,7 +154,9 @@ def compliance_failures(
     if form_factor:
         parts.append(f"form_factor={form_factor}")
     findings.sort(key=lambda f: f.device_id)
-    return QueryResult(tuple(findings), len(pairs), as_of, ", ".join(parts), stale=_stale(pairs, as_of))
+    return QueryResult(
+        tuple(findings), len(pairs), as_of, ", ".join(parts), stale=_stale(pairs, as_of)
+    )
 
 
 def _breach_trend(
@@ -167,7 +182,8 @@ def _breach_trend(
         elif trend != "none":
             findings.append(
                 Finding(
-                    device.device_id, device.hostname,
+                    device.device_id,
+                    device.hostname,
                     {
                         "trend": trend,
                         "breached": sum(flags),
@@ -198,9 +214,13 @@ def memory_trend(
         return used_pct(s.mem_total_bytes, s.mem_used_bytes)
 
     return _breach_trend(
-        repo, as_of, window_days,
+        repo,
+        as_of,
+        window_days,
         f"memory used >= {threshold_pct:g}% over the last {window_days} days",
-        "memory", lambda s: used(s) >= threshold_pct, used,
+        "memory",
+        lambda s: used(s) >= threshold_pct,
+        used,
     )
 
 
@@ -211,9 +231,13 @@ def disk_trend(
         return free_pct(s.disk_size_bytes, s.disk_available_bytes)
 
     return _breach_trend(
-        repo, as_of, window_days,
+        repo,
+        as_of,
+        window_days,
         f"primary volume free space < {threshold_pct:g}% over the last {window_days} days",
-        "disk", lambda s: free(s) < threshold_pct, free,
+        "disk",
+        lambda s: free(s) < threshold_pct,
+        free,
     )
 
 
@@ -224,7 +248,9 @@ def compliance_trend(
     devices = repo.list_devices()
     findings, insufficient, stale = [], [], []
     for device in devices:
-        snaps = [s for s in repo.snapshots(device.device_id, since=since) if check_id in s.compliance]
+        snaps = [
+            s for s in repo.snapshots(device.device_id, since=since) if check_id in s.compliance
+        ]
         if snaps and is_stale(snaps[-1].collected_at, as_of):
             stale.append(device.device_id)
         trend = classify_compliance([s.compliance[check_id].status for s in snaps])
@@ -238,11 +264,16 @@ def compliance_trend(
             refs = (snaps[0].ref(path), snaps[-1].ref(path))
             change_at = None
         else:  # transition or recovery: last of the old state, first of the new, latest
-            refs = (snaps[trend.change_index - 1].ref(path), snaps[trend.change_index].ref(path), snaps[-1].ref(path))
+            refs = (
+                snaps[trend.change_index - 1].ref(path),
+                snaps[trend.change_index].ref(path),
+                snaps[-1].ref(path),
+            )
             change_at = iso_z(snaps[trend.change_index].collected_at)
         findings.append(
             Finding(
-                device.device_id, device.hostname,
+                device.device_id,
+                device.hostname,
                 {"kind": trend.kind, "change_at": change_at, "snapshots": len(snaps)},
                 tuple(dict.fromkeys(str(r) for r in refs)),
             )
@@ -250,8 +281,12 @@ def compliance_trend(
     findings.sort(key=lambda f: f.device_id)
     excluded = {"insufficient_history": tuple(sorted(insufficient))} if insufficient else {}
     return QueryResult(
-        tuple(findings), len(devices), as_of,
-        f"{check_id} over the last {window_days} days", excluded=excluded, stale=tuple(sorted(stale)),
+        tuple(findings),
+        len(devices),
+        as_of,
+        f"{check_id} over the last {window_days} days",
+        excluded=excluded,
+        stale=tuple(sorted(stale)),
     )
 
 
@@ -264,7 +299,8 @@ def battery_overview(repo: FleetRepository, as_of: datetime, window_days: int = 
         if newest is not None and newest.battery is None:
             missing_latest.append(device.device_id)
         snaps = [
-            s for s in repo.snapshots(device.device_id, since=since)
+            s
+            for s in repo.snapshots(device.device_id, since=since)
             if s.battery is not None and s.battery.present
         ]
         if not snaps:
@@ -274,7 +310,12 @@ def battery_overview(repo: FleetRepository, as_of: datetime, window_days: int = 
             stale.append(device.device_id)
         signals = battery_signals(
             [
-                BatteryReading(s.collected_at, s.battery.condition, s.battery.cycle_count, s.battery.full_charge_capacity)
+                BatteryReading(
+                    s.collected_at,
+                    s.battery.condition,
+                    s.battery.cycle_count,
+                    s.battery.full_charge_capacity,
+                )
                 for s in snaps
             ]
         )
@@ -289,13 +330,16 @@ def battery_overview(repo: FleetRepository, as_of: datetime, window_days: int = 
                 cited.append(snaps[len(snaps) - signals.service_streak])
             findings.append(
                 Finding(
-                    device.device_id, device.hostname,
+                    device.device_id,
+                    device.hostname,
                     {
                         "capacity_change_pct": signals.capacity_change_pct,
                         "cycles_latest": signals.cycles_latest,
                         "latest_condition": signals.latest_condition,
                         "service_streak": signals.service_streak,
-                        "first_service_at": None if signals.first_service_at is None else iso_z(signals.first_service_at),
+                        "first_service_at": None
+                        if signals.first_service_at is None
+                        else iso_z(signals.first_service_at),
                         "readings": signals.readings,
                         "latest_reading_at": iso_z(snaps[-1].collected_at),
                     },
@@ -305,7 +349,11 @@ def battery_overview(repo: FleetRepository, as_of: datetime, window_days: int = 
     findings.sort(key=lambda f: f.device_id)
     excluded = {"no_reading": tuple(sorted(no_reading))} if no_reading else {}
     return QueryResult(
-        tuple(findings), len(laptops), as_of,
+        tuple(findings),
+        len(laptops),
+        as_of,
         f"laptops with capacity down more than 1% or a Service Recommended flag over the last {window_days} days",
-        excluded=excluded, stale=tuple(sorted(stale)), missing_latest=tuple(sorted(missing_latest)),
+        excluded=excluded,
+        stale=tuple(sorted(stale)),
+        missing_latest=tuple(sorted(missing_latest)),
     )

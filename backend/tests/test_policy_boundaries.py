@@ -23,7 +23,9 @@ def repo_for(rows):
 
 
 def disk(size, available):
-    return [{"mount_point": "/", "size_bytes": size, "available_bytes": available, "encrypted": True}]
+    return [
+        {"mount_point": "/", "size_bytes": size, "available_bytes": available, "encrypted": True}
+    ]
 
 
 def memory(total, used):

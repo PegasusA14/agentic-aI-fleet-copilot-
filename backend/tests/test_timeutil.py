@@ -45,7 +45,9 @@ def test_iso_z_rejects_a_tzinfo_that_gives_no_offset():
         iso_z(datetime(2026, 6, 12, 11, 0, tzinfo=NoOffset()))
 
 
-@pytest.mark.skipif(not hasattr(time, "tzset"), reason="needs time.tzset to change the machine zone")
+@pytest.mark.skipif(
+    not hasattr(time, "tzset"), reason="needs time.tzset to change the machine zone"
+)
 def test_iso_z_does_not_depend_on_the_machine_time_zone():
     aware = datetime(2026, 6, 12, 13, 0, tzinfo=timezone(timedelta(hours=2)))
     naive = datetime(2026, 6, 12, 11, 0)
@@ -64,4 +66,7 @@ def test_iso_z_does_not_depend_on_the_machine_time_zone():
         else:
             os.environ["TZ"] = previous
         time.tzset()
-    assert seen == {"Asia/Kolkata": "2026-06-12T11:00:00Z", "America/Los_Angeles": "2026-06-12T11:00:00Z"}
+    assert seen == {
+        "Asia/Kolkata": "2026-06-12T11:00:00Z",
+        "America/Los_Angeles": "2026-06-12T11:00:00Z",
+    }

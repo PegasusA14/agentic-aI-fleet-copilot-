@@ -96,7 +96,10 @@ def test_low_disk_values_agree_with_resolved_evidence(evaluated):
         (ref,) = finding.refs
         assert EvidenceRef.parse(ref).path == "disk"
         recomputed = free_pct(resolve(repo, ref).value)
-        assert recomputed == pytest.approx(finding.values["free_pct"], rel=1e-9), (tenant, finding.device_id)
+        assert recomputed == pytest.approx(finding.values["free_pct"], rel=1e-9), (
+            tenant,
+            finding.device_id,
+        )
         assert recomputed < LOW_DISK_PCT
         checked += 1
     assert checked > 0
@@ -161,7 +164,8 @@ def test_disk_trend_refs_are_breached_snapshots_plus_the_latest(evaluated):
 
 
 @pytest.mark.parametrize(
-    ("name", "check_id"), [("screen_lock_trend", "screen_lock"), ("os_up_to_date_trend", "os_up_to_date")]
+    ("name", "check_id"),
+    [("screen_lock_trend", "screen_lock"), ("os_up_to_date_trend", "os_up_to_date")],
 )
 def test_compliance_trend_refs_show_the_stated_change(evaluated, name, check_id):
     # (state before the change, state from the change on) for each kind of finding
@@ -191,16 +195,25 @@ def test_compliance_trend_refs_show_the_stated_change(evaluated, name, check_id)
 def test_battery_values_agree_with_resolved_evidence(evaluated):
     checked = 0
     for tenant, repo, _, finding in findings_of(evaluated, "battery"):
-        evidence = sorted((resolve(repo, ref) for ref in finding.refs), key=lambda e: e.collected_at)
+        evidence = sorted(
+            (resolve(repo, ref) for ref in finding.refs), key=lambda e: e.collected_at
+        )
         assert {EvidenceRef.parse(ref).path for ref in finding.refs} == {"battery"}
         latest = evidence[-1]
         assert latest.collected_at == finding.values["latest_reading_at"]
         assert latest.value["cycle_count"] == finding.values["cycles_latest"]
         assert latest.value["condition"] == finding.values["latest_condition"]
-        capacities = [e.value["full_charge_capacity"] for e in evidence if e.value["full_charge_capacity"] is not None]
+        capacities = [
+            e.value["full_charge_capacity"]
+            for e in evidence
+            if e.value["full_charge_capacity"] is not None
+        ]
         if finding.values["capacity_change_pct"] is not None:
             change = (capacities[-1] - capacities[0]) / capacities[0] * 100.0
-            assert change == pytest.approx(finding.values["capacity_change_pct"], rel=1e-9), (tenant, finding.device_id)
+            assert change == pytest.approx(finding.values["capacity_change_pct"], rel=1e-9), (
+                tenant,
+                finding.device_id,
+            )
         if finding.values["service_streak"] > 0:
             started = [e for e in evidence if e.collected_at == finding.values["first_service_at"]]
             assert started and started[0].value["condition"] == "Service Recommended"

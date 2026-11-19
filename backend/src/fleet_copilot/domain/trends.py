@@ -6,7 +6,9 @@ from typing import Literal
 
 MIN_SNAPSHOTS = 3
 
-TrendClass = Literal["insufficient", "none", "sustained", "recovering", "onset", "isolated", "intermittent"]
+TrendClass = Literal[
+    "insufficient", "none", "sustained", "recovering", "onset", "isolated", "intermittent"
+]
 ComplianceKind = Literal["passing", "persistent_failure", "transition", "recovered", "insufficient"]
 
 

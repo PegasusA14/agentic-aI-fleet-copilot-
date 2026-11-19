@@ -45,8 +45,10 @@ def test_macos_below_15(real_conn, tenant):
 def test_failing_checks_at_the_latest_snapshot(real_conn, tenant, form, check):
     want = GOLDEN["tenants"][tenant]["failing_latest"][form][check]
     got = q.compliance_failures(
-        repo_for(real_conn, tenant), dataset_as_of(real_conn),
-        check_id=check, form_factor=None if form == "all" else form,
+        repo_for(real_conn, tenant),
+        dataset_as_of(real_conn),
+        check_id=check,
+        form_factor=None if form == "all" else form,
     )
     assert ids(got) == want
 
@@ -56,8 +58,10 @@ def test_failing_checks_at_the_latest_snapshot(real_conn, tenant, form, check):
 def test_high_severity_failures(real_conn, tenant, form):
     want = GOLDEN["tenants"][tenant]["failing_high_severity"][form]
     got = q.compliance_failures(
-        repo_for(real_conn, tenant), dataset_as_of(real_conn),
-        severity="high", form_factor=None if form == "all" else form,
+        repo_for(real_conn, tenant),
+        dataset_as_of(real_conn),
+        severity="high",
+        form_factor=None if form == "all" else form,
     )
     assert ids(got) == want
 
@@ -68,8 +72,10 @@ def test_high_severity_failures(real_conn, tenant, form):
 def test_memory_trend(real_conn, tenant, threshold, window):
     want = GOLDEN["tenants"][tenant]["memory_trend"][threshold][window]
     got = q.memory_trend(
-        repo_for(real_conn, tenant), dataset_as_of(real_conn),
-        window_days=int(window), threshold_pct=float(threshold),
+        repo_for(real_conn, tenant),
+        dataset_as_of(real_conn),
+        window_days=int(window),
+        threshold_pct=float(threshold),
     )
     assert {f.device_id: f.values["trend"] for f in got.findings} == want
 
@@ -78,7 +84,9 @@ def test_memory_trend(real_conn, tenant, threshold, window):
 @pytest.mark.parametrize("window", ["7", "30"])
 def test_disk_trend(real_conn, tenant, window):
     want = GOLDEN["tenants"][tenant]["disk_trend_lt10"][window]
-    got = q.disk_trend(repo_for(real_conn, tenant), dataset_as_of(real_conn), window_days=int(window))
+    got = q.disk_trend(
+        repo_for(real_conn, tenant), dataset_as_of(real_conn), window_days=int(window)
+    )
     assert {f.device_id: f.values["trend"] for f in got.findings} == want
 
 
@@ -86,8 +94,13 @@ def test_disk_trend(real_conn, tenant, window):
 @pytest.mark.parametrize("check", ["screen_lock", "os_up_to_date"])
 def test_compliance_trend(real_conn, tenant, check):
     want = GOLDEN["tenants"][tenant]["compliance_trend"][check]["30"]
-    got = q.compliance_trend(repo_for(real_conn, tenant), dataset_as_of(real_conn), check_id=check, window_days=30)
-    assert {f.device_id: {"kind": f.values["kind"], "change_at": f.values["change_at"]} for f in got.findings} == want
+    got = q.compliance_trend(
+        repo_for(real_conn, tenant), dataset_as_of(real_conn), check_id=check, window_days=30
+    )
+    assert {
+        f.device_id: {"kind": f.values["kind"], "change_at": f.values["change_at"]}
+        for f in got.findings
+    } == want
 
 
 @pytest.mark.parametrize("tenant", TENANTS)
@@ -101,7 +114,9 @@ def test_battery(real_conn, tenant):
         if expected["capacity_change_pct"] is None:
             assert finding.values["capacity_change_pct"] is None
         else:
-            assert finding.values["capacity_change_pct"] == pytest.approx(expected["capacity_change_pct"], abs=1e-3)
+            assert finding.values["capacity_change_pct"] == pytest.approx(
+                expected["capacity_change_pct"], abs=1e-3
+            )
     assert list(got.missing_latest) == want["missing_latest"]
     assert list(got.excluded.get("no_reading", ())) == want["no_reading"]
 

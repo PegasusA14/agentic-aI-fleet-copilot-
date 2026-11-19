@@ -13,12 +13,12 @@ T, F = True, False
         ([F] * 30, "none"),
         ([T] * 7, "sustained"),
         ([T] * 24 + [F] * 6, "recovering"),
-        ([F] * 6 + [T] * 24, "sustained"),            # exactly 80% and latest breached
-        ([F] * 15 + [T] * 15, "onset"),                 # crossed once and stayed there
+        ([F] * 6 + [T] * 24, "sustained"),  # exactly 80% and latest breached
+        ([F] * 15 + [T] * 15, "onset"),  # crossed once and stayed there
         ([F] * 25 + [T] * 5, "onset"),
-        ([F] * 28 + [T] * 2, "isolated"),               # run of 2 is below the onset minimum
-        ([T] * 3 + [F] * 27, "isolated"),               # old spike, latest clear
-        ([F] * 10 + [T] + [F] * 19, "isolated"),        # one-off spike
+        ([F] * 28 + [T] * 2, "isolated"),  # run of 2 is below the onset minimum
+        ([T] * 3 + [F] * 27, "isolated"),  # old spike, latest clear
+        ([F] * 10 + [T] + [F] * 19, "isolated"),  # one-off spike
         ([T, F] * 15, "intermittent"),
     ],
 )

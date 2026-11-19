@@ -27,7 +27,11 @@ def make_row(
         "employee_id": f"emp-{company.split('-')[0]}-1000",
         "collected_at": ts,
         "agent_version": "42.0.0",
-        "os": {"product_name": "macOS", "product_version": "14.5", "hostname": f"{company[:4]}-host-{device}"},
+        "os": {
+            "product_name": "macOS",
+            "product_version": "14.5",
+            "hostname": f"{company[:4]}-host-{device}",
+        },
         "device_identity": {"model_name": "MacBook Pro"},
         "memory": {"total_memory_bytes": 17179869184, "used_memory_bytes": 8589934592},
         "disk_volumes": [

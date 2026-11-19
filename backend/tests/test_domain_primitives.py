@@ -44,8 +44,15 @@ def test_staleness_uses_the_48_hour_limit():
 
 @pytest.mark.parametrize(
     ("version", "expected"),
-    [("14.5", "older"), ("13.6", "older"), ("9.9", "older"), ("15.3", "not_older"),
-     ("15.4", "not_older"), ("15.10", "not_older"), ("16.0", "not_older")],
+    [
+        ("14.5", "older"),
+        ("13.6", "older"),
+        ("9.9", "older"),
+        ("15.3", "not_older"),
+        ("15.4", "not_older"),
+        ("15.10", "not_older"),
+        ("16.0", "not_older"),
+    ],
 )
 def test_macos_older_than_15(version, expected):
     assert macos_older_than("macOS", version, "15") == expected

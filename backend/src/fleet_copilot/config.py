@@ -18,6 +18,9 @@ class Settings:
 
     @classmethod
     def from_env(cls) -> Settings:
-        data = os.environ.get("FLEET_DATA_PATH") or REPO_ROOT / "data" / "device-telemetry-dataset.ndjson"
+        data = (
+            os.environ.get("FLEET_DATA_PATH")
+            or REPO_ROOT / "data" / "device-telemetry-dataset.ndjson"
+        )
         db = os.environ.get("FLEET_DB_PATH") or REPO_ROOT / "var" / "fleet.db"
         return cls(data_path=Path(data), db_path=Path(db))

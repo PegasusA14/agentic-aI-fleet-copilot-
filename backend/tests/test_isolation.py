@@ -92,9 +92,14 @@ def test_own_evidence_still_resolves(real_conn, tenant):
 
 
 def test_no_public_entry_point_accepts_a_company_argument():
-    functions = [fn for name, fn in inspect.getmembers(FleetRepository, inspect.isfunction) if not name.startswith("_")]
+    functions = [
+        fn
+        for name, fn in inspect.getmembers(FleetRepository, inspect.isfunction)
+        if not name.startswith("_")
+    ]
     functions += [
-        fn for name, fn in inspect.getmembers(q, inspect.isfunction)
+        fn
+        for name, fn in inspect.getmembers(q, inspect.isfunction)
         if not name.startswith("_") and fn.__module__ == q.__name__
     ]
     assert len(functions) >= 12

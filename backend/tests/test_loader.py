@@ -46,13 +46,25 @@ def test_primary_volume_prefers_the_root_mount(tmp_path):
         {"mount_point": "/", "size_bytes": 1000, "available_bytes": 500, "encrypted": True},
     ]
     load_dataset(ndjson(tmp_path, make_row("A", disk_volumes=volumes)), tmp_path / "db.sqlite")
-    row = connect(tmp_path / "db.sqlite").execute("SELECT disk_mount, disk_size_bytes FROM snapshots").fetchone()
+    row = (
+        connect(tmp_path / "db.sqlite")
+        .execute("SELECT disk_mount, disk_size_bytes FROM snapshots")
+        .fetchone()
+    )
     assert (row["disk_mount"], row["disk_size_bytes"]) == ("/", 1000)
 
 
 def test_devices_use_the_latest_snapshot_identity(tmp_path):
-    older = make_row("A", ts="2026-06-11T09:00:00Z", os={"product_name": "macOS", "product_version": "14.5", "hostname": "old-name"})
-    newer = make_row("A", ts="2026-06-12T09:00:00Z", os={"product_name": "macOS", "product_version": "15.4", "hostname": "new-name"})
+    older = make_row(
+        "A",
+        ts="2026-06-11T09:00:00Z",
+        os={"product_name": "macOS", "product_version": "14.5", "hostname": "old-name"},
+    )
+    newer = make_row(
+        "A",
+        ts="2026-06-12T09:00:00Z",
+        os={"product_name": "macOS", "product_version": "15.4", "hostname": "new-name"},
+    )
     load_dataset(ndjson(tmp_path, older, newer), tmp_path / "db.sqlite")
     row = connect(tmp_path / "db.sqlite").execute("SELECT hostname FROM devices").fetchone()
     assert row["hostname"] == "new-name"
@@ -78,7 +90,9 @@ def test_reload_rebuilds_instead_of_duplicating(tmp_path):
 
 def test_real_dataset_matches_the_pinned_facts(tmp_path):
     report = load_dataset(
-        Settings.from_env().data_path, tmp_path / "db.sqlite", expected_sha256=EXPECTED_DATASET_SHA256
+        Settings.from_env().data_path,
+        tmp_path / "db.sqlite",
+        expected_sha256=EXPECTED_DATASET_SHA256,
     )
     assert (report.snapshots, report.devices, report.companies) == (750, 25, 3)
     assert report.quarantined == []
@@ -157,7 +171,9 @@ def test_read_only_connection_reads_but_cannot_write(tmp_path):
     db = _loaded(tmp_path)
     with closing(connect(db, read_only=True)) as conn:
         assert conn.execute("SELECT COUNT(*) FROM snapshots").fetchone()[0] == 2
-        assert conn.execute("SELECT hostname FROM devices").fetchone()["hostname"]  # still sqlite3.Row
+        assert conn.execute("SELECT hostname FROM devices").fetchone()[
+            "hostname"
+        ]  # still sqlite3.Row
         assert conn.execute("PRAGMA foreign_keys").fetchone()[0] == 1
         with pytest.raises(sqlite3.OperationalError):
             conn.execute("DELETE FROM compliance")
@@ -193,6 +209,8 @@ def test_default_connection_is_still_read_write(tmp_path):
         conn.execute("INSERT INTO dataset_meta (key, value) VALUES ('extra', 'x')")
         conn.commit()
     with closing(connect(db, read_only=True)) as conn:
-        assert conn.execute("SELECT value FROM dataset_meta WHERE key = 'extra'").fetchone()[0] == "x"
+        assert (
+            conn.execute("SELECT value FROM dataset_meta WHERE key = 'extra'").fetchone()[0] == "x"
+        )
     with closing(connect(":memory:")) as conn:  # the in-memory form used by tests keeps working
         conn.execute("CREATE TABLE t (x)")

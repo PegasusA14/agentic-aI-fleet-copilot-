@@ -119,7 +119,10 @@ def rows_for(spec):
                     "product_version": spec.os_version,
                     "hostname": spec.hostname,
                 },
-                memory={"total_memory_bytes": spec.mem_total, "used_memory_bytes": spec.mem_used[i]},
+                memory={
+                    "total_memory_bytes": spec.mem_total,
+                    "used_memory_bytes": spec.mem_used[i],
+                },
                 disk_volumes=[
                     {
                         "mount_point": "/",
@@ -167,7 +170,9 @@ def ref(tenant, stamp, path):
 
 
 def test_fixture_really_collides(conn):
-    rows = conn.execute("SELECT company_id, collected_at FROM snapshots WHERE device_id = ?", (DUP,))
+    rows = conn.execute(
+        "SELECT company_id, collected_at FROM snapshots WHERE device_id = ?", (DUP,)
+    )
     seen = {(r["company_id"], r["collected_at"]) for r in rows}
     assert seen == {(t, s) for t in TENANTS for s in STAMPS}
     assert conn.execute("SELECT COUNT(DISTINCT hostname) FROM snapshots").fetchone()[0] == 2
@@ -296,7 +301,9 @@ def test_compliance_failures_reflect_only_the_tenants_own_data(conn, tenant):
     assert result.population == 1
     finding = dup_finding(result, tenant)
     assert [f["check_id"] for f in finding.values["failing"]] == spec.failing_now
-    assert finding.refs == tuple(ref(tenant, STAMPS[-1], f"compliance[{c}]") for c in spec.failing_now)
+    assert finding.refs == tuple(
+        ref(tenant, STAMPS[-1], f"compliance[{c}]") for c in spec.failing_now
+    )
 
 
 @pytest.mark.parametrize("tenant", TENANTS)
@@ -336,7 +343,9 @@ def test_compliance_trend_reflects_only_the_tenants_own_data(conn):
     result = q.compliance_trend(acme, AS_OF, check_id="screen_lock")
     finding = dup_finding(result, "acme-001")
     assert finding.values == {"kind": "transition", "change_at": STAMPS[2], "snapshots": 4}
-    assert finding.refs == tuple(ref("acme-001", STAMPS[i], "compliance[screen_lock]") for i in (1, 2, 3))
+    assert finding.refs == tuple(
+        ref("acme-001", STAMPS[i], "compliance[screen_lock]") for i in (1, 2, 3)
+    )
     result = q.compliance_trend(globex, AS_OF, check_id="screen_lock")
     assert dup_finding(result, "globex-002") is None
     assert result.population == 1
@@ -345,9 +354,13 @@ def test_compliance_trend_reflects_only_the_tenants_own_data(conn):
     result = q.compliance_trend(acme, AS_OF, check_id="disk_encryption")
     assert dup_finding(result, "acme-001") is None
     assert result.population == 1
-    finding = dup_finding(q.compliance_trend(globex, AS_OF, check_id="disk_encryption"), "globex-002")
+    finding = dup_finding(
+        q.compliance_trend(globex, AS_OF, check_id="disk_encryption"), "globex-002"
+    )
     assert finding.values == {"kind": "persistent_failure", "change_at": None, "snapshots": 4}
-    assert finding.refs == tuple(ref("globex-002", STAMPS[i], "compliance[disk_encryption]") for i in (0, 3))
+    assert finding.refs == tuple(
+        ref("globex-002", STAMPS[i], "compliance[disk_encryption]") for i in (0, 3)
+    )
 
 
 @pytest.mark.parametrize("tenant", TENANTS)

@@ -38,7 +38,10 @@ def test_no_high_severity_failure_exists_anywhere():
 def test_acme_compliance_failures():
     acme = T["acme-001"]
     assert acme["failing_latest"]["laptop"]["screen_lock"] == [
-        "1LYSSFD074BB", "8NM23J95R5I6", "DSYPSES7SKBB", "MT7PJB7N5LRE",
+        "1LYSSFD074BB",
+        "8NM23J95R5I6",
+        "DSYPSES7SKBB",
+        "MT7PJB7N5LRE",
     ]
     assert len(acme["failing_latest"]["laptop"]["os_up_to_date"]) == 9 == len(acme["laptops"])
     changes = {d: v["change_at"] for d, v in acme["compliance_trend"]["screen_lock"]["30"].items()}
@@ -69,7 +72,9 @@ def test_battery_signals():
     battery = T["acme-001"]["battery_30"]
     assert sorted(battery["notable"]) == ["7VP16KHV88LM", "8NM23J95R5I6", "M4XVHUV1MEPZ"]
     assert {d: v["service_streak"] for d, v in battery["notable"].items()} == {
-        "7VP16KHV88LM": 14, "8NM23J95R5I6": 21, "M4XVHUV1MEPZ": 20,
+        "7VP16KHV88LM": 14,
+        "8NM23J95R5I6": 21,
+        "M4XVHUV1MEPZ": 20,
     }
     assert all(-4.4 < v["capacity_change_pct"] < -4.0 for v in battery["notable"].values())
     assert battery["missing_latest"] == ["MT7PJB7N5LRE"]
