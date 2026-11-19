@@ -14,7 +14,9 @@ class NotFound(Exception):
     """Raised for missing AND out-of-tenant records, with one fixed message,
     so a caller can never tell whether a record exists in another tenant."""
 
-    def __init__(self) -> None:
+    def __init__(self, *args: object) -> None:
+        # Ignoring `args` keeps the fixed message and lets copy and pickle rebuild the exception
+        # from `self.args` (which holds that message) without changing it.
         super().__init__("not found")
 
 

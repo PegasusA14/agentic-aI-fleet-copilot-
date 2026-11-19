@@ -1,4 +1,5 @@
 import json
+import sqlite3
 from contextlib import closing
 
 import pytest
@@ -144,3 +145,54 @@ def test_db_path_equal_to_data_path_is_rejected_without_touching_the_data(tmp_pa
     with pytest.raises(ValueError, match="db_path must differ from data_path"):
         load_dataset(data, data)
     assert data.read_bytes() == before
+
+
+def _loaded(tmp_path):
+    db = tmp_path / "db.sqlite"
+    load_dataset(ndjson(tmp_path, make_row("A"), make_row("B")), db)
+    return db
+
+
+def test_read_only_connection_reads_but_cannot_write(tmp_path):
+    db = _loaded(tmp_path)
+    with closing(connect(db, read_only=True)) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM snapshots").fetchone()[0] == 2
+        assert conn.execute("SELECT hostname FROM devices").fetchone()["hostname"]  # still sqlite3.Row
+        assert conn.execute("PRAGMA foreign_keys").fetchone()[0] == 1
+        with pytest.raises(sqlite3.OperationalError):
+            conn.execute("DELETE FROM compliance")
+        with pytest.raises(sqlite3.OperationalError):
+            conn.execute("INSERT INTO dataset_meta (key, value) VALUES ('k', 'v')")
+    assert _counts(db) == (2, 4)
+
+
+def test_read_only_connection_does_not_create_a_missing_database(tmp_path):
+    missing = tmp_path / "missing.sqlite"
+    with pytest.raises(sqlite3.OperationalError):
+        connect(missing, read_only=True)
+    assert not missing.exists()
+
+
+def test_read_only_connection_handles_awkward_file_names(tmp_path):
+    folder = tmp_path / "a folder #1 & more?"
+    folder.mkdir()
+    db = folder / "fleet db?.sqlite"
+    load_dataset(ndjson(tmp_path, make_row("A")), db)
+    with closing(connect(db, read_only=True)) as conn:
+        assert conn.execute("SELECT COUNT(*) FROM snapshots").fetchone()[0] == 1
+
+
+def test_read_only_in_memory_database_is_rejected():
+    with pytest.raises(ValueError, match="in-memory"):
+        connect(":memory:", read_only=True)
+
+
+def test_default_connection_is_still_read_write(tmp_path):
+    db = _loaded(tmp_path)
+    with closing(connect(db)) as conn:
+        conn.execute("INSERT INTO dataset_meta (key, value) VALUES ('extra', 'x')")
+        conn.commit()
+    with closing(connect(db, read_only=True)) as conn:
+        assert conn.execute("SELECT value FROM dataset_meta WHERE key = 'extra'").fetchone()[0] == "x"
+    with closing(connect(":memory:")) as conn:  # the in-memory form used by tests keeps working
+        conn.execute("CREATE TABLE t (x)")

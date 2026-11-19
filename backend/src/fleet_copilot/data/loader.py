@@ -90,8 +90,24 @@ class LoadReport:
     max_collected_at: str
 
 
-def connect(db_path: str | Path) -> sqlite3.Connection:
-    conn = sqlite3.connect(str(db_path))
+def connect(db_path: str | Path, *, read_only: bool = False) -> sqlite3.Connection:
+    """Open the fleet database.
+
+    Use one connection per thread or request: a SQLite connection is bound to the thread that
+    opened it and raises `ProgrammingError` if another thread touches it.
+
+    `read_only=True` opens an existing file in SQLite's read-only mode, so code on a read path
+    cannot modify it even by mistake; it never creates a missing file and rejects `:memory:`.
+
+    `load_dataset` swaps a rebuilt database into place with `os.replace`, so a reader that is
+    already open keeps the OLD file until it reopens the connection.
+    """
+    if read_only:
+        if str(db_path) == ":memory:":
+            raise ValueError("an in-memory database cannot be opened read-only")
+        conn = sqlite3.connect(Path(db_path).resolve().as_uri() + "?mode=ro", uri=True)
+    else:
+        conn = sqlite3.connect(str(db_path))
     conn.row_factory = sqlite3.Row
     conn.execute("PRAGMA foreign_keys = ON")
     return conn

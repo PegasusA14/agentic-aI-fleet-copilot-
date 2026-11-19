@@ -1,3 +1,6 @@
+import copy
+import pickle
+
 import pytest
 from factories import make_conn, make_row
 
@@ -87,3 +90,22 @@ def test_resolve_denies_everything_it_cannot_prove(conn, ref):
 
 def test_dataset_as_of_is_the_latest_collected_at(conn):
     assert dataset_as_of(conn) == parse_ts("2026-06-12T10:00:00Z")
+
+
+@pytest.mark.parametrize("protocol", range(pickle.HIGHEST_PROTOCOL + 1))
+def test_not_found_survives_pickling(protocol):
+    clone = pickle.loads(pickle.dumps(NotFound(), protocol))
+    assert type(clone) is NotFound
+    assert str(clone) == "not found"
+
+
+@pytest.mark.parametrize("duplicate", [copy.copy, copy.deepcopy])
+def test_not_found_survives_copying(duplicate):
+    clone = duplicate(NotFound())
+    assert type(clone) is NotFound
+    assert str(clone) == "not found"
+
+
+def test_not_found_never_carries_a_caller_supplied_detail():
+    assert str(NotFound("globex-002/G1")) == "not found"
+    assert NotFound("detail").args == ("not found",)
