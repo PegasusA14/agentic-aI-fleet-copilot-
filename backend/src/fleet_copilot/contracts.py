@@ -34,7 +34,7 @@ class EvidenceItem(_Model):
 
 class Claim(_Model):
     text: str
-    refs: list[str] = Field(default_factory=list)
+    refs: list[str] = Field(min_length=1)
 
 
 class ScopeInfo(_Model):
@@ -57,7 +57,7 @@ class ProposalCard(_Model):
     target_device_id: str
     target_label: str
     rationale: str
-    evidence_refs: list[str]
+    evidence_refs: list[str] = Field(min_length=1)
     scope: dict[str, str]
     expected_effect: str
     status: ProposalStatus
@@ -86,6 +86,10 @@ class AnswerEnvelope(_Model):
             raise ValueError("proposal outcome requires a proposal")
         if self.outcome != "proposal" and self.proposal is not None:
             raise ValueError("only a proposal outcome may carry a proposal")
+        if self.outcome in ("denied", "unsupported", "tool_error") and (
+            self.claims or self.evidence
+        ):
+            raise ValueError(f"{self.outcome} outcome must not carry claims or evidence")
         if self.outcome == "answer" and not self.claims:
             raise ValueError("answer outcome requires at least one claim")
         known = {item.ref for item in self.evidence}
@@ -93,6 +97,12 @@ class AnswerEnvelope(_Model):
             missing = [r for r in claim.refs if r not in known]
             if missing:
                 raise ValueError(f"claim cites refs without evidence: {missing}")
+        if self.proposal is not None:
+            if self.proposal.company_id != self.scope.company_id:
+                raise ValueError("proposal company_id must match scope company_id")
+            missing = [r for r in self.proposal.evidence_refs if r not in known]
+            if missing:
+                raise ValueError(f"proposal cites refs without evidence: {missing}")
         return self
 
 

@@ -8,6 +8,7 @@
             "items": {
               "type": "string"
             },
+            "minItems": 1,
             "title": "Refs",
             "type": "array"
           },
@@ -17,7 +18,8 @@
           }
         },
         "required": [
-          "text"
+          "text",
+          "refs"
         ],
         "title": "Claim",
         "type": "object"
@@ -86,6 +88,7 @@
             "items": {
               "type": "string"
             },
+            "minItems": 1,
             "title": "Evidence Refs",
             "type": "array"
           },
