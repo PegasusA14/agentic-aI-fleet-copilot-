@@ -14,6 +14,16 @@ def test_free_and_used_percentages():
     assert used_pct(1000, 850) == 85.0
 
 
+def test_percentages_are_exact_at_whole_number_thresholds():
+    # A single rounding division keeps exact-threshold volumes exactly on the threshold.
+    assert free_pct(100, 29) == 29.0
+    assert free_pct(100, 7) == 7.0
+    assert free_pct(20, 11) == 55.0
+    assert not free_pct(100, 29) < 29.0
+    assert used_pct(100, 85) == 85.0
+    assert used_pct(25, 14) == 56.0
+
+
 @pytest.mark.parametrize("fn", [free_pct, used_pct])
 def test_zero_totals_are_rejected(fn):
     with pytest.raises(ValueError):
@@ -44,6 +54,26 @@ def test_macos_older_than_15(version, expected):
 def test_version_comparison_is_numeric_not_lexicographic():
     assert macos_older_than("macOS", "15.10", "15.9") == "not_older"
     assert macos_older_than("macOS", "15.2", "15.10") == "older"
+
+
+@pytest.mark.parametrize(
+    ("version", "target", "expected"),
+    [
+        # equal to the target is not older
+        ("15", "15", "not_older"),
+        ("15.0", "15", "not_older"),
+        ("15.4", "15.4", "not_older"),
+        # just under the target is older
+        ("14.9", "15", "older"),
+        ("14.99", "15", "older"),
+        # shorter than the target: missing parts count as zero
+        ("14", "15.1", "older"),
+        ("15", "15.0.1", "older"),
+        ("15", "15.0", "not_older"),
+    ],
+)
+def test_macos_version_boundaries_and_zero_padding(version, target, expected):
+    assert macos_older_than("macOS", version, target) == expected
 
 
 def test_only_macos_is_in_scope():
