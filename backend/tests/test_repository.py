@@ -1,5 +1,6 @@
 import copy
 import pickle
+from datetime import datetime
 
 import pytest
 from factories import make_conn, make_row
@@ -51,6 +52,11 @@ def test_snapshots_are_ordered_and_can_be_windowed(conn):
         parse_ts("2026-06-12T09:00:00Z"),
     ]
     assert len(repo.snapshots("A1", since=parse_ts("2026-06-12T00:00:00Z"))) == 1
+
+
+def test_a_naive_since_is_rejected_instead_of_read_as_local_time(conn):
+    with pytest.raises(ValueError, match="timezone-aware"):
+        acme(conn).snapshots("A1", since=datetime(2026, 6, 12, 0, 0))
 
 
 def test_latest_can_require_a_battery_block(conn):

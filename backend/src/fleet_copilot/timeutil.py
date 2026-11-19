@@ -11,5 +11,11 @@ def parse_ts(value: str) -> datetime:
 
 
 def iso_z(value: datetime) -> str:
-    """Format any aware datetime as a UTC `...Z` string (lexicographically sortable)."""
+    """Format an aware datetime as a UTC `...Z` string (lexicographically sortable).
+
+    A naive datetime is refused: Python would read it in the machine's local zone, so the
+    same value would format differently on different machines.
+    """
+    if value.tzinfo is None or value.utcoffset() is None:
+        raise ValueError("datetime must be timezone-aware")
     return value.astimezone(UTC).strftime(_FORMAT)
