@@ -34,6 +34,23 @@ def test_empty_and_single_reading_make_no_trend_claim():
     assert battery_signals([reading(1)]).capacity_change_pct is None
 
 
+def test_capacity_change_uses_first_and_last_readings_that_report_a_capacity():
+    trailing_gap = [reading(1, capacity=4000), reading(2, capacity=3800), reading(3, capacity=None)]
+    assert battery_signals(trailing_gap).capacity_change_pct == pytest.approx(-5.0)
+    leading_gap = [reading(1, capacity=None), reading(2, capacity=4000), reading(3, capacity=3800)]
+    assert battery_signals(leading_gap).capacity_change_pct == pytest.approx(-5.0)
+
+
+def test_a_single_reported_capacity_makes_no_trend_claim():
+    readings = [reading(1, capacity=None), reading(2, capacity=4000), reading(3, capacity=None)]
+    assert battery_signals(readings).capacity_change_pct is None
+
+
+def test_cycles_latest_comes_from_the_strictly_latest_reading():
+    readings = [reading(1, cycles=100), reading(2, cycles=None)]
+    assert battery_signals(readings).cycles_latest is None
+
+
 def test_streak_resets_when_the_latest_reading_is_normal():
     readings = [reading(1, "Service Recommended"), reading(2, "Service Recommended"), reading(3, "Normal")]
     assert battery_signals(readings).service_streak == 0

@@ -26,6 +26,32 @@ def test_breach_trend_classes(flags, expected):
     assert classify_breach_trend(flags) == expected
 
 
+def _flags_at(n, *breached):
+    flags = [F] * n
+    for index in breached:
+        flags[index] = T
+    return flags
+
+
+@pytest.mark.parametrize(
+    ("flags", "expected"),
+    [
+        # exactly 20% breached (6 of 30), none trailing: not "isolated", which needs strictly under 20%
+        (_flags_at(30, 2, 7, 12, 17, 22, 26), "intermittent"),
+        # 5 of 30 (under 20%) with the same spacing is isolated
+        (_flags_at(30, 2, 7, 12, 17, 22), "isolated"),
+        # a trailing run of exactly 3, nothing else breached, meets the onset minimum
+        ([F] * 27 + [T] * 3, "onset"),
+        # latest breached with a run of 3, but an earlier separate breach rules out onset
+        ([T] + [F] * 10 + [T] * 3, "intermittent"),
+        # just under 80% (23 of 30) is not sustained or recovering
+        ([T] * 23 + [F] * 7, "intermittent"),
+    ],
+)
+def test_breach_trend_boundaries(flags, expected):
+    assert classify_breach_trend(flags) == expected
+
+
 def test_scattered_breaches_are_intermittent_but_two_spikes_are_isolated():
     scattered = ([T, F, F] * 10)[:30]
     assert classify_breach_trend(scattered) == "intermittent"
