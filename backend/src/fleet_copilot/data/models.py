@@ -76,7 +76,12 @@ class TelemetryRow(_Base):
     def _must_be_timezone_aware(cls, value: datetime) -> datetime:
         if value.tzinfo is None:
             raise ValueError("collected_at must include a timezone")
-        return value.astimezone(UTC)
+        try:
+            return value.astimezone(UTC)
+        except OverflowError:
+            # Pydantic only converts ValueError into a ValidationError; an extreme timestamp
+            # with a non-UTC offset must be quarantined, not abort the whole parse.
+            raise ValueError("collected_at is out of range") from None
 
     @model_validator(mode="after")
     def _unique_check_ids(self) -> TelemetryRow:

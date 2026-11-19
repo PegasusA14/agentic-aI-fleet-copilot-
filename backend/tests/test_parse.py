@@ -1,5 +1,6 @@
 import json
 
+import pytest
 from factories import make_row
 
 from fleet_copilot.data.parse import parse_ndjson
@@ -73,3 +74,12 @@ def test_network_data_is_never_retained():
     row["network"] = [{"address": "10.0.0.1", "mac": "aa:bb:cc:dd:ee:ff"}]
     parsed = parse_ndjson(lines(row)).rows[0].row
     assert not hasattr(parsed, "network")
+
+
+@pytest.mark.parametrize("ts", ["0001-01-01T00:00:00+05:00", "9999-12-31T23:59:59-05:00"])
+def test_out_of_range_timestamp_is_quarantined_and_following_rows_still_parse(ts):
+    result = parse_ndjson(lines(make_row("A", ts=ts), make_row("B")))
+    assert [p.row.device_id for p in result.rows] == ["B"]
+    assert [p.line_no for p in result.rows] == [2]
+    assert result.quarantined[0].line_no == 1
+    assert "out of range" in result.quarantined[0].reason
