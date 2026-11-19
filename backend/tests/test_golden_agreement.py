@@ -1,8 +1,10 @@
+import inspect
 import json
 
 import pytest
 
 from fleet_copilot.config import REPO_ROOT
+from fleet_copilot.domain.windows import STALE_AFTER
 from fleet_copilot.fleet import queries as q
 from fleet_copilot.repository import FleetRepository, TenantContext, dataset_as_of
 
@@ -102,3 +104,28 @@ def test_battery(real_conn, tenant):
             assert finding.values["capacity_change_pct"] == pytest.approx(expected["capacity_change_pct"], abs=1e-3)
     assert list(got.missing_latest) == want["missing_latest"]
     assert list(got.excluded.get("no_reading", ())) == want["no_reading"]
+
+
+@pytest.mark.parametrize("tenant", TENANTS)
+def test_devices_and_laptops_match_the_golden_file(real_conn, tenant):
+    want = GOLDEN["tenants"][tenant]
+    repo = repo_for(real_conn, tenant)
+    devices = repo.list_devices()
+    assert [d.device_id for d in devices] == want["devices"]
+    assert [d.device_id for d in devices if d.form_factor == "laptop"] == want["laptops"]
+    battery = q.battery_overview(repo, dataset_as_of(real_conn), 30)
+    assert battery.population == len(want["laptops"])
+
+
+def test_product_defaults_match_the_golden_policy():
+    policy = GOLDEN["meta"]["policy"]
+
+    def default(fn, name):
+        return inspect.signature(fn).parameters[name].default
+
+    assert default(q.low_disk, "threshold_pct") == policy["low_disk_free_pct_below"]
+    assert default(q.disk_trend, "threshold_pct") == policy["low_disk_free_pct_below"]
+    assert sorted(policy["memory_used_pct_at_least"]) == [85, 90]
+    assert default(q.memory_trend, "threshold_pct") == policy["memory_used_pct_at_least"][0]
+    assert STALE_AFTER.total_seconds() / 3600 == policy["stale_hours"]
+    assert policy["windows_days"] == [7, 30]
