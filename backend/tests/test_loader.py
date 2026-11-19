@@ -1,9 +1,11 @@
 import json
+from contextlib import closing
 
 import pytest
 from factories import make_row
 
 from fleet_copilot.config import EXPECTED_DATASET_SHA256, PINNED_AS_OF, Settings
+from fleet_copilot.data import loader
 from fleet_copilot.data.loader import DatasetMismatch, connect, load_dataset
 
 
@@ -81,3 +83,64 @@ def test_real_dataset_matches_the_pinned_facts(tmp_path):
     assert report.quarantined == []
     assert report.min_collected_at == "2026-05-14T08:40:00Z"
     assert report.max_collected_at == PINNED_AS_OF
+
+
+def _counts(db_path):
+    with closing(connect(db_path)) as conn:
+        snapshots = conn.execute("SELECT COUNT(*) FROM snapshots").fetchone()[0]
+        meta = conn.execute("SELECT COUNT(*) FROM dataset_meta").fetchone()[0]
+    return snapshots, meta
+
+
+def test_rejected_empty_dataset_leaves_the_previous_database_intact(tmp_path):
+    db = tmp_path / "db.sqlite"
+    load_dataset(ndjson(tmp_path, make_row("A"), make_row("B")), db)
+    assert _counts(db) == (2, 4)
+
+    bad = tmp_path / "bad.ndjson"
+    bad.write_text("{broken\n", encoding="utf-8")
+    with pytest.raises(DatasetMismatch, match="no valid snapshots"):
+        load_dataset(bad, db)
+
+    assert _counts(db) == (2, 4)
+    assert not (tmp_path / "db.sqlite.tmp").exists()
+
+
+def test_failure_during_insert_leaves_the_previous_database_intact(tmp_path, monkeypatch):
+    db = tmp_path / "db.sqlite"
+    load_dataset(ndjson(tmp_path, make_row("A"), make_row("B")), db)
+
+    def boom(conn, parsed):
+        raise RuntimeError("disk on fire")
+
+    monkeypatch.setattr(loader, "insert_rows", boom)
+    with pytest.raises(RuntimeError, match="disk on fire"):
+        load_dataset(ndjson(tmp_path, make_row("C")), db)
+
+    assert _counts(db) == (2, 4)
+    assert not (tmp_path / "db.sqlite.tmp").exists()
+
+
+def test_successful_loads_leave_no_temp_files(tmp_path):
+    db = tmp_path / "db.sqlite"
+    data = ndjson(tmp_path, make_row("A"))
+    load_dataset(data, db)
+    load_dataset(data, db)
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["data.ndjson", "db.sqlite"]
+
+
+def test_stale_temp_files_are_discarded(tmp_path):
+    db = tmp_path / "db.sqlite"
+    (tmp_path / "db.sqlite.tmp").write_bytes(b"garbage from an interrupted run")
+    (tmp_path / "db.sqlite.tmp-journal").write_bytes(b"stale journal")
+    load_dataset(ndjson(tmp_path, make_row("A")), db)
+    assert _counts(db) == (1, 4)
+    assert sorted(p.name for p in tmp_path.iterdir()) == ["data.ndjson", "db.sqlite"]
+
+
+def test_db_path_equal_to_data_path_is_rejected_without_touching_the_data(tmp_path):
+    data = ndjson(tmp_path, make_row("A"))
+    before = data.read_bytes()
+    with pytest.raises(ValueError, match="db_path must differ from data_path"):
+        load_dataset(data, data)
+    assert data.read_bytes() == before

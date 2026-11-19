@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import hashlib
+import os
 import sqlite3
 from dataclasses import dataclass
 from pathlib import Path
@@ -166,22 +167,38 @@ def finalize(conn: sqlite3.Connection, sha256: str) -> None:
     conn.commit()
 
 
+def _discard(path: Path) -> None:
+    """Remove a SQLite file and its rollback journal, if present."""
+    path.unlink(missing_ok=True)
+    path.with_name(path.name + "-journal").unlink(missing_ok=True)
+
+
 def load_dataset(
     data_path: str | Path, db_path: str | Path, *, expected_sha256: str | None = None
 ) -> LoadReport:
-    """Rebuild the SQLite database from the NDJSON file. Deterministic and idempotent."""
-    raw = Path(data_path).read_bytes()
+    """Rebuild the SQLite database from the NDJSON file. Deterministic and idempotent.
+
+    The database is built in a temp file next to the target and moved into place as the last
+    step, so a rejected or failed load never damages an existing database.
+    """
+    data_path = Path(data_path)
+    db_path = Path(db_path)
+    if db_path.resolve() == data_path.resolve():
+        raise ValueError("db_path must differ from data_path")
+
+    raw = data_path.read_bytes()
     sha256 = hashlib.sha256(raw).hexdigest()
     if expected_sha256 is not None and sha256 != expected_sha256:
         raise DatasetMismatch(f"dataset sha256 {sha256} does not match expected {expected_sha256}")
 
     parsed = parse_ndjson(raw.decode("utf-8").split("\n"))
 
-    db_path = Path(db_path)
     db_path.parent.mkdir(parents=True, exist_ok=True)
-    db_path.unlink(missing_ok=True)
-    conn = connect(db_path)
+    tmp = db_path.with_name(db_path.name + ".tmp")
+    _discard(tmp)
+    conn: sqlite3.Connection | None = None
     try:
+        conn = connect(tmp)
         create_schema(conn)
         rejected = insert_rows(conn, parsed.rows)
         loaded = conn.execute("SELECT COUNT(*) FROM snapshots").fetchone()[0]
@@ -189,7 +206,7 @@ def load_dataset(
             raise DatasetMismatch("dataset contains no valid snapshots")
         finalize(conn, sha256)
         meta = dict(conn.execute("SELECT key, value FROM dataset_meta").fetchall())
-        return LoadReport(
+        report = LoadReport(
             snapshots=loaded,
             devices=conn.execute("SELECT COUNT(*) FROM devices").fetchone()[0],
             companies=conn.execute("SELECT COUNT(DISTINCT company_id) FROM devices").fetchone()[0],
@@ -198,5 +215,12 @@ def load_dataset(
             min_collected_at=meta["min_collected_at"],
             max_collected_at=meta["max_collected_at"],
         )
-    finally:
         conn.close()
+        conn = None
+        os.replace(tmp, db_path)
+        return report
+    except BaseException:
+        if conn is not None:
+            conn.close()
+        _discard(tmp)
+        raise
