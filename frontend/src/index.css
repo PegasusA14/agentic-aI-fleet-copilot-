@@ -2,40 +2,40 @@
 
 :root {
   /* ink */
-  --ink: #17171c;
-  --ink-2: #5c5f6b;
-  --ink-3: #6a6d79;
+  --ink: #1c1714;
+  --ink-2: #64574f;
+  --ink-3: #75675e;
   /* surfaces */
   --paper: #ffffff;
-  --ground: #f8f8fb;
-  --line: rgba(23, 23, 28, 0.1);
-  --line-strong: rgba(23, 23, 28, 0.2);
+  --ground: #fbf8f5;
+  --line: rgba(28, 23, 20, 0.1);
+  --line-strong: rgba(28, 23, 20, 0.2);
   /* aurora */
-  --blue: #5b7cf0;
-  --violet: #8f7cf0;
-  --rose: #ec5e99;
-  --pink: #f08ad0;
-  --focus: #4f6bf0;
+  --sun: #f6a23c;
+  --peach: #f7916a;
+  --coral: #ee5a6f;
+  --blush: #f6a3b5;
+  --focus: #d9480f;
   /* state tones (text-safe on white, 4.5:1 or better) */
   --pass: #17794d;
   --attention: #8a5b00;
   --alert: #b42318;
-  --denied: #3d4252;
-  --action: #3f57c9;
+  --denied: #4a3f3a;
+  --action: #b8400d;
   --pass-wash: #e8f6ee;
   --attention-wash: #fdf3dc;
   --alert-wash: #fdeceb;
-  --denied-wash: #eceef3;
-  --action-wash: #eaedfd;
-  --neutral-wash: #f0f1f5;
+  --denied-wash: #f1ece8;
+  --action-wash: #fdede2;
+  --neutral-wash: #f4f0ed;
   /* type */
   --font: "Hanken Grotesk Variable", "Hanken Grotesk", system-ui, sans-serif;
   --mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, monospace;
   /* shape */
   --r-sheet: 24px;
   --r-card: 16px;
-  --shadow-sheet: 0 1px 2px rgba(23, 23, 28, 0.05), 0 18px 48px -20px rgba(70, 70, 140, 0.28);
-  --shadow-pop: 0 2px 6px rgba(23, 23, 28, 0.06), 0 24px 60px -18px rgba(70, 70, 140, 0.4);
+  --shadow-sheet: 0 1px 2px rgba(28, 23, 20, 0.05), 0 18px 48px -20px rgba(150, 80, 50, 0.28);
+  --shadow-pop: 0 2px 6px rgba(28, 23, 20, 0.06), 0 24px 60px -18px rgba(150, 80, 50, 0.4);
   /* motion */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --dock: 900ms;
@@ -121,10 +121,10 @@ button {
   transform-origin: 50% 100%;
   background:
     radial-gradient(52% 38% at 50% 0%, #ffffff 0 55%, rgba(255, 255, 255, 0) 100%),
-    radial-gradient(46% 70% at 0% 42%, rgba(91, 124, 240, 0.95) 0%, rgba(91, 124, 240, 0) 100%),
-    radial-gradient(46% 70% at 100% 42%, rgba(143, 124, 240, 0.9) 0%, rgba(143, 124, 240, 0) 100%),
-    radial-gradient(80% 46% at 50% 108%, rgba(236, 94, 153, 0.96) 0%, rgba(240, 138, 208, 0.6) 48%, rgba(240, 138, 208, 0) 100%),
-    linear-gradient(180deg, #ffffff 0%, #eef0fb 52%, #f6e6f4 100%);
+    radial-gradient(46% 70% at 0% 42%, rgba(246, 162, 60, 0.95) 0%, rgba(246, 162, 60, 0) 100%),
+    radial-gradient(46% 70% at 100% 42%, rgba(247, 145, 106, 0.9) 0%, rgba(247, 145, 106, 0) 100%),
+    radial-gradient(80% 46% at 50% 108%, rgba(238, 90, 111, 0.96) 0%, rgba(246, 163, 181, 0.6) 48%, rgba(246, 163, 181, 0) 100%),
+    linear-gradient(180deg, #ffffff 0%, #fdf1e4 52%, #fbe4e6 100%);
   transition:
     transform var(--dock) var(--ease-out),
     opacity var(--dock) var(--ease-out);
@@ -135,9 +135,9 @@ button {
   height: 52%;
   opacity: 0;
   background:
-    radial-gradient(46% 72% at 30% 108%, rgba(91, 124, 240, 0.5) 0%, rgba(91, 124, 240, 0) 100%),
-    radial-gradient(46% 72% at 52% 112%, rgba(143, 124, 240, 0.4) 0%, rgba(143, 124, 240, 0) 100%),
-    radial-gradient(46% 72% at 74% 108%, rgba(236, 94, 153, 0.5) 0%, rgba(236, 94, 153, 0) 100%);
+    radial-gradient(46% 72% at 30% 108%, rgba(246, 162, 60, 0.5) 0%, rgba(246, 162, 60, 0) 100%),
+    radial-gradient(46% 72% at 52% 112%, rgba(247, 145, 106, 0.4) 0%, rgba(247, 145, 106, 0) 100%),
+    radial-gradient(46% 72% at 74% 108%, rgba(238, 90, 111, 0.5) 0%, rgba(238, 90, 111, 0) 100%);
   transition: opacity var(--dock) var(--ease-out);
 }
 
@@ -207,7 +207,7 @@ button {
   width: 28px;
   height: 28px;
   border-radius: 9px;
-  background: linear-gradient(135deg, var(--blue), var(--violet) 55%, var(--rose));
+  background: linear-gradient(135deg, var(--sun), var(--peach) 55%, var(--coral));
   display: grid;
   place-items: center;
   color: #fff;
@@ -355,7 +355,7 @@ button.pill:hover {
 }
 
 .composer:focus-within {
-  border-color: rgba(79, 107, 240, 0.55);
+  border-color: rgba(217, 72, 15, 0.55);
 }
 
 .composer__input {
@@ -886,7 +886,7 @@ button.pill:hover {
   padding: 12px 14px;
   border-radius: 12px;
   background: var(--action-wash);
-  color: #2c3fa3;
+  color: #8a2f08;
   font-size: 0.9375rem;
 }
 
