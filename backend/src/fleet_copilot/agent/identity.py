@@ -8,6 +8,7 @@ from dataclasses import dataclass
 from typing import Literal
 
 _SAFE_ID = re.compile(r"^[A-Za-z0-9_-]{1,64}$")
+_SAFE_NAME = re.compile(r"^[A-Za-z0-9 .&'-]{0,40}$")
 
 
 @dataclass(frozen=True)
@@ -18,18 +19,27 @@ class Identity:
     actor_id: str
     display_name: str
     role: Literal["admin", "operator"] = "admin"
+    # The company's display name, written by the server. The planner is told it so it can refuse questions
+    # about other companies; it is never a tool argument and never another company's name.
+    company_name: str = ""
 
     def __post_init__(self) -> None:
         for value in (self.company_id, self.actor_id):
             if not _SAFE_ID.fullmatch(value):
                 raise ValueError("identity ids may only contain letters, digits, '_' and '-'")
+        if not _SAFE_NAME.fullmatch(self.company_name):
+            raise ValueError("a company name is plain text of at most 40 characters")
 
 
 # Demo sign-in: one fictional administrator per tenant in the dataset. There is no password to leak.
 DEMO_IDENTITIES: dict[str, Identity] = {
-    "admin-acme": Identity("acme-001", "admin-acme", "Acme admin (demo)"),
-    "admin-globex": Identity("globex-002", "admin-globex", "Globex admin (demo)"),
-    "admin-initech": Identity("initech-003", "admin-initech", "Initech admin (demo)"),
+    "admin-acme": Identity("acme-001", "admin-acme", "Acme admin (demo)", company_name="Acme"),
+    "admin-globex": Identity(
+        "globex-002", "admin-globex", "Globex admin (demo)", company_name="Globex"
+    ),
+    "admin-initech": Identity(
+        "initech-003", "admin-initech", "Initech admin (demo)", company_name="Initech"
+    ),
 }
 
 # The operator console login. It has no tenant: `operator` matches no company in the dataset, and the API

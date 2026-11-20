@@ -198,6 +198,7 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
                     as_of=ctx.as_of,
                     history=state.get("history") or [],
                     focus_lines=focus_summary(focus),
+                    company_name=ctx.company_name,
                 )
             )
         except Exception as exc:  # model outage or unusable structured output

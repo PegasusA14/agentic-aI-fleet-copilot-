@@ -14,3 +14,4 @@ class AgentContext:
     actor_id: str
     as_of: datetime
     trace_id: str = ""
+    company_name: str = ""  # display name for the planner prompt only; never a tool argument

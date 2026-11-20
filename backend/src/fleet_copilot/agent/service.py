@@ -177,6 +177,7 @@ class AgentService:
             actor_id=identity.actor_id,
             as_of=as_of,
             trace_id=trace_id,
+            company_name=identity.company_name,
         )
         config: dict[str, Any] = {
             "configurable": {"thread_id": thread},

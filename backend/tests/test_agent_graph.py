@@ -689,3 +689,22 @@ async def test_a_resolved_single_device_is_injected_into_device_history(real_db_
     assert second.envelope.outcome != "denied"
     assert {d for c in second.envelope.claims for d in c.device_ids} <= {"MT7PJB7N5LRE"}
     assert "JRZSGXVMKE6M" not in _trace_blob(second) + second.envelope.model_dump_json()
+
+
+async def test_the_planner_sees_the_own_company_name_and_no_tenant_ids(real_db_path):
+    from graph_support import ACME_ADMIN, answer_plan, explanation, make_service
+
+    from fleet_copilot.agent.llm import ScriptedLLM, final_message, tool_calls_message
+
+    llm = ScriptedLLM(
+        plans=[answer_plan()],
+        acts=[tool_calls_message(("low_disk_devices", {})), final_message()],
+        explains=[explanation()],
+    )
+    await make_service(real_db_path, llm).run_turn(ACME_ADMIN, "c1", "low disk?")
+    plan_text = llm.calls_of("plan")[0].text
+    assert "Company (set by the server, not by the user): Acme" in plan_text
+    for forbidden in ("acme-001", "globex-002", "initech-003", "Globex", "Initech"):
+        assert forbidden not in plan_text
+    for kind in ("act", "explain"):
+        assert all("Acme" not in call.text for call in llm.calls_of(kind))

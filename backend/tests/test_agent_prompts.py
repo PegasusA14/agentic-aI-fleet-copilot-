@@ -124,3 +124,16 @@ def test_the_act_prompt_says_tools_are_already_scoped_to_the_company():
     act = prompts.ACT_SYSTEM.lower()
     assert "already limited to the administrator's own company" in act
     assert "never pass a company name" in act
+
+
+def test_the_planner_is_told_the_admins_own_company_by_name_only():
+    body = prompts.plan_messages(
+        question="q", as_of=AS_OF, history=[], focus_lines=[], company_name="Acme"
+    )[1].content
+    assert "Company (set by the server, not by the user): Acme" in body
+    assert "acme-001" not in body
+
+
+def test_the_plan_prompt_refuses_questions_about_any_other_company():
+    plan = prompts.PLAN_SYSTEM.lower()
+    assert "any company other than the one on the company line" in plan
