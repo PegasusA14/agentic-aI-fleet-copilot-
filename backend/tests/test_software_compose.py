@@ -20,7 +20,9 @@ from fleet_copilot.repository import FleetRepository, TenantContext, dataset_as_
 
 NEW = {"view": "new_installs"}
 FORBIDDEN = re.compile(
-    r"malicious|unapproved|unauthori[sz]ed|risk|suspicious|banned|blocked|harmful|unsafe|illegal|piracy",
+    r"malicious|malware|virus|trojan|spyware|ransomware|rogue|unapprov|disapprov|unauthori[sz]|unsanction"
+    r"|unlicens|unvetted|untrust|illegal|illicit|pirat|cracked|suspic|risk|danger|unsafe|insecure"
+    r"|vulnerab|harm|threat|banned|blocked|not\s+(?:approved|authori[sz]ed|allowed|permitted)",
     re.IGNORECASE,
 )
 CHROME, SLACK = BASE_SOFTWARE
@@ -321,6 +323,23 @@ def test_prose_that_invents_a_version_a_device_or_a_date_is_replaced(
         "Unauthorised software appeared.",
         "Unauthorized software appeared.",
         "These installs are dangerous.",
+        "Several malwares were installed.",
+        "uTorrent appeared suspiciously.",
+        "It was installed illegally.",
+        "The app was disapproved.",
+        "uTorrent is not approved here.",
+        "uTorrent is not  authorized.",
+        "This is not allowed.",
+        "This is not permitted.",
+        "It looks like a trojan.",
+        "Possible spyware on 7VP16KHV88LM.",
+        "The app is vulnerable.",
+        "The setup is insecure.",
+        "A rogue app appeared.",
+        "These are unvetted apps.",
+        "It is a cracked copy.",
+        "Pirated software appeared.",
+        "Not Authorised software appeared.",
     ],
 )
 def test_prose_may_not_label_software_as_risky_or_unapproved(real_db_path, real_conn, text):
@@ -351,3 +370,21 @@ def test_app_names_alone_never_trip_the_markup_or_id_checks(real_db_path, real_c
     text = "Visual Studio Code, Google Chrome, 1Password, CleanMyMac X, TeamViewer, uTorrent, Zoom and Slack"
     problems = check_prose(text, allowed=allowed, ids=ids, labels=labels, max_chars=200)
     assert problems == []
+
+
+def test_a_mixed_answer_that_cites_software_still_gets_the_judgment_gate(real_db_path, real_conn):
+    comp = compose(
+        [
+            run(real_db_path, real_conn, "software_inventory", NEW),
+            run(real_db_path, real_conn, "low_disk_devices", {}),
+        ],
+        resolve=repo_for(real_conn).resolve,
+    )
+    assert any("#software[" in e.ref for e in comp.evidence)
+    got = verdict(
+        comp,
+        real_conn,
+        headline=None,
+        explanation="MT7PJB7N5LRE is at risk of running out of disk.",
+    )
+    assert "explanation:judgment_word" in got.problems and got.explanation is None

@@ -95,10 +95,16 @@ CLAIM_WORDS = (
 _CLAIM_WORD = re.compile(r"\b(" + "|".join(CLAIM_WORDS) + r")\b", re.IGNORECASE)
 
 # The telemetry carries no approval, licence or risk label for installed software, so prose about software
-# may not add one. This is checked only on answers that cite software readings.
+# may not add one. This is checked only on answers that cite software readings, on the folded text. Every
+# stem takes a `\w*` suffix so inflections are caught ("malwares", "suspiciously", "illegally"), and the
+# negated forms ("not approved", "not allowed") are matched with flexible whitespace. Known limit, shared
+# with the claim-word check: cross-script look-alikes (for example Cyrillic letters) are not folded.
 _JUDGMENT_WORD = re.compile(
-    r"\b(?:malicious|malware|virus\w*|unapproved|unauthori[sz]ed|unsanctioned|unlicensed|illegal|pirat\w*"
-    r"|suspicious|risk\w*|danger\w*|unsafe|harm\w*|threat\w*|banned|untrusted)\b",
+    r"\b(?:malicious\w*|malware\w*|virus\w*|trojan\w*|spyware\w*|ransomware\w*|rogue\w*"
+    r"|unapprov\w*|disapprov\w*|unauthori[sz]\w*|unsanction\w*|unlicens\w*|unvetted\w*|untrust\w*"
+    r"|illegal\w*|illicit\w*|pirat\w*|crack(?:ed|s)\b|suspic\w*|risk\w*|danger\w*|unsafe\w*"
+    r"|insecure\w*|vulnerab\w*|harm\w*|threat\w*|ban(?:ned|s)\b"
+    r"|not\s+(?:approved|authori[sz]ed|allowed|permitted))\b",
     re.IGNORECASE,
 )
 
