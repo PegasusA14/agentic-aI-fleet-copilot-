@@ -6,27 +6,42 @@ Nodes emit small drafts through LangGraph's custom stream; the service stamps th
 
 from __future__ import annotations
 
-from typing import Any
+import re
+from typing import Any, get_args
 
 from langgraph.config import get_stream_writer
 
+from fleet_copilot.agent.tools import CheckId, FormFactor, OsName, Severity
 from fleet_copilot.contracts import TraceEvent, TraceKind
 
-# Arguments whose values are enumerated or numeric, so they are safe to show. Everything else
-# (hostnames, model names, employee ids, device ids) is reduced to "applied" or a count.
-SAFE_ARG_KEYS = frozenset(
-    {
-        "metric",
-        "window_days",
-        "threshold_pct",
-        "older_than",
-        "check_id",
-        "severity",
-        "form_factor",
-        "os_name",
-        "group_by",
-    }
-)
+# Arguments whose values are enumerated or numeric. Model-supplied text is not trusted just because the
+# key is a safe one: a string is shown only if it is one of the values the tool accepts for that key
+# (or, for versions, has the version shape); anything else is reduced to "applied". Everything else
+# (hostnames, model names, employee ids, device ids) is "applied" or a count.
+_ENUMERATED: dict[str, frozenset[str]] = {
+    "metric": frozenset(
+        {"memory", "disk", "compliance", "battery"}
+        | {"disk_free_pct", "memory_used_pct", "battery_capacity"}
+    ),
+    "check_id": frozenset(get_args(CheckId)),
+    "severity": frozenset(get_args(Severity)),
+    "form_factor": frozenset(get_args(FormFactor)),
+    "os_name": frozenset(get_args(OsName)),
+    "group_by": frozenset({"os", "model", "form_factor"}),
+}
+_VERSION = re.compile(r"^\d{1,3}(\.\d{1,3}){0,2}$")
+_NUMERIC_KEYS = frozenset({"window_days", "threshold_pct"})
+SAFE_ARG_KEYS = frozenset(_ENUMERATED) | _NUMERIC_KEYS | {"older_than"}
+
+
+def _safe_value(key: str, value: Any) -> bool:
+    if isinstance(value, bool | int | float):
+        return key in SAFE_ARG_KEYS
+    if not isinstance(value, str):
+        return False
+    if key == "older_than":
+        return bool(_VERSION.match(value))
+    return value in _ENUMERATED.get(key, frozenset())
 
 
 def trace_args(args: dict[str, Any]) -> dict[str, Any]:
@@ -36,8 +51,8 @@ def trace_args(args: dict[str, Any]) -> dict[str, Any]:
         if value is None:
             continue
         if key == "device_ids":
-            shown[key] = len(value)
-        elif key in SAFE_ARG_KEYS and isinstance(value, str | int | float | bool):
+            shown[key] = len(value) if isinstance(value, list | tuple) else "applied"
+        elif _safe_value(key, value):
             shown[key] = value
         else:
             shown[key] = "applied"

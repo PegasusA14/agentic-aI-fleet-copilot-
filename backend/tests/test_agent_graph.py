@@ -244,7 +244,7 @@ async def test_a_bad_tool_input_is_reported_to_the_model_which_can_fix_it(real_d
     second_act = llm.calls_of("act")[1].text
     assert "Invalid tool input" in second_act
     assert "retry" not in kinds(result)  # input errors are the model's to fix, not retried
-    assert result.envelope.outcome in ("answer", "no_match", "insufficient_data")
+    assert result.envelope.outcome == "answer"
 
 
 async def test_a_transient_tool_failure_is_retried_once_then_succeeds(real_db_path, monkeypatch):
@@ -435,3 +435,107 @@ async def test_every_envelope_round_trips_through_the_contract(real_db_path):
     )
     result = await ask(make_service(real_db_path, llm), "low disk?")
     assert AnswerEnvelope.model_validate_json(result.envelope.model_dump_json()) == result.envelope
+
+
+# ---- fix round 1: model-controlled text never reaches the trace -----------------------------------
+
+
+def _trace_blob(result) -> str:
+    return json.dumps([e.model_dump() for e in result.trace])
+
+
+async def test_an_unvalidated_free_text_value_in_a_safe_key_never_reaches_the_trace(real_db_path):
+    probe = "emp-acme-1003 secret"
+    llm = ScriptedLLM(
+        plans=[answer_plan()],
+        acts=[
+            tool_calls_message(("find_devices", {"os_name": probe})),
+            final_message(),
+        ],
+    )
+    result = await ask(make_service(real_db_path, llm), "what runs this?")
+    assert "emp-acme-1003" not in _trace_blob(result) + result.envelope.model_dump_json()
+    call = next(e for e in result.trace if e.kind == "tool_call")
+    assert call.data["args"]["os_name"] == "applied"
+
+
+async def test_legitimate_enumerated_values_still_show_in_the_trace(real_db_path):
+    llm = ScriptedLLM(
+        plans=[answer_plan()],
+        acts=[
+            tool_calls_message(("find_devices", {"os_name": "macOS", "group_by": "model"})),
+            tool_calls_message(("trend", {"metric": "compliance", "check_id": "screen_lock"})),
+            tool_calls_message(("macos_version_check", {"older_than": "14.2"})),
+            final_message(),
+        ],
+        explains=[explanation(headline="Here is what I found")],
+    )
+    result = await ask(make_service(real_db_path, llm), "overview?")
+    args = [e.data["args"] for e in result.trace if e.kind == "tool_call"]
+    assert {"os_name": "macOS", "group_by": "model"} in args
+    assert {"metric": "compliance", "check_id": "screen_lock"} in args
+    assert {"older_than": "14.2"} in args
+
+
+async def test_a_hallucinated_tool_name_is_an_input_error_the_model_can_recover_from(real_db_path):
+    llm = ScriptedLLM(
+        plans=[answer_plan()],
+        acts=[
+            tool_calls_message(("delete_all_devices", {"confirm": "yes"})),
+            tool_calls_message(("low_disk_devices", {})),
+            final_message(),
+        ],
+        explains=[explanation()],
+    )
+    result = await ask(make_service(real_db_path, llm), "low disk?")
+    assert result.envelope.outcome == "answer"
+    assert "retry" not in kinds(result)
+    assert "delete_all_devices" not in _trace_blob(result) + result.envelope.model_dump_json()
+    assert all(e.tool in (None, "low_disk_devices", "unknown_tool") for e in result.trace)
+    assert "Invalid tool input" in llm.calls_of("act")[1].text
+    assert "delete_all_devices" not in llm.calls_of("act")[1].text.split("Invalid tool input")[1]
+    assert len(result.envelope.claims) == 1  # only the valid call became a record
+
+
+async def test_every_round_invalid_ends_as_a_step_limit_with_no_second_compose(real_db_path):
+    rounds = policy.MAX_TOOL_ROUNDS
+    llm = ScriptedLLM(
+        plans=[answer_plan()],
+        acts=[
+            tool_calls_message(("trend", {"metric": "memory", "window_days": 999}))
+            for _ in range(rounds + 1)
+        ],
+    )
+    service = make_service(real_db_path, llm)
+    result = await ask(service, "memory?")
+    assert (result.envelope.outcome, result.envelope.reason_code) == (
+        "insufficient_data",
+        "step_limit",
+    )
+    assert result.envelope.headline == texts.STEP_LIMIT
+    assert kinds(result).count("compose") == 1
+    state = await service._graph.aget_state(
+        {"configurable": {"thread_id": "acme-001:admin-acme:c1"}}
+    )
+    assert state.values["records"] == []  # input errors never become records
+
+
+async def test_a_resolved_single_device_is_injected_into_device_history(real_db_path):
+    llm = ScriptedLLM(
+        plans=[answer_plan(), follow_up_plan("ordinal", 1)],
+        acts=[
+            tool_calls_message(("low_disk_devices", {})),
+            final_message(),
+            tool_calls_message(
+                ("device_history", {"device_id": "JRZSGXVMKE6M", "metric": "disk_free_pct"})
+            ),
+            final_message(),
+        ],
+        explains=[explanation(), explanation(headline="History for that device")],
+    )
+    service = make_service(real_db_path, llm)
+    await ask(service, "low disk?")
+    second = await ask(service, "show the history of the first one")
+    assert second.envelope.outcome != "denied"
+    assert {d for c in second.envelope.claims for d in c.device_ids} <= {"MT7PJB7N5LRE"}
+    assert "JRZSGXVMKE6M" not in _trace_blob(second) + second.envelope.model_dump_json()

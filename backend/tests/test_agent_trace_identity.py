@@ -126,3 +126,31 @@ def test_focus_is_replaced_by_answers_and_kept_through_clarifications_and_refusa
     assert next_focus(old, envelope("denied")) == old
     assert next_focus(old, envelope("tool_error")) == old
     assert next_focus([], envelope("answer", [shown])) == old
+
+
+def test_trace_args_hide_free_text_in_safe_keys_and_keep_valid_values():
+    shown = trace_args(
+        {
+            "os_name": "emp-acme-1003 secret",
+            "metric": "memory; drop",
+            "check_id": "screen_lock",
+            "severity": "high",
+            "form_factor": "tablet",
+            "group_by": "model",
+            "older_than": "14.2",
+            "window_days": 7,
+            "threshold_pct": 12.5,
+        }
+    )
+    assert shown == {
+        "os_name": "applied",
+        "metric": "applied",
+        "check_id": "screen_lock",
+        "severity": "high",
+        "form_factor": "applied",
+        "group_by": "model",
+        "older_than": "14.2",
+        "window_days": 7,
+        "threshold_pct": 12.5,
+    }
+    assert trace_args({"older_than": "emp-acme-1003"}) == {"older_than": "applied"}

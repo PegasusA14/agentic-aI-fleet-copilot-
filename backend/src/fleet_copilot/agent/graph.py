@@ -60,6 +60,10 @@ RECURSION_LIMIT = 4 * policy.MAX_TOOL_ROUNDS + 20
 
 ToolCall = dict[str, Any]
 
+_TOOL_NAMES = frozenset(t.name for t in TOOLS)
+# What a trace shows for a tool name the model made up: never the model's own text.
+UNKNOWN_TOOL = "unknown_tool"
+
 
 @contextmanager
 def _repo(ctx: AgentContext):
@@ -93,6 +97,9 @@ def inject_focus(name: str, args: ToolCall, focus_ids: list[str] | None) -> Tool
         return dict(args)
     if name in DEVICE_FILTER_TOOLS:
         return {**args, "device_ids": list(focus_ids)}
+    # device_history takes one device. With several resolved ids there is nothing to inject, so the
+    # model's own `device_id` stays; it is still looked up through the tenant-scoped repository, so a
+    # foreign or unknown id gets the uniform not-found.
     if name == "device_history" and len(focus_ids) == 1:
         return {**args, "device_id": focus_ids[0]}
     return dict(args)
@@ -120,10 +127,26 @@ async def _tool_wrapper(
     """Inject resolved device ids, trace the call, and retry a transient failure once."""
     call = request.tool_call
     name = call["name"]
+    if name not in _TOOL_NAMES:
+        # A made-up tool is the model's mistake: tell it (without echoing the name), never retry it.
+        emit(
+            "tool_result",
+            "A tool call named no known tool",
+            tool=UNKNOWN_TOOL,
+            data={"status": "invalid_input", "matches": 0, "population": None},
+        )
+        return ToolMessage(
+            content=f"{INVALID_INPUT_PREFIX}: unknown tool. Use one of: {', '.join(sorted(_TOOL_NAMES))}",
+            tool_call_id=call["id"],
+            status="error",
+        )
     args = inject_focus(name, call["args"], request.state.get("focus_ids"))
     if args != call["args"]:
         request = request.override(tool_call={**call, "args": args})
-    emit("tool_call", f"Calling {name}", tool=name, data={"args": trace_args(args)})
+    # Only the tool's own parameter names are traced; the model cannot smuggle text in as a key.
+    known = request.tool.args if request.tool is not None else {}
+    traced = {key: value for key, value in args.items() if key in known}
+    emit("tool_call", f"Calling {name}", tool=name, data={"args": trace_args(traced)})
     started = time.perf_counter()
     result = await execute(request)
     if _is_transient_error(result):
@@ -300,6 +323,9 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
         ctx = runtime.context
         records = [ToolRecord.model_validate(r) for r in state.get("records") or []]
         kwargs = {"company_id": ctx.company_id, "as_of": ctx.as_of, "trace_id": ctx.trace_id}
+        if not records and state.get("limit_hit"):
+            # Every round was spent on calls the model got wrong: the search was cut short, not empty.
+            return {"envelope": _dump(outcomes.step_limit(**kwargs))}
         if not records:
             emit("compose", "No evidence was gathered", data={"records": 0})
             return {"envelope": _dump(outcomes.clarification(None, [], **kwargs))}
