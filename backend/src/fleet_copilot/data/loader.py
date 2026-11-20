@@ -55,6 +55,14 @@ CREATE TABLE compliance (
     severity    TEXT NOT NULL,
     PRIMARY KEY (snapshot_id, check_id)
 );
+
+CREATE TABLE software (
+    snapshot_id INTEGER NOT NULL REFERENCES snapshots (snapshot_id),
+    name        TEXT NOT NULL,
+    version     TEXT NOT NULL,
+    publisher   TEXT NOT NULL,
+    PRIMARY KEY (snapshot_id, name)
+);
 """
 
 _DEVICES_FROM_LATEST = """
@@ -171,6 +179,10 @@ def insert_rows(conn: sqlite3.Connection, parsed: list[ParsedRow]) -> list[Quara
         conn.executemany(
             "INSERT INTO compliance (snapshot_id, check_id, status, severity) VALUES (?, ?, ?, ?)",
             [(cursor.lastrowid, c.check_id, c.status, c.severity) for c in row.compliance_results],
+        )
+        conn.executemany(
+            "INSERT INTO software (snapshot_id, name, version, publisher) VALUES (?, ?, ?, ?)",
+            [(cursor.lastrowid, s.name, s.version, s.publisher) for s in row.installed_software],
         )
     return rejected
 

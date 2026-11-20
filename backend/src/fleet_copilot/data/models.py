@@ -7,7 +7,8 @@ from pydantic import BaseModel, ConfigDict, Field, field_validator, model_valida
 
 
 class _Base(BaseModel):
-    # Unknown keys (network, installed_software, ...) are dropped on purpose: data minimization.
+    # Unknown keys (network, ...) are dropped on purpose: data minimization. `installed_software` is
+    # kept (name, version, publisher): it is telemetry the agent answers from.
     model_config = ConfigDict(extra="ignore", frozen=True, protected_namespaces=())
 
 
@@ -59,6 +60,21 @@ class ComplianceResult(_Base):
     severity: Literal["low", "medium", "high", "critical"]
 
 
+# Software names, versions and publishers reach evidence values and answer text, so their characters are
+# limited at the door. A value outside these shapes quarantines the whole row, like any malformed field.
+# Name: 1-60 characters, no space at either edge.
+SOFTWARE_NAME_PATTERN = r"^[A-Za-z0-9](?:[A-Za-z0-9 ._+-]{0,58}[A-Za-z0-9._+-])?$"
+_VERSION = r"^[A-Za-z0-9][A-Za-z0-9._+-]{0,39}$"
+_PUBLISHER = r"^[A-Za-z0-9](?:[A-Za-z0-9 ._,&+'-]{0,78}[A-Za-z0-9._,&+'-])?$"
+MAX_SOFTWARE_PER_ROW = 200
+
+
+class InstalledSoftware(_Base):
+    name: str = Field(pattern=SOFTWARE_NAME_PATTERN)
+    version: str = Field(pattern=_VERSION)
+    publisher: str = Field(pattern=_PUBLISHER)
+
+
 class TelemetryRow(_Base):
     device_id: str
     company_id: str
@@ -70,6 +86,7 @@ class TelemetryRow(_Base):
     disk_volumes: list[DiskVolume] = Field(min_length=1)
     battery: Battery | None = None
     compliance_results: list[ComplianceResult]
+    installed_software: list[InstalledSoftware] = Field(max_length=MAX_SOFTWARE_PER_ROW)
 
     @field_validator("collected_at")
     @classmethod
@@ -88,4 +105,12 @@ class TelemetryRow(_Base):
         ids = [c.check_id for c in self.compliance_results]
         if len(ids) != len(set(ids)):
             raise ValueError("duplicate check_id in compliance_results")
+        return self
+
+    @model_validator(mode="after")
+    def _unique_software_names(self) -> TelemetryRow:
+        # Case-insensitive, so a lookup by name can never match two different rows.
+        names = [s.name.lower() for s in self.installed_software]
+        if len(names) != len(set(names)):
+            raise ValueError("duplicate name in installed_software")
         return self

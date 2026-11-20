@@ -14,6 +14,12 @@ _CHECKS = [
 ]
 
 
+BASE_SOFTWARE = [
+    {"name": "Google Chrome", "version": "126.0", "publisher": "Google LLC"},
+    {"name": "Slack", "version": "4.39", "publisher": "Slack Technologies"},
+]
+
+
 def make_row(
     device: str = "DEV1",
     company: str = "acme-001",
@@ -45,6 +51,7 @@ def make_row(
             "percentage": 80,
         },
         "compliance_results": [dict(c) for c in _CHECKS],
+        "installed_software": [dict(s) for s in BASE_SOFTWARE],
     }
     for key, value in overrides.items():
         if value is None:
