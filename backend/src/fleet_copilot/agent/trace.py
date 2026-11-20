@@ -34,9 +34,16 @@ _NUMERIC_KEYS = frozenset({"window_days", "threshold_pct"})
 SAFE_ARG_KEYS = frozenset(_ENUMERATED) | _NUMERIC_KEYS | {"older_than"}
 
 
+_MAX_SHOWN_NUMBER = 1_000_000
+
+
 def _safe_value(key: str, value: Any) -> bool:
-    if isinstance(value, bool | int | float):
-        return key in SAFE_ARG_KEYS
+    if isinstance(value, bool):
+        return False  # a bool is never a value any tool takes under these keys
+    if isinstance(value, int | float):
+        # Numbers are model-controlled: only a plain integer of count size is shown, never a float
+        # (NaN, infinity, long fractions) or a huge integer that could carry text.
+        return key in _NUMERIC_KEYS and isinstance(value, int) and 0 <= value <= _MAX_SHOWN_NUMBER
     if not isinstance(value, str):
         return False
     if key == "older_than":

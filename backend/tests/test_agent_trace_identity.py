@@ -128,6 +128,28 @@ def test_focus_is_replaced_by_answers_and_kept_through_clarifications_and_refusa
     assert next_focus([], envelope("answer", [shown])) == old
 
 
+@pytest.mark.parametrize(
+    "value",
+    [float("nan"), float("inf"), float("-inf"), 10**40, 1_000_001, -1, 12.5, True, False],
+)
+def test_trace_args_show_only_small_non_negative_integers(value):
+    # Numbers are model-controlled too: only a plain count-sized integer is shown; the rest is "applied".
+    assert trace_args({"window_days": value, "threshold_pct": value}) == {
+        "window_days": "applied",
+        "threshold_pct": "applied",
+    }
+
+
+def test_trace_args_numbers_at_the_edges_and_under_other_keys():
+    assert trace_args({"window_days": 0}) == {"window_days": 0}
+    assert trace_args({"window_days": 1_000_000}) == {"window_days": 1_000_000}
+    # An enumerated key never takes a number, and a bool is never shown as a value.
+    assert trace_args({"metric": 7, "severity": True}) == {
+        "metric": "applied",
+        "severity": "applied",
+    }
+
+
 def test_trace_args_hide_free_text_in_safe_keys_and_keep_valid_values():
     shown = trace_args(
         {
@@ -139,7 +161,7 @@ def test_trace_args_hide_free_text_in_safe_keys_and_keep_valid_values():
             "group_by": "model",
             "older_than": "14.2",
             "window_days": 7,
-            "threshold_pct": 12.5,
+            "threshold_pct": 15,
         }
     )
     assert shown == {
@@ -151,6 +173,6 @@ def test_trace_args_hide_free_text_in_safe_keys_and_keep_valid_values():
         "group_by": "model",
         "older_than": "14.2",
         "window_days": 7,
-        "threshold_pct": 12.5,
+        "threshold_pct": 15,
     }
     assert trace_args({"older_than": "emp-acme-1003"}) == {"older_than": "applied"}
