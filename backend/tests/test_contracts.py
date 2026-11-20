@@ -10,12 +10,15 @@ from fleet_copilot.contracts import (
     AnswerEnvelope,
     Claim,
     Clarification,
+    Coverage,
+    EntityList,
+    EntityRef,
     EvidenceItem,
     ProposalCard,
     ScopeInfo,
     TraceEvent,
 )
-from fleet_copilot.contracts_export import build_schema
+from fleet_copilot.contracts_export import SCHEMA_DIR, build_schema
 
 SCOPE = ScopeInfo(
     company_id="acme-001",
@@ -30,6 +33,7 @@ FOREIGN_REF = "globex-002/MT7PJB7N5LRE@2026-06-12T08:39:00Z#disk"
 def envelope(**overrides):
     base = {
         "outcome": "answer",
+        "trace_id": "t-1",
         "headline": "2 of 10 devices are low on disk",
         "claims": [Claim(text="MT7PJB7N5LRE has 2.0% free", refs=[REF])],
         "evidence": [EvidenceItem(ref=REF, label="disk", value="11 GB of 512 GiB free")],
@@ -53,7 +57,8 @@ def test_an_answer_needs_at_least_one_claim():
 
 
 def test_no_match_may_have_zero_claims():
-    assert envelope(outcome="no_match", claims=[], evidence=[]).outcome == "no_match"
+    ok = envelope(outcome="no_match", claims=[], evidence=[], reason_code="no_matching_records")
+    assert ok.outcome == "no_match"
 
 
 def test_clarification_requires_its_payload_and_only_it():
@@ -133,18 +138,19 @@ def test_every_claim_must_cite_at_least_one_ref():
 
 @pytest.mark.parametrize("outcome", ["denied", "unsupported", "tool_error"])
 def test_refusal_outcomes_carry_no_claims_or_evidence(outcome):
-    assert envelope(outcome=outcome, claims=[], evidence=[]).outcome == outcome
+    refusal = {"outcome": outcome, "reason_code": "not_found"}
+    assert envelope(**refusal, claims=[], evidence=[]).outcome == outcome
     with pytest.raises(ValidationError, match="must not carry claims or evidence"):
-        envelope(outcome=outcome)
+        envelope(**refusal)
     with pytest.raises(ValidationError, match="must not carry claims or evidence"):
-        envelope(outcome=outcome, claims=[])
+        envelope(**refusal, claims=[])
     with pytest.raises(ValidationError, match="must not carry claims or evidence"):
-        envelope(outcome=outcome, evidence=[])
+        envelope(**refusal, evidence=[])
 
 
 @pytest.mark.parametrize("outcome", ["no_match", "insufficient_data"])
 def test_no_match_and_insufficient_data_may_carry_grounded_claims(outcome):
-    assert envelope(outcome=outcome).claims[0].refs == [REF]
+    assert envelope(outcome=outcome, reason_code="no_matching_records").claims[0].refs == [REF]
 
 
 def test_unknown_fields_and_outcomes_are_rejected():
@@ -158,6 +164,7 @@ def evidence_only(*refs):
     """An envelope that carries only evidence, so the evidence rules are the ones that can fire."""
     return envelope(
         outcome="no_match",
+        reason_code="no_matching_records",
         claims=[],
         evidence=[EvidenceItem(ref=r, label="disk", value="v") for r in refs],
     )
@@ -242,6 +249,110 @@ def test_trace_event_kinds_are_closed():
         TraceEvent(seq=1, kind="thinking", summary="x")
 
 
-def test_committed_schema_matches_the_models():
-    committed = json.loads((REPO_ROOT / "contracts" / "schema.json").read_text(encoding="utf-8"))
-    assert committed == build_schema()
+def test_a_trace_id_is_required():
+    with pytest.raises(ValidationError, match="trace_id"):
+        AnswerEnvelope(
+            outcome="answer",
+            headline="h",
+            claims=[Claim(text="c", refs=[REF])],
+            evidence=[EvidenceItem(ref=REF, label="l", value="v")],
+            scope=SCOPE,
+        )
+
+
+@pytest.mark.parametrize(
+    "outcome", ["denied", "unsupported", "tool_error", "insufficient_data", "no_match"]
+)
+def test_refusals_and_empty_results_need_a_reason_code(outcome):
+    with pytest.raises(ValidationError, match="requires a reason_code"):
+        envelope(outcome=outcome, claims=[], evidence=[])
+    ok = envelope(outcome=outcome, claims=[], evidence=[], reason_code="not_found")
+    assert ok.reason_code == "not_found"
+
+
+@pytest.mark.parametrize("outcome", ["answer", "clarification"])
+def test_other_outcomes_must_not_carry_a_reason_code(outcome):
+    extra = (
+        {"clarification": Clarification(question="Which?")} if outcome == "clarification" else {}
+    )
+    claims = [] if outcome == "clarification" else [Claim(text="c", refs=[REF])]
+    evidence = [] if outcome == "clarification" else [EvidenceItem(ref=REF, label="l", value="v")]
+    with pytest.raises(ValidationError, match="must not carry a reason_code"):
+        envelope(
+            outcome=outcome, claims=claims, evidence=evidence, reason_code="not_found", **extra
+        )
+
+
+@pytest.mark.parametrize("outcome", ["denied", "unsupported", "tool_error"])
+def test_refusals_carry_no_explanation(outcome):
+    with pytest.raises(ValidationError, match="must not carry an explanation"):
+        envelope(
+            outcome=outcome,
+            claims=[],
+            evidence=[],
+            reason_code="not_found",
+            explanation="free text",
+        )
+
+
+def test_claim_count_must_match_its_device_ids():
+    assert Claim(text="c", refs=[REF], count=2, device_ids=["A", "B"]).count == 2
+    with pytest.raises(ValidationError, match="count must equal"):
+        Claim(text="c", refs=[REF], count=3, device_ids=["A", "B"])
+
+
+def test_entity_lists_are_ordered_and_unique():
+    items = [
+        EntityRef(rank=1, device_id="A", label="host-a"),
+        EntityRef(rank=2, device_id="B", label="host-b"),
+    ]
+    assert EntityList(list_id="low-disk-1", title="Low disk", items=items).items[1].rank == 2
+    with pytest.raises(ValidationError, match="ranks must run"):
+        EntityList(list_id="x", title="t", items=[EntityRef(rank=2, device_id="A", label="a")])
+    with pytest.raises(ValidationError, match="duplicate device"):
+        EntityList(
+            list_id="x",
+            title="t",
+            items=[
+                EntityRef(rank=1, device_id="A", label="a"),
+                EntityRef(rank=2, device_id="A", label="a"),
+            ],
+        )
+
+
+def test_duplicate_entity_list_ids_are_rejected():
+    one = EntityList(list_id="same", title="t", items=[EntityRef(rank=1, device_id="A", label="a")])
+    with pytest.raises(ValidationError, match="duplicate entity list ids"):
+        envelope(entity_lists=[one, one])
+
+
+def test_coverage_is_structured():
+    cov = Coverage(population=10, stale=["A"], excluded={"out_of_scope": ["W1", "W2"]})
+    assert envelope(coverage=cov).coverage.excluded["out_of_scope"] == ["W1", "W2"]
+    with pytest.raises(ValidationError):
+        Coverage(population=-1)
+
+
+def test_schema_files_are_per_model_required_complete_and_committed():
+    schemas = build_schema()
+    assert set(schemas) == {"AnswerEnvelope", "TraceEvent"}
+    envelope_schema = schemas["AnswerEnvelope"]
+    # serialization mode + defaults-required: arrays and nullable fields are always present
+    for field in (
+        "claims",
+        "evidence",
+        "notes",
+        "entity_lists",
+        "coverage",
+        "reason_code",
+        "explanation",
+        "trace_id",
+    ):
+        assert field in envelope_schema["required"], field
+    assert not (SCHEMA_DIR / "schema.json").exists()
+    for name, schema in schemas.items():
+        path = SCHEMA_DIR / f"{name}.schema.json"
+        text = path.read_text(encoding="utf-8")
+        assert json.loads(text) == schema
+        assert text.endswith("\n") and text == json.dumps(schema, indent=2, sort_keys=True) + "\n"
+    assert SCHEMA_DIR == REPO_ROOT / "contracts"

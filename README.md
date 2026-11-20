@@ -16,7 +16,7 @@ make load-data   # validate data/device-telemetry-dataset.ndjson into var/fleet.
 make test        # unit, golden-agreement and tenant-isolation tests (no API key needed)
 make lint        # ruff checks on backend/src and backend/tests
 make golden      # regenerate evals/golden/golden.json from the raw data
-make contracts   # regenerate contracts/schema.json from the Pydantic models
+make contracts   # regenerate the contracts/*.schema.json files from the Pydantic models
 ```
 
 `make golden` runs `evals/golden/oracle.py` with the system `python3` (standard
@@ -28,6 +28,7 @@ wall clock.
 ## API contract
 
 `backend/src/fleet_copilot/contracts.py` defines the typed answer envelope and trace
-events. `contracts/schema.json` is the JSON Schema generated from those models; it is
-committed, and a test fails if it drifts from the models, so rerun `make contracts`
-after changing them.
+events. `contracts/AnswerEnvelope.schema.json` and `contracts/TraceEvent.schema.json` are
+the JSON Schemas generated from those models with `make contracts`, in serialization
+mode so every field is required in the generated types. They are committed, and a test
+fails if they drift from the models, so rerun `make contracts` after changing them.

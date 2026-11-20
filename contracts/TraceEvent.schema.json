@@ -1,0 +1,51 @@
+{
+  "additionalProperties": false,
+  "properties": {
+    "data": {
+      "additionalProperties": true,
+      "title": "Data",
+      "type": "object"
+    },
+    "kind": {
+      "enum": [
+        "plan",
+        "tool_call",
+        "tool_result",
+        "verify",
+        "respond",
+        "error"
+      ],
+      "title": "Kind",
+      "type": "string"
+    },
+    "latency_ms": {
+      "anyOf": [
+        {
+          "type": "integer"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Latency Ms"
+    },
+    "seq": {
+      "title": "Seq",
+      "type": "integer"
+    },
+    "summary": {
+      "title": "Summary",
+      "type": "string"
+    }
+  },
+  "required": [
+    "seq",
+    "kind",
+    "summary",
+    "data",
+    "latency_ms"
+  ],
+  "title": "TraceEvent",
+  "type": "object"
+}

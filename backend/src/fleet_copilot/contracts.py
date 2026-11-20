@@ -21,10 +21,54 @@ ProposalStatus = Literal[
     "pending", "approved", "rejected", "executed", "failed", "uncertain", "invalidated"
 ]
 TraceKind = Literal["plan", "tool_call", "tool_result", "verify", "respond", "error"]
+ReasonCode = Literal[
+    "no_matching_records",
+    "insufficient_history",
+    "not_found",
+    "off_topic",
+    "unsupported_action",
+    "prompt_injection",
+    "tool_failure",
+    "step_limit",
+]
+_REASON_REQUIRED = {"denied", "unsupported", "tool_error", "insufficient_data", "no_match"}
+_NO_FREE_TEXT = {"denied", "unsupported", "tool_error"}
 
 
 class _Model(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="forbid", json_schema_serialization_defaults_required=True)
+
+
+class Coverage(_Model):
+    """What the answer covered and what it could not: the disclosures a reviewer needs."""
+
+    population: int = Field(ge=0)
+    stale: list[str] = Field(default_factory=list)
+    missing_latest: list[str] = Field(default_factory=list)
+    excluded: dict[str, list[str]] = Field(default_factory=dict)
+
+
+class EntityRef(_Model):
+    rank: int = Field(ge=1)
+    device_id: str = Field(min_length=1)
+    label: str = Field(min_length=1)
+
+
+class EntityList(_Model):
+    """An ordered list shown to the user, so 'the first one' can be resolved against it."""
+
+    list_id: str = Field(min_length=1)
+    title: str = Field(min_length=1)
+    items: list[EntityRef] = Field(min_length=1)
+
+    @model_validator(mode="after")
+    def _ordered_and_unique(self) -> EntityList:
+        if [item.rank for item in self.items] != list(range(1, len(self.items) + 1)):
+            raise ValueError("entity ranks must run 1..n in order")
+        ids = [item.device_id for item in self.items]
+        if len(ids) != len(set(ids)):
+            raise ValueError("duplicate device in an entity list")
+        return self
 
 
 class EvidenceItem(_Model):
@@ -36,6 +80,14 @@ class EvidenceItem(_Model):
 class Claim(_Model):
     text: str
     refs: list[str] = Field(min_length=1)
+    count: int | None = Field(default=None, ge=0)
+    device_ids: list[str] = Field(default_factory=list)
+
+    @model_validator(mode="after")
+    def _count_matches_devices(self) -> Claim:
+        if self.count is not None and self.device_ids and self.count != len(self.device_ids):
+            raise ValueError("claim count must equal the number of device_ids")
+        return self
 
 
 class ScopeInfo(_Model):
@@ -69,6 +121,7 @@ class AnswerEnvelope(_Model):
     """The only shape the agent returns. The UI maps it to fixed components; the LLM never emits markup."""
 
     outcome: OutcomeType
+    trace_id: str = Field(min_length=1)
     headline: str
     claims: list[Claim] = Field(default_factory=list)
     evidence: list[EvidenceItem] = Field(default_factory=list)
@@ -76,6 +129,10 @@ class AnswerEnvelope(_Model):
     clarification: Clarification | None = None
     proposal: ProposalCard | None = None
     notes: list[str] = Field(default_factory=list)
+    coverage: Coverage | None = None
+    entity_lists: list[EntityList] = Field(default_factory=list)
+    reason_code: ReasonCode | None = None
+    explanation: str | None = None
 
     @model_validator(mode="after")
     def _outcome_payloads(self) -> AnswerEnvelope:
@@ -114,6 +171,20 @@ class AnswerEnvelope(_Model):
             missing = [r for r in self.proposal.evidence_refs if r not in known]
             if missing:
                 raise ValueError(f"proposal cites refs without evidence: {missing}")
+        return self
+
+    @model_validator(mode="after")
+    def _disclosure_rules(self) -> AnswerEnvelope:
+        needs_reason = self.outcome in _REASON_REQUIRED
+        if needs_reason and self.reason_code is None:
+            raise ValueError(f"{self.outcome} outcome requires a reason_code")
+        if not needs_reason and self.reason_code is not None:
+            raise ValueError(f"{self.outcome} outcome must not carry a reason_code")
+        if self.outcome in _NO_FREE_TEXT and self.explanation is not None:
+            raise ValueError(f"{self.outcome} outcome must not carry an explanation")
+        list_ids = [entity_list.list_id for entity_list in self.entity_lists]
+        if len(list_ids) != len(set(list_ids)):
+            raise ValueError("duplicate entity list ids")
         return self
 
     def _check_ref(self, ref: str) -> None:
