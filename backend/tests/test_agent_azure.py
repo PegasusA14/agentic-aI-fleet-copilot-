@@ -1,0 +1,122 @@
+import asyncio
+
+import httpx
+import openai
+import pytest
+from langchain_core.messages import AIMessage, HumanMessage
+from model_support import FakeChatModel
+from pydantic import SecretStr
+
+from fleet_copilot.agent.azure import ChatGateway, ModelUnavailable, build_azure_model
+from fleet_copilot.agent.llm import Explanation, Plan
+from fleet_copilot.agent.tools import TOOLS
+from fleet_copilot.config import AzureSettings
+
+MESSAGES = [HumanMessage("hi")]
+PLAN = Plan(intent="answer", summary="look it up")
+EXPLANATION = Explanation(headline="Two devices are low")
+
+
+def rate_limited() -> openai.RateLimitError:
+    request = httpx.Request("POST", "https://example.invalid/x")
+    return openai.RateLimitError(
+        "secret body text", response=httpx.Response(429, request=request), body=None
+    )
+
+
+def auth_failed() -> openai.AuthenticationError:
+    request = httpx.Request("POST", "https://example.invalid/x")
+    return openai.AuthenticationError(
+        "bad key", response=httpx.Response(401, request=request), body=None
+    )
+
+
+def gateway(model, **kw):
+    slept: list[float] = []
+
+    async def sleep(seconds):
+        slept.append(seconds)
+
+    return ChatGateway(model, sleep=sleep, **kw), slept
+
+
+async def test_plan_and_explain_use_function_calling_structured_output():
+    model = FakeChatModel([PLAN, EXPLANATION])
+    gw, _ = gateway(model)
+    assert await gw.plan(MESSAGES) == PLAN
+    assert await gw.explain(MESSAGES) == EXPLANATION
+    assert {(s.__name__, m) for s, m in model.schemas} == {
+        ("Plan", "function_calling"),
+        ("Explanation", "function_calling"),
+    }
+
+
+async def test_act_binds_the_agent_tools_and_returns_the_ai_message():
+    message = AIMessage(
+        content="",
+        tool_calls=[{"name": "low_disk_devices", "args": {}, "id": "1", "type": "tool_call"}],
+    )
+    model = FakeChatModel([message])
+    gw, _ = gateway(model)
+    assert await gw.act(MESSAGES) is message
+    assert model.bound_tools is TOOLS
+
+
+async def test_a_rate_limit_is_retried_with_backoff_then_succeeds():
+    model = FakeChatModel([rate_limited(), rate_limited(), PLAN])
+    gw, slept = gateway(model, backoff_s=(1.0, 3.0))
+    assert await gw.plan(MESSAGES) == PLAN
+    assert slept == [1.0, 3.0]
+
+
+async def test_gives_up_after_the_attempt_limit_with_only_a_type_name():
+    model = FakeChatModel([rate_limited(), rate_limited(), rate_limited()])
+    gw, slept = gateway(model, attempts=3)
+    with pytest.raises(ModelUnavailable) as err:
+        await gw.plan(MESSAGES)
+    assert err.value.reason == "RateLimitError"
+    assert "secret body text" not in str(err.value)
+    assert err.value.__cause__ is None and err.value.__suppress_context__
+    assert len(slept) == 2  # no pause after the last attempt
+
+
+async def test_an_authentication_error_is_not_retried():
+    model = FakeChatModel([auth_failed(), PLAN])
+    gw, slept = gateway(model)
+    with pytest.raises(openai.AuthenticationError):
+        await gw.plan(MESSAGES)
+    assert slept == [] and len(model.script) == 1
+
+
+async def test_a_hung_call_times_out_and_is_retried():
+    async def hang():
+        await asyncio.sleep(10)
+
+    model = FakeChatModel([hang, PLAN])
+    gw, slept = gateway(model, call_timeout_s=0.05)
+    assert await gw.plan(MESSAGES) == PLAN
+    assert len(slept) == 1
+
+
+async def test_a_wrong_result_type_is_refused():
+    model = FakeChatModel([{"intent": "answer"}])
+    gw, _ = gateway(model)
+    with pytest.raises(ModelUnavailable) as err:
+        await gw.plan(MESSAGES)
+    assert err.value.reason == "bad_structured_output"
+
+
+def test_the_real_azure_model_builds_offline_and_binds_the_tools():
+    settings = AzureSettings(
+        api_key=SecretStr("sk-not-a-real-key"),
+        endpoint="https://example.openai.azure.com/",
+        api_version="2024-10-21",
+        deployment="gpt-4o",
+    )
+    model = build_azure_model(settings, call_timeout_s=5.0)
+    assert model.temperature == 0
+    ChatGateway(model)  # builds the structured-output runnables without a network call
+    bound = model.bind_tools(TOOLS)
+    names = [t["function"]["name"] for t in bound.kwargs["tools"]]
+    assert names == [t.name for t in TOOLS]
+    assert "sk-not-a-real-key" not in repr(model)
