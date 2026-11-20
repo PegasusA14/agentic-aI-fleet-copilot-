@@ -1,8 +1,24 @@
 import json
 
 import pytest
+from graph_support import make_service
 
-from fleet_copilot.agent.export_fixtures import SCENARIOS, TENANTS, export_all
+from fleet_copilot.agent.export_fixtures import (
+    _FOREIGN_DEVICE,
+    _FOREIGN_FALLBACK,
+    SCENARIOS,
+    TENANTS,
+    _fill,
+    export_all,
+)
+from fleet_copilot.agent.identity import DEMO_IDENTITIES
+from fleet_copilot.agent.llm import (
+    Explanation,
+    Plan,
+    ScriptedLLM,
+    final_message,
+    tool_calls_message,
+)
 from fleet_copilot.contracts import AnswerEnvelope, TraceEvent
 
 
@@ -31,7 +47,7 @@ def test_every_envelope_and_trace_event_validates_against_the_contract(exported)
             assert envelope.scope.company_id == tenant
             assert envelope.trace_id == f"replay-{tenant}-{scenario.name}"
             assert fixture["trace"], (tenant, scenario.name)
-            for seq, event in enumerate(fixture["trace"], start=1):
+            for seq, event in enumerate(fixture["trace"]):
                 parsed = TraceEvent.model_validate(event)
                 assert parsed.seq == seq
 
@@ -105,3 +121,29 @@ def test_the_exporter_is_deterministic(tmp_path):
     assert names == sorted(p.relative_to(second).as_posix() for p in second.rglob("*.json"))
     for name in names:
         assert (first / name).read_bytes() == (second / name).read_bytes(), name
+
+
+def _shape(trace):
+    return [(e["kind"], e["tool"], sorted(e["data"])) for e in trace]
+
+
+async def test_fixture_traces_have_the_shape_of_a_live_scripted_turn(exported, real_db_path):
+    """Every `tools` fixture trace must match the kinds, tools and data keys of a real turn."""
+    for tenant in TENANTS:
+        identity = DEMO_IDENTITIES[f"admin-{tenant.split('-')[0]}"]
+        foreign_id = _FOREIGN_DEVICE.get(tenant, _FOREIGN_FALLBACK)
+        for scenario in (s for s in SCENARIOS if s.kind == "tools"):
+            fixture = load(exported, tenant, scenario.name)
+            calls = [(tool, _fill(args, foreign_id)) for tool, args in scenario.calls]
+            llm = ScriptedLLM(
+                plans=[Plan(intent="answer", summary=scenario.plan)],
+                acts=[tool_calls_message(*calls), final_message()],
+                explains=[Explanation(headline=fixture["envelope"]["headline"])],
+            )
+            live = await make_service(real_db_path, llm).run_turn(
+                identity, "c1", scenario.question.replace("{foreign_id}", foreign_id)
+            )
+            live_trace = [e.model_dump(mode="json") for e in live.trace]
+            where = (tenant, scenario.name)
+            assert fixture["trace"][0]["seq"] == 0, where
+            assert _shape(fixture["trace"]) == _shape(live_trace), where

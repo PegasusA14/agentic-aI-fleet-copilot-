@@ -37,7 +37,7 @@
       "data": {},
       "kind": "plan",
       "latency_ms": null,
-      "seq": 1,
+      "seq": 0,
       "summary": "Check the latest free disk space against the low-disk rule.",
       "tool": null,
       "trace_id": "replay-initech-003-tool_error"
@@ -49,7 +49,7 @@
       },
       "kind": "tool_call",
       "latency_ms": null,
-      "seq": 2,
+      "seq": 1,
       "summary": "Call low_disk_devices",
       "tool": null,
       "trace_id": "replay-initech-003-tool_error"
@@ -60,7 +60,7 @@
       },
       "kind": "error",
       "latency_ms": null,
-      "seq": 3,
+      "seq": 2,
       "summary": "low_disk_devices failed",
       "tool": null,
       "trace_id": "replay-initech-003-tool_error"
@@ -72,7 +72,7 @@
       },
       "kind": "respond",
       "latency_ms": null,
-      "seq": 4,
+      "seq": 3,
       "summary": "Responded with tool_error.",
       "tool": null,
       "trace_id": "replay-initech-003-tool_error"

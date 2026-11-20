@@ -133,11 +133,27 @@
   },
   "trace": [
     {
-      "data": {},
+      "data": {
+        "company_id": "acme-001"
+      },
+      "kind": "scope",
+      "latency_ms": null,
+      "seq": 0,
+      "summary": "Turn started",
+      "tool": null,
+      "trace_id": "replay-acme-001-battery_wear"
+    },
+    {
+      "data": {
+        "has_reference": false,
+        "intent": "answer",
+        "reference_kind": null,
+        "window_days": null
+      },
       "kind": "plan",
       "latency_ms": null,
       "seq": 1,
-      "summary": "Look for battery wear signals over the last 30 days.",
+      "summary": "Planned the turn",
       "tool": null,
       "trace_id": "replay-acme-001-battery_wear"
     },
@@ -145,51 +161,79 @@
       "data": {
         "args": {
           "metric": "battery"
-        },
-        "tool": "trend"
+        }
       },
       "kind": "tool_call",
       "latency_ms": null,
       "seq": 2,
-      "summary": "Call trend",
+      "summary": "Calling trend",
+      "tool": "trend",
+      "trace_id": "replay-acme-001-battery_wear"
+    },
+    {
+      "data": {
+        "matches": 3,
+        "population": 9,
+        "status": "ok"
+      },
+      "kind": "tool_result",
+      "latency_ms": null,
+      "seq": 3,
+      "summary": "trend returned",
+      "tool": "trend",
+      "trace_id": "replay-acme-001-battery_wear"
+    },
+    {
+      "data": {
+        "claims": 1,
+        "evidence": 9,
+        "outcome": "answer",
+        "records": 1
+      },
+      "kind": "compose",
+      "latency_ms": null,
+      "seq": 4,
+      "summary": "Composed the answer from tool records",
       "tool": null,
       "trace_id": "replay-acme-001-battery_wear"
     },
     {
       "data": {
-        "excluded": {},
-        "matched": 3,
-        "missing_latest": 1,
-        "population": 9,
-        "stale": 0
+        "ok": true
       },
-      "kind": "tool_result",
+      "kind": "explain",
       "latency_ms": null,
-      "seq": 3,
-      "summary": "trend matched 3 of 9 devices (0 stale, 1 without a latest reading)",
+      "seq": 5,
+      "summary": "Model wrote a headline and explanation",
+      "tool": null,
+      "trace_id": "replay-acme-001-battery_wear"
+    },
+    {
+      "data": {
+        "evidence_ok": true,
+        "explanation_shown": false,
+        "headline_from_model": false,
+        "model_prose": true,
+        "problems": []
+      },
+      "kind": "verify",
+      "latency_ms": null,
+      "seq": 6,
+      "summary": "Checked the answer against the evidence",
       "tool": null,
       "trace_id": "replay-acme-001-battery_wear"
     },
     {
       "data": {
         "claims": 1,
-        "evidence": 9
-      },
-      "kind": "verify",
-      "latency_ms": null,
-      "seq": 4,
-      "summary": "Claims, counts and evidence were written by code from the tool results.",
-      "tool": null,
-      "trace_id": "replay-acme-001-battery_wear"
-    },
-    {
-      "data": {
-        "outcome": "answer"
+        "evidence": 9,
+        "outcome": "answer",
+        "reason_code": null
       },
       "kind": "respond",
       "latency_ms": null,
-      "seq": 5,
-      "summary": "Responded with answer.",
+      "seq": 7,
+      "summary": "Answer ready",
       "tool": null,
       "trace_id": "replay-acme-001-battery_wear"
     }

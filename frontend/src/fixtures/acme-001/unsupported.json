@@ -36,7 +36,7 @@
       "data": {},
       "kind": "plan",
       "latency_ms": null,
-      "seq": 1,
+      "seq": 0,
       "summary": "Decide whether the question is about this fleet.",
       "tool": null,
       "trace_id": "replay-acme-001-unsupported"
@@ -48,7 +48,7 @@
       },
       "kind": "respond",
       "latency_ms": null,
-      "seq": 2,
+      "seq": 1,
       "summary": "Responded with unsupported.",
       "tool": null,
       "trace_id": "replay-acme-001-unsupported"

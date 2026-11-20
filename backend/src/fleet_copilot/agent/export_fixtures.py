@@ -2,7 +2,7 @@
 
 Each fixture is the output of the real tool layer and the deterministic composer, run as one tenant
 over the real dataset: `execute()` -> `compose()` -> `Composition.to_envelope()`. Nothing is hand-written
-data. A few outcomes cannot occur yet (there is no model, no proposal backend and no outage to observe),
+data. The trace of every real (`tools`) scenario is the trace of a real scripted `AgentService` turn. A few outcomes cannot occur yet (there is no model, no proposal backend and no outage to observe),
 so those are built from the same parts and flagged `synthetic` with a note saying why.
 
 Run: `python -m fleet_copilot.agent.export_fixtures [out_dir]` (default `frontend/src/fixtures`).
@@ -10,6 +10,7 @@ Run: `python -m fleet_copilot.agent.export_fixtures [out_dir]` (default `fronten
 
 from __future__ import annotations
 
+import asyncio
 import hashlib
 import json
 import sys
@@ -18,11 +19,22 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from langgraph.checkpoint.memory import InMemorySaver
+
 from fleet_copilot import policy
 from fleet_copilot.agent import texts
 from fleet_copilot.agent.compose import Composition, compose
 from fleet_copilot.agent.context import AgentContext
+from fleet_copilot.agent.identity import Identity
+from fleet_copilot.agent.llm import (
+    Explanation,
+    Plan,
+    ScriptedLLM,
+    final_message,
+    tool_calls_message,
+)
 from fleet_copilot.agent.records import ToolRecord
+from fleet_copilot.agent.service import AgentService
 from fleet_copilot.agent.tools import execute
 from fleet_copilot.config import EXPECTED_DATASET_SHA256, REPO_ROOT, Settings
 from fleet_copilot.contracts import (
@@ -233,7 +245,35 @@ def _trace(scenario: Scenario, records: list[ToolRecord], envelope: AnswerEnvelo
         TraceEvent(
             trace_id=envelope.trace_id, seq=seq, kind=kind, summary=summary, data=data
         ).model_dump(mode="json")
-        for seq, (kind, summary, data) in enumerate(events, start=1)
+        for seq, (kind, summary, data) in enumerate(events)
+    ]
+
+
+async def live_trace(
+    scenario: Scenario, tenant: str, db_path: Path, foreign_id: str, envelope: AnswerEnvelope
+) -> list[dict]:
+    """The trace of one real, scripted `AgentService` turn for a `tools` scenario.
+
+    The scripted model plans, calls the scenario's tools and explains with the fixture's own headline,
+    so the trace has the kinds, tools and data keys a live turn produces.
+    """
+    calls = [(tool, _fill(args, foreign_id)) for tool, args in scenario.calls]
+    llm = ScriptedLLM(
+        plans=[Plan(intent="answer", summary=scenario.plan)],
+        acts=[tool_calls_message(*calls), final_message()],
+        explains=[Explanation(headline=envelope.headline)],
+    )
+    service = AgentService(db_path=db_path, gateway=llm, checkpointer=InMemorySaver())
+    actor = f"admin-{tenant.split('-')[0]}"
+    identity = Identity(tenant, actor, f"{tenant} admin (replay)")
+    question = scenario.question.replace("{foreign_id}", foreign_id)
+    result = await service.run_turn(identity, "replay", question)
+    return [
+        # Latency is wall-clock time; a fixture must be byte-identical between runs, so it is dropped.
+        event.model_copy(update={"trace_id": envelope.trace_id, "latency_ms": None}).model_dump(
+            mode="json"
+        )
+        for event in result.trace
     ]
 
 
@@ -365,12 +405,18 @@ def export_all(out_dir: Path) -> None:
                 for scenario in SCENARIOS:
                     envelope, records = _build(scenario, tenant, ctx, repo, foreign_id)
                     meta = _meta(scenario, tenant, foreign_id)
+                    if scenario.kind == "tools":
+                        trace = asyncio.run(
+                            live_trace(scenario, tenant, db_path, foreign_id, envelope)
+                        )
+                    else:
+                        trace = _trace(scenario, records, envelope)
                     _write(
                         out_dir / tenant / f"{scenario.name}.json",
                         {
                             "meta": meta,
                             "envelope": envelope.model_dump(mode="json"),
-                            "trace": _trace(scenario, records, envelope),
+                            "trace": trace,
                         },
                     )
                     index[tenant].append(meta)
