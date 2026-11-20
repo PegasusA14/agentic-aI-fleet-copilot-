@@ -235,6 +235,64 @@ def test_an_empty_string_filter_is_rejected_rather_than_widening_the_query(real_
     assert str(message.content).startswith("Invalid tool input")
 
 
+@pytest.mark.parametrize(
+    ("tool_name", "args"),
+    [
+        ("macos_version_check", {"older_than": "SECRET-xyz"}),
+        ("low_disk_devices", {"threshold_pct": "SECRETSTR"}),
+        ("low_disk_devices", {"device_ids": ["SECRETID"] * 101}),
+        ("low_disk_devices", {"device_ids": "SECRETSCALAR"}),
+    ],
+)
+def test_other_validation_errors_never_echo_the_supplied_value(
+    real_db_path, real_conn, tool_name, args
+):
+    ctx = context_for(real_db_path, real_conn)
+    message = _through_toolnode({"name": tool_name, "args": args, "id": "c1"}, ctx)
+    assert message.status == "error" and message.artifact is None
+    content = str(message.content)
+    assert content.startswith("Invalid tool input")
+    assert "SECRET" not in content
+
+
+ACME_EMPLOYEE = "emp-acme-1003"
+ACME_EMPLOYEE_DEVICES = ["9MXJVZ1I0DKA", "DLT35MHGTH2D", "MT7PJB7N5LRE"]
+
+
+def test_employee_id_narrows_the_query_but_is_redacted_from_the_record(real_db_path, real_conn):
+    ctx = context_for(real_db_path, real_conn)
+    record = execute("find_devices", {"employee_id": ACME_EMPLOYEE}, ctx)
+    assert record.device_ids == ACME_EMPLOYEE_DEVICES
+    assert ACME_EMPLOYEE not in json.dumps(record.model_dump(mode="json"))
+    assert record.args["employee_id"] == "applied"
+
+
+def test_employee_id_is_redacted_on_the_not_found_branch_too(real_db_path, real_conn):
+    ctx = context_for(real_db_path, real_conn)
+    args = {"employee_id": ACME_EMPLOYEE, "device_ids": ["JRZSGXVMKE6M"]}
+    record = execute("find_devices", args, ctx)
+    assert record.error == "not_found"
+    assert ACME_EMPLOYEE not in json.dumps(record.model_dump(mode="json"))
+    assert record.args["employee_id"] == "applied"
+
+
+def test_employee_id_does_not_reach_the_model_or_the_artifact_through_the_toolnode(
+    real_db_path, real_conn
+):
+    ctx = context_for(real_db_path, real_conn)
+    call = {"name": "find_devices", "args": {"employee_id": ACME_EMPLOYEE}, "id": "c1"}
+    message = _through_toolnode(call, ctx)
+    assert message.status == "success"
+    assert ACME_EMPLOYEE not in str(message.content)
+    assert ACME_EMPLOYEE not in json.dumps(message.artifact)
+    assert ToolRecord.model_validate(message.artifact).device_ids == ACME_EMPLOYEE_DEVICES
+
+
+def test_group_by_is_recorded_for_the_composer(real_db_path, real_conn):
+    ctx = context_for(real_db_path, real_conn)
+    assert execute("find_devices", {"group_by": "os"}, ctx).args["group_by"] == "os"
+
+
 def test_unexpected_failures_surface_as_a_generic_message():
     text = tool_error_text(RuntimeError("secret detail: /tmp/db"))
     assert text == "The data lookup failed. No result is available for this call."

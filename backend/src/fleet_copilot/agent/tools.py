@@ -106,6 +106,8 @@ def _run_trend(repo: FleetRepository, as_of, a: dict[str, Any]) -> QueryResult:
 
 
 def _run_find(repo: FleetRepository, as_of, a: dict[str, Any]) -> QueryResult:
+    # `group_by` is deliberately not passed to the query: the answer composer produces the grouped
+    # counts from the recorded `group_by` argument (see ToolRecord.args).
     return inventory.find_devices(
         repo,
         as_of,
@@ -142,6 +144,13 @@ _RUNNERS: dict[str, Callable[[FleetRepository, Any, dict[str, Any]], QueryResult
 }
 
 
+def _redact(args: dict[str, Any]) -> dict[str, Any]:
+    """Copy of `args` that is safe to record: the employee id narrows the query but is never echoed."""
+    if args.get("employee_id"):
+        return {**args, "employee_id": "applied"}
+    return args
+
+
 def execute(tool_name: str, args: dict[str, Any], ctx: AgentContext) -> ToolRecord:
     """Run one tool as the context's tenant on a fresh READ-ONLY connection.
 
@@ -149,6 +158,7 @@ def execute(tool_name: str, args: dict[str, Any], ctx: AgentContext) -> ToolReco
     never raises `NotFound`.
     """
     runner = _RUNNERS[tool_name]
+    recorded = _redact(args)
     conn = connect(ctx.db_path, read_only=True)
     try:
         repo = FleetRepository(conn, TenantContext(ctx.company_id, ctx.actor_id))
@@ -156,12 +166,12 @@ def execute(tool_name: str, args: dict[str, Any], ctx: AgentContext) -> ToolReco
         if requested is not None:
             known = {d.device_id for d in repo.list_devices()}
             if not known & set(requested):
-                return ToolRecord(tool=tool_name, args=args, error="not_found")
+                return ToolRecord(tool=tool_name, args=recorded, error="not_found")
         try:
             result = runner(repo, ctx.as_of, args)
         except NotFound:
-            return ToolRecord(tool=tool_name, args=args, error="not_found")
-        return ToolRecord.from_query(tool_name, args, result)
+            return ToolRecord(tool=tool_name, args=recorded, error="not_found")
+        return ToolRecord.from_query(tool_name, recorded, result)
     finally:
         conn.close()
 
@@ -268,7 +278,8 @@ def find_devices(
     device_ids: DeviceIds = None,
 ) -> tuple[str, dict[str, Any]]:
     """Inventory lookup by OS, model, form factor, hostname or employee id, optionally grouped (`group_by`)
-    for counts. The employee id only narrows the match and is never shown."""
+    for counts. The grouping is produced by the answer composer from the recorded `group_by` argument. The
+    employee id only narrows the match and is never shown."""
     args = {
         "os_name": os_name,
         "model_name": model_name,
