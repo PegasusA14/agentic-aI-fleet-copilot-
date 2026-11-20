@@ -68,7 +68,7 @@ describe("the working thread", () => {
     expect(within(readings).getByText("acme-001/MT7PJB7N5LRE@2026-06-12T08:39:00Z#disk")).toBeInTheDocument();
     await user.click(within(dialog).getByRole("tab", { name: /trace/i }));
     expect(within(dialog).getByRole("list", { name: "Steps taken" })).toBeInTheDocument();
-    expect(within(dialog).getByText("Call low_disk_devices")).toBeInTheDocument();
+    expect(within(dialog).getByText("Calling low_disk_devices")).toBeInTheDocument();
     await user.keyboard("{Escape}");
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
   });
