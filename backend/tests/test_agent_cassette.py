@@ -95,3 +95,15 @@ async def test_the_file_holds_keys_and_responses_only(tmp_path):
     line = json.loads(path.read_text().splitlines()[0])
     assert set(line) == {"key", "kind", "response"}
     assert "which devices" not in path.read_text()
+
+
+async def test_a_content_filter_refusal_is_recorded_and_replayed(tmp_path):
+    from fleet_copilot.agent.llm import ContentFiltered
+
+    path = tmp_path / "c.jsonl"
+    recorder = CassetteGateway(path, inner=ScriptedLLM(plans=[ContentFiltered("jailbreak")]))
+    with pytest.raises(ContentFiltered):
+        await recorder.plan(MESSAGES)
+    with pytest.raises(ContentFiltered) as err:
+        await CassetteGateway(path).plan(MESSAGES)  # offline replay matches what the provider did
+    assert err.value.category == "jailbreak"

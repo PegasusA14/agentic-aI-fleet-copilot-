@@ -87,6 +87,17 @@ class Explanation(BaseModel):
     explanation: str | None = Field(default=None, max_length=1500)
 
 
+class ContentFiltered(Exception):
+    """The model provider's own content filter refused the request (for example Azure Prompt Shields).
+
+    `category` is "jailbreak" or "content". It never carries provider text.
+    """
+
+    def __init__(self, category: Literal["jailbreak", "content"]) -> None:
+        super().__init__(category)
+        self.category = category
+
+
 class LLMGateway(Protocol):
     """The only way the graph talks to a language model. Implementations bind the tools themselves."""
 

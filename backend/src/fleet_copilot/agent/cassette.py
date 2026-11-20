@@ -15,7 +15,7 @@ from typing import Any
 
 from langchain_core.messages import AIMessage, BaseMessage
 
-from fleet_copilot.agent.llm import Explanation, LLMGateway, Plan
+from fleet_copilot.agent.llm import ContentFiltered, Explanation, LLMGateway, Plan
 
 
 class CassetteMiss(Exception):
@@ -87,16 +87,25 @@ class CassetteGateway:
         key = call_key(kind, messages)
         hit = self._entries.get(key)
         if hit is not None:
+            if "content_filtered" in hit:  # the provider refused this call when it was recorded
+                raise ContentFiltered(hit["content_filtered"])
             return _decode(kind, hit)
         if self._inner is None:
             raise CassetteMiss("no recorded model response for this call")
-        response = await getattr(self._inner, kind)(messages)
+        try:
+            response = await getattr(self._inner, kind)(messages)
+        except ContentFiltered as exc:
+            self._append(key, kind, {"content_filtered": exc.category})
+            raise
         payload = _encode(kind, response)
+        self._append(key, kind, payload)
+        return response
+
+    def _append(self, key: str, kind: str, payload: dict[str, Any]) -> None:
         self._entries[key] = payload
         self._path.parent.mkdir(parents=True, exist_ok=True)
         with self._path.open("a", encoding="utf-8") as handle:
             handle.write(json.dumps({"key": key, "kind": kind, "response": payload}) + "\n")
-        return response
 
     async def plan(self, messages: list[BaseMessage]) -> Plan:
         return await self._serve("plan", messages)

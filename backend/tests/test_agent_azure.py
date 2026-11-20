@@ -120,3 +120,44 @@ def test_the_real_azure_model_builds_offline_and_binds_the_tools():
     names = [t["function"]["name"] for t in bound.kwargs["tools"]]
     assert names == [t.name for t in TOOLS]
     assert "sk-not-a-real-key" not in repr(model)
+
+
+def content_filtered(jailbreak: bool) -> openai.BadRequestError:
+    request = httpx.Request("POST", "https://example.invalid/x")
+    flags = {
+        "jailbreak": {"detected": jailbreak, "filtered": jailbreak},
+        "hate": {"filtered": not jailbreak},
+    }
+    body = {
+        "code": "content_filter",
+        "message": "provider text that must not leak",
+        "innererror": {"code": "ResponsibleAIPolicyViolation", "content_filter_result": flags},
+    }
+    return openai.BadRequestError(
+        "provider text that must not leak", response=httpx.Response(400, request=request), body=body
+    )
+
+
+@pytest.mark.parametrize(("jailbreak", "category"), [(True, "jailbreak"), (False, "content")])
+async def test_a_provider_content_filter_becomes_content_filtered_without_retry(
+    jailbreak, category
+):
+    from fleet_copilot.agent.llm import ContentFiltered
+
+    model = FakeChatModel([content_filtered(jailbreak), PLAN])
+    gw, slept = gateway(model)
+    with pytest.raises(ContentFiltered) as err:
+        await gw.plan(MESSAGES)
+    assert err.value.category == category
+    assert "provider text" not in str(err.value) and err.value.__cause__ is None
+    assert slept == [] and len(model.script) == 1
+
+
+async def test_other_bad_requests_are_not_mistaken_for_the_content_filter():
+    request = httpx.Request("POST", "https://example.invalid/x")
+    plain = openai.BadRequestError(
+        "bad", response=httpx.Response(400, request=request), body={"code": "invalid_value"}
+    )
+    gw, _ = gateway(FakeChatModel([plain]))
+    with pytest.raises(openai.BadRequestError):
+        await gw.plan(MESSAGES)

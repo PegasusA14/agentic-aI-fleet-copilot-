@@ -15,7 +15,7 @@ from langchain_core.messages import AIMessage, BaseMessage
 from langchain_openai import AzureChatOpenAI
 
 from fleet_copilot import policy
-from fleet_copilot.agent.llm import Explanation, Plan
+from fleet_copilot.agent.llm import ContentFiltered, Explanation, Plan
 from fleet_copilot.agent.tools import TOOLS
 from fleet_copilot.config import AzureSettings
 
@@ -34,6 +34,24 @@ class ModelUnavailable(Exception):
     def __init__(self, reason: str) -> None:
         super().__init__(reason)
         self.reason = reason
+
+
+def _filter_category(exc: openai.BadRequestError) -> str | None:
+    """ "jailbreak" or "content" when the provider's content filter refused the call, else None."""
+    body = exc.body if isinstance(exc.body, dict) else {}
+    inner = body.get("innererror") if isinstance(body.get("innererror"), dict) else {}
+    if (
+        getattr(exc, "code", None) != "content_filter"
+        and inner.get("code") != "ResponsibleAIPolicyViolation"
+    ):
+        return None
+    flags = (
+        inner.get("content_filter_result")
+        if isinstance(inner.get("content_filter_result"), dict)
+        else {}
+    )
+    jailbreak = flags.get("jailbreak") if isinstance(flags.get("jailbreak"), dict) else {}
+    return "jailbreak" if jailbreak.get("filtered") or jailbreak.get("detected") else "content"
 
 
 def build_azure_model(settings: AzureSettings, call_timeout_s: float) -> AzureChatOpenAI:
@@ -77,6 +95,11 @@ class ChatGateway:
                     return await runnable.ainvoke(messages)
             except _RETRYABLE as exc:
                 reason = type(exc).__name__
+            except openai.BadRequestError as exc:
+                category = _filter_category(exc)
+                if category is None:
+                    raise
+                raise ContentFiltered(category) from None  # type: ignore[arg-type]
             if attempt + 1 < self._attempts:
                 await self._sleep(self._backoff_s[min(attempt, len(self._backoff_s) - 1)])
         raise ModelUnavailable(reason) from None

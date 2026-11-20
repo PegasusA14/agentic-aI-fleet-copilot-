@@ -34,7 +34,7 @@ from fleet_copilot.agent.focus import (
     focus_summary,
     resolve_reference,
 )
-from fleet_copilot.agent.llm import LLMGateway, Plan
+from fleet_copilot.agent.llm import ContentFiltered, LLMGateway, Plan
 from fleet_copilot.agent.prompts import act_messages, explain_messages, plan_messages
 from fleet_copilot.agent.records import ToolRecord, record_from_message, redact_tool_calls
 from fleet_copilot.agent.state import TurnState, next_focus, next_history
@@ -87,6 +87,22 @@ def _failure(ctx: AgentContext) -> dict[str, Any]:
     return {
         "envelope": _dump(
             outcomes.tool_failure(company_id=ctx.company_id, as_of=ctx.as_of, trace_id=ctx.trace_id)
+        )
+    }
+
+
+def _provider_refused(ctx: AgentContext, exc: ContentFiltered, stage: str) -> dict[str, Any]:
+    """The provider's own filter refused the call: answer with the fixed refusal, not a tool error."""
+    data: dict[str, Any] = {"intent": "refuse", "provider_filter": exc.category}
+    if stage != "plan":
+        data["stage"] = stage
+    emit("plan", "The model provider declined the question", data=data)
+    reason = "prompt_injection" if exc.category == "jailbreak" else "off_topic"
+    return {
+        "envelope": _dump(
+            outcomes.refusal(
+                reason, company_id=ctx.company_id, as_of=ctx.as_of, trace_id=ctx.trace_id
+            )
         )
     }
 
@@ -201,6 +217,8 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
                     company_name=ctx.company_name,
                 )
             )
+        except ContentFiltered as exc:
+            return _provider_refused(ctx, exc, "plan")
         except Exception as exc:  # model outage or unusable structured output
             emit("error", "Planning failed", data={"error": type(exc).__name__})
             return _failure(ctx)
@@ -268,6 +286,8 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
                     turn_messages=state.get("turn_messages") or [],
                 )
             )
+        except ContentFiltered as exc:
+            return _provider_refused(ctx, exc, "act")
         except Exception as exc:
             emit("error", "Gathering evidence failed", data={"error": type(exc).__name__})
             return _failure(ctx)
