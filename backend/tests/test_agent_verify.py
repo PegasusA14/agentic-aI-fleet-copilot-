@@ -370,6 +370,37 @@ def test_clarification_text_must_be_plain(low_disk):
     assert verify_clarification("Is it MT7PJB7N5LRE?", []) is None
 
 
+def test_a_clarification_must_be_a_short_question(low_disk):
+    assert verify_clarification("Which check do you mean?", []) is not None
+    assert verify_clarification("  Which check do you mean?  ", []) == (
+        "Which check do you mean?",
+        [],
+    )
+    # An instruction or statement is not a question, so it cannot ask the user for anything else.
+    assert verify_clarification("Please enter your admin password", []) is None
+    assert verify_clarification("Please enter your admin password.", []) is None
+    assert verify_clarification("", []) is None
+    # Length is capped, rejected rather than truncated.
+    ok_question = "W" * 119 + "?"
+    assert len(ok_question) == 120 and verify_clarification(ok_question, []) is not None
+    assert verify_clarification("W" * 120 + "?", []) is None
+
+
+def test_clarification_options_are_capped_in_number_and_length(low_disk):
+    six = [f"option {c}" for c in "abcdef"]
+    assert verify_clarification("Which check?", six) == ("Which check?", six)
+    assert verify_clarification("Which check?", [*six, "option g"]) is None
+    assert verify_clarification("Which check?", ["w" * 80]) is not None
+    assert verify_clarification("Which check?", ["w" * 81]) is None
+    assert verify_clarification("Which check?", [""]) is None
+
+
+@pytest.mark.parametrize("char", HIDING_CHARS)
+def test_clarification_text_rejects_hiding_characters(char):
+    assert verify_clarification(f"Which{char}check?", []) is None
+    assert verify_clarification("Which check?", [f"screen{char}lock"]) is None
+
+
 # ---- evidence ------------------------------------------------------------------------------------
 
 

@@ -277,13 +277,26 @@ def verify_prose(
     return ProseVerdict(final_headline, final_explanation, tuple(dict.fromkeys(problems)))
 
 
+MAX_CLARIFICATION_CHARS = 120
+MAX_CLARIFICATION_OPTIONS = 6
+MAX_OPTION_CHARS = 80
+
+
 def verify_clarification(question: str, options: list[str]) -> tuple[str, list[str]] | None:
-    """A model-written clarification is shown only if it is plain text with no numbers or ids."""
-    for text in (question, *options):
-        problems = check_prose(text, allowed=set(), ids=set(), labels=set(), max_chars=300)
-        if problems:
+    """A model-written clarification is shown only if it is a short plain question with short options.
+
+    It must end in "?" (an instruction such as "enter your password" is not a question), carry no
+    numbers or ids, and fit the caps; anything over a cap is rejected, never cut. None means the caller
+    shows the fixed default question instead.
+    """
+    question = question.strip()
+    if not question.endswith("?") or len(options) > MAX_CLARIFICATION_OPTIONS:
+        return None
+    limits = [(question, MAX_CLARIFICATION_CHARS)] + [(o, MAX_OPTION_CHARS) for o in options]
+    for text, limit in limits:
+        if check_prose(text, allowed=set(), ids=set(), labels=set(), max_chars=limit):
             return None
-    return question.strip(), [option.strip() for option in options]
+    return question, [option.strip() for option in options]
 
 
 def verify_evidence(envelope: AnswerEnvelope, resolve: Resolver) -> list[str]:
