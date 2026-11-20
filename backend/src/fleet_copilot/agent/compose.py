@@ -1,0 +1,580 @@
+from __future__ import annotations
+
+from collections import Counter
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass, field
+from datetime import datetime
+
+from fleet_copilot import policy
+from fleet_copilot.agent import texts
+from fleet_copilot.agent.format import fmt_bytes, fmt_day, fmt_pct, fmt_signed_pct, fmt_ts, noun
+from fleet_copilot.agent.records import FindingRecord, ToolRecord
+from fleet_copilot.contracts import (
+    AnswerEnvelope,
+    Claim,
+    Coverage,
+    EntityList,
+    EntityRef,
+    EvidenceItem,
+    OutcomeType,
+    ReasonCode,
+    ScopeInfo,
+)
+from fleet_copilot.domain.metrics import free_pct, used_pct
+from fleet_copilot.evidence import EvidenceRef
+from fleet_copilot.repository import EvidenceValue
+
+Resolver = Callable[[EvidenceRef], EvidenceValue]
+
+_CLASS_ORDER = ("sustained", "onset", "intermittent", "recovering", "isolated")
+_CLASS_TEXT = {
+    "sustained": "breached in at least 80% of the window's snapshots and still breached at the latest",
+    "onset": "began inside the window and is still breaching",
+    "intermittent": "breached on and off, with no sustained run",
+    "recovering": "was breached for most of the window but is back within limits at the latest snapshot",
+    "isolated": "isolated spikes, under 20% of snapshots",
+}
+_KIND_TEXT = {
+    "persistent_failure": "failed in every snapshot in the window",
+    "transition": "changed from pass to fail inside the window",
+    "recovered": "changed from fail back to pass inside the window",
+}
+_REASON_TEXT = {
+    "out_of_scope": "{n} {dev} {are} out of scope for this check",
+    "unknown_version": "{n} {dev} report an unrecognized OS version and {are} counted separately",
+    "insufficient_history": "{n} {dev} {have} fewer than 3 snapshots in the window, so no trend is reported",
+    "no_reading": "{n} {dev} {have} no battery reading in the window",
+    "no_readings": "{n} {dev} {have} no readings for that metric in the window",
+}
+_PATH_TITLES = {"disk": "Disk", "memory": "Memory", "os": "OS version", "battery": "Battery"}
+
+
+def representative(refs: Sequence[str], limit: int = policy.MAX_REFS_PER_FINDING) -> list[str]:
+    """At most `limit` refs, keeping the first and last and spreading the rest evenly."""
+    unique = list(dict.fromkeys(refs))
+    if len(unique) <= limit:
+        return unique
+    if limit < 2:
+        return unique[-1:]
+    step = (len(unique) - 1) / (limit - 1)
+    return [unique[i] for i in sorted({round(k * step) for k in range(limit)})]
+
+
+@dataclass
+class Composition:
+    outcome: OutcomeType
+    reason_code: ReasonCode | None
+    claims: list[Claim] = field(default_factory=list)
+    evidence: list[EvidenceItem] = field(default_factory=list)
+    coverage: Coverage | None = None
+    entity_lists: list[EntityList] = field(default_factory=list)
+    notes: list[str] = field(default_factory=list)
+    fallback_headline: str = ""
+    rules: list[str] = field(default_factory=list)
+
+    def facts(self) -> dict:
+        """Everything the model may read when asked to explain: code-written text only."""
+        return {
+            "claims": [c.text for c in self.claims],
+            "notes": list(self.notes),
+            "population": self.coverage.population if self.coverage else None,
+            "rules": list(self.rules),
+        }
+
+    def to_envelope(
+        self,
+        *,
+        company_id: str,
+        as_of: datetime,
+        trace_id: str,
+        headline: str | None = None,
+        explanation: str | None = None,
+    ) -> AnswerEnvelope:
+        matched = sum(c.count or 0 for c in self.claims)
+        scope = ScopeInfo(
+            company_id=company_id,
+            as_of=as_of,
+            rule="; ".join(self.rules) or None,
+            population=self.coverage.population if self.coverage else None,
+            calculation=(
+                f"{matched} matching device entries across {len(self.claims)} claims; at most "
+                f"{policy.MAX_REFS_PER_FINDING} supporting readings are cited per device"
+                if self.claims
+                else None
+            ),
+        )
+        return AnswerEnvelope(
+            outcome=self.outcome,
+            trace_id=trace_id,
+            headline=headline or self.fallback_headline,
+            claims=self.claims,
+            evidence=self.evidence,
+            scope=scope,
+            coverage=self.coverage,
+            entity_lists=self.entity_lists,
+            reason_code=self.reason_code,
+            explanation=explanation
+            if self.outcome not in ("denied", "unsupported", "tool_error")
+            else None,
+            notes=self.notes,
+        )
+
+
+def _evidence_text(path: str, value: dict) -> str:
+    if path == "disk":
+        free = free_pct(value["size_bytes"], value["available_bytes"])
+        return f"{fmt_bytes(value['available_bytes'])} free of {fmt_bytes(value['size_bytes'])} ({fmt_pct(free)} free)"
+    if path == "memory":
+        used = used_pct(value["total_bytes"], value["used_bytes"])
+        return f"{fmt_pct(used)} used ({fmt_bytes(value['used_bytes'])} of {fmt_bytes(value['total_bytes'])})"
+    if path == "os":
+        return f"{value['os_name']} {value['os_version']}"
+    if path == "battery":
+        capacity = value["full_charge_capacity"]
+        return (
+            f"condition {value['condition']}; {value['cycle_count']} cycles; "
+            f"full-charge capacity {capacity} (unit not reported)"
+        )
+    return f"{value['check_id']}: {value['status']} ({value['severity']} severity)"
+
+
+def _path_title(path: str) -> str:
+    return "Compliance" if path.startswith("compliance[") else _PATH_TITLES.get(path, path)
+
+
+def _item(finding: FindingRecord, detail: str) -> str:
+    return f"{finding.device_id} ({finding.hostname}; {detail})"
+
+
+class _Builder:
+    def __init__(self, resolve: Resolver) -> None:
+        self._resolve = resolve
+        self._hosts: dict[str, str] = {}
+        self.claims: list[Claim] = []
+        self.evidence: dict[str, EvidenceItem] = {}
+        self.lists: list[EntityList] = []
+        self.notes: list[str] = []
+        self.rules: list[str] = []
+        self.headline: str | None = None
+        self.population: int | None = None
+        self.stale: set[str] = set()
+        self.missing: set[str] = set()
+        self.excluded: dict[str, set[str]] = {}
+
+    def coverage(self, rec: ToolRecord) -> None:
+        for f in rec.findings:
+            self._hosts[f.device_id] = f.hostname
+        if self.population is None:
+            self.population = rec.population
+        if rec.rule and rec.rule not in self.rules:
+            self.rules.append(rec.rule)
+        self.stale.update(rec.stale)
+        self.missing.update(rec.missing_latest)
+        for reason, ids in rec.excluded.items():
+            self.excluded.setdefault(reason, set()).update(ids)
+
+    def set_headline(self, text: str) -> None:
+        if self.headline is None:
+            self.headline = text
+
+    def claim(
+        self,
+        text: str,
+        findings: Sequence[FindingRecord],
+        refs_by_device: dict[str, list[str]] | None = None,
+    ) -> None:
+        refs: list[str] = []
+        for f in findings:
+            refs.extend(refs_by_device[f.device_id] if refs_by_device else representative(f.refs))
+        refs = list(dict.fromkeys(refs))
+        for ref in refs:
+            self._add_evidence(ref)
+        ids = [f.device_id for f in findings]
+        self.claims.append(Claim(text=text, refs=refs, count=len(ids), device_ids=ids))
+
+    def entity_list(self, list_id: str, title: str, findings: Sequence[FindingRecord]) -> None:
+        items = [
+            EntityRef(rank=i, device_id=f.device_id, label=f.hostname)
+            for i, f in enumerate(findings, 1)
+        ]
+        self.lists.append(EntityList(list_id=list_id, title=title, items=items))
+
+    def _add_evidence(self, ref: str) -> None:
+        if ref in self.evidence:
+            return
+        parsed = EvidenceRef.parse(ref)
+        resolved = self._resolve(parsed)
+        host = self._hosts.get(parsed.device_id, parsed.device_id)
+        kind = "compliance" if parsed.path.startswith("compliance[") else parsed.path
+        self.evidence[ref] = EvidenceItem(
+            ref=ref,
+            label=f"{_path_title(parsed.path)} · {host} · {fmt_ts(parsed.collected_at)}",
+            value=_evidence_text(kind, resolved.value),
+        )
+
+    def disclosure_notes(self) -> None:
+        for reason, ids in sorted(self.excluded.items()):
+            template = _REASON_TEXT.get(reason)
+            if template and ids:
+                n = len(ids)
+                self.notes.append(
+                    template.format(
+                        n=n,
+                        dev=noun(n, "device"),
+                        are="is" if n == 1 else "are",
+                        have="has" if n == 1 else "have",
+                    )
+                    + f": {', '.join(sorted(ids)[:10])}."
+                )
+        if self.stale:
+            self.notes.append(
+                f"{len(self.stale)} {noun(len(self.stale), 'device')} had readings older than "
+                f"{policy.STALE_HOURS} hours before the as-of time: {', '.join(sorted(self.stale)[:10])}."
+            )
+        if self.missing:
+            self.notes.append(
+                f"{len(self.missing)} {noun(len(self.missing), 'laptop')} had no battery reading in the latest "
+                f"snapshot (the newest earlier reading was used): {', '.join(sorted(self.missing)[:10])}."
+            )
+
+
+# ---- templates: one per tool ------------------------------------------------------------
+
+
+def _low_disk(rec: ToolRecord, idx: int, b: _Builder) -> None:
+    b.coverage(rec)
+    if not rec.findings:
+        return
+    thr = rec.args.get("threshold_pct") or policy.LOW_DISK_FREE_PCT
+    items = [
+        _item(
+            f,
+            f"{fmt_pct(f.values['free_pct'])} free, "
+            f"{fmt_bytes(f.values['available_bytes'])} of {fmt_bytes(f.values['size_bytes'])}",
+        )
+        for f in rec.findings
+    ]
+    k, n = len(rec.findings), rec.population
+    b.claim(
+        f"Low disk space (under {thr:g}% free on the primary volume, latest snapshot): "
+        f"{k} of {n} {noun(n, 'device')}. " + "; ".join(items) + ".",
+        rec.findings,
+    )
+    b.entity_list(f"{rec.tool}-{idx}", f"Low disk (<{thr:g}% free)", rec.findings)
+    b.set_headline(f"{k} of {n} {noun(n, 'device')} have under {thr:g}% disk space free")
+
+
+def _macos(rec: ToolRecord, idx: int, b: _Builder) -> None:
+    b.coverage(rec)
+    if not rec.findings:
+        return
+    target = rec.args.get("older_than") or "15"
+    items = [_item(f, f"macOS {f.values['os_version']}") for f in rec.findings]
+    k, n = len(rec.findings), rec.population
+    b.claim(
+        f"macOS older than {target}: {k} of {n} macOS {noun(n, 'device')}. "
+        + "; ".join(items)
+        + ".",
+        rec.findings,
+    )
+    b.entity_list(f"{rec.tool}-{idx}", f"macOS older than {target}", rec.findings)
+    b.set_headline(f"{k} of {n} macOS {noun(n, 'device')} run a version older than macOS {target}")
+
+
+def _compliance_now(rec: ToolRecord, idx: int, b: _Builder) -> None:
+    b.coverage(rec)
+    if not rec.findings:
+        return
+    by_check: dict[str, list[tuple[FindingRecord, str, str]]] = {}
+    for f in rec.findings:
+        for failing, ref in zip(f.values["failing"], f.refs, strict=True):
+            by_check.setdefault(failing["check_id"], []).append((f, failing["severity"], ref))
+    scope_noun = "laptops" if rec.args.get("form_factor") == "laptop" else "devices"
+    for check in sorted(by_check):
+        rows = by_check[check]
+        findings = [row[0] for row in rows]
+        severity = rows[0][1]
+        items = [f"{f.device_id} ({f.hostname})" for f in findings]
+        b.claim(
+            f"Failing {check} ({severity} severity) at the latest snapshot: {len(findings)} of {rec.population} "
+            f"{scope_noun}. " + "; ".join(items) + ".",
+            findings,
+            refs_by_device={f.device_id: [ref] for f, _, ref in rows},
+        )
+        b.entity_list(f"{rec.tool}-{idx}-{check}", f"{check} failures", findings)
+    if len(by_check) == 1:
+        check = next(iter(by_check))
+        b.set_headline(f"{len(by_check[check])} of {rec.population} {scope_noun} fail {check}")
+    else:
+        b.set_headline(
+            f"{len(rec.findings)} of {rec.population} {scope_noun} fail at least one compliance check"
+        )
+
+
+def _memory_now(rec: ToolRecord, idx: int, b: _Builder) -> None:
+    b.coverage(rec)
+    if not rec.findings:
+        return
+    thr = rec.args.get("threshold_pct") or policy.MEMORY_USED_PCT
+    items = [
+        _item(
+            f,
+            f"{fmt_pct(f.values['used_pct'])} used, "
+            f"{fmt_bytes(f.values['used_bytes'])} of {fmt_bytes(f.values['total_bytes'])}",
+        )
+        for f in rec.findings
+    ]
+    k, n = len(rec.findings), rec.population
+    b.claim(
+        f"High memory use (at least {thr:g}% used, latest snapshot): {k} of {n} {noun(n, 'device')}. "
+        + "; ".join(items)
+        + ".",
+        rec.findings,
+    )
+    b.entity_list(f"{rec.tool}-{idx}", f"High memory (>={thr:g}% used)", rec.findings)
+    b.set_headline(f"{k} of {n} {noun(n, 'device')} use at least {thr:g}% of memory")
+
+
+def _trend(rec: ToolRecord, idx: int, b: _Builder) -> None:
+    metric = rec.args.get("metric")
+    if metric in ("memory", "disk"):
+        _trend_breach(rec, idx, b, metric)
+    elif metric == "compliance":
+        _trend_compliance(rec, idx, b)
+    else:
+        _trend_battery(rec, idx, b)
+
+
+def _trend_breach(rec: ToolRecord, idx: int, b: _Builder, metric: str) -> None:
+    b.coverage(rec)
+    if not rec.findings:
+        return
+    days = rec.args.get("window_days") or policy.TREND_WINDOW_DAYS
+    if metric == "memory":
+        thr = rec.args.get("threshold_pct") or policy.MEMORY_USED_PCT
+        what, latest_label = f"memory use at or above {thr:g}%", "used"
+    else:
+        thr = rec.args.get("threshold_pct") or policy.LOW_DISK_FREE_PCT
+        what, latest_label = f"free disk space under {thr:g}%", "free"
+    groups: dict[str, list[FindingRecord]] = {}
+    for f in rec.findings:
+        groups.setdefault(f.values["trend"], []).append(f)
+    summary = []
+    for cls in _CLASS_ORDER:
+        group = groups.get(cls)
+        if not group:
+            continue
+        items = [
+            _item(
+                f,
+                f"breached in {f.values['breached']} of {f.values['snapshots']} snapshots; "
+                f"latest {fmt_pct(f.values['latest_value'])} {latest_label}",
+            )
+            for f in group
+        ]
+        b.claim(
+            f"{cls.capitalize()} ({_CLASS_TEXT[cls]}), {what} over the last {days} days: {len(group)} of "
+            f"{rec.population} {noun(rec.population, 'device')}. " + "; ".join(items) + ".",
+            group,
+        )
+        b.entity_list(f"{rec.tool}-{idx}-{cls}", f"{cls} {metric} ({days} d)", group)
+        summary.append(f"{len(group)} {cls}")
+    b.set_headline(
+        f"{len(rec.findings)} of {rec.population} devices breached {what} in the last {days} days "
+        f"({', '.join(summary)})"
+    )
+
+
+def _trend_compliance(rec: ToolRecord, idx: int, b: _Builder) -> None:
+    b.coverage(rec)
+    if not rec.findings:
+        return
+    check = rec.args.get("check_id", "the check")
+    days = rec.args.get("window_days") or policy.COMPLIANCE_WINDOW_DAYS
+    groups: dict[str, list[FindingRecord]] = {}
+    for f in rec.findings:
+        groups.setdefault(f.values["kind"], []).append(f)
+    summary = []
+    for kind in ("persistent_failure", "transition", "recovered"):
+        group = groups.get(kind)
+        if not group:
+            continue
+        if kind == "persistent_failure":
+            items = [
+                _item(f, f"failing in {f.values['snapshots']} of {f.values['snapshots']} snapshots")
+                for f in group
+            ]
+        else:
+            items = [_item(f, f"first seen {fmt_ts(f.values['change_at'])}") for f in group]
+        b.claim(
+            f"{check} over the last {days} days: {len(group)} of {rec.population} {noun(rec.population, 'device')} "
+            f"{_KIND_TEXT[kind]}. " + "; ".join(items) + ".",
+            group,
+        )
+        b.entity_list(f"{rec.tool}-{idx}-{kind}", f"{check} {kind.replace('_', ' ')}", group)
+        summary.append(f"{len(group)} {kind.replace('_', ' ')}")
+    b.set_headline(
+        f"{len(rec.findings)} of {rec.population} devices have a {check} change or failure ({', '.join(summary)})"
+    )
+
+
+def _trend_battery(rec: ToolRecord, idx: int, b: _Builder) -> None:
+    b.coverage(rec)
+    days = rec.args.get("window_days") or policy.BATTERY_WINDOW_DAYS
+    if not rec.findings:
+        return
+    items = []
+    for f in rec.findings:
+        v = f.values
+        parts = []
+        if v["capacity_change_pct"] is not None:
+            parts.append(
+                f"full-charge capacity {fmt_signed_pct(v['capacity_change_pct'])} vs its first reading in the window"
+            )
+        if v["cycles_latest"] is not None:
+            parts.append(f"{v['cycles_latest']} cycles")
+        if v["service_streak"]:
+            parts.append(
+                f"vendor condition 'Service Recommended' since {fmt_day(v['first_service_at'])}"
+            )
+        items.append(_item(f, ", ".join(parts)))
+    k, n = len(rec.findings), rec.population
+    b.claim(
+        f"Battery wear signals over the last {days} days: {k} of {n} {noun(n, 'laptop')}. "
+        + "; ".join(items)
+        + ".",
+        rec.findings,
+    )
+    b.entity_list(f"{rec.tool}-{idx}-battery", f"Battery wear ({days} d)", rec.findings)
+    b.notes.append(
+        "The telemetry has no design capacity, so a battery health percentage cannot be computed; capacity change "
+        "is relative to each device's own first reading in the window."
+    )
+    b.set_headline(
+        f"{k} of {n} {noun(n, 'laptop')} show battery wear signals over the last {days} days"
+    )
+
+
+def _find(rec: ToolRecord, idx: int, b: _Builder) -> None:
+    b.coverage(rec)
+    if not rec.findings:
+        return
+    group_by = rec.args.get("group_by")
+    k, n = len(rec.findings), rec.population
+    if group_by:
+        key = {
+            "os": lambda f: f"{f.values['os_name']} {f.values['os_version']}",
+            "model": lambda f: f.values["model_name"],
+            "form_factor": lambda f: f.values["form_factor"],
+        }[group_by]
+        counts = Counter(key(f) for f in rec.findings)
+        listing = "; ".join(f"{label}: {count}" for label, count in sorted(counts.items()))
+        b.claim(
+            f"Devices by {group_by.replace('_', ' ')}: {k} of {n} {noun(n, 'device')}. {listing}.",
+            rec.findings,
+        )
+        b.set_headline(f"{k} {noun(k, 'device')} grouped by {group_by.replace('_', ' ')}")
+    else:
+        items = [
+            _item(f, f"{f.values['os_name']} {f.values['os_version']}; {f.values['model_name']}")
+            for f in rec.findings
+        ]
+        b.claim(
+            f"Matching devices: {k} of {n} {noun(n, 'device')}. " + "; ".join(items) + ".",
+            rec.findings,
+        )
+        b.set_headline(f"{k} of {n} {noun(n, 'device')} match")
+    b.entity_list(f"{rec.tool}-{idx}", "Matching devices", rec.findings)
+
+
+def _history(rec: ToolRecord, idx: int, b: _Builder) -> None:
+    b.coverage(rec)
+    if not rec.findings:
+        return
+    f = rec.findings[0]
+    v = f.values
+    points = v["points"]
+    first, last = points[0], points[-1]
+    span = f"over {v['snapshots']} snapshots from {fmt_ts(first['at'])} to {fmt_ts(last['at'])}"
+    metric = v["metric"]
+    if metric == "compliance":
+        counts = Counter(p["value"] for p in points)
+        detail = f"pass in {counts.get('pass', 0)} and fail in {counts.get('fail', 0)} snapshots; latest {last['value']}"
+        label = f"Compliance {v['check_id']}"
+    else:
+        values = [p["value"] for p in points]
+        if metric in ("disk_free_pct", "memory_used_pct"):
+            fmt = fmt_pct
+            label = "Free disk space" if metric == "disk_free_pct" else "Memory use"
+        else:
+            fmt = str
+            label = "Full-charge capacity (unit not reported)"
+        detail = f"first {fmt(values[0])}, latest {fmt(values[-1])}, lowest {fmt(min(values))}, highest {fmt(max(values))}"
+    b.claim(f"{label} for {f.device_id} ({f.hostname}) {span}: {detail}.", [f])
+    b.entity_list(f"{rec.tool}-{idx}", "Device", [f])
+    b.set_headline(f"{label} for {f.hostname}: {detail}")
+
+
+_TEMPLATES: dict[str, Callable[[ToolRecord, int, _Builder], None]] = {
+    "low_disk_devices": _low_disk,
+    "macos_version_check": _macos,
+    "compliance_failures_now": _compliance_now,
+    "memory_pressure_now": _memory_now,
+    "trend": _trend,
+    "find_devices": _find,
+    "device_history": _history,
+}
+
+
+def compose(records: Sequence[ToolRecord], *, resolve: Resolver) -> Composition:
+    """Turn tool records into claims, evidence, coverage and entity lists. No model involved."""
+    if any(r.error == "tool_error" for r in records):
+        return Composition("tool_error", "tool_failure", fallback_headline=texts.TOOL_FAILED)
+    if records and all(r.error == "not_found" for r in records):
+        return Composition("denied", "not_found", fallback_headline=texts.NOT_FOUND)
+    builder = _Builder(resolve)
+    usable = [r for r in records if not r.error]
+    for index, record in enumerate(usable, start=1):
+        _TEMPLATES[record.tool](record, index, builder)
+    builder.disclosure_notes()
+    population = builder.population or 0
+    coverage = Coverage(
+        population=population,
+        stale=sorted(builder.stale),
+        missing_latest=sorted(builder.missing),
+        excluded={reason: sorted(ids) for reason, ids in sorted(builder.excluded.items())},
+    )
+    if builder.claims:
+        return Composition(
+            "answer",
+            None,
+            builder.claims,
+            list(builder.evidence.values()),
+            coverage,
+            builder.lists,
+            builder.notes,
+            builder.headline or builder.claims[0].text.split(":")[0],
+            builder.rules,
+        )
+    thin = [r for r in usable if r.excluded.get("insufficient_history")]
+    if (
+        usable
+        and len(thin) == len(usable)
+        and all(len(r.excluded["insufficient_history"]) >= r.population > 0 for r in thin)
+    ):
+        return Composition(
+            "insufficient_data",
+            "insufficient_history",
+            coverage=coverage,
+            notes=builder.notes,
+            fallback_headline=texts.INSUFFICIENT_HISTORY,
+            rules=builder.rules,
+        )
+    return Composition(
+        "no_match",
+        "no_matching_records",
+        coverage=coverage,
+        notes=builder.notes,
+        fallback_headline=texts.no_match(population),
+        rules=builder.rules,
+    )
