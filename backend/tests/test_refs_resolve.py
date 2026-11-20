@@ -24,6 +24,9 @@ QUERY_NAMES = [
     "screen_lock_trend",
     "battery",
     "os_up_to_date_trend",
+    "software_installed",
+    "software_holders",
+    "new_software",
 ]
 LOW_DISK_PCT = 10.0
 MEMORY_PCT = 85.0
@@ -217,5 +220,49 @@ def test_battery_values_agree_with_resolved_evidence(evaluated):
         if finding.values["service_streak"] > 0:
             started = [e for e in evidence if e.collected_at == finding.values["first_service_at"]]
             assert started and started[0].value["condition"] == "Service Recommended"
+        checked += 1
+    assert checked > 0
+
+
+def test_software_holder_values_agree_with_resolved_evidence(evaluated):
+    checked = 0
+    for tenant, repo, _, finding in findings_of(evaluated, "software_holders"):
+        (ref,) = finding.refs
+        evidence = resolve(repo, ref)
+        assert EvidenceRef.parse(ref).path == "software[uTorrent]"
+        assert evidence.collected_at == finding.values["collected_at"]
+        assert evidence.value == {
+            "name": finding.values["name"],
+            "version": finding.values["version"],
+            "publisher": finding.values["publisher"],
+        }, tenant
+        checked += 1
+    assert checked > 0
+
+
+def test_new_software_refs_show_the_first_and_the_last_sighting(evaluated):
+    checked = 0
+    for tenant, repo, _, finding in findings_of(evaluated, "new_software"):
+        values = finding.values
+        first, last = (resolve(repo, ref) for ref in (finding.refs[0], finding.refs[-1]))
+        assert first.collected_at == values["first_seen"], (tenant, finding.device_id)
+        assert last.collected_at == values["last_seen"], (tenant, finding.device_id)
+        assert first.value["name"] == last.value["name"] == values["app"]
+        assert first.value["version"] == values["version"]
+        assert last.value["version"] == values["latest_version"]
+        assert values["first_seen"] <= values["last_seen"]
+        checked += 1
+    assert checked > 0
+
+
+def test_software_inventory_refs_name_apps_the_finding_lists(evaluated):
+    checked = 0
+    for tenant, repo, _, finding in findings_of(evaluated, "software_installed"):
+        listed = {(a["name"], a["version"]) for a in finding.values["apps"]}
+        extra = {(a["name"], a["version"]) for a in finding.values["extra"]}
+        cited = {(v["name"], v["version"]) for v in (resolve(repo, r).value for r in finding.refs)}
+        assert cited <= listed, (tenant, finding.device_id)
+        assert cited == (extra or cited)  # extras are all cited; a device with none cites one app
+        assert extra <= listed
         checked += 1
     assert checked > 0

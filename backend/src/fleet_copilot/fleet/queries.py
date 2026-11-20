@@ -438,3 +438,184 @@ def memory_state(
         f"memory used >= {threshold_pct:g}% at the latest snapshot",
         stale=_stale(pairs, as_of),
     )
+
+
+# ---- installed software -------------------------------------------------------------------------------
+
+
+def _in_window(
+    repo: FleetRepository, devices: list[Device], as_of: datetime, window_days: int
+) -> dict[str, list[Snapshot]]:
+    """Each device's snapshots inside the window, oldest first. Devices with none are left out."""
+    since = window_start(as_of, window_days)
+    found = {}
+    for device in devices:
+        snapshots = repo.snapshots(device.device_id, since=since)
+        if snapshots:
+            found[device.device_id] = snapshots
+    return found
+
+
+def _common_set(history: dict[str, list[Snapshot]]) -> list[str]:
+    """Apps present on EVERY device in that device's earliest snapshot inside the window."""
+    common: set[str] | None = None
+    for snapshots in history.values():
+        first = {item.name for item in snapshots[0].software}
+        common = first if common is None else common & first
+    return sorted(common or ())
+
+
+def common_software(
+    repo: FleetRepository,
+    as_of: datetime,
+    *,
+    window_days: int = policy.SOFTWARE_WINDOW_DAYS,
+) -> list[str]:
+    """The tenant's common software set for the window (app names, sorted)."""
+    return _common_set(_in_window(repo, repo.list_devices(), as_of, window_days))
+
+
+def software_installed(
+    repo: FleetRepository,
+    as_of: datetime,
+    *,
+    name: str | None = None,
+    only_devices: Collection[str] | None = None,
+) -> QueryResult:
+    """Installed software at each device's latest snapshot.
+
+    With `name` (matched exactly, without regard to case) the findings are the devices that hold the app.
+    Without it every device with at least one app is a finding that lists its apps, and the apps that are
+    not on every evaluated device (same name and version) are cited. A device that reports no apps is
+    reported as having no readings. An empty or unknown `name` matches nothing; it never means "all".
+    """
+    pairs = _latest_pairs(repo, _devices(repo, only_devices))
+    findings: list[Finding] = []
+    excluded: dict[str, tuple[str, ...]] = {}
+    if name is not None:
+        wanted = name.strip().lower()
+        for device, snap in pairs:
+            for item in snap.software:
+                if item.name.lower() == wanted:
+                    findings.append(
+                        Finding(
+                            device.device_id,
+                            device.hostname,
+                            {
+                                "name": item.name,
+                                "version": item.version,
+                                "publisher": item.publisher,
+                                "collected_at": iso_z(snap.collected_at),
+                            },
+                            (str(snap.ref(f"software[{item.name}]")),),
+                        )
+                    )
+        rule = "devices with the requested app installed at the latest snapshot"
+    else:
+        held = [{(i.name, i.version) for i in snap.software} for _, snap in pairs]
+        shared = set.intersection(*held) if held else set()
+        empty = []
+        for device, snap in pairs:
+            if not snap.software:
+                empty.append(device.device_id)
+                continue
+            extra = [i for i in snap.software if (i.name, i.version) not in shared]
+            cited = extra or list(snap.software[:1])
+            findings.append(
+                Finding(
+                    device.device_id,
+                    device.hostname,
+                    {
+                        "apps": [{"name": i.name, "version": i.version} for i in snap.software],
+                        "extra": [{"name": i.name, "version": i.version} for i in extra],
+                        "collected_at": iso_z(snap.collected_at),
+                    },
+                    tuple(str(snap.ref(f"software[{i.name}]")) for i in cited),
+                )
+            )
+        if empty:
+            excluded["no_readings"] = tuple(sorted(empty))
+        listing = ", ".join(sorted(f"{n} {v}" for n, v in shared)) or "none"
+        rule = (
+            "installed software at the latest snapshot; apps (name and version) on every "
+            f"evaluated device: {listing}"
+        )
+    findings.sort(key=lambda f: f.device_id)
+    return QueryResult(
+        tuple(findings), len(pairs), as_of, rule, excluded=excluded, stale=_stale(pairs, as_of)
+    )
+
+
+def new_software(
+    repo: FleetRepository,
+    as_of: datetime,
+    *,
+    window_days: int = policy.SOFTWARE_WINDOW_DAYS,
+    name: str | None = None,
+    only_devices: Collection[str] | None = None,
+) -> QueryResult:
+    """Apps newly installed inside the window: one finding per (device, app).
+
+    "Not in the common set" means the app was not on every device at that device's first snapshot in the
+    window. "Newly installed" means that, on this device, the app first appears after the device's first
+    snapshot in the window. The common set is the whole tenant's, even when `only_devices` narrows the
+    findings. Nothing here says an app is unapproved or risky: the telemetry has no such label.
+    """
+    tenant_devices = repo.list_devices()
+    history = _in_window(repo, tenant_devices, as_of, window_days)
+    common = set(_common_set(history))
+    hostnames = {d.device_id: d.hostname for d in tenant_devices}
+    scope = {d.device_id for d in _devices(repo, only_devices)}
+    wanted = None if name is None else name.strip().lower()
+    findings: list[Finding] = []
+    for device_id in sorted(scope & history.keys()):
+        snapshots = history[device_id]
+        sightings: dict[str, list[Snapshot]] = {}
+        for snap in snapshots:
+            for item in snap.software:
+                sightings.setdefault(item.name, []).append(snap)
+        for app in sorted(sightings):
+            seen = sightings[app]
+            if app in common or seen[0] is snapshots[0]:
+                continue
+            if wanted is not None and app.lower() != wanted:
+                continue
+            first, last = seen[0], seen[-1]
+            path = f"software[{app}]"
+            version = next(i.version for i in first.software if i.name == app)
+            latest_version = next(i.version for i in last.software if i.name == app)
+            findings.append(
+                Finding(
+                    device_id,
+                    hostnames[device_id],
+                    {
+                        "app": app,
+                        "version": version,
+                        "latest_version": latest_version,
+                        "first_seen": iso_z(first.collected_at),
+                        "last_seen": iso_z(last.collected_at),
+                        "still_present": last is snapshots[-1],
+                        "window_days": window_days,
+                    },
+                    tuple(dict.fromkeys((str(first.ref(path)), str(last.ref(path))))),
+                )
+            )
+    findings.sort(key=lambda f: (f.device_id, f.values["app"]))
+    findings.sort(key=lambda f: f.values["first_seen"], reverse=True)  # newest install first
+    evaluated = scope & history.keys()
+    missing = sorted(scope - history.keys())
+    stale = sorted(d for d in evaluated if is_stale(history[d][-1].collected_at, as_of))
+    listing = ", ".join(sorted(common)) or "none"
+    rule = (
+        f"software newly installed in the last {window_days} days: not in the common set and first "
+        "seen after the device's first snapshot in the window. The common set is the apps on every "
+        f"device at its first snapshot in the window: {listing}"
+    )
+    return QueryResult(
+        tuple(findings),
+        len(evaluated),
+        as_of,
+        rule,
+        excluded={"no_readings": tuple(missing)} if missing else {},
+        stale=tuple(stale),
+    )

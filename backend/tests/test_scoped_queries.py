@@ -23,6 +23,10 @@ QUERIES = {
     "battery_overview": lambda repo, as_of, only: q.battery_overview(
         repo, as_of, only_devices=only
     ),
+    "software_installed": lambda repo, as_of, only: q.software_installed(
+        repo, as_of, only_devices=only
+    ),
+    "new_software": lambda repo, as_of, only: q.new_software(repo, as_of, only_devices=only),
 }
 
 

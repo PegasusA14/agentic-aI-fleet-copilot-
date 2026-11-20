@@ -23,6 +23,9 @@ def every_query(repo, as_of):
         "disk_trend": q.disk_trend(repo, as_of, 30),
         "screen_lock_trend": q.compliance_trend(repo, as_of, check_id="screen_lock"),
         "battery": q.battery_overview(repo, as_of),
+        "software_installed": q.software_installed(repo, as_of),
+        "software_holders": q.software_installed(repo, as_of, name="uTorrent"),
+        "new_software": q.new_software(repo, as_of),
     }
 
 
