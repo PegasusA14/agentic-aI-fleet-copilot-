@@ -133,7 +133,7 @@ SCENARIOS: tuple[Scenario, ...] = (
     Scenario(
         "device_not_found",
         "Show the disk history for device {foreign_id}",
-        ("history", "{foreign_id}"),
+        ("{foreign_id}",),
         "tools",
         "Read one device's disk history.",
         (("device_history", {"device_id": "{foreign_id}", "metric": "disk_free_pct"}),),
