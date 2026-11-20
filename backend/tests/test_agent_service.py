@@ -130,7 +130,7 @@ async def test_the_next_turn_still_works_after_a_crash(real_db_path, monkeypatch
         patch.setattr(graph_module, "verify_prose", boom)
         crashed = await service.run_turn(ACME_ADMIN, "c1", "low disk?")
     assert crashed.envelope.reason_code == "tool_failure"
-    assert not service._locks[THREAD].locked()
+    assert THREAD not in service._locks
 
     result = await asyncio.wait_for(service.run_turn(ACME_ADMIN, "c1", "low disk?"), timeout=5)
     assert result.envelope.outcome == "answer"
@@ -178,7 +178,7 @@ async def test_a_hung_gateway_times_out_into_one_tool_error_and_frees_the_conver
     assert envelopes[0].headline == texts.TOOL_FAILED
     error_steps = [e for e in events if e.kind == "error"]
     assert len(error_steps) == 1 and error_steps[0].data == {"error": "TimeoutError"}
-    assert not service._locks[THREAD].locked()
+    assert THREAD not in service._locks
 
     # the same conversation on the same service still works
     again = await asyncio.wait_for(service.run_turn(ACME_ADMIN, "c1", "low disk?"), timeout=5)
@@ -192,7 +192,7 @@ async def test_closing_the_stream_mid_turn_releases_the_conversation(real_db_pat
     assert isinstance(first, TraceEvent) and first.kind == "scope"
     assert service._locks[THREAD].locked()
     await asyncio.wait_for(stream.aclose(), timeout=5)
-    assert not service._locks[THREAD].locked()
+    assert THREAD not in service._locks
 
     again = await asyncio.wait_for(service.run_turn(ACME_ADMIN, "c1", "low disk?"), timeout=5)
     assert again.envelope.outcome == "answer"
@@ -212,7 +212,7 @@ async def test_a_reader_that_disconnects_while_the_gateway_hangs_releases_the_co
     reader.cancel()
     with pytest.raises(asyncio.CancelledError):
         await reader
-    assert not service._locks[THREAD].locked()
+    assert THREAD not in service._locks
 
     again = await asyncio.wait_for(service.run_turn(ACME_ADMIN, "c1", "low disk?"), timeout=5)
     assert again.envelope.outcome == "answer"

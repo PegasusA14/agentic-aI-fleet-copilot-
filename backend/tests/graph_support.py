@@ -15,13 +15,14 @@ GLOBEX_ADMIN = DEMO_IDENTITIES["admin-globex"]
 INITECH_ADMIN = DEMO_IDENTITIES["admin-initech"]
 
 
-def make_service(db_path, llm: ScriptedLLM, saver=None) -> AgentService:
+def make_service(db_path, llm: ScriptedLLM, saver=None, **kwargs) -> AgentService:
     ids = count(1)
     return AgentService(
         db_path=db_path,
         gateway=llm,
         checkpointer=saver or InMemorySaver(),
         trace_id_factory=lambda: f"t{next(ids)}",
+        **kwargs,
     )
 
 
