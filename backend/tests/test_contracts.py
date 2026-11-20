@@ -136,9 +136,18 @@ def test_every_claim_must_cite_at_least_one_ref():
         envelope(claims=[{"text": "c", "refs": []}])
 
 
+VALID_REASON = {
+    "denied": "not_found",
+    "unsupported": "off_topic",
+    "tool_error": "tool_failure",
+    "insufficient_data": "insufficient_history",
+    "no_match": "no_matching_records",
+}
+
+
 @pytest.mark.parametrize("outcome", ["denied", "unsupported", "tool_error"])
 def test_refusal_outcomes_carry_no_claims_or_evidence(outcome):
-    refusal = {"outcome": outcome, "reason_code": "not_found"}
+    refusal = {"outcome": outcome, "reason_code": VALID_REASON[outcome]}
     assert envelope(**refusal, claims=[], evidence=[]).outcome == outcome
     with pytest.raises(ValidationError, match="must not carry claims or evidence"):
         envelope(**refusal)
@@ -150,7 +159,7 @@ def test_refusal_outcomes_carry_no_claims_or_evidence(outcome):
 
 @pytest.mark.parametrize("outcome", ["no_match", "insufficient_data"])
 def test_no_match_and_insufficient_data_may_carry_grounded_claims(outcome):
-    assert envelope(outcome=outcome, reason_code="no_matching_records").claims[0].refs == [REF]
+    assert envelope(outcome=outcome, reason_code=VALID_REASON[outcome]).claims[0].refs == [REF]
 
 
 def test_unknown_fields_and_outcomes_are_rejected():
@@ -266,8 +275,8 @@ def test_a_trace_id_is_required():
 def test_refusals_and_empty_results_need_a_reason_code(outcome):
     with pytest.raises(ValidationError, match="requires a reason_code"):
         envelope(outcome=outcome, claims=[], evidence=[])
-    ok = envelope(outcome=outcome, claims=[], evidence=[], reason_code="not_found")
-    assert ok.reason_code == "not_found"
+    ok = envelope(outcome=outcome, claims=[], evidence=[], reason_code=VALID_REASON[outcome])
+    assert ok.reason_code == VALID_REASON[outcome]
 
 
 @pytest.mark.parametrize("outcome", ["answer", "clarification"])
@@ -290,7 +299,7 @@ def test_refusals_carry_no_explanation(outcome):
             outcome=outcome,
             claims=[],
             evidence=[],
-            reason_code="not_found",
+            reason_code=VALID_REASON[outcome],
             explanation="free text",
         )
 
@@ -299,6 +308,102 @@ def test_claim_count_must_match_its_device_ids():
     assert Claim(text="c", refs=[REF], count=2, device_ids=["A", "B"]).count == 2
     with pytest.raises(ValidationError, match="count must equal"):
         Claim(text="c", refs=[REF], count=3, device_ids=["A", "B"])
+
+
+def test_a_claim_count_needs_device_ids():
+    with pytest.raises(ValidationError, match="claim count requires device_ids"):
+        Claim(text="c", refs=[REF], count=3)
+    with pytest.raises(ValidationError, match="claim count requires device_ids"):
+        Claim(text="c", refs=[REF], count=0, device_ids=[])
+    assert Claim(text="c", refs=[REF]).count is None
+    assert Claim(text="c", refs=[REF], device_ids=["A"]).count is None
+
+
+def test_a_claim_may_not_repeat_a_device():
+    with pytest.raises(ValidationError, match="duplicate device_ids in a claim"):
+        Claim(text="c", refs=[REF], device_ids=["A", "B", "A"])
+    with pytest.raises(ValidationError, match="duplicate device_ids in a claim"):
+        Claim(text="c", refs=[REF], count=2, device_ids=["A", "A"])
+    assert Claim(text="c", refs=[REF], count=2, device_ids=["A", "B"]).count == 2
+
+
+def one_entity_list(*device_ids):
+    items = [EntityRef(rank=i, device_id=d, label=f"host-{d}") for i, d in enumerate(device_ids, 1)]
+    return EntityList(list_id="l-1", title="t", items=items)
+
+
+def test_every_entity_list_device_must_appear_in_some_claim():
+    claim = Claim(text="c", refs=[REF], count=2, device_ids=["A", "B"])
+    ok = envelope(claims=[claim], entity_lists=[one_entity_list("A", "B")])
+    assert ok.entity_lists[0].items[1].device_id == "B"
+    message = "entity list references a device that no claim mentions"
+    with pytest.raises(ValidationError, match=message):
+        envelope(claims=[claim], entity_lists=[one_entity_list("A", "C")])
+    with pytest.raises(ValidationError, match=message):
+        envelope(entity_lists=[one_entity_list("A")])  # the claim names no devices at all
+    with pytest.raises(ValidationError, match=message):
+        envelope(
+            outcome="no_match",
+            reason_code="no_matching_records",
+            claims=[],
+            evidence=[],
+            entity_lists=[one_entity_list("A")],
+        )
+
+
+def test_an_entity_device_may_be_mentioned_by_any_one_of_several_claims():
+    claims = [
+        Claim(text="c1", refs=[REF], count=1, device_ids=["A"]),
+        Claim(text="c2", refs=[REF], count=1, device_ids=["B"]),
+    ]
+    assert envelope(claims=claims, entity_lists=[one_entity_list("A", "B")]).entity_lists
+
+
+ALLOWED_PAIRS = {
+    "denied": ["not_found", "prompt_injection"],
+    "unsupported": ["off_topic", "unsupported_action"],
+    "tool_error": ["tool_failure"],
+    "insufficient_data": ["insufficient_history", "step_limit"],
+    "no_match": ["no_matching_records"],
+}
+ALL_REASONS = [
+    "no_matching_records",
+    "insufficient_history",
+    "not_found",
+    "off_topic",
+    "unsupported_action",
+    "prompt_injection",
+    "tool_failure",
+    "step_limit",
+]
+
+
+@pytest.mark.parametrize(
+    ("outcome", "reason"),
+    [(o, r) for o, reasons in ALLOWED_PAIRS.items() for r in reasons],
+)
+def test_each_allowed_outcome_and_reason_pair_validates(outcome, reason):
+    assert (
+        envelope(outcome=outcome, claims=[], evidence=[], reason_code=reason).reason_code == reason
+    )
+
+
+@pytest.mark.parametrize(
+    ("outcome", "reason"),
+    [(o, r) for o, reasons in ALLOWED_PAIRS.items() for r in ALL_REASONS if r not in reasons],
+)
+def test_every_other_outcome_and_reason_pair_is_rejected(outcome, reason):
+    message = f"reason_code {reason} is not valid for a {outcome} outcome"
+    with pytest.raises(ValidationError, match=re.escape(message)):
+        envelope(outcome=outcome, claims=[], evidence=[], reason_code=reason)
+
+
+def test_a_meaningless_pair_names_both_sides():
+    with pytest.raises(
+        ValidationError,
+        match=re.escape("reason_code no_matching_records is not valid for a denied outcome"),
+    ):
+        envelope(outcome="denied", claims=[], evidence=[], reason_code="no_matching_records")
 
 
 def test_entity_lists_are_ordered_and_unique():
@@ -322,8 +427,9 @@ def test_entity_lists_are_ordered_and_unique():
 
 def test_duplicate_entity_list_ids_are_rejected():
     one = EntityList(list_id="same", title="t", items=[EntityRef(rank=1, device_id="A", label="a")])
+    claim = Claim(text="c", refs=[REF], count=1, device_ids=["A"])
     with pytest.raises(ValidationError, match="duplicate entity list ids"):
-        envelope(entity_lists=[one, one])
+        envelope(claims=[claim], entity_lists=[one, one])
 
 
 def test_coverage_is_structured():

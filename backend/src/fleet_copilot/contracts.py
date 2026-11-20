@@ -32,6 +32,13 @@ ReasonCode = Literal[
     "step_limit",
 ]
 _REASON_REQUIRED = {"denied", "unsupported", "tool_error", "insufficient_data", "no_match"}
+_VALID_REASONS: dict[str, frozenset[str]] = {
+    "denied": frozenset({"not_found", "prompt_injection"}),
+    "unsupported": frozenset({"off_topic", "unsupported_action"}),
+    "tool_error": frozenset({"tool_failure"}),
+    "insufficient_data": frozenset({"insufficient_history", "step_limit"}),
+    "no_match": frozenset({"no_matching_records"}),
+}
 _NO_FREE_TEXT = {"denied", "unsupported", "tool_error"}
 
 
@@ -85,7 +92,11 @@ class Claim(_Model):
 
     @model_validator(mode="after")
     def _count_matches_devices(self) -> Claim:
-        if self.count is not None and self.device_ids and self.count != len(self.device_ids):
+        if self.count is not None and not self.device_ids:
+            raise ValueError("claim count requires device_ids")
+        if len(self.device_ids) != len(set(self.device_ids)):
+            raise ValueError("duplicate device_ids in a claim")
+        if self.count is not None and self.count != len(self.device_ids):
             raise ValueError("claim count must equal the number of device_ids")
         return self
 
@@ -180,11 +191,20 @@ class AnswerEnvelope(_Model):
             raise ValueError(f"{self.outcome} outcome requires a reason_code")
         if not needs_reason and self.reason_code is not None:
             raise ValueError(f"{self.outcome} outcome must not carry a reason_code")
+        allowed = _VALID_REASONS.get(self.outcome)
+        if allowed is not None and self.reason_code not in allowed:
+            raise ValueError(
+                f"reason_code {self.reason_code} is not valid for a {self.outcome} outcome"
+            )
         if self.outcome in _NO_FREE_TEXT and self.explanation is not None:
             raise ValueError(f"{self.outcome} outcome must not carry an explanation")
         list_ids = [entity_list.list_id for entity_list in self.entity_lists]
         if len(list_ids) != len(set(list_ids)):
             raise ValueError("duplicate entity list ids")
+        mentioned = {device_id for claim in self.claims for device_id in claim.device_ids}
+        for entity_list in self.entity_lists:
+            if any(item.device_id not in mentioned for item in entity_list.items):
+                raise ValueError("entity list references a device that no claim mentions")
         return self
 
     def _check_ref(self, ref: str) -> None:
