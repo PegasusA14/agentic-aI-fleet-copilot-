@@ -104,7 +104,9 @@ _JUDGMENT_WORD = re.compile(
     r"|unapprov\w*|disapprov\w*|unauthori[sz]\w*|unsanction\w*|unlicens\w*|unvetted\w*|untrust\w*"
     r"|illegal\w*|illicit\w*|pirat\w*|crack(?:ed|s)\b|suspic\w*|risk\w*|danger\w*|unsafe\w*"
     r"|insecure\w*|vulnerab\w*|harm\w*|threat\w*|ban(?:ned|s)\b"
-    r"|not\s+(?:approved|authori[sz]ed|allowed|permitted))\b",
+    r"|un-?approv\w*|disallow\w*|sketchy|dodgy|unwanted"
+    r"|not\s+(?:approved|authori[sz]ed|allowed|permitted)"
+    r"|(?:isn|wasn|aren|weren)['\u2019]?t\s+(?:approved|authori[sz]ed|allowed|permitted))\b",
     re.IGNORECASE,
 )
 

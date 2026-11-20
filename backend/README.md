@@ -101,6 +101,8 @@ row. `network` is still dropped at load.
 - **Common set**: the apps present on every device of the company in that device's earliest snapshot inside the
   window. The default window is `SOFTWARE_WINDOW_DAYS`, 30 days, counted back from the dataset's as-of time;
   `window_days` can ask for 1 to 60.
+  A device whose first in-window snapshot reports no apps makes the common set empty (the golden-answer oracle
+  uses the same definition); the inventory view's shared set, by contrast, ignores devices that report no apps.
 - **Newly installed**: an app outside the common set whose first appearance on a device is a later snapshot than
   that device's earliest one in the window. The answer says "not in the common set" and "newly installed" and
   never "unapproved", "risky" or "malicious": the telemetry carries no such label. A short window is not an
@@ -110,6 +112,8 @@ row. `network` is still dropped at load.
   model-written headline or explanation that labels apps (risky, unapproved, malicious, not approved, and
   similar inflected or negated forms). Code-written claims never use such words. A rejected explanation is
   dropped, and a rejected headline falls back to the code headline.
+  The gate is lexical: it rejects label words and ungrounded numbers or ids, but it does not check app names or
+  descriptive phrases, so the code-written claims and the cited evidence remain the source of truth.
 - **Tool**: `software_inventory(view, app_name, window_days, device_ids)`. `current` lists the installed apps
   (or the devices with one app); `new_installs` lists one entry per device and app with the first-seen time. An
   app name the company has never reported is an input error that lists the company's own app names, so an app

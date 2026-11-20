@@ -627,6 +627,7 @@ def _software_inventory(rec: ToolRecord, idx: int, b: _Builder) -> None:
         + "; ".join(items)
         + ".",
         rec.findings,
+        refs_by_device={f.device_id: list(f.refs) for f in rec.findings},
     )
     b.entity_list(f"{rec.tool}-{idx}", "Installed software", rec.findings)
     b.set_headline(f"{k} of {n} {noun(n, 'device')} report installed software")

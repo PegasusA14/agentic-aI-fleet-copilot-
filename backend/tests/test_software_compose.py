@@ -5,7 +5,7 @@ from agent_support import ACME, GLOBEX, INITECH, repo_for, run
 from factories import BASE_SOFTWARE, make_conn, make_row
 
 from fleet_copilot.agent.compose import Composition, compose, evidence_kind, evidence_text
-from fleet_copilot.agent.records import ToolRecord
+from fleet_copilot.agent.records import FindingRecord, ToolRecord
 from fleet_copilot.agent.verify import (
     allowed_numbers,
     check_prose,
@@ -16,13 +16,19 @@ from fleet_copilot.agent.verify import (
 )
 from fleet_copilot.evidence import EvidenceRef
 from fleet_copilot.fleet import queries as q
-from fleet_copilot.repository import FleetRepository, TenantContext, dataset_as_of
+from fleet_copilot.repository import (
+    EvidenceValue,
+    FleetRepository,
+    TenantContext,
+    dataset_as_of,
+)
 
 NEW = {"view": "new_installs"}
 FORBIDDEN = re.compile(
     r"malicious|malware|virus|trojan|spyware|ransomware|rogue|unapprov|disapprov|unauthori[sz]|unsanction"
     r"|unlicens|unvetted|untrust|illegal|illicit|pirat|cracked|suspic|risk|danger|unsafe|insecure"
-    r"|vulnerab|harm|threat|banned|blocked|not\s+(?:approved|authori[sz]ed|allowed|permitted)",
+    r"|vulnerab|harm|threat|banned|blocked|not\s+(?:approved|authori[sz]ed|allowed|permitted)"
+    r"|un-?approv|disallow|sketchy|dodgy|unwanted|(?:isn|wasn|aren|weren)'?t\s+approved",
     re.IGNORECASE,
 )
 CHROME, SLACK = BASE_SOFTWARE
@@ -340,6 +346,16 @@ def test_prose_that_invents_a_version_a_device_or_a_date_is_replaced(
         "It is a cracked copy.",
         "Pirated software appeared.",
         "Not Authorised software appeared.",
+        "uTorrent was not approved.",
+        "uTorrent isn't approved.",
+        "The apps aren't approved.",
+        "uTorrent wasn't approved.",
+        "uTorrent is un-approved.",
+        "uTorrent is unapproved.",
+        "The app is disallowed.",
+        "That app is sketchy.",
+        "That app looks dodgy.",
+        "An unwanted app appeared.",
     ],
 )
 def test_prose_may_not_label_software_as_risky_or_unapproved(real_db_path, real_conn, text):
@@ -388,3 +404,35 @@ def test_a_mixed_answer_that_cites_software_still_gets_the_judgment_gate(real_db
         explanation="MT7PJB7N5LRE is at risk of running out of disk.",
     )
     assert "explanation:judgment_word" in got.problems and got.explanation is None
+
+
+def test_every_app_named_in_an_inventory_claim_has_its_own_cited_ref():
+    """A device with more than 6 apps outside the shared set must not lose refs to the per-device cap."""
+    names = [f"App{i}" for i in range(9)]
+    prefix = "acme-001/DEV1@2026-06-12T09:00:00Z#software"
+    refs = [f"{prefix}[{n}]" for n in names]
+    finding = FindingRecord(
+        device_id="DEV1",
+        hostname="acme-host-DEV1",
+        values={
+            "apps": [{"name": n, "version": "1.0"} for n in names],
+            "extra": [{"name": n, "version": "1.0"} for n in names],
+        },
+        refs=refs,
+    )
+    record = ToolRecord(
+        tool="software_inventory", args={"view": "current"}, findings=[finding], population=3
+    )
+
+    def resolve(parsed):
+        name = parsed.path[len("software[") : -1]
+        value = {"name": name, "version": "1.0", "publisher": "Example Corp"}
+        return EvidenceValue(ref=str(parsed), collected_at=parsed.collected_at, value=value)
+
+    comp = compose([record], resolve=resolve)
+    (claim,) = comp.claims
+    cited = {e.ref for e in comp.evidence}
+    for ref in refs:
+        assert f"{ref.split('#software[')[1][:-1]} 1.0" in claim.text
+        assert ref in claim.refs and ref in cited
+    assert len(claim.refs) == 9

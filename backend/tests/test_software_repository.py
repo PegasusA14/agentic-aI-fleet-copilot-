@@ -76,8 +76,7 @@ def test_a_name_with_spaces_survives_the_reference_round_trip(conn):
 @pytest.mark.parametrize(
     "path",
     [
-        "software[uTorrent]",  # the app was not installed yet at that snapshot (see OLD below)
-        "software[utorrent]",  # names are matched exactly in evidence
+        "software[uTorrent]",  # the app was not installed yet at that earlier snapshot (OLD)
         "software[Nope]",
         "software[]",
         "software[uTorrent",
@@ -92,6 +91,13 @@ def test_an_absent_or_malformed_software_reference_is_not_found(conn, path):
     with pytest.raises(NotFound) as err:
         acme(conn).resolve(ref("acme-001", "A1", OLD, path))
     assert str(err.value) == "not found"
+
+
+def test_software_names_are_matched_with_exact_case(conn):
+    """Google Chrome is present at NEW, so only the case differs from a real hit."""
+    assert acme(conn).resolve(ref("acme-001", "A1", NEW, "software[Google Chrome]")).value["name"]
+    with pytest.raises(NotFound):
+        acme(conn).resolve(ref("acme-001", "A1", NEW, "software[google chrome]"))
 
 
 def test_another_companys_software_is_not_found_however_the_ref_is_forged(conn):
