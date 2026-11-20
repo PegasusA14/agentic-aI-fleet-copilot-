@@ -179,6 +179,8 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
             "pending_calls": False,
             "rounds": 0,
             "limit_hit": False,
+            "incomplete": False,
+            "unfixed_calls": [],
             "records": [],
             "draft": None,
             "prose": None,
@@ -279,6 +281,7 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
                 latency_ms=_ms(started),
             )
             return {"pending_calls": False, "limit_hit": True}
+        dropped_any = False
         if len(calls) > policy.MAX_CALLS_PER_ROUND:
             emit(
                 "tool_call",
@@ -286,11 +289,15 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
                 data={"dropped": len(calls) - policy.MAX_CALLS_PER_ROUND},
             )
             calls = calls[: policy.MAX_CALLS_PER_ROUND]
+            dropped_any = True
         # Free text from the model is not kept: only the calls are.
-        return {
+        update: dict[str, Any] = {
             "turn_messages": [AIMessage(content="", tool_calls=calls)],
             "pending_calls": True,
         }
+        if dropped_any:
+            update["incomplete"] = True  # something the model asked for will never run
+        return update
 
     async def collect_node(state: TurnState) -> dict[str, Any]:
         """Turn this round's tool messages into records, and redact the call arguments kept in state."""
@@ -298,11 +305,20 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
         ai = next(m for m in reversed(messages) if isinstance(m, AIMessage) and m.tool_calls)
         replies = {m.tool_call_id: m for m in messages if isinstance(m, ToolMessage)}
         records = list(state.get("records") or [])
+        unfixed = list(state.get("unfixed_calls") or [])
         for call in ai.tool_calls:
             args = inject_focus(call["name"], call["args"], state.get("focus_ids"))
             reply = replies.get(call["id"])
+            # Names only, and never a name the model made up: it is compared, not shown.
+            name = call["name"] if call["name"] in _TOOL_NAMES else UNKNOWN_TOOL
             if _is_input_error(reply):
-                continue  # the model can correct this call; it must not turn the whole answer into an error
+                # The model can correct this call; it must not turn the whole answer into an error.
+                # Until a later call of the same tool goes through, the answer is incomplete.
+                if name not in unfixed:
+                    unfixed.append(name)
+                continue
+            if name in unfixed:
+                unfixed.remove(name)
             records.append(
                 (
                     record_from_message(reply, tool=call["name"], args=args)
@@ -316,6 +332,7 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
         return {
             "turn_messages": [redacted],
             "records": records,
+            "unfixed_calls": unfixed,
             "rounds": state.get("rounds", 0) + 1,
         }
 
@@ -343,6 +360,11 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
                     return {"envelope": _dump(outcomes.step_limit(**kwargs))}
                 if composition.outcome == "answer":
                     composition.notes.append(texts.ROUND_LIMIT_NOTE)
+            if (state.get("incomplete") or state.get("unfixed_calls")) and (
+                composition.outcome in ("answer", "no_match", "insufficient_data")
+                and texts.ROUND_LIMIT_NOTE not in composition.notes  # that note already says it
+            ):
+                composition.notes.append(texts.INCOMPLETE_NOTE)
             draft = composition.to_envelope(
                 company_id=ctx.company_id, as_of=ctx.as_of, trace_id=ctx.trace_id
             )

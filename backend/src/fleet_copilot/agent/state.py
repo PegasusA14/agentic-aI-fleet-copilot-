@@ -31,6 +31,10 @@ class TurnState(TypedDict, total=False):
     pending_calls: bool
     rounds: int
     limit_hit: bool
+    # Set when part of what the model asked for never ran: calls dropped over the per-round cap, or
+    # (`unfixed_calls`, tool names only) calls the tool rejected and the model never repeated correctly.
+    incomplete: bool
+    unfixed_calls: list[str]
     records: list[dict[str, Any]]
     draft: dict[str, Any] | None
     prose: dict[str, Any] | None

@@ -21,6 +21,7 @@ PARTIAL_NOT_FOUND = "Part of the request referred to a device that could not be 
 
 
 ROUND_LIMIT_NOTE = "I stopped gathering evidence after the maximum number of tool rounds, so this answer may be incomplete."
+INCOMPLETE_NOTE = "Part of this question could not be answered; some requested checks did not run."
 NEED_REFERENCE = "I don't have a previous list to refer to. Which devices do you mean?"
 WHICH_LIST = "Which list do you mean?"
 DEFAULT_CLARIFICATION = "I need one more detail to answer that. What would you like me to look at?"

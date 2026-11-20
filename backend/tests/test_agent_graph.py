@@ -257,6 +257,126 @@ async def test_calls_beyond_the_per_round_limit_are_dropped(real_db_path):
     assert dropped[0].data == {"dropped": 3}
 
 
+# ---- incompleteness is never silent -------------------------------------------------------------
+
+BAD_TREND = ("trend", {"metric": "memory", "window_days": 999})
+GOOD_TREND = ("trend", {"metric": "memory", "window_days": 7})
+
+
+async def test_an_uncorrected_invalid_call_leaves_a_visible_note(real_db_path):
+    llm = ScriptedLLM(
+        plans=[answer_plan()],
+        acts=[tool_calls_message(("low_disk_devices", {}), BAD_TREND), final_message()],
+        explains=[explanation()],
+    )
+    result = await ask(make_service(real_db_path, llm), "low disk and memory trend?")
+    assert result.envelope.outcome == "answer"
+    assert result.envelope.notes.count(texts.INCOMPLETE_NOTE) == 1
+    assert texts.ROUND_LIMIT_NOTE not in result.envelope.notes
+
+
+async def test_a_corrected_invalid_call_leaves_no_note(real_db_path):
+    llm = ScriptedLLM(
+        plans=[answer_plan()],
+        acts=[tool_calls_message(BAD_TREND), tool_calls_message(GOOD_TREND), final_message()],
+        explains=[explanation()],
+    )
+    result = await ask(make_service(real_db_path, llm), "memory pressure this week?")
+    assert result.envelope.outcome == "answer"
+    assert texts.INCOMPLETE_NOTE not in result.envelope.notes
+
+
+async def test_an_invalid_call_is_corrected_only_by_a_later_call_to_the_same_tool(real_db_path):
+    # A different tool succeeding does not make up for the one that never ran.
+    llm = ScriptedLLM(
+        plans=[answer_plan()],
+        acts=[
+            tool_calls_message(BAD_TREND),
+            tool_calls_message(("low_disk_devices", {})),
+            final_message(),
+        ],
+        explains=[explanation()],
+    )
+    other = await ask(make_service(real_db_path, llm), "q?")
+    assert texts.INCOMPLETE_NOTE in other.envelope.notes
+    # The same tool succeeding earlier does not count either: the later invalid call is still lost.
+    llm = ScriptedLLM(
+        plans=[answer_plan()],
+        acts=[tool_calls_message(GOOD_TREND, BAD_TREND), final_message()],
+        explains=[explanation()],
+    )
+    earlier = await ask(make_service(real_db_path, llm), "q?", conversation="c2")
+    assert texts.INCOMPLETE_NOTE in earlier.envelope.notes
+
+
+async def test_a_made_up_tool_that_is_never_followed_up_leaves_a_note(real_db_path):
+    llm = ScriptedLLM(
+        plans=[answer_plan()],
+        acts=[
+            tool_calls_message(("low_disk_devices", {}), ("delete_everything", {})),
+            final_message(),
+        ],
+        explains=[explanation()],
+    )
+    result = await ask(make_service(real_db_path, llm), "low disk?")
+    assert texts.INCOMPLETE_NOTE in result.envelope.notes
+
+
+async def test_calls_beyond_the_per_round_limit_leave_a_note(real_db_path):
+    many = tool_calls_message(
+        *[("low_disk_devices", {}) for _ in range(policy.MAX_CALLS_PER_ROUND + 1)]
+    )
+    llm = ScriptedLLM(plans=[answer_plan()], acts=[many, final_message()], explains=[explanation()])
+    result = await ask(make_service(real_db_path, llm), "low disk?")
+    assert result.envelope.notes.count(texts.INCOMPLETE_NOTE) == 1
+
+
+async def test_the_round_limit_note_wins_and_the_notes_are_not_doubled(real_db_path):
+    many = tool_calls_message(
+        *[("low_disk_devices", {}) for _ in range(policy.MAX_CALLS_PER_ROUND + 1)]
+    )
+    llm = ScriptedLLM(
+        plans=[answer_plan()],
+        acts=[many] + [tool_calls_message(BAD_TREND) for _ in range(policy.MAX_TOOL_ROUNDS)],
+        explains=[explanation()],
+    )
+    result = await ask(make_service(real_db_path, llm), "low disk?")
+    assert result.envelope.outcome == "answer"
+    assert texts.ROUND_LIMIT_NOTE in result.envelope.notes
+    assert texts.INCOMPLETE_NOTE not in result.envelope.notes
+
+
+async def test_an_empty_result_with_a_lost_call_does_not_read_as_a_clean_no_match(real_db_path):
+    llm = ScriptedLLM(
+        plans=[answer_plan()],
+        acts=[
+            tool_calls_message(("macos_version_check", {"older_than": "3"}), BAD_TREND),
+            final_message(),
+        ],
+    )
+    result = await ask(make_service(real_db_path, llm), "old macs and memory?")
+    assert result.envelope.outcome == "no_match"
+    assert texts.INCOMPLETE_NOTE in result.envelope.notes
+
+
+async def test_the_incomplete_flag_does_not_leak_into_the_next_turn(real_db_path):
+    llm = ScriptedLLM(
+        plans=[answer_plan(), answer_plan()],
+        acts=[
+            tool_calls_message(("low_disk_devices", {}), BAD_TREND),
+            final_message(),
+            tool_calls_message(("low_disk_devices", {})),
+            final_message(),
+        ],
+        explains=[explanation(), explanation()],
+    )
+    service = make_service(real_db_path, llm)
+    first = await ask(service, "low disk and memory trend?")
+    second = await ask(service, "low disk again?")
+    assert texts.INCOMPLETE_NOTE in first.envelope.notes
+    assert texts.INCOMPLETE_NOTE not in second.envelope.notes
+
+
 # ---- tool failures -------------------------------------------------------------------------------
 
 
