@@ -78,6 +78,15 @@
             },
             "type": "array"
           },
+          "propertyNames": {
+            "enum": [
+              "out_of_scope",
+              "unknown_version",
+              "insufficient_history",
+              "no_reading",
+              "no_readings"
+            ]
+          },
           "title": "Excluded",
           "type": "object"
         },

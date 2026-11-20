@@ -50,3 +50,11 @@ def test_disclosure_lists_every_default():
         "compliance_window_days": 30,
         "battery_window_days": 30,
     }
+
+
+def test_agent_loop_limits():
+    assert policy.MAX_TOOL_ROUNDS == 6
+    assert policy.MAX_CALLS_PER_ROUND == 4
+    assert policy.MAX_QUESTION_CHARS == 2000
+    assert policy.MAX_HISTORY_TURNS == 6
+    assert (policy.MAX_HEADLINE_CHARS, policy.MAX_EXPLANATION_CHARS) == (160, 600)

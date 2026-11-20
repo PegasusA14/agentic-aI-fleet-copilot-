@@ -1,5 +1,6 @@
 {
   "additionalProperties": false,
+  "description": "One step of a turn, streamed to the UI and stored for the observability console.\n\n`data` is open but MUST already be redacted: counts, tool names and redacted arguments only.\nNever raw telemetry values, employee ids or exception text.",
   "properties": {
     "data": {
       "additionalProperties": true,
@@ -8,9 +9,14 @@
     },
     "kind": {
       "enum": [
+        "scope",
         "plan",
+        "reference",
         "tool_call",
         "tool_result",
+        "retry",
+        "compose",
+        "explain",
         "verify",
         "respond",
         "error"
@@ -21,6 +27,7 @@
     "latency_ms": {
       "anyOf": [
         {
+          "minimum": 0,
           "type": "integer"
         },
         {
@@ -31,17 +38,37 @@
       "title": "Latency Ms"
     },
     "seq": {
+      "minimum": 0,
       "title": "Seq",
       "type": "integer"
     },
     "summary": {
       "title": "Summary",
       "type": "string"
+    },
+    "tool": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Tool"
+    },
+    "trace_id": {
+      "minLength": 1,
+      "title": "Trace Id",
+      "type": "string"
     }
   },
   "required": [
+    "trace_id",
     "seq",
     "kind",
+    "tool",
     "summary",
     "data",
     "latency_ms"

@@ -20,6 +20,18 @@ INSUFFICIENT_HISTORY = "There are not enough snapshots in that window to report 
 PARTIAL_NOT_FOUND = "Part of the request referred to a device that could not be found, so that part was not answered."
 
 
+ROUND_LIMIT_NOTE = "I stopped gathering evidence after the maximum number of tool rounds, so this answer may be incomplete."
+NEED_REFERENCE = "I don't have a previous list to refer to. Which devices do you mean?"
+WHICH_LIST = "Which list do you mean?"
+DEFAULT_CLARIFICATION = "I need one more detail to answer that. What would you like me to look at?"
+CLARIFICATION_HEADLINE = "I need one detail to answer that"
+
+
+def entry_out_of_range(n: int) -> str:
+    """Fixed question when an ordinal points past the end of the list that was shown."""
+    return f"That list has {n} {'entry' if n == 1 else 'entries'}. Which one do you mean?"
+
+
 def unresolved_note(n: int) -> str:
     """How many requested device ids were left out. Foreign and nonexistent ids are counted alike."""
     noun, was = ("device", "was") if n == 1 else ("devices", "were")

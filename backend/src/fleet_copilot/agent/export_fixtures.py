@@ -230,7 +230,9 @@ def _trace(scenario: Scenario, records: list[ToolRecord], envelope: AnswerEnvelo
         respond_data["reason_code"] = envelope.reason_code
     events.append(("respond", f"Responded with {envelope.outcome}.", respond_data))
     return [
-        TraceEvent(seq=seq, kind=kind, summary=summary, data=data).model_dump(mode="json")
+        TraceEvent(
+            trace_id=envelope.trace_id, seq=seq, kind=kind, summary=summary, data=data
+        ).model_dump(mode="json")
         for seq, (kind, summary, data) in enumerate(events, start=1)
     ]
 

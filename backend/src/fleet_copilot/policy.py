@@ -16,6 +16,12 @@ COMPLIANCE_WINDOW_DAYS = 30
 BATTERY_WINDOW_DAYS = 30
 MAX_WINDOW_DAYS = 60  # largest window a tool call may request
 MAX_REFS_PER_FINDING = 6  # cited readings shown per device in an answer
+MAX_TOOL_ROUNDS = 6  # model-driven rounds of tool calls in one turn
+MAX_CALLS_PER_ROUND = 4  # tool calls the graph will run from one model message
+MAX_QUESTION_CHARS = 2000  # longest question a turn accepts
+MAX_HISTORY_TURNS = 6  # earlier turns the planner may see
+MAX_HEADLINE_CHARS = 160  # longest model-written headline that passes verification
+MAX_EXPLANATION_CHARS = 600  # longest model-written explanation that passes verification
 
 
 def disclosure() -> dict[str, float | int]:

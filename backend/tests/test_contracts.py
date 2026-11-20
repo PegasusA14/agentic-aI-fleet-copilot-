@@ -1,6 +1,7 @@
 import json
 import re
 from datetime import UTC, datetime, timedelta, timezone
+from typing import get_args
 
 import pytest
 from pydantic import ValidationError
@@ -14,9 +15,11 @@ from fleet_copilot.contracts import (
     EntityList,
     EntityRef,
     EvidenceItem,
+    ExcludedReason,
     ProposalCard,
     ScopeInfo,
     TraceEvent,
+    TraceKind,
 )
 from fleet_copilot.contracts_export import SCHEMA_DIR, build_schema
 
@@ -253,9 +256,10 @@ def test_scope_as_of_must_carry_a_time_zone():
 
 
 def test_trace_event_kinds_are_closed():
-    assert TraceEvent(seq=1, kind="tool_call", summary="low_disk(threshold=10)").latency_ms is None
+    event = TraceEvent(trace_id="t-1", seq=1, kind="tool_call", summary="low_disk(threshold=10)")
+    assert event.latency_ms is None and event.tool is None
     with pytest.raises(ValidationError, match="Input should be"):
-        TraceEvent(seq=1, kind="thinking", summary="x")
+        TraceEvent(trace_id="t-1", seq=1, kind="thinking", summary="x")
 
 
 def test_a_trace_id_is_required():
@@ -462,3 +466,67 @@ def test_schema_files_are_per_model_required_complete_and_committed():
         assert json.loads(text) == schema
         assert text.endswith("\n") and text == json.dumps(schema, indent=2, sort_keys=True) + "\n"
     assert SCHEMA_DIR == REPO_ROOT / "contracts"
+
+
+# ---- Plan 2B amendments: trace events and the closed excluded-reason set ----------------------------
+
+
+def test_every_graph_stage_has_a_trace_kind():
+    stages = {
+        "scope",
+        "plan",
+        "reference",
+        "tool_call",
+        "tool_result",
+        "retry",
+        "compose",
+        "explain",
+        "verify",
+        "respond",
+        "error",
+    }
+    assert stages == set(get_args(TraceKind))
+
+
+def test_a_trace_event_names_its_turn_and_may_name_a_tool():
+    event = TraceEvent(
+        trace_id="t-9", seq=3, kind="tool_result", tool="trend", summary="trend returned"
+    )
+    assert (event.trace_id, event.tool, event.seq) == ("t-9", "trend", 3)
+    with pytest.raises(ValidationError, match="trace_id"):
+        TraceEvent(seq=1, kind="plan", summary="x")
+    with pytest.raises(ValidationError, match="trace_id"):
+        TraceEvent(trace_id="", seq=1, kind="plan", summary="x")
+    with pytest.raises(ValidationError):
+        TraceEvent(trace_id="t", seq=-1, kind="plan", summary="x")
+    with pytest.raises(ValidationError):
+        TraceEvent(trace_id="t", seq=1, kind="plan", summary="x", latency_ms=-5)
+
+
+def test_the_trace_schema_requires_every_field():
+    schema = build_schema()["TraceEvent"]
+    assert set(schema["required"]) == {
+        "trace_id",
+        "seq",
+        "kind",
+        "tool",
+        "summary",
+        "data",
+        "latency_ms",
+    }
+
+
+def test_excluded_reasons_are_a_closed_set():
+    keys = set(get_args(ExcludedReason))
+    assert keys == {
+        "out_of_scope",
+        "unknown_version",
+        "insufficient_history",
+        "no_reading",
+        "no_readings",
+    }
+    assert Coverage(population=1, excluded={"out_of_scope": ["A"]}).excluded == {
+        "out_of_scope": ["A"]
+    }
+    with pytest.raises(ValidationError):
+        Coverage(population=1, excluded={"made_up_reason": ["A"]})

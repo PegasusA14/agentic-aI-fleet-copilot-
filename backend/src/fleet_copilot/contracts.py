@@ -20,7 +20,19 @@ ActionType = Literal["remediation_ticket", "replacement_flag"]
 ProposalStatus = Literal[
     "pending", "approved", "rejected", "executed", "failed", "uncertain", "invalidated"
 ]
-TraceKind = Literal["plan", "tool_call", "tool_result", "verify", "respond", "error"]
+TraceKind = Literal[
+    "scope",
+    "plan",
+    "reference",
+    "tool_call",
+    "tool_result",
+    "retry",
+    "compose",
+    "explain",
+    "verify",
+    "respond",
+    "error",
+]
 ReasonCode = Literal[
     "no_matching_records",
     "insufficient_history",
@@ -30,6 +42,14 @@ ReasonCode = Literal[
     "prompt_injection",
     "tool_failure",
     "step_limit",
+]
+# The only keys a query may put in `excluded` (and so the only keys `Coverage.excluded` accepts).
+ExcludedReason = Literal[
+    "out_of_scope",
+    "unknown_version",
+    "insufficient_history",
+    "no_reading",
+    "no_readings",
 ]
 _REASON_REQUIRED = {"denied", "unsupported", "tool_error", "insufficient_data", "no_match"}
 _VALID_REASONS: dict[str, frozenset[str]] = {
@@ -52,7 +72,7 @@ class Coverage(_Model):
     population: int = Field(ge=0)
     stale: list[str] = Field(default_factory=list)
     missing_latest: list[str] = Field(default_factory=list)
-    excluded: dict[str, list[str]] = Field(default_factory=dict)
+    excluded: dict[ExcludedReason, list[str]] = Field(default_factory=dict)
 
 
 class EntityRef(_Model):
@@ -218,8 +238,16 @@ class AnswerEnvelope(_Model):
 
 
 class TraceEvent(_Model):
-    seq: int
+    """One step of a turn, streamed to the UI and stored for the observability console.
+
+    `data` is open but MUST already be redacted: counts, tool names and redacted arguments only.
+    Never raw telemetry values, employee ids or exception text.
+    """
+
+    trace_id: str = Field(min_length=1)
+    seq: int = Field(ge=0)
     kind: TraceKind
+    tool: str | None = None
     summary: str
     data: dict[str, Any] = Field(default_factory=dict)
-    latency_ms: int | None = None
+    latency_ms: int | None = Field(default=None, ge=0)

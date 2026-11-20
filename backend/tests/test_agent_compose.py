@@ -626,3 +626,42 @@ def test_entity_list_ids_are_namespaced_by_the_trace_id(real_db_path, real_conn)
     assert ids_1 == [f"turn-1/{r}" for r in raw]
     assert [e.list_id for e in comp.entity_lists] == raw  # the composition itself is untouched
     assert [e.items for e in first.entity_lists] == [e.items for e in comp.entity_lists]
+
+
+# ---- Plan 2B: the excluded-reason keys cannot drift between queries, composer and contract ----------
+
+
+def test_composer_reason_text_covers_exactly_the_contract_reason_keys():
+    from typing import get_args
+
+    from fleet_copilot.agent.compose import _REASON_TEXT
+    from fleet_copilot.contracts import ExcludedReason
+
+    assert set(_REASON_TEXT) == set(get_args(ExcludedReason))
+
+
+def test_every_reason_key_a_query_emits_is_allowed_by_the_contract(real_db_path, real_conn):
+    from typing import get_args
+
+    from fleet_copilot.contracts import ExcludedReason
+
+    calls = [
+        ("low_disk_devices", {}),
+        ("macos_version_check", {}),
+        ("compliance_failures_now", {}),
+        ("memory_pressure_now", {}),
+        ("trend", {"metric": "memory", "window_days": 1}),
+        ("trend", {"metric": "disk", "window_days": 1}),
+        ("trend", {"metric": "compliance", "check_id": "screen_lock", "window_days": 1}),
+        ("trend", {"metric": "battery", "window_days": 1}),
+        ("find_devices", {}),
+        ("device_history", {"device_id": "DLT35MHGTH2D", "metric": "battery_capacity"}),
+    ]
+    seen: set[str] = set()
+    for tenant in (ACME, GLOBEX, INITECH):
+        for name, args in calls:
+            if name == "device_history" and tenant != ACME:
+                continue
+            seen |= set(run(real_db_path, real_conn, name, args, tenant).excluded)
+    assert seen, "the sweep must exercise at least one exclusion"
+    assert seen <= set(get_args(ExcludedReason))
