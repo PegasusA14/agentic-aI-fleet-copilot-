@@ -261,6 +261,8 @@ def test_every_tool_composes_into_a_valid_envelope_for_every_tenant(
         ("trend", {"metric": "compliance", "check_id": "screen_lock", "window_days": 30}),
         ("trend", {"metric": "battery"}),
         ("find_devices", {"group_by": "model"}),
+        ("software_inventory", {"view": "current"}),
+        ("software_inventory", {"view": "new_installs"}),
     ]
     for name, args in calls:
         comp = composed(real_db_path, real_conn, [(name, args)], tenant=tenant)
@@ -656,6 +658,8 @@ def test_every_reason_key_a_query_emits_is_allowed_by_the_contract(real_db_path,
         ("trend", {"metric": "battery", "window_days": 1}),
         ("find_devices", {}),
         ("device_history", {"device_id": "DLT35MHGTH2D", "metric": "battery_capacity"}),
+        ("software_inventory", {"view": "current"}),
+        ("software_inventory", {"view": "new_installs", "window_days": 1}),
     ]
     seen: set[str] = set()
     for tenant in (ACME, GLOBEX, INITECH):

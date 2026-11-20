@@ -46,7 +46,14 @@ _REASON_TEXT = {
     "no_reading": "{n} {dev} {have} no battery reading in the window",
     "no_readings": "{n} {dev} {have} no readings for that metric in the window",
 }
-_PATH_TITLES = {"disk": "Disk", "memory": "Memory", "os": "OS version", "battery": "Battery"}
+_PATH_TITLES = {
+    "disk": "Disk",
+    "memory": "Memory",
+    "os": "OS version",
+    "battery": "Battery",
+    "compliance": "Compliance",
+    "software": "Software",
+}
 
 
 def representative(refs: Sequence[str], limit: int = policy.MAX_REFS_PER_FINDING) -> list[str]:
@@ -141,11 +148,21 @@ def evidence_text(path: str, value: dict) -> str:
             f"condition {value['condition']}; {value['cycle_count']} cycles; "
             f"full-charge capacity {capacity} (unit not reported)"
         )
+    if path == "software":
+        return f"{value['name']} {value['version']}, published by {value['publisher']}"
     return f"{value['check_id']}: {value['status']} ({value['severity']} severity)"
 
 
+def evidence_kind(path: str) -> str:
+    """The reading type behind an evidence path: `compliance[x]` and `software[x]` are one kind each."""
+    for kind in ("compliance", "software"):
+        if path.startswith(f"{kind}["):
+            return kind
+    return path
+
+
 def _path_title(path: str) -> str:
-    return "Compliance" if path.startswith("compliance[") else _PATH_TITLES.get(path, path)
+    return _PATH_TITLES.get(evidence_kind(path), path)
 
 
 def _item(finding: FindingRecord, detail: str) -> str:
@@ -218,7 +235,7 @@ class _Builder:
         parsed = EvidenceRef.parse(ref)
         resolved = self._resolve(parsed)
         host = self._hosts.get(parsed.device_id, parsed.device_id)
-        kind = "compliance" if parsed.path.startswith("compliance[") else parsed.path
+        kind = evidence_kind(parsed.path)
         self.evidence[ref] = EvidenceItem(
             ref=ref,
             label=f"{_path_title(parsed.path)} · {host} · {fmt_ts(parsed.collected_at)}",
@@ -534,6 +551,87 @@ def _history(rec: ToolRecord, idx: int, b: _Builder) -> None:
     b.set_headline(f"{label} for {f.hostname}: {detail}")
 
 
+def _software(rec: ToolRecord, idx: int, b: _Builder) -> None:
+    b.coverage(rec)
+    if not rec.findings:
+        return
+    if rec.args.get("view") == "new_installs":
+        _new_installs(rec, idx, b)
+    elif "apps" in rec.findings[0].values:
+        _software_inventory(rec, idx, b)
+    else:
+        _software_holders(rec, idx, b)
+
+
+def _new_installs(rec: ToolRecord, idx: int, b: _Builder) -> None:
+    days = rec.args.get("window_days") or policy.SOFTWARE_WINDOW_DAYS
+    by_app: dict[str, list[FindingRecord]] = {}
+    for f in rec.findings:
+        by_app.setdefault(f.values["app"], []).append(f)
+    for app in sorted(by_app, key=lambda name: (name.lower(), name)):
+        group = by_app[app]
+        items = []
+        for f in group:
+            v = f.values
+            version = (
+                v["version"]
+                if v["version"] == v["latest_version"]
+                else f"{v['version']}, now {v['latest_version']}"
+            )
+            detail = f"{app} {version}; first seen {fmt_ts(v['first_seen'])}"
+            if not v["still_present"]:
+                detail += f"; no longer installed, last seen {fmt_ts(v['last_seen'])}"
+            items.append(_item(f, detail))
+        n = rec.population
+        b.claim(
+            f"Newly installed in the last {days} days and not in the common set: {app} on "
+            f"{len(group)} of {n} {noun(n, 'device')}. " + "; ".join(items) + ".",
+            group,
+            refs_by_device={f.device_id: list(f.refs) for f in group},
+        )
+    devices = list({f.device_id: f for f in rec.findings}.values())  # newest install first
+    b.entity_list(f"{rec.tool}-{idx}", f"New software ({days} d)", devices)
+    k, n = len(rec.findings), rec.population
+    b.set_headline(
+        f"{k} new {noun(k, 'install')} on {len(devices)} of {n} {noun(n, 'device')} in the last "
+        f"{days} days (not in the common set)"
+    )
+
+
+def _software_holders(rec: ToolRecord, idx: int, b: _Builder) -> None:
+    name = rec.findings[0].values["name"]
+    items = [_item(f, f"{f.values['name']} {f.values['version']}") for f in rec.findings]
+    k, n = len(rec.findings), rec.population
+    b.claim(
+        f"{name} is installed at the latest snapshot on {k} of {n} {noun(n, 'device')}. "
+        + "; ".join(items)
+        + ".",
+        rec.findings,
+    )
+    b.entity_list(f"{rec.tool}-{idx}", f"Devices with {name}", rec.findings)
+    b.set_headline(f"{name} is installed on {k} of {n} {noun(n, 'device')}")
+
+
+def _software_inventory(rec: ToolRecord, idx: int, b: _Builder) -> None:
+    items = []
+    for f in rec.findings:
+        count = len(f.values["apps"])
+        detail = f"{count} {noun(count, 'app')}"
+        if f.values["extra"]:
+            extra = ", ".join(f"{a['name']} {a['version']}" for a in f.values["extra"])
+            detail += f"; not on every device: {extra}"
+        items.append(_item(f, detail))
+    k, n = len(rec.findings), rec.population
+    b.claim(
+        f"Installed software at the latest snapshot on {k} of {n} {noun(n, 'device')}. "
+        + "; ".join(items)
+        + ".",
+        rec.findings,
+    )
+    b.entity_list(f"{rec.tool}-{idx}", "Installed software", rec.findings)
+    b.set_headline(f"{k} of {n} {noun(n, 'device')} report installed software")
+
+
 _TEMPLATES: dict[str, Callable[[ToolRecord, int, _Builder], None]] = {
     "low_disk_devices": _low_disk,
     "macos_version_check": _macos,
@@ -542,6 +640,7 @@ _TEMPLATES: dict[str, Callable[[ToolRecord, int, _Builder], None]] = {
     "trend": _trend,
     "find_devices": _find,
     "device_history": _history,
+    "software_inventory": _software,
 }
 
 

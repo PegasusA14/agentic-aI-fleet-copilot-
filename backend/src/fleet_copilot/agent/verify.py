@@ -17,7 +17,7 @@ from datetime import datetime
 from decimal import Decimal, InvalidOperation
 
 from fleet_copilot import policy
-from fleet_copilot.agent.compose import Composition, Resolver, evidence_text
+from fleet_copilot.agent.compose import Composition, Resolver, evidence_kind, evidence_text
 from fleet_copilot.contracts import AnswerEnvelope
 from fleet_copilot.evidence import EvidenceRef
 from fleet_copilot.repository import NotFound
@@ -93,6 +93,14 @@ CLAIM_WORDS = (
     "healthy", "fine", "safe", "secure", "compliant", "ok", "okay",
 )  # fmt: skip
 _CLAIM_WORD = re.compile(r"\b(" + "|".join(CLAIM_WORDS) + r")\b", re.IGNORECASE)
+
+# The telemetry carries no approval, licence or risk label for installed software, so prose about software
+# may not add one. This is checked only on answers that cite software readings.
+_JUDGMENT_WORD = re.compile(
+    r"\b(?:malicious|malware|virus\w*|unapproved|unauthori[sz]ed|unsanctioned|unlicensed|illegal|pirat\w*"
+    r"|suspicious|risk\w*|danger\w*|unsafe|harm\w*|threat\w*|banned|untrusted)\b",
+    re.IGNORECASE,
+)
 
 
 _MARK_CATEGORIES = frozenset({"Mn", "Mc", "Me"})
@@ -252,6 +260,7 @@ def verify_prose(
     """Accept the model's headline and explanation only if they ground; else use code-written text."""
     allowed, ids, labels = allowed_numbers(comp, as_of), known_ids(comp), known_labels(comp)
     is_answer = comp.outcome == "answer"
+    judges_software = is_answer and any("#software[" in item.ref for item in comp.evidence)
     required = number_tokens(comp.fallback_headline)
     problems: list[str] = []
     final_headline = comp.fallback_headline
@@ -265,6 +274,8 @@ def verify_prose(
         )
         if is_answer and _CLAIM_WORD.search(_fold(headline)):
             found.append("claim_word")
+        if judges_software and _JUDGMENT_WORD.search(_fold(headline)):
+            found.append("judgment_word")
         # The code headline states the result; the model's may reword it but must keep its numbers.
         if not required <= number_tokens(headline):
             found.append("restates_nothing")
@@ -283,6 +294,8 @@ def verify_prose(
         )
         if is_answer and _CLAIM_WORD.search(_fold(explanation)):
             found.append("claim_word")
+        if judges_software and _JUDGMENT_WORD.search(_fold(explanation)):
+            found.append("judgment_word")
         if found:
             problems += [f"explanation:{_code(p)}" for p in found]
         else:
@@ -332,7 +345,6 @@ def verify_evidence(envelope: AnswerEnvelope, resolve: Resolver) -> list[str]:
         except NotFound:
             problems.add("unresolvable_ref")
             continue
-        kind = "compliance" if ref.path.startswith("compliance[") else ref.path
-        if evidence_text(kind, reading.value) != item.value:
+        if evidence_text(evidence_kind(ref.path), reading.value) != item.value:
             problems.add("evidence_mismatch")
     return sorted(problems)

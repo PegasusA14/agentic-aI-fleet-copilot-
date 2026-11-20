@@ -462,6 +462,9 @@ def test_real_evidence_verifies_for_every_tool(real_db_path, real_conn):
         ("trend", {"metric": "memory", "window_days": 7}),
         ("trend", {"metric": "battery"}),
         ("trend", {"metric": "compliance", "check_id": "screen_lock"}),
+        ("software_inventory", {"view": "current"}),
+        ("software_inventory", {"view": "current", "app_name": "uTorrent"}),
+        ("software_inventory", {"view": "new_installs"}),
     ]
     repo = repo_for(real_conn)
     for name, args in calls:
