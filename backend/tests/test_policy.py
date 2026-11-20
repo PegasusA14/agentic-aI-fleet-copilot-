@@ -17,6 +17,7 @@ def test_policy_values_are_the_disclosed_defaults():
         policy.COMPLIANCE_WINDOW_DAYS,
         policy.BATTERY_WINDOW_DAYS,
     ) == (7, 30, 30)
+    assert policy.SOFTWARE_WINDOW_DAYS == 30
     assert policy.MAX_WINDOW_DAYS == 60
     assert policy.MAX_REFS_PER_FINDING == 6
 
@@ -49,6 +50,7 @@ def test_disclosure_lists_every_default():
         "trend_window_days": 7,
         "compliance_window_days": 30,
         "battery_window_days": 30,
+        "software_window_days": 30,
     }
 
 

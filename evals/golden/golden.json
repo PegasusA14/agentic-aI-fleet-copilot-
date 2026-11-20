@@ -8,6 +8,11 @@
         85,
         90
       ],
+      "software_windows_days": [
+        7,
+        14,
+        30
+      ],
       "stale_hours": 48,
       "windows_days": [
         7,
@@ -222,6 +227,67 @@
             "M4XVHUV1MEPZ": "sustained"
           }
         }
+      },
+      "software": {
+        "common_set": {
+          "14": [
+            "1Password",
+            "Google Chrome",
+            "Slack",
+            "Visual Studio Code",
+            "Zoom"
+          ],
+          "30": [
+            "1Password",
+            "Google Chrome",
+            "Slack",
+            "Visual Studio Code",
+            "Zoom"
+          ],
+          "7": [
+            "1Password",
+            "Google Chrome",
+            "Slack",
+            "Visual Studio Code",
+            "Zoom"
+          ]
+        },
+        "holders": {
+          "CleanMyMac X": [
+            "7VP16KHV88LM"
+          ],
+          "uTorrent": [
+            "1LYSSFD074BB"
+          ]
+        },
+        "new_installs": {
+          "14": [
+            {
+              "app": "uTorrent",
+              "device_id": "1LYSSFD074BB",
+              "first_seen": "2026-05-31T11:13:00Z",
+              "still_present": true,
+              "version": "3.6"
+            }
+          ],
+          "30": [
+            {
+              "app": "uTorrent",
+              "device_id": "1LYSSFD074BB",
+              "first_seen": "2026-05-31T11:13:00Z",
+              "still_present": true,
+              "version": "3.6"
+            },
+            {
+              "app": "CleanMyMac X",
+              "device_id": "7VP16KHV88LM",
+              "first_seen": "2026-05-25T08:55:00Z",
+              "still_present": true,
+              "version": "4.15"
+            }
+          ],
+          "7": []
+        }
       }
     },
     "globex-002": {
@@ -366,6 +432,49 @@
             "CUXW0BQSV1B7": "isolated",
             "JRZSGXVMKE6M": "intermittent"
           }
+        }
+      },
+      "software": {
+        "common_set": {
+          "14": [
+            "1Password",
+            "Google Chrome",
+            "Slack",
+            "Visual Studio Code",
+            "Zoom"
+          ],
+          "30": [
+            "1Password",
+            "Google Chrome",
+            "Slack",
+            "Visual Studio Code",
+            "Zoom"
+          ],
+          "7": [
+            "1Password",
+            "Google Chrome",
+            "Slack",
+            "Visual Studio Code",
+            "Zoom"
+          ]
+        },
+        "holders": {
+          "uTorrent": [
+            "Q1AFVLH3YV33"
+          ]
+        },
+        "new_installs": {
+          "14": [],
+          "30": [
+            {
+              "app": "uTorrent",
+              "device_id": "Q1AFVLH3YV33",
+              "first_seen": "2026-05-20T09:10:00Z",
+              "still_present": true,
+              "version": "3.6"
+            }
+          ],
+          "7": []
         }
       }
     },
@@ -520,6 +629,75 @@
           "7": {
             "I3JLKILKQTAC": "intermittent"
           }
+        }
+      },
+      "software": {
+        "common_set": {
+          "14": [
+            "1Password",
+            "Google Chrome",
+            "Slack",
+            "Visual Studio Code",
+            "Zoom"
+          ],
+          "30": [
+            "1Password",
+            "Google Chrome",
+            "Slack",
+            "Visual Studio Code",
+            "Zoom"
+          ],
+          "7": [
+            "1Password",
+            "Google Chrome",
+            "Slack",
+            "Visual Studio Code",
+            "Zoom"
+          ]
+        },
+        "holders": {
+          "TeamViewer": [
+            "DARFCP0BQM2G"
+          ],
+          "uTorrent": [
+            "I3JLKILKQTAC",
+            "W2656QDAE2ZJ"
+          ]
+        },
+        "new_installs": {
+          "14": [
+            {
+              "app": "uTorrent",
+              "device_id": "W2656QDAE2ZJ",
+              "first_seen": "2026-06-02T10:45:00Z",
+              "still_present": true,
+              "version": "3.6"
+            }
+          ],
+          "30": [
+            {
+              "app": "TeamViewer",
+              "device_id": "DARFCP0BQM2G",
+              "first_seen": "2026-05-21T09:43:00Z",
+              "still_present": true,
+              "version": "15.5"
+            },
+            {
+              "app": "uTorrent",
+              "device_id": "I3JLKILKQTAC",
+              "first_seen": "2026-05-29T10:52:00Z",
+              "still_present": true,
+              "version": "3.6"
+            },
+            {
+              "app": "uTorrent",
+              "device_id": "W2656QDAE2ZJ",
+              "first_seen": "2026-06-02T10:45:00Z",
+              "still_present": true,
+              "version": "3.6"
+            }
+          ],
+          "7": []
         }
       }
     }

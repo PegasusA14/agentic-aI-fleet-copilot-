@@ -14,6 +14,7 @@ STALE_HOURS = 48  # a reading older than this before as-of is stale
 TREND_WINDOW_DAYS = 7  # default window for memory and disk trends
 COMPLIANCE_WINDOW_DAYS = 30
 BATTERY_WINDOW_DAYS = 30
+SOFTWARE_WINDOW_DAYS = 30  # "newly installed" looks this far back from the as-of time
 MAX_WINDOW_DAYS = 60  # largest window a tool call may request
 MAX_REFS_PER_FINDING = 6  # cited readings shown per device in an answer
 MAX_TOOL_ROUNDS = 6  # model-driven rounds of tool calls in one turn
@@ -41,4 +42,5 @@ def disclosure() -> dict[str, float | int]:
         "trend_window_days": TREND_WINDOW_DAYS,
         "compliance_window_days": COMPLIANCE_WINDOW_DAYS,
         "battery_window_days": BATTERY_WINDOW_DAYS,
+        "software_window_days": SOFTWARE_WINDOW_DAYS,
     }

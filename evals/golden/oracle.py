@@ -19,6 +19,7 @@ from pathlib import Path
 FMT = "%Y-%m-%dT%H:%M:%SZ"
 CHECKS = ("disk_encryption", "screen_lock", "os_up_to_date")
 SERVICE = "Service Recommended"
+SOFTWARE_WINDOWS = (7, 14, 30)
 
 
 def ts(text):
@@ -48,6 +49,52 @@ def status_of(row, check):
         if result["check_id"] == check:
             return result["status"]
     return None
+
+
+def names_of(row):
+    return [item["name"] for item in row["installed_software"]]
+
+
+def software_in_window(devices, rows, latest, as_of, days):
+    """The common set and the new installs for one window, with plain loops and no shared logic.
+
+    Common set: apps on EVERY device (that has a snapshot in the window) in that device's earliest
+    snapshot in the window. New install: an app outside the common set whose first appearance on a device
+    is a later snapshot than that device's earliest one in the window.
+    """
+    since = as_of - timedelta(days=days)
+    inside = {}
+    for d in devices:
+        kept = [r for r in rows[d] if ts(r["collected_at"]) >= since]
+        if kept:
+            inside[d] = kept
+    common = None
+    for d in sorted(inside):
+        starting = set(names_of(inside[d][0]))
+        common = starting if common is None else common & starting
+    common = common or set()
+    installs = []
+    for d in sorted(inside):
+        earliest = inside[d][0]["collected_at"]
+        seen = {}
+        for r in inside[d]:
+            for item in r["installed_software"]:
+                if item["name"] not in seen:
+                    seen[item["name"]] = (r["collected_at"], item["version"])
+        for app in sorted(seen):
+            when, version = seen[app]
+            if app in common or when == earliest:
+                continue
+            installs.append(
+                {
+                    "device_id": d,
+                    "app": app,
+                    "version": version,
+                    "first_seen": when,
+                    "still_present": app in names_of(latest[d]),
+                }
+            )
+    return sorted(common), installs
 
 
 def trailing_true(flags):
@@ -206,6 +253,21 @@ def tenant_facts(company, series, as_of):
                 "service_streak": streak,
             }
     facts["battery_30"] = {"notable": notable, "missing_latest": missing_latest, "no_reading": no_reading}
+
+    common_sets, new_installs = {}, {}
+    for days in SOFTWARE_WINDOWS:
+        common, installs = software_in_window(devices, rows, latest, as_of, days)
+        common_sets[str(days)], new_installs[str(days)] = common, installs
+    holders = {}
+    for d in devices:
+        for app in names_of(latest[d]):
+            if app not in common_sets["30"]:
+                holders.setdefault(app, []).append(d)
+    facts["software"] = {
+        "common_set": common_sets,
+        "new_installs": new_installs,
+        "holders": {app: sorted(found) for app, found in sorted(holders.items())},
+    }
     return facts
 
 
@@ -227,6 +289,7 @@ def generate(raw):
                 "memory_used_pct_at_least": [85, 90],
                 "windows_days": [7, 30],
                 "stale_hours": 48,
+                "software_windows_days": list(SOFTWARE_WINDOWS),
             },
         },
         "tenants": {company: tenant_facts(company, series, as_of) for company in companies},
