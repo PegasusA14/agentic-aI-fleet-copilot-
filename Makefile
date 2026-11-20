@@ -1,10 +1,22 @@
-.PHONY: setup load-data test lint golden contracts fixtures frontend-install frontend-dev frontend-build frontend-test
+.PHONY: setup load-data api ask doctor live-check test lint golden contracts fixtures frontend-install frontend-dev frontend-build frontend-test
 
 setup:
 	cd backend && uv sync
 
 load-data:
 	cd backend && uv run python -m fleet_copilot.data.cli
+
+api:
+	cd backend && uv run python -m fleet_copilot.api
+
+ask:
+	cd backend && uv run python -m fleet_copilot.cli ask "$(Q)" --trace
+
+doctor:
+	cd backend && uv run python -m fleet_copilot.cli doctor --live
+
+live-check:
+	cd backend && FLEET_MODEL_MODE=live uv run python -m fleet_copilot.live_check --cassette ../var/cassettes/live-check.jsonl
 
 test:
 	cd backend && uv run pytest

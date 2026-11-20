@@ -17,3 +17,64 @@ dropped, field by field, whenever it fails a check.
 Two limits are inherent: cross-script homoglyphs (for example Cyrillic letters that look Latin) and number glyphs
 that are not digits (for example CJK numerals) are not detected. Code-written claims and evidence remain the source
 of truth.
+
+## Running the API and the model
+
+The agent talks to a model through a gateway chosen by `FLEET_MODEL_MODE`:
+
+- `replay` (the default) answers from a recorded cassette and needs no credentials. It reads
+  `FLEET_CASSETTE_PATH` (default `var/cassettes/live.jsonl`). A question nobody recorded gets the fixed
+  tool-error text, not a made-up answer.
+- `live` calls an Azure OpenAI deployment. It needs `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`,
+  `AZURE_OPENAI_API_VERSION` and `AZURE_OPENAI_DEPLOYMENT` in the git-ignored `.env`. Set
+  `FLEET_CASSETTE_RECORD=1` to also record each response to the cassette.
+
+Other variables: `FLEET_DB_PATH`, `FLEET_STATE_DIR`, `FLEET_PORT`, `FLEET_ALLOWED_ORIGINS`,
+`FLEET_SESSION_SECRET`, `FLEET_OPERATOR_PASSCODE`.
+
+Run `make doctor` first. It prints which variables are set or missing (never their values), the mode, the
+number of recorded cassette responses, whether the dataset database exists, and, in live mode, makes one
+tiny real model call that proves the deployment name and API version. `make ask Q="Which devices are low on
+disk space?"` asks one question from the terminal and prints the trace.
+
+`make api` serves on `127.0.0.1:8000` only; the host is not configurable. Sign in with a demo key
+(`admin-acme`, `admin-globex`, `admin-initech`) through `POST /api/session`. The `operator` key also needs
+`FLEET_OPERATOR_PASSCODE` to be set and sent as `passcode`; without it operator sign-in is disabled.
+
+| Endpoint | Purpose |
+| --- | --- |
+| `GET /api/health` | liveness |
+| `GET /api/demo-users` | the demo sign-in keys |
+| `POST`, `GET`, `DELETE /api/session` | sign in, current user, sign out |
+| `POST /api/conversations`, `DELETE /api/conversations/{id}` | create and delete a conversation |
+| `POST /api/chat` | ask a question; the answer streams as server-sent events |
+| `GET /api/evidence?ref=` | resolve one evidence reference |
+| `GET /api/traces/{trace_id}` | the steps of one of your own turns |
+| `GET /api/policy` | the defaults and limits in force |
+| `GET /api/observe/turns`, `GET /api/observe/traces/{trace_id}` | operator console reads |
+
+Evidence refs contain `#`, which a URL path would drop, so they are fetched with the `ref` query parameter.
+
+### Recording and replaying
+
+`make live-check` runs six demo questions against the live model, checks each answer against the independent
+golden file, and records the model responses to `var/cassettes/live-check.jsonl`. Replay the same questions
+offline with `FLEET_MODEL_MODE=replay`; `tests/test_live_replay.py` does this automatically once the cassette
+exists and is skipped until then.
+
+### Where state lives
+
+Traces are in `var/traces.db` and conversation checkpoints in `var/checkpoints.db`. Set `FLEET_STATE_DIR` to
+move both.
+
+### Limits
+
+30 s per model call, 3 attempts per call (rate limits, timeouts, connection and 5xx errors only), and 120 s
+per turn.
+
+### Troubleshooting
+
+- `401` from Azure: the key or the endpoint is wrong.
+- `404 DeploymentNotFound`: the deployment name (`AZURE_OPENAI_DEPLOYMENT`) is wrong.
+- `400` that mentions `api-version`: the API version is wrong.
+- A rejection of `temperature`: the deployment is a reasoning model. Use a non-reasoning deployment.
