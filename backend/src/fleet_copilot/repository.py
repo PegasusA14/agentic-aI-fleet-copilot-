@@ -53,6 +53,13 @@ class ComplianceCheck:
 
 
 @dataclass(frozen=True)
+class SoftwareItem:
+    name: str
+    version: str
+    publisher: str
+
+
+@dataclass(frozen=True)
 class Snapshot:
     snapshot_id: int
     company_id: str
@@ -71,6 +78,7 @@ class Snapshot:
     mem_used_bytes: int
     battery: BatteryBlock | None
     compliance: dict[str, ComplianceCheck]
+    software: tuple[SoftwareItem, ...] = ()  # sorted by name
 
     def ref(self, path: str) -> EvidenceRef:
         return EvidenceRef(self.company_id, self.device_id, iso_z(self.collected_at), path)
@@ -84,6 +92,9 @@ class EvidenceValue:
 
 
 _COMPLIANCE_PATH = re.compile(r"compliance\[([A-Za-z0-9_.-]+)\]")
+# App names may contain spaces ("Google Chrome"); the name is looked up exactly, so this only has to
+# find the brackets. The loader keeps `[` and `]` out of names.
+_SOFTWARE_PATH = re.compile(r"software\[([^\[\]]{1,60})\]")
 
 
 def dataset_as_of(conn: sqlite3.Connection) -> datetime:
@@ -132,6 +143,11 @@ def _evidence_value(snapshot: Snapshot, path: str) -> dict[str, Any]:
     if match and match.group(1) in snapshot.compliance:
         check = snapshot.compliance[match.group(1)]
         return {"check_id": match.group(1), "status": check.status, "severity": check.severity}
+    match = _SOFTWARE_PATH.fullmatch(path)
+    if match:
+        for item in snapshot.software:
+            if item.name == match.group(1):
+                return {"name": item.name, "version": item.version, "publisher": item.publisher}
     raise NotFound()
 
 
@@ -182,6 +198,15 @@ class FleetRepository:
         rows = self._conn.execute(sql, (self._ctx.company_id, device_id)).fetchall()
         return self._hydrate(rows)[0] if rows else None
 
+    def software_names(self) -> list[str]:
+        """Every app name this company has ever reported, sorted without regard to case."""
+        rows = self._conn.execute(
+            "SELECT DISTINCT w.name FROM software w JOIN snapshots s ON s.snapshot_id = w.snapshot_id "
+            "WHERE s.company_id = ? ORDER BY w.name COLLATE NOCASE, w.name",
+            (self._ctx.company_id,),
+        ).fetchall()
+        return [r["name"] for r in rows]
+
     def resolve(self, ref: EvidenceRef) -> EvidenceValue:
         """Return the observation a reference points at, or `NotFound` for anything unprovable."""
         if ref.company_id != self._ctx.company_id:
@@ -209,6 +234,15 @@ class FleetRepository:
             [self._ctx.company_id, *ids],
         ):
             checks[c["snapshot_id"]][c["check_id"]] = ComplianceCheck(c["status"], c["severity"])
+        apps: dict[int, list[SoftwareItem]] = {i: [] for i in ids}
+        # `software` has no company column either: same snapshot join, same tenant filter
+        for w in self._conn.execute(
+            "SELECT w.snapshot_id, w.name, w.version, w.publisher "
+            "FROM software w JOIN snapshots s ON s.snapshot_id = w.snapshot_id "
+            f"WHERE s.company_id = ? AND w.snapshot_id IN ({marks}) ORDER BY w.name",
+            [self._ctx.company_id, *ids],
+        ):
+            apps[w["snapshot_id"]].append(SoftwareItem(w["name"], w["version"], w["publisher"]))
         out = []
         for r in rows:
             battery = None
@@ -239,6 +273,7 @@ class FleetRepository:
                     r["mem_used_bytes"],
                     battery,
                     checks[r["snapshot_id"]],
+                    tuple(apps[r["snapshot_id"]]),
                 )
             )
         return out
