@@ -19,8 +19,11 @@ MAX_REFS_PER_FINDING = 6  # cited readings shown per device in an answer
 MAX_TOOL_ROUNDS = 6  # model-driven rounds of tool calls in one turn
 MAX_CALLS_PER_ROUND = 4  # tool calls the graph will run from one model message
 TURN_TIMEOUT_S = (
-    90  # wall-clock limit for one whole turn; per-call timeouts belong to the 2C gateways
+    120  # wall-clock limit for one whole turn, so a hung gateway cannot hold the conversation lock
 )
+MODEL_CALL_TIMEOUT_S = 30.0  # one attempt at one model call
+MODEL_ATTEMPTS = 3  # attempts per model call (rate limit, timeout, connection and 5xx errors only)
+MODEL_BACKOFF_S = (1.0, 3.0)  # pause before the 2nd and 3rd attempt
 MAX_QUESTION_CHARS = 2000  # longest question a turn accepts
 MAX_HISTORY_TURNS = 6  # earlier turns the planner may see
 MAX_HEADLINE_CHARS = 160  # longest model-written headline that passes verification

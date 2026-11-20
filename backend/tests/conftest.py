@@ -1,3 +1,5 @@
+import os
+
 import pytest
 
 from fleet_copilot.config import EXPECTED_DATASET_SHA256, Settings
@@ -18,3 +20,11 @@ def real_conn(real_db_path):
     conn = connect(real_db_path)
     yield conn
     conn.close()
+
+
+@pytest.fixture(autouse=True)
+def _isolated_environment(monkeypatch):
+    """No test sees a real key or a developer's settings, whatever the shell exports."""
+    for name in list(os.environ):
+        if name.startswith(("AZURE_OPENAI_", "FLEET_")) or name in ("OPENROUTER_API_KEY",):
+            monkeypatch.delenv(name, raising=False)

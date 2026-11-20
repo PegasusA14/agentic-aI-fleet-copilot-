@@ -32,6 +32,10 @@ DEMO_IDENTITIES: dict[str, Identity] = {
     "admin-initech": Identity("initech-003", "admin-initech", "Initech admin (demo)"),
 }
 
+# The operator console login. It has no tenant: `operator` matches no company in the dataset, and the API
+# refuses it on every chat and evidence route.
+OPERATOR_IDENTITY = Identity("operator", "operator", "Operator (demo)", role="operator")
+
 
 def new_conversation_id() -> str:
     return secrets.token_urlsafe(9)
