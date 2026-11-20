@@ -200,7 +200,50 @@ def test_a_device_that_reports_no_apps_is_a_no_readings_exclusion():
     result = q.software_installed(repo, dataset_as_of(conn))
     assert [f.device_id for f in result.findings] == ["A"]
     assert result.excluded == {"no_readings": ("B",)} and result.population == 2
-    assert "none" in result.rule  # nothing is shared when one device has no apps
+    # a device with no apps does not empty the shared set: it is taken over devices that report software
+    assert "Google Chrome 126.0" in result.rule and "none" not in result.rule
+    (finding,) = result.findings
+    assert finding.values["extra"] == []
+    assert len(finding.refs) == 1
+
+
+def test_a_device_with_no_apps_leaves_the_others_shared_set_unchanged():
+    both = make_conn(
+        [
+            make_row("A", ts="2026-06-12T09:00:00Z", installed_software=[]),
+            make_row("B", ts="2026-06-12T09:00:00Z", installed_software=[CHROME, SLACK, TORRENT]),
+            make_row("C", ts="2026-06-12T09:00:00Z", installed_software=[CHROME, SLACK]),
+        ]
+    )
+    without = make_conn(
+        [
+            make_row("B", ts="2026-06-12T09:00:00Z", installed_software=[CHROME, SLACK, TORRENT]),
+            make_row("C", ts="2026-06-12T09:00:00Z", installed_software=[CHROME, SLACK]),
+        ]
+    )
+    with_empty = q.software_installed(repo_for(both), dataset_as_of(both))
+    reference = q.software_installed(repo_for(without), dataset_as_of(without))
+    assert with_empty.rule == reference.rule
+    extras = {f.device_id: f.values["extra"] for f in with_empty.findings}
+    assert extras == {f.device_id: f.values["extra"] for f in reference.findings}
+    assert [a["name"] for a in extras["B"]] == ["uTorrent"]
+    assert with_empty.excluded == {"no_readings": ("A",)}
+
+
+def test_a_scoped_inventory_keeps_the_fleet_wide_shared_set(real_conn):
+    repo, as_of = repo_for(real_conn), dataset_as_of(real_conn)
+    full = q.software_installed(repo, as_of)
+    scoped = q.software_installed(repo, as_of, only_devices=["1LYSSFD074BB"])
+    (finding,) = scoped.findings
+    assert scoped.population == 1
+    assert [a["name"] for a in finding.values["extra"]] == ["uTorrent"]
+    assert finding.refs == (
+        f"acme-001/1LYSSFD074BB@{finding.values['collected_at']}#software[uTorrent]",
+    )
+    assert scoped.rule == full.rule
+    for app in facts("acme-001")["common_set"]["30"]:
+        assert app in scoped.rule
+    assert finding == next(f for f in full.findings if f.device_id == "1LYSSFD074BB")
 
 
 def test_the_inventory_treats_a_different_version_as_a_different_app():

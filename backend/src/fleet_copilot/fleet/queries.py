@@ -486,7 +486,7 @@ def software_installed(
 
     With `name` (matched exactly, without regard to case) the findings are the devices that hold the app.
     Without it every device with at least one app is a finding that lists its apps, and the apps that are
-    not on every evaluated device (same name and version) are cited. A device that reports no apps is
+    not on every device of the fleet that reports software (same name and version) are cited. A device that reports no apps is
     reported as having no readings. An empty or unknown `name` matches nothing; it never means "all".
     """
     pairs = _latest_pairs(repo, _devices(repo, only_devices))
@@ -512,7 +512,13 @@ def software_installed(
                     )
         rule = "devices with the requested app installed at the latest snapshot"
     else:
-        held = [{(i.name, i.version) for i in snap.software} for _, snap in pairs]
+        # The shared set is fleet-wide (every tenant device, not just the scope) and ignores devices that
+        # report no apps, so narrowing to one device never makes its apps look shared.
+        held = [
+            {(i.name, i.version) for i in snap.software}
+            for _, snap in _latest_pairs(repo, repo.list_devices())
+            if snap.software
+        ]
         shared = set.intersection(*held) if held else set()
         empty = []
         for device, snap in pairs:
@@ -537,8 +543,8 @@ def software_installed(
             excluded["no_readings"] = tuple(sorted(empty))
         listing = ", ".join(sorted(f"{n} {v}" for n, v in shared)) or "none"
         rule = (
-            "installed software at the latest snapshot; apps (name and version) on every "
-            f"evaluated device: {listing}"
+            "installed software at the latest snapshot; apps (name and version) on every device of "
+            f"the fleet that reports software: {listing}"
         )
     findings.sort(key=lambda f: f.device_id)
     return QueryResult(
