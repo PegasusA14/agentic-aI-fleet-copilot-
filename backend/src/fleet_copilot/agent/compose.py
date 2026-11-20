@@ -125,7 +125,8 @@ class Composition:
         )
 
 
-def _evidence_text(path: str, value: dict) -> str:
+def evidence_text(path: str, value: dict) -> str:
+    """The one-line reading shown beside an evidence ref. The verify gate recomputes it from the data."""
     if path == "disk":
         free = free_pct(value["size_bytes"], value["available_bytes"])
         return f"{fmt_bytes(value['available_bytes'])} free of {fmt_bytes(value['size_bytes'])} ({fmt_pct(free)} free)"
@@ -221,7 +222,7 @@ class _Builder:
         self.evidence[ref] = EvidenceItem(
             ref=ref,
             label=f"{_path_title(parsed.path)} · {host} · {fmt_ts(parsed.collected_at)}",
-            value=_evidence_text(kind, resolved.value),
+            value=evidence_text(kind, resolved.value),
         )
 
     def disclosure_notes(self) -> None:
