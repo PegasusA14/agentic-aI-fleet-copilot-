@@ -10,7 +10,7 @@ from pydantic import Field
 
 from fleet_copilot import policy
 from fleet_copilot.agent.context import AgentContext
-from fleet_copilot.agent.records import ToolRecord
+from fleet_copilot.agent.records import ToolRecord, redact_args
 from fleet_copilot.data.loader import connect
 from fleet_copilot.fleet import inventory
 from fleet_copilot.fleet import queries as q
@@ -148,13 +148,6 @@ _RUNNERS: dict[str, Callable[[FleetRepository, Any, dict[str, Any]], QueryResult
 }
 
 
-def _redact(args: dict[str, Any]) -> dict[str, Any]:
-    """Copy of `args` that is safe to record: the employee id narrows the query but is never echoed."""
-    if args.get("employee_id"):
-        return {**args, "employee_id": "applied"}
-    return args
-
-
 def execute(tool_name: str, args: dict[str, Any], ctx: AgentContext) -> ToolRecord:
     """Run one tool as the context's tenant on a fresh READ-ONLY connection.
 
@@ -162,7 +155,7 @@ def execute(tool_name: str, args: dict[str, Any], ctx: AgentContext) -> ToolReco
     never raises `NotFound`.
     """
     runner = _RUNNERS[tool_name]
-    recorded = _redact(args)
+    recorded = redact_args(args)
     conn = connect(ctx.db_path, read_only=True)
     try:
         repo = FleetRepository(conn, TenantContext(ctx.company_id, ctx.actor_id))

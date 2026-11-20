@@ -1,7 +1,16 @@
 import json
 from datetime import UTC, datetime
 
-from fleet_copilot.agent.records import FindingRecord, ToolRecord
+from langchain_core.messages import AIMessage, ToolMessage
+
+from fleet_copilot.agent.compose import compose
+from fleet_copilot.agent.records import (
+    FindingRecord,
+    ToolRecord,
+    record_from_message,
+    redact_args,
+    redact_tool_calls,
+)
 from fleet_copilot.fleet.queries import Finding, QueryResult
 
 AS_OF = datetime(2026, 6, 12, 11, 0, tzinfo=UTC)
@@ -59,3 +68,77 @@ def test_records_round_trip_through_the_artifact_form():
     record = ToolRecord.from_query("trend", {"metric": "memory"}, query_result())
     assert ToolRecord.model_validate(record.model_dump(mode="json")) == record
     assert isinstance(record.findings[0], FindingRecord)
+
+
+def _success_message(record: ToolRecord) -> ToolMessage:
+    return ToolMessage(
+        content=record.llm_view(),
+        artifact=record.model_dump(mode="json"),
+        tool_call_id="c1",
+        status="success",
+    )
+
+
+def test_a_success_message_with_a_real_artifact_round_trips():
+    record = ToolRecord.from_query("trend", {"metric": "memory"}, query_result())
+    mapped = record_from_message(_success_message(record), tool="trend", args={"metric": "memory"})
+    assert mapped == record
+
+
+def test_an_error_message_becomes_a_tool_error_record_without_its_content():
+    message = ToolMessage(
+        content="Invalid tool input: secret-sauce leaked here",
+        tool_call_id="c1",
+        status="error",
+    )
+    record = record_from_message(
+        message, tool="find_devices", args={"employee_id": "emp-7", "os_name": "macOS"}
+    )
+    assert record.error == "tool_error" and record.findings == []
+    dumped = json.dumps(record.model_dump(mode="json"))
+    assert "secret-sauce" not in dumped and "emp-7" not in dumped
+    assert record.args == {"employee_id": "applied", "os_name": "macOS"}
+
+
+def test_a_success_message_with_a_corrupt_artifact_is_a_tool_error():
+    for artifact in ({"tool": "trend", "bogus": 1}, "not a mapping", None, {"error": "nope"}):
+        message = ToolMessage(content="{}", artifact=artifact, tool_call_id="c1", status="success")
+        record = record_from_message(message, tool="trend", args={"metric": "memory"})
+        assert record.error == "tool_error" and record.tool == "trend"
+
+
+def test_an_error_message_that_still_carries_an_artifact_is_a_tool_error():
+    good = ToolRecord.from_query("trend", {}, query_result())
+    message = ToolMessage(
+        content="boom", artifact=good.model_dump(mode="json"), tool_call_id="c1", status="error"
+    )
+    assert record_from_message(message, tool="trend", args={}).error == "tool_error"
+
+
+def test_a_failed_message_composes_into_a_tool_error_composition():
+    message = ToolMessage(content="The data lookup failed.", tool_call_id="c1", status="error")
+    record = record_from_message(message, tool="trend", args={"metric": "memory"})
+    comp = compose([record], resolve=lambda ref: None)
+    assert (comp.outcome, comp.reason_code) == ("tool_error", "tool_failure")
+
+
+def test_redact_args_hides_only_the_employee_id_and_copies():
+    args = {"employee_id": "emp-1", "os_name": "macOS"}
+    assert redact_args(args) == {"employee_id": "applied", "os_name": "macOS"}
+    assert args["employee_id"] == "emp-1"
+    plain = {"os_name": "macOS", "employee_id": None}
+    assert redact_args(plain) == plain
+
+
+def test_redact_tool_calls_removes_the_employee_id_without_mutating_the_input():
+    calls = [
+        {"name": "find_devices", "args": {"employee_id": "emp-1"}, "id": "c1", "type": "tool_call"},
+        {"name": "low_disk_devices", "args": {}, "id": "c2", "type": "tool_call"},
+    ]
+    message = AIMessage(content="", tool_calls=calls)
+    redacted = redact_tool_calls(message.tool_calls)
+    assert redacted[0]["args"] == {"employee_id": "applied"}
+    assert redacted[0]["name"] == "find_devices" and redacted[0]["id"] == "c1"
+    assert redacted[1] == message.tool_calls[1]
+    assert message.tool_calls[0]["args"] == {"employee_id": "emp-1"}
+    assert "emp-1" not in json.dumps(redacted)

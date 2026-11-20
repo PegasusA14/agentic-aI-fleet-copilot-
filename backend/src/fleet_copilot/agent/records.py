@@ -5,11 +5,24 @@ from collections import Counter
 from datetime import datetime
 from typing import Any, Literal
 
-from pydantic import BaseModel, ConfigDict, Field
+from langchain_core.messages import ToolMessage
+from pydantic import BaseModel, ConfigDict, Field, ValidationError
 
 from fleet_copilot.fleet.queries import QueryResult
 
 _MAX_IDS_IN_VIEW = 30
+
+
+def redact_args(args: dict[str, Any]) -> dict[str, Any]:
+    """Copy of `args` that is safe to record: the employee id narrows the query but is never echoed."""
+    if args.get("employee_id"):
+        return {**args, "employee_id": "applied"}
+    return dict(args)
+
+
+def redact_tool_calls(tool_calls: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Copies of `AIMessage.tool_calls` entries with redacted args, for traces and persisted state."""
+    return [{**call, "args": redact_args(call.get("args") or {})} for call in tool_calls]
 
 
 class FindingRecord(BaseModel):
@@ -97,3 +110,17 @@ class ToolRecord(BaseModel):
         if classes:
             view["by_class"] = dict(classes)
         return json.dumps(view, sort_keys=True)
+
+
+def record_from_message(message: ToolMessage, *, tool: str, args: dict[str, Any]) -> ToolRecord:
+    """The record a tool call produced, or a `tool_error` record when it failed.
+
+    A failed call has an error message and no artifact, so the failure is rebuilt from what the graph
+    knows (tool and arguments). The message content is never copied into the record.
+    """
+    if message.status == "success":
+        try:
+            return ToolRecord.model_validate(message.artifact)
+        except ValidationError:
+            pass
+    return ToolRecord(tool=tool, args=redact_args(args), error="tool_error")
