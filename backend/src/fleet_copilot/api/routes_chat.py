@@ -1,12 +1,15 @@
 from __future__ import annotations
 
+import contextlib
 from collections.abc import AsyncIterator
+from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
+from starlette.types import Send
 
-from fleet_copilot.agent.identity import new_conversation_id, valid_conversation_id
+from fleet_copilot.agent.identity import Identity, new_conversation_id, valid_conversation_id
 from fleet_copilot.agent.service import clean_question
 from fleet_copilot.api.security import require_admin
 from fleet_copilot.api.stream import pump
@@ -22,6 +25,16 @@ class ChatRequest(BaseModel):
     question: str = Field(
         max_length=10_000
     )  # the exact limit and message come from `clean_question`
+
+
+class ClosingStreamingResponse(StreamingResponse):
+    """Close the body iterator ourselves: Starlette never does when `send` raises on a gone reader."""
+
+    async def stream_response(self, send: Send) -> None:
+        try:
+            await super().stream_response(send)
+        finally:
+            await self.body_iterator.aclose()  # type: ignore[attr-defined]
 
 
 def _frame(event: str, payload: str) -> bytes:
@@ -44,8 +57,9 @@ async def delete_conversation(conversation_id: str, request: Request) -> Respons
 
 
 @router.post("/chat")
-async def chat(body: ChatRequest, request: Request) -> StreamingResponse:
-    identity = require_admin(request)
+async def chat(
+    body: ChatRequest, request: Request, identity: Annotated[Identity, Depends(require_admin)]
+) -> StreamingResponse:
     if not valid_conversation_id(body.conversation_id):
         raise HTTPException(422, "invalid conversation id")
     question = clean_question(body.question)  # InvalidQuestion -> 422 before any stream starts
@@ -53,13 +67,16 @@ async def chat(body: ChatRequest, request: Request) -> StreamingResponse:
     service.check_ready()  # DatasetUnavailable -> 503 before any stream starts
 
     async def frames() -> AsyncIterator[bytes]:
-        async for item in pump(service.stream_turn(identity, body.conversation_id, question)):
-            yield _frame(
-                "trace" if isinstance(item, TraceEvent) else "answer", item.model_dump_json()
-            )
+        async with contextlib.aclosing(
+            pump(service.stream_turn(identity, body.conversation_id, question))
+        ) as events:
+            async for item in events:
+                yield _frame(
+                    "trace" if isinstance(item, TraceEvent) else "answer", item.model_dump_json()
+                )
         yield _frame("done", "{}")
 
-    return StreamingResponse(
+    return ClosingStreamingResponse(
         frames(),
         media_type="text/event-stream",
         headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"},

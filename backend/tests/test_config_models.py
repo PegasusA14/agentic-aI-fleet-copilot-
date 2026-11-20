@@ -113,3 +113,10 @@ def test_model_limits_are_sane():
 
 def test_the_session_secret_is_a_secretstr():
     assert isinstance(ApiSettings.from_env({}).session_secret, SecretStr)
+
+
+def test_the_endpoint_and_deployment_stay_out_of_repr():
+    shown = repr(ModelSettings.from_env({"FLEET_MODEL_MODE": "live", **AZURE}))
+    assert "example.openai.azure.com" not in shown
+    assert "gpt-4o" not in shown
+    assert AZURE["AZURE_OPENAI_API_KEY"] not in shown

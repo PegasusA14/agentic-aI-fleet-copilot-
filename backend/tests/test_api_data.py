@@ -82,6 +82,41 @@ async def test_foreign_unknown_and_malformed_refs_are_indistinguishable(real_db_
     assert all(r.json() == NOT_FOUND for r in results)
 
 
+async def test_a_ref_with_a_trailing_newline_is_the_uniform_404(real_db_path, tmp_path):
+    async with client_for(real_db_path, tmp_path, llm()) as client:
+        await sign_in(client, "admin-acme")
+        ours = (await ask(client))["evidence"][0]["ref"]
+        assert (await evidence(client, ours)).status_code == 200
+        response = await evidence(client, ours + "\n")
+    assert response.status_code == 404 and response.json() == NOT_FOUND
+
+
+async def test_a_missing_or_overlong_ref_is_the_uniform_404_after_auth(real_db_path, tmp_path):
+    async with client_for(real_db_path, tmp_path, llm()) as client:
+        await sign_in(client, "admin-acme")
+        missing = await client.get("/api/evidence")
+        overlong = await evidence(client, "a" * 301)
+    assert missing.status_code == overlong.status_code == 404
+    assert missing.json() == overlong.json() == NOT_FOUND
+
+
+async def test_evidence_auth_comes_before_input_validation(real_db_path, tmp_path):
+    async with client_for(real_db_path, tmp_path, llm()) as client:
+        assert (await client.get("/api/evidence")).status_code == 401
+        assert (await evidence(client, "a" * 301)).status_code == 401
+        await sign_in(client, "operator", "op-pass")
+        assert (await client.get("/api/evidence")).status_code == 403
+
+
+async def test_observe_auth_comes_before_input_validation(real_db_path, tmp_path):
+    async with client_for(real_db_path, tmp_path, ScriptedLLM()) as client:
+        bad = {"limit": "abc"}
+        assert (await client.get("/api/observe/turns", params=bad)).status_code == 401
+        await sign_in(client, "admin-acme")
+        assert (await client.get("/api/observe/turns", params=bad)).status_code == 403
+        assert (await client.get("/api/observe/turns", params={"limit": "-1"})).status_code == 403
+
+
 async def test_evidence_needs_a_tenant_admin(real_db_path, tmp_path):
     async with client_for(real_db_path, tmp_path, llm()) as client:
         assert (await evidence(client, "x")).status_code == 401

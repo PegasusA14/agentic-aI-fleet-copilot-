@@ -105,6 +105,7 @@ async def test_deleting_a_conversation_forgets_its_lists(real_db_path):
     await service.delete_conversation(ACME_ADMIN, "c1")
     assert await saver.aget_tuple(key) is None
     assert service._locks == {}
+    assert service._lock_users == {}
 
 
 async def test_deleting_another_tenants_conversation_touches_nothing(real_db_path):

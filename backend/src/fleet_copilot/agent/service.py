@@ -210,9 +210,10 @@ class AgentService:
                     async with asyncio.timeout_at(deadline):
                         state = await self._graph.aget_state(config)
                     raw = state.values.get("envelope")
-                    envelope = AnswerEnvelope.model_validate(raw) if raw else None
-                    if envelope is None or envelope.trace_id != trace_id:
+                    candidate = AnswerEnvelope.model_validate(raw) if raw else None
+                    if candidate is None or candidate.trace_id != trace_id:
                         raise RuntimeError("the turn finished without an answer")
+                    envelope = candidate  # only this turn's envelope ever reaches the recorder
                 except Exception as exc:  # fail closed: a crash is a tool_error, never a guess
                     event = to_event(
                         {

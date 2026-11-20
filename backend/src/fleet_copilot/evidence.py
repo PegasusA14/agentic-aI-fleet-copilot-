@@ -4,8 +4,8 @@ import re
 from dataclasses import dataclass
 
 _PATTERN = re.compile(
-    r"^(?P<company>[^/@#\s]+)/(?P<device>[^/@#\s]+)"
-    r"@(?P<ts>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)#(?P<path>.+)$"
+    r"(?P<company>[^/@#\s]+)/(?P<device>[^/@#\s]+)"
+    r"@(?P<ts>\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z)#(?P<path>.+)"
 )
 
 
@@ -26,7 +26,7 @@ class EvidenceRef:
 
     @classmethod
     def parse(cls, text: str) -> EvidenceRef:
-        match = _PATTERN.match(text)
+        match = _PATTERN.fullmatch(text)
         if match is None:
             raise ValueError("malformed evidence reference")
         return cls(match["company"], match["device"], match["ts"], match["path"])

@@ -179,6 +179,7 @@ async def test_a_hung_gateway_times_out_into_one_tool_error_and_frees_the_conver
     error_steps = [e for e in events if e.kind == "error"]
     assert len(error_steps) == 1 and error_steps[0].data == {"error": "TimeoutError"}
     assert THREAD not in service._locks
+    assert service._lock_users == {}
 
     # the same conversation on the same service still works
     again = await asyncio.wait_for(service.run_turn(ACME_ADMIN, "c1", "low disk?"), timeout=5)
@@ -316,3 +317,31 @@ async def test_trace_ids_are_unique_per_turn_by_default(real_db_path):
     assert first.envelope.trace_id != second.envelope.trace_id
     assert len(first.envelope.trace_id) == 12
     assert kinds(first)[0] == "scope"
+
+
+async def test_a_foreign_envelope_never_reaches_the_recorder_when_the_reader_leaves(real_db_path):
+    saver = InMemorySaver()
+    first = make_service(real_db_path, low_disk_script(), saver)
+    await first.run_turn(ACME_ADMIN, "c1", "low disk?")  # trace id t1 is now checkpointed
+
+    records = []
+    second = AgentService(
+        db_path=real_db_path,
+        gateway=ScriptedLLM(),
+        checkpointer=saver,
+        trace_id_factory=lambda: "second-turn",
+        recorder=records.append,
+    )
+
+    async def silent(*args, **kwargs):
+        return
+        yield  # pragma: no cover
+
+    second._graph.astream = silent  # type: ignore[method-assign]
+    stream = second.stream_turn(ACME_ADMIN, "c1", "again")
+    event = await asyncio.wait_for(stream.__anext__(), timeout=5)
+    assert event.kind == "error"
+    await asyncio.wait_for(stream.aclose(), timeout=5)  # the reader leaves at the error event
+    assert len(records) == 1 and records[0].envelope is None
+    assert records[0].trace_id == "second-turn"
+    assert second._lock_users == {}

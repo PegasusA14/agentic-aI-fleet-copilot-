@@ -26,5 +26,7 @@ def real_conn(real_db_path):
 def _isolated_environment(monkeypatch):
     """No test sees a real key or a developer's settings, whatever the shell exports."""
     for name in list(os.environ):
-        if name.startswith(("AZURE_OPENAI_", "FLEET_")) or name in ("OPENROUTER_API_KEY",):
+        if name.startswith(("AZURE_OPENAI_", "FLEET_", "LANGSMITH_", "LANGCHAIN_")) or name in (
+            "OPENROUTER_API_KEY",
+        ):
             monkeypatch.delenv(name, raising=False)

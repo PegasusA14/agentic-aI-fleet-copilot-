@@ -29,6 +29,9 @@ The agent talks to a model through a gateway chosen by `FLEET_MODEL_MODE`:
   `AZURE_OPENAI_API_VERSION` and `AZURE_OPENAI_DEPLOYMENT` in the git-ignored `.env`. Set
   `FLEET_CASSETTE_RECORD=1` to also record each response to the cassette.
 
+Keep LangSmith tracing (`LANGSMITH_*`, `LANGCHAIN_*`) off: it exports prompts and answers off-box and must
+never be on for tenant data.
+
 Other variables: `FLEET_DATA_PATH`, `FLEET_DB_PATH`, `FLEET_STATE_DIR`, `FLEET_PORT`, `FLEET_ALLOWED_ORIGINS`,
 `FLEET_SESSION_SECRET`, `FLEET_OPERATOR_PASSCODE`.
 
@@ -59,7 +62,8 @@ Evidence refs contain `#`, which a URL path would drop, so they are fetched with
 
 `make live-check` runs six demo questions against the live model, checks each answer against the independent
 golden file, and records the model responses to `var/cassettes/live-check.jsonl`. Replay the same questions
-offline with `FLEET_MODEL_MODE=replay`; `tests/test_live_replay.py` does this automatically once the cassette
+offline with `FLEET_MODEL_MODE=replay` and `FLEET_CASSETTE_PATH=var/cassettes/live-check.jsonl` (replay
+defaults to `var/cassettes/live.jsonl`, a different file); `tests/test_live_replay.py` does this automatically once the cassette
 exists and is skipped until then.
 
 The recording is read-through: when `var/cassettes/live-check.jsonl` already exists, `make live-check` replays

@@ -3,7 +3,7 @@ from __future__ import annotations
 import os
 import secrets
 from collections.abc import Mapping
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Literal
 
@@ -59,9 +59,9 @@ class Settings:
 @dataclass(frozen=True)
 class AzureSettings:
     api_key: SecretStr
-    endpoint: str
+    endpoint: str = field(repr=False)
     api_version: str
-    deployment: str
+    deployment: str = field(repr=False)
 
 
 @dataclass(frozen=True)

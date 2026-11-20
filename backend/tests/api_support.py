@@ -34,6 +34,7 @@ async def client_for(db_path, state_dir: Path, llm, *, operator_passcode: str | 
     async with app.router.lifespan_context(app):
         transport = httpx.ASGITransport(app=app)
         async with httpx.AsyncClient(transport=transport, base_url=ORIGIN) as client:
+            client.fleet_app = app  # type: ignore[attr-defined]  # for tests that drive raw ASGI
             yield client
 
 

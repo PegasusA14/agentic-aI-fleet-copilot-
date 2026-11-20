@@ -3,7 +3,7 @@ from __future__ import annotations
 from contextlib import contextmanager
 from typing import Annotated
 
-from fastapi import APIRouter, HTTPException, Query, Request
+from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from fleet_copilot import policy
 from fleet_copilot.agent.identity import Identity
@@ -15,6 +15,7 @@ from fleet_copilot.repository import FleetRepository, NotFound, TenantContext
 from fleet_copilot.timeutil import iso_z
 
 router = APIRouter(prefix="/api")
+_MAX_REF_CHARS = 300
 
 
 def _not_found() -> HTTPException:
@@ -31,9 +32,12 @@ def _tenant_repo(request: Request, identity: Identity):
 
 
 @router.get("/evidence")
-def get_evidence(request: Request, ref: Annotated[str, Query(max_length=300)]) -> dict:
-    identity = require_admin(request)
+def get_evidence(
+    request: Request, identity: Annotated[Identity, Depends(require_admin)], ref: str = ""
+) -> dict:
     try:
+        if not ref or len(ref) > _MAX_REF_CHARS:
+            raise ValueError("malformed evidence reference")
         parsed = EvidenceRef.parse(ref)
         with _tenant_repo(request, identity) as repo:
             value = repo.resolve(parsed)
@@ -63,9 +67,8 @@ def get_policy(request: Request) -> dict:
     }
 
 
-@router.get("/observe/turns")
+@router.get("/observe/turns", dependencies=[Depends(require_operator)])
 def observe_turns(request: Request, limit: Annotated[int, Query(ge=0, le=500)] = 50) -> list[dict]:
-    require_operator(request)
     return request.app.state.store.list_turns(limit=limit)
 
 

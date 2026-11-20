@@ -23,3 +23,10 @@ def test_format_and_parse_round_trip():
 def test_malformed_references_are_rejected(bad):
     with pytest.raises(ValueError):
         EvidenceRef.parse(bad)
+
+
+def test_a_trailing_newline_is_not_part_of_a_valid_reference():
+    good = "acme-001/DEV@2026-06-12T09:00:00Z#os"
+    assert EvidenceRef.parse(good).path == "os"
+    with pytest.raises(ValueError):
+        EvidenceRef.parse(good + "\n")
