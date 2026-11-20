@@ -142,6 +142,7 @@ def test_tools_expose_enumerated_bounded_inputs_and_no_tenant_arguments():
         "trend",
         "find_devices",
         "device_history",
+        "software_inventory",
     }
     assert set(DEVICE_FILTER_TOOLS) == set(by_name) - {"device_history"}
     for tool in TOOLS:

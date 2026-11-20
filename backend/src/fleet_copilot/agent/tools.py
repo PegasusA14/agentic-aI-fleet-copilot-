@@ -12,6 +12,7 @@ from fleet_copilot import policy
 from fleet_copilot.agent.context import AgentContext
 from fleet_copilot.agent.records import ToolRecord, redact_args
 from fleet_copilot.data.loader import connect
+from fleet_copilot.data.models import SOFTWARE_NAME_PATTERN
 from fleet_copilot.fleet import inventory
 from fleet_copilot.fleet import queries as q
 from fleet_copilot.fleet.queries import QueryResult
@@ -29,6 +30,12 @@ Hostname = Annotated[str, Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$")]
 ModelName = Annotated[str, Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9 ._-]{0,59}$")]
 EmployeeId = Annotated[str, Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$")]
 DeviceIds = Annotated[list[Annotated[str, Field(max_length=40)]], Field(max_length=100)] | None
+SoftwareView = Literal["current", "new_installs"]
+# An app name is checked against the company's own app names before it is used; the pattern only keeps
+# odd text from reaching that step.
+AppName = Annotated[str, Field(pattern=SOFTWARE_NAME_PATTERN)]
+# App names listed back to the model when it names an app this company does not have.
+_MAX_KNOWN_APPS = 40
 
 
 # Text the retry wrapper looks for: errors the model caused are never retried, only transient failures are.
@@ -141,6 +148,33 @@ def _run_history(repo: FleetRepository, as_of, a: dict[str, Any]) -> QueryResult
     )
 
 
+def _run_software(repo: FleetRepository, as_of, a: dict[str, Any]) -> QueryResult:
+    view = a.get("view")
+    if view not in ("current", "new_installs"):
+        raise ToolInputError("view must be current or new_installs")
+    canonical = None
+    if a.get("app_name") is not None:
+        # One answer for an app that is unknown and an app only another company has: the list below is
+        # this company's own, so the text cannot tell the two apart.
+        known = repo.software_names()
+        wanted = a["app_name"].strip().lower()
+        canonical = next((name for name in known if name.lower() == wanted), None)
+        if canonical is None:
+            raise ToolInputError(
+                "app_name is not an app reported by this company's devices. Apps reported: "
+                + ", ".join(known[:_MAX_KNOWN_APPS])
+            )
+    if view == "current":
+        return q.software_installed(repo, as_of, name=canonical, only_devices=_only(a))
+    return q.new_software(
+        repo,
+        as_of,
+        window_days=a.get("window_days") or policy.SOFTWARE_WINDOW_DAYS,
+        name=canonical,
+        only_devices=_only(a),
+    )
+
+
 _RUNNERS: dict[str, Callable[[FleetRepository, Any, dict[str, Any]], QueryResult]] = {
     "low_disk_devices": _run_low_disk,
     "macos_version_check": _run_macos,
@@ -149,6 +183,7 @@ _RUNNERS: dict[str, Callable[[FleetRepository, Any, dict[str, Any]], QueryResult
     "trend": _run_trend,
     "find_devices": _run_find,
     "device_history": _run_history,
+    "software_inventory": _run_software,
 }
 
 
@@ -188,7 +223,7 @@ def _respond(
     return record.llm_view(), record.model_dump(mode="json")
 
 
-# ---- the seven tools (model-facing): enumerated, bounded, no tenant arguments -------------
+# ---- the eight tools (model-facing): enumerated, bounded, no tenant arguments -------------
 
 
 @tool(response_format="content_and_artifact")
@@ -316,6 +351,28 @@ def device_history(
     return _respond("device_history", args, runtime)
 
 
+@tool(response_format="content_and_artifact")
+def software_inventory(
+    runtime: ToolRuntime[AgentContext],
+    view: SoftwareView,
+    app_name: AppName | None = None,
+    window_days: Window | None = None,
+    device_ids: DeviceIds = None,
+) -> tuple[str, dict[str, Any]]:
+    """Installed software. `view` "current": what each device has installed at its latest snapshot, or, with
+    `app_name`, which devices have that app. `view` "new_installs": apps newly installed during the trailing
+    window (`window_days`, 1 to 60, default 30) that are not in the fleet's common set (the apps every device
+    had at its first snapshot in the window), with when each was first seen. The telemetry has no approval or
+    risk label, so never describe an app as unapproved, risky or malicious."""
+    args = {
+        "view": view,
+        "app_name": app_name,
+        "window_days": window_days,
+        "device_ids": device_ids,
+    }
+    return _respond("software_inventory", args, runtime)
+
+
 TOOLS = [
     low_disk_devices,
     macos_version_check,
@@ -324,6 +381,7 @@ TOOLS = [
     trend,
     find_devices,
     device_history,
+    software_inventory,
 ]
 DEVICE_FILTER_TOOLS = frozenset(t.name for t in TOOLS) - {"device_history"}
 

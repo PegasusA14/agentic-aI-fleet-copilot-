@@ -76,7 +76,8 @@ class ToolRecord(BaseModel):
 
     @property
     def device_ids(self) -> list[str]:
-        return [f.device_id for f in self.findings]
+        """Each device once, in finding order (a device can have several findings, one per app)."""
+        return list(dict.fromkeys(f.device_id for f in self.findings))
 
     def llm_view(self) -> str:
         """What the model reads: counts and ids only. It never sees raw values to recompute."""

@@ -11,7 +11,7 @@ from typing import Any, get_args
 
 from langgraph.config import get_stream_writer
 
-from fleet_copilot.agent.tools import CheckId, FormFactor, OsName, Severity
+from fleet_copilot.agent.tools import CheckId, FormFactor, OsName, Severity, SoftwareView
 from fleet_copilot.contracts import TraceEvent, TraceKind
 
 # Arguments whose values are enumerated or numeric. Model-supplied text is not trusted just because the
@@ -28,6 +28,7 @@ _ENUMERATED: dict[str, frozenset[str]] = {
     "form_factor": frozenset(get_args(FormFactor)),
     "os_name": frozenset(get_args(OsName)),
     "group_by": frozenset({"os", "model", "form_factor"}),
+    "view": frozenset(get_args(SoftwareView)),
 }
 _VERSION = re.compile(r"^\d{1,3}(\.\d{1,3}){0,2}$")
 _NUMERIC_KEYS = frozenset({"window_days", "threshold_pct"})

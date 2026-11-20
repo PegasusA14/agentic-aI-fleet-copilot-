@@ -18,6 +18,7 @@ def test_system_prompts_state_the_rules_the_design_requires():
     ):
         assert fragment in plan
     assert "10% free" in plan and "85% used" in plan
+    assert "installed software" in plan
     act = prompts.ACT_SYSTEM.lower()
     for fragment in (
         "never compute numbers",
