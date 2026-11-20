@@ -92,21 +92,32 @@ per turn.
 
 Each telemetry row's `installed_software` (name, version, publisher) is loaded into the `software` table, one
 row per app per snapshot, and read through the same tenant filter as compliance results. A name is 1 to 60
-characters of letters, digits, space and `._+-`; a version and a publisher have similar limits. Anything else
-quarantines the whole row. `network` is still dropped at load.
+characters of letters, digits, space and `._+-` (it starts with a letter or digit and has no space at either
+end). A version is 1 to 40 characters of letters, digits and `._+-`, starting with a letter or digit. A
+publisher is 1 to 80 characters of letters, digits, space and `._,&+'-`, starting with a letter or digit and
+with no space at either end. A row holds at most 200 apps. Anything outside these shapes quarantines the whole
+row. `network` is still dropped at load.
 
 - **Common set**: the apps present on every device of the company in that device's earliest snapshot inside the
-  window (`SOFTWARE_WINDOW_DAYS`, 30 days, 1 to 60 on request).
+  window. The default window is `SOFTWARE_WINDOW_DAYS`, 30 days, counted back from the dataset's as-of time;
+  `window_days` can ask for 1 to 60.
 - **Newly installed**: an app outside the common set whose first appearance on a device is a later snapshot than
   that device's earliest one in the window. The answer says "not in the common set" and "newly installed" and
-  never "unapproved", "risky" or "malicious": the telemetry carries no such label, and model prose that adds one
-  is dropped by the verify gate (`judgment_word`).
+  never "unapproved", "risky" or "malicious": the telemetry carries no such label. A short window is not an
+  error: asking about the last 7 days returns a no-match (`no_matching_records`) on this dataset, because every
+  first-seen date is older than 7 days before the as-of time.
+- **Verify gate (`judgment_word`)**: it applies only to answers that cite `#software[...]` evidence. It rejects a
+  model-written headline or explanation that labels apps (risky, unapproved, malicious, not approved, and
+  similar inflected or negated forms). Code-written claims never use such words. A rejected explanation is
+  dropped, and a rejected headline falls back to the code headline.
 - **Tool**: `software_inventory(view, app_name, window_days, device_ids)`. `current` lists the installed apps
   (or the devices with one app); `new_installs` lists one entry per device and app with the first-seen time. An
   app name the company has never reported is an input error that lists the company's own app names, so an app
   only another company has reads the same as one nobody has.
-- **Evidence**: `software[<name>]` resolves to `{name, version, publisher}` and is fetched like any other
-  reference (`GET /api/evidence?ref=...`, with the spaces URL-encoded).
+- **Evidence**: `#software[<name>]` resolves to `{name, version, publisher}` and is fetched like any other
+  reference (`GET /api/evidence?ref=...`, with the spaces URL-encoded). A full ref is
+  `<tenant>/<device>@<collected_at>#software[<name>]`, for example
+  `initech-003/W2656QDAE2ZJ@2026-06-02T10:45:00Z#software[uTorrent]`.
 - **Golden answers**: `make golden` recomputes the common sets, new installs and holders with the stdlib-only
   oracle; `make fixtures` regenerates the replay fixtures (including `new_software`).
 - **Limit**: the verify gate compares each number on its own, so a date written from numbers that all appear in

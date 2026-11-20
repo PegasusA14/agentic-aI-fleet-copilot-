@@ -120,6 +120,17 @@ async def test_open_the_first_one_after_a_new_install_list_means_the_newest_inst
     assert "<resolved>" in llm.calls_of("act")[2].text
 
 
+async def test_new_installs_are_listed_newest_first_not_in_device_id_order(real_db_path):
+    llm = ScriptedLLM(plans=[answer_plan()], acts=one_call(*NEW), explains=[explanation()])
+    result = await make_service(real_db_path, llm).run_turn(INITECH_ADMIN, "c1", QUESTION)
+    newest_first = [
+        i["device_id"] for i in sorted(installs("initech-003"), key=lambda i: i["first_seen"])
+    ][::-1]
+    assert newest_first == ["W2656QDAE2ZJ", "I3JLKILKQTAC", "DARFCP0BQM2G"]
+    assert listed_ids(result.envelope) == newest_first
+    assert listed_ids(result.envelope) != sorted(newest_first)
+
+
 async def test_an_app_that_only_another_company_has_is_an_input_error_the_model_can_fix(
     real_db_path,
 ):
