@@ -187,6 +187,25 @@ def insert_rows(conn: sqlite3.Connection, parsed: list[ParsedRow]) -> list[Quara
     return rejected
 
 
+# Bump when the stored schema changes, so a database built by an older loader is refused, not misread.
+# 1: snapshots and compliance only; 2: adds installed software.
+SCHEMA_VERSION = 2
+
+
+def stored_schema_version(conn: sqlite3.Connection) -> int | None:
+    """The schema version a database was built with, or None when it predates versioning or is unreadable."""
+    try:
+        row = conn.execute("SELECT value FROM dataset_meta WHERE key = 'schema_version'").fetchone()
+    except sqlite3.Error:
+        return None
+    if row is None:
+        return None
+    try:
+        return int(row[0])
+    except (TypeError, ValueError):
+        return None
+
+
 def finalize(conn: sqlite3.Connection, sha256: str) -> None:
     conn.execute(_DEVICES_FROM_LATEST)
     count, lowest, highest = conn.execute(
@@ -199,6 +218,7 @@ def finalize(conn: sqlite3.Connection, sha256: str) -> None:
             ("snapshot_count", str(count)),
             ("min_collected_at", lowest),
             ("max_collected_at", highest),
+            ("schema_version", str(SCHEMA_VERSION)),
         ],
     )
     conn.commit()

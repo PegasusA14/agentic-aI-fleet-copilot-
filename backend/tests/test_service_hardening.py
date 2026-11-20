@@ -127,3 +127,32 @@ async def test_open_passes_the_recorder_through(real_db_path, tmp_path):
     ) as service:
         await service.run_turn(ACME_ADMIN, "c1", "low disk?")
     assert len(records) == 1
+
+
+def _stale_copy(real_db_path, tmp_path, version):
+    import shutil
+    import sqlite3
+
+    copy = tmp_path / "stale.db"
+    shutil.copy(real_db_path, copy)
+    with sqlite3.connect(copy) as conn:
+        if version is None:
+            conn.execute("DELETE FROM dataset_meta WHERE key = 'schema_version'")
+        else:
+            conn.execute(
+                "UPDATE dataset_meta SET value = ? WHERE key = 'schema_version'", (str(version),)
+            )
+    return copy
+
+
+@pytest.mark.parametrize("version", [None, 1])
+async def test_a_database_built_by_an_older_loader_is_unavailable_not_a_tool_error(
+    real_db_path, tmp_path, version
+):
+    """A db from before a schema change (e.g. no software table) must say "rebuild", not fail every lookup."""
+    service = make_service(_stale_copy(real_db_path, tmp_path, version), ScriptedLLM())
+    with pytest.raises(DatasetUnavailable) as err:
+        service.check_ready()
+    assert "rebuilt" in str(err.value) and str(tmp_path) not in str(err.value)
+    with pytest.raises(DatasetUnavailable):
+        await service.run_turn(ACME_ADMIN, "c1", "low disk?")

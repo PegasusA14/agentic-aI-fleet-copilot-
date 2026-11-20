@@ -24,6 +24,7 @@ from fleet_copilot.agent.service import (
     TurnResult,
 )
 from fleet_copilot.config import ConfigError, ModelSettings, Settings, load_env
+from fleet_copilot.data.loader import SCHEMA_VERSION, connect, stored_schema_version
 from fleet_copilot.observability.store import TraceStore
 
 _AZURE_VARS = (
@@ -111,6 +112,21 @@ async def _probe(models: ModelSettings) -> str:
     return "ok"
 
 
+def _db_state(db_path: Path) -> str:
+    """ "present", "missing (...)" or "stale (...)": a db built by an older loader lacks tables."""
+    if not db_path.exists():
+        return "missing (run make load-data)"
+    try:
+        conn = connect(db_path, read_only=True)
+    except Exception:
+        return "unreadable (run make load-data)"
+    try:
+        current = stored_schema_version(conn) == SCHEMA_VERSION
+    finally:
+        conn.close()
+    return "present" if current else "stale (run make load-data)"
+
+
 def _doctor(args: argparse.Namespace) -> int:
     settings = Settings.from_env()
     healthy = True
@@ -129,10 +145,9 @@ def _doctor(args: argparse.Namespace) -> int:
     cassette = Path(models.cassette_path)
     entries = len(cassette.read_text().splitlines()) if cassette.exists() else 0
     print(f"cassette: {entries} recorded responses")
-    print(
-        f"dataset db: {'present' if settings.db_path.exists() else 'missing (run make load-data)'}"
-    )
-    healthy = healthy and settings.db_path.exists()
+    db_state = _db_state(settings.db_path)
+    print(f"dataset db: {db_state}")
+    healthy = healthy and db_state == "present"
     print(
         f"limits: {policy.MODEL_CALL_TIMEOUT_S:.0f}s per call, {policy.MODEL_ATTEMPTS} attempts, "
         f"{policy.TURN_TIMEOUT_S}s per turn"

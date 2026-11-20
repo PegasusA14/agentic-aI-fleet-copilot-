@@ -152,3 +152,17 @@ async def test_the_probe_reports_only_type_names(monkeypatch):
     monkeypatch.setattr(cli, "build_gateway", explode)
     outcome = await cli._probe(azure_models())
     assert outcome == "failed (RuntimeError)" and "sk-probe-secret" not in outcome
+
+
+def test_doctor_reports_a_stale_database(monkeypatch, tmp_path, real_db_path, capsys):
+    import shutil
+    import sqlite3
+
+    stale = tmp_path / "stale.db"
+    shutil.copy(real_db_path, stale)
+    with sqlite3.connect(stale) as conn:
+        conn.execute("DELETE FROM dataset_meta WHERE key = 'schema_version'")
+    monkeypatch.setenv("FLEET_CASSETTE_PATH", str(tmp_path / "c.jsonl"))
+    code = run(["doctor"], monkeypatch, tmp_path, stale)
+    out = capsys.readouterr().out
+    assert code == 1 and "dataset db: stale (run make load-data)" in out

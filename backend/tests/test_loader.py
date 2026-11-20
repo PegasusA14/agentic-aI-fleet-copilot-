@@ -101,6 +101,7 @@ def test_real_dataset_matches_the_pinned_facts(tmp_path):
 
 
 def _counts(db_path):
+    """(snapshots, dataset_meta rows). Meta has 5 keys: sha256, count, min, max, schema_version."""
     with closing(connect(db_path)) as conn:
         snapshots = conn.execute("SELECT COUNT(*) FROM snapshots").fetchone()[0]
         meta = conn.execute("SELECT COUNT(*) FROM dataset_meta").fetchone()[0]
@@ -110,14 +111,14 @@ def _counts(db_path):
 def test_rejected_empty_dataset_leaves_the_previous_database_intact(tmp_path):
     db = tmp_path / "db.sqlite"
     load_dataset(ndjson(tmp_path, make_row("A"), make_row("B")), db)
-    assert _counts(db) == (2, 4)
+    assert _counts(db) == (2, 5)
 
     bad = tmp_path / "bad.ndjson"
     bad.write_text("{broken\n", encoding="utf-8")
     with pytest.raises(DatasetMismatch, match="no valid snapshots"):
         load_dataset(bad, db)
 
-    assert _counts(db) == (2, 4)
+    assert _counts(db) == (2, 5)
     assert not (tmp_path / "db.sqlite.tmp").exists()
 
 
@@ -132,7 +133,7 @@ def test_failure_during_insert_leaves_the_previous_database_intact(tmp_path, mon
     with pytest.raises(RuntimeError, match="disk on fire"):
         load_dataset(ndjson(tmp_path, make_row("C")), db)
 
-    assert _counts(db) == (2, 4)
+    assert _counts(db) == (2, 5)
     assert not (tmp_path / "db.sqlite.tmp").exists()
 
 
@@ -149,7 +150,7 @@ def test_stale_temp_files_are_discarded(tmp_path):
     (tmp_path / "db.sqlite.tmp").write_bytes(b"garbage from an interrupted run")
     (tmp_path / "db.sqlite.tmp-journal").write_bytes(b"stale journal")
     load_dataset(ndjson(tmp_path, make_row("A")), db)
-    assert _counts(db) == (1, 4)
+    assert _counts(db) == (1, 5)
     assert sorted(p.name for p in tmp_path.iterdir()) == ["data.ndjson", "db.sqlite"]
 
 
@@ -179,7 +180,7 @@ def test_read_only_connection_reads_but_cannot_write(tmp_path):
             conn.execute("DELETE FROM compliance")
         with pytest.raises(sqlite3.OperationalError):
             conn.execute("INSERT INTO dataset_meta (key, value) VALUES ('k', 'v')")
-    assert _counts(db) == (2, 4)
+    assert _counts(db) == (2, 5)
 
 
 def test_read_only_connection_does_not_create_a_missing_database(tmp_path):
@@ -214,3 +215,9 @@ def test_default_connection_is_still_read_write(tmp_path):
         )
     with closing(connect(":memory:")) as conn:  # the in-memory form used by tests keeps working
         conn.execute("CREATE TABLE t (x)")
+
+
+def test_a_loaded_database_records_the_schema_version(real_conn):
+    from fleet_copilot.data.loader import SCHEMA_VERSION, stored_schema_version
+
+    assert stored_schema_version(real_conn) == SCHEMA_VERSION >= 2

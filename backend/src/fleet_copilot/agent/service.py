@@ -24,7 +24,7 @@ from fleet_copilot.agent.identity import Identity, thread_id
 from fleet_copilot.agent.llm import LLMGateway
 from fleet_copilot.agent.trace import to_event
 from fleet_copilot.contracts import AnswerEnvelope, TraceEvent
-from fleet_copilot.data.loader import connect
+from fleet_copilot.data.loader import SCHEMA_VERSION, connect, stored_schema_version
 from fleet_copilot.repository import dataset_as_of
 
 log = logging.getLogger(__name__)
@@ -32,6 +32,10 @@ log = logging.getLogger(__name__)
 
 class InvalidQuestion(ValueError):
     """The question is empty or too long. The API turns this into a 422, not an answer."""
+
+
+class _StaleDataset(Exception):
+    """Internal: the database was built with another schema version."""
 
 
 class DatasetUnavailable(RuntimeError):
@@ -105,14 +109,19 @@ class AgentService:
     def _as_of(self):
         conn = connect(self._db_path, read_only=True)
         try:
+            if stored_schema_version(conn) != SCHEMA_VERSION:
+                raise _StaleDataset
             return dataset_as_of(conn)
         finally:
             conn.close()
 
     def check_ready(self) -> datetime:
-        """The pinned as-of, or `DatasetUnavailable` (fixed text) when the database cannot be read."""
+        """The pinned as-of, or `DatasetUnavailable` (fixed text) when the database cannot be read or
+        was built by an older loader (it would be missing tables, so every lookup would fail)."""
         try:
             return self._as_of()
+        except _StaleDataset:
+            raise DatasetUnavailable("The dataset must be rebuilt with make load-data.") from None
         except (sqlite3.Error, OSError, ValueError, KeyError, TypeError):
             raise DatasetUnavailable("The dataset is not available.") from None
 
