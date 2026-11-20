@@ -1,7 +1,10 @@
 """Persisted traces for the operator console and the per-answer Trace tab.
 
-Only redacted data is stored (see `redact_data`). The question, model prose, hostnames, device ids and
-employee ids never reach this database; a test scans the stored rows for every identifier in the dataset.
+Event data passes through `redact_data` before it is stored. That bounds the SHAPE of what is kept (key
+names, scalar types, length, single line, depth); it does not recognise identifiers. The CONTENT guarantee,
+that no question, model prose, hostname, device id or employee id is persisted, comes from the emitters
+(`agent/graph.py` and `agent/trace.py`), which send counts and fixed codes. A test drives the risky paths and
+scans every stored row for every identifier in the dataset, so a leaking emitter fails there.
 """
 
 from __future__ import annotations
@@ -64,7 +67,11 @@ def _scalar(value: Any) -> Any:
 
 
 def redact_data(data: dict[str, Any], _depth: int = 0) -> dict[str, Any]:
-    """Keep counts, flags, short words and short lists of them. Drop everything else."""
+    """Bound the shape of trace data: snake_case keys, scalars, short single-line strings, one level of nesting.
+
+    This is a shape filter, not a content filter: a short string that happens to be an identifier is kept.
+    Keeping identifiers out is the emitters' job (see the module docstring).
+    """
     kept: dict[str, Any] = {}
     for key, value in data.items():
         if not isinstance(key, str) or not _KEY.match(key):

@@ -6,10 +6,11 @@ from graph_support import (
     ACME_ADMIN,
     answer_plan,
     explanation,
+    follow_up_plan,
     make_service,
 )
 
-from fleet_copilot.agent.llm import ScriptedLLM, final_message, tool_calls_message
+from fleet_copilot.agent.llm import Plan, ScriptedLLM, final_message, tool_calls_message
 from fleet_copilot.agent.service import AgentService
 from fleet_copilot.observability.store import TraceStore, redact_data
 
@@ -32,7 +33,7 @@ def low_disk_llm(turns=1):
     )
 
 
-def test_redaction_keeps_counts_and_short_words_only():
+def test_redaction_bounds_the_shape_of_trace_data():
     data = {
         "matches": 3,
         "ok": True,
@@ -107,27 +108,7 @@ async def test_list_is_newest_first_and_limited(tmp_path, real_db_path):
 
 
 async def test_no_dataset_identifier_or_question_reaches_the_database(tmp_path, real_db_path):
-    traces = store(tmp_path)
-    llm = ScriptedLLM(
-        plans=[answer_plan(), answer_plan()],
-        acts=[
-            tool_calls_message(("low_disk_devices", {})),
-            final_message(),
-            tool_calls_message(
-                ("device_history", {"device_id": "8NM23J95R5I6", "metric": "disk_free_pct"})
-            ),
-            final_message(),
-        ],
-        explains=[explanation(), explanation()],
-    )
-    service = make_service(real_db_path, llm, recorder=traces.record)
-    questions = [
-        "Which devices are low on disk space?",
-        "Show disk history for 8NM23J95R5I6 please",
-    ]
-    for n, question in enumerate(questions):
-        await service.run_turn(ACME_ADMIN, f"c{n}", question)
-
+    """Drive every path that writes trace data, then scan every stored row for dataset identifiers."""
     with sqlite3.connect(real_db_path) as fleet:
         secrets = {
             value
@@ -135,12 +116,85 @@ async def test_no_dataset_identifier_or_question_reaches_the_database(tmp_path, 
             for value in row
             if len(value) >= 4
         }
+        query = "SELECT hostname, device_id FROM devices WHERE company_id = ? LIMIT 1"
+        host, _ = fleet.execute(query, ("acme-001",)).fetchone()
+        _, foreign = fleet.execute(query, ("globex-002",)).fetchone()
+    own_id = "8NM23J95R5I6"
+    clarify = Plan(
+        intent="clarify",
+        summary=f"unclear about {host}",
+        clarification_question=f"Do you mean {host} or {foreign}?",
+        clarification_options=[host, foreign],
+    )
+    traces = store(tmp_path)
+    llm = ScriptedLLM(
+        plans=[
+            answer_plan(),  # 1 happy path
+            answer_plan(),  # 2 device history
+            answer_plan(),  # 3 verification fails on prose that names real identifiers
+            RuntimeError(f"planner down for {host} {foreign}"),  # 4 planning failure -> error step
+            clarify,  # 5 clarification
+            follow_up_plan(
+                "named", device_ref=foreign
+            ),  # 6 unresolved reference, nothing to resolve against
+            follow_up_plan("ordinal", 3),  # 7 ordinal with no earlier list
+            answer_plan(),  # 8 unknown tool name
+            answer_plan(),  # 9 actor outage
+        ],
+        acts=[
+            tool_calls_message(("low_disk_devices", {})),
+            final_message(),
+            tool_calls_message(
+                ("device_history", {"device_id": own_id, "metric": "disk_free_pct"})
+            ),
+            final_message(),
+            tool_calls_message(("low_disk_devices", {})),
+            final_message(),
+            tool_calls_message((f"no_such_tool_{host}", {"device_id": foreign, "hostname": host})),
+            final_message(f"I could not find {host}"),
+            RuntimeError(f"actor down for {foreign}"),
+        ],
+        explains=[
+            explanation(),
+            explanation(),
+            explanation(
+                headline=f"37 devices like {host} are low",
+                text=f"Call {foreign}, {own_id} and {host}.",
+            ),
+        ],
+    )
+    service = make_service(real_db_path, llm, recorder=traces.record)
+    questions = [
+        "Which devices are low on disk space?",
+        f"Show disk history for {own_id} please",
+        "Which devices are low on disk, in prose?",
+        f"What about {host}?",
+        "Which one do you mean, vaguely speaking?",
+        f"Show me {foreign}",
+        "Tell me about the third one",
+        f"Run the thing on {host}",
+        f"Check {foreign} now",
+    ]
+    results = [await service.run_turn(ACME_ADMIN, f"c{n}", q) for n, q in enumerate(questions)]
+    assert llm.remaining == {"plan": 0, "act": 0, "explain": 0}
+
     with sqlite3.connect(tmp_path / "traces.db") as db:
+        events = db.execute("SELECT kind, summary, data FROM trace_events").fetchall()
         blob = "\n".join(
             " ".join(str(v) for v in row)
             for table in ("turns", "trace_events")
             for row in db.execute(f"SELECT * FROM {table}")
         )
+    # The risky paths really ran and were stored (a scan over turns that never reached them proves nothing).
+    kinds_stored = {kind for kind, _summary, _data in events}
+    assert {"error", "verify", "reference", "tool_call", "tool_result"} <= kinds_stored
+    assert any(
+        kind == "verify" and '"problems": [' in data and '"problems": []' not in data
+        for kind, _, data in events
+    )
+    assert len(traces.list_turns()) == len(questions) == len(results)
+    assert {r.envelope.outcome for r in results} >= {"answer", "clarification", "tool_error"}
+
     leaked = sorted(s for s in secrets if s in blob)
     assert leaked == [], f"identifiers persisted in traces: {leaked[:5]}"
     for question in questions:
