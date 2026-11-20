@@ -34,7 +34,7 @@ async def test_a_simple_question_runs_every_stage_in_order(real_db_path):
     envelope = result.envelope
     assert envelope.outcome == "answer" and envelope.trace_id == "t1"
     assert envelope.claims[0].device_ids == ["MT7PJB7N5LRE", "8NM23J95R5I6"]
-    assert envelope.headline == "Two devices are low on disk"
+    assert envelope.headline == "Two of 10 devices are low on disk"
     assert kinds(result) == [
         "scope", "plan", "tool_call", "tool_result", "compose", "explain", "verify", "respond",
     ]  # fmt: skip
@@ -52,7 +52,37 @@ async def test_model_prose_that_fails_verification_is_replaced_by_the_code_headl
     result = await ask(make_service(real_db_path, llm), "low disk?")
     assert "37" not in result.envelope.headline and result.envelope.explanation is None
     verify = next(e for e in result.trace if e.kind == "verify")
-    assert set(verify.data["problems"]) == {"headline:number", "explanation:unknown_id"}
+    assert set(verify.data["problems"]) == {
+        "headline:number",
+        "headline:restates_nothing",
+        "explanation:unknown_id",
+    }
+
+
+async def test_reassuring_prose_over_a_real_answer_is_replaced_in_the_user_visible_envelope(
+    real_db_path,
+):
+    llm = ScriptedLLM(
+        plans=[answer_plan()],
+        acts=[tool_calls_message(("low_disk_devices", {})), final_message()],
+        explains=[
+            explanation(
+                headline="No devices are low on disk",
+                text="Everything is healthy and none of your devices need attention.",
+            )
+        ],
+    )
+    result = await ask(make_service(real_db_path, llm), "low disk?")
+    envelope = result.envelope
+    assert envelope.outcome == "answer"
+    assert envelope.headline == "2 of 10 devices have under 10% disk space free"
+    assert envelope.explanation is None
+    verify = next(e for e in result.trace if e.kind == "verify")
+    assert set(verify.data["problems"]) == {
+        "headline:claim_word",
+        "headline:restates_nothing",
+        "explanation:claim_word",
+    }
 
 
 async def test_a_model_outage_during_explain_still_gives_a_complete_answer(real_db_path):

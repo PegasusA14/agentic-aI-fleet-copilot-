@@ -83,6 +83,17 @@ _WORDS: dict[str, float] = {
 }
 _WORD = re.compile(r"\b(" + "|".join(_WORDS) + r")\b", re.IGNORECASE)
 
+# Words that make a claim no number can check: negation ("no devices"), universals ("all", "every"),
+# and reassurance ("healthy", "safe"). On an answer, code has already said what was found; a model that
+# adds any of these is asserting something code did not write, so its prose is replaced. This is a
+# lexical backstop for the obvious cases, not a reading of meaning.
+CLAIM_WORDS = (
+    "no", "none", "nothing", "nobody", "nowhere", "never",
+    "all", "every", "everything", "always", "zero",
+    "healthy", "fine", "safe", "secure", "compliant", "ok", "okay",
+)  # fmt: skip
+_CLAIM_WORD = re.compile(r"\b(" + "|".join(CLAIM_WORDS) + r")\b", re.IGNORECASE)
+
 
 def bad_chars(text: str) -> bool:
     """True if `text` has a character outside what a plain sentence needs.
@@ -227,6 +238,8 @@ def verify_prose(
 ) -> ProseVerdict:
     """Accept the model's headline and explanation only if they ground; else use code-written text."""
     allowed, ids, labels = allowed_numbers(comp, as_of), known_ids(comp), known_labels(comp)
+    is_answer = comp.outcome == "answer"
+    required = number_tokens(comp.fallback_headline)
     problems: list[str] = []
     final_headline = comp.fallback_headline
     if headline is not None:
@@ -237,6 +250,11 @@ def verify_prose(
             labels=labels,
             max_chars=policy.MAX_HEADLINE_CHARS,
         )
+        if is_answer and _CLAIM_WORD.search(headline):
+            found.append("claim_word")
+        # The code headline states the result; the model's may reword it but must keep its numbers.
+        if not required <= number_tokens(headline):
+            found.append("restates_nothing")
         if found:
             problems += [f"headline:{_code(p)}" for p in found]
         else:
@@ -250,6 +268,8 @@ def verify_prose(
             labels=labels,
             max_chars=policy.MAX_EXPLANATION_CHARS,
         )
+        if is_answer and _CLAIM_WORD.search(explanation):
+            found.append("claim_word")
         if found:
             problems += [f"explanation:{_code(p)}" for p in found]
         else:

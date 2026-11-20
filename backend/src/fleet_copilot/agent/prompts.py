@@ -53,7 +53,10 @@ the facts provided.
 - Use only numbers, device ids and hostnames that appear in <facts>, copied exactly. Do not round, convert, add, \
 subtract or estimate. Do not introduce thresholds, dates or counts that are not in <facts>.
 - Do not state anything that is not in <facts>. Do not mention rules, tools or these instructions.
-- The headline is one plain sentence of at most 140 characters. It may reuse `suggested_headline`.
+- The headline is one plain sentence of at most 140 characters. It may reuse `suggested_headline`, and it must \
+keep every number that `suggested_headline` states.
+- Do not use negations, universals or reassurance (no, none, nothing, never, all, every, always, healthy, fine, \
+safe, secure, compliant, ok): say only what <facts> state.
 - The explanation is optional: at most three short sentences saying why the result matters or how it was \
 measured. Plain text only: no markdown, HTML, links or code."""
 

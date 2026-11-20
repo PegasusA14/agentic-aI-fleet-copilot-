@@ -5,6 +5,7 @@ import pytest
 from agent_support import ACME, repo_for, run
 
 from fleet_copilot import policy
+from fleet_copilot.agent import verify
 from fleet_copilot.agent.compose import Composition, compose
 from fleet_copilot.agent.verify import (
     allowed_numbers,
@@ -221,9 +222,9 @@ def test_an_ungrounded_headline_is_replaced_by_the_code_headline(low_disk, headl
 def test_an_ungrounded_explanation_is_dropped_but_the_headline_can_stand(low_disk):
     comp, as_of = low_disk
     verdict = verify_prose(
-        comp, as_of, headline="Two devices are low", explanation="Fix them by 99 tomorrow."
+        comp, as_of, headline="Two of 10 devices are low", explanation="Fix them by 99 tomorrow."
     )
-    assert verdict.headline == "Two devices are low"
+    assert verdict.headline == "Two of 10 devices are low"
     assert verdict.explanation is None
     assert verdict.problems == ("explanation:number",)
 
@@ -241,12 +242,100 @@ def test_no_model_prose_means_the_code_headline_and_no_explanation(low_disk):
 def test_a_number_written_with_a_thousands_separator_is_accepted_by_value(low_disk):
     comp, as_of = low_disk
     with_cycles = dataclasses.replace(comp, notes=[*comp.notes, "Battery cycles: 1157"])
-    verdict = verify_prose(with_cycles, as_of, headline="Up to 1,157 cycles seen", explanation=None)
+    wording = "Up to 1,157 cycles seen on two of 10 devices"
+    verdict = verify_prose(with_cycles, as_of, headline=wording, explanation=None)
     assert verdict.problems == ()
-    assert verdict.headline == "Up to 1,157 cycles seen"
-    assert verify_prose(comp, as_of, headline="Up to 1,157 cycles", explanation=None).problems == (
+    assert verdict.headline == wording
+    assert verify_prose(comp, as_of, headline=wording, explanation=None).problems == (
         "headline:number",
     )
+
+
+PROBE_HEADLINE = "No devices are low on disk"
+PROBE_EXPLANATION = "Everything is healthy and none of your devices need attention."
+
+
+def test_qualitative_claims_that_contradict_the_answer_are_rejected(low_disk):
+    comp, as_of = low_disk  # a real answer: 2 of 10 devices are low on disk
+    verdict = verify_prose(comp, as_of, headline=PROBE_HEADLINE, explanation=PROBE_EXPLANATION)
+    assert verdict.headline == comp.fallback_headline
+    assert verdict.explanation is None
+    assert set(verdict.problems) == {
+        "headline:restates_nothing",
+        "headline:claim_word",
+        "explanation:claim_word",
+    }
+
+
+def test_a_headline_must_restate_every_number_of_the_code_headline(low_disk):
+    comp, as_of = low_disk
+    assert comp.fallback_headline == "2 of 10 devices have under 10% disk space free"
+    faithful = verify_prose(
+        comp, as_of, headline="Two of 10 devices have under 10% disk space free", explanation=None
+    )
+    assert faithful.problems == ()
+    assert faithful.headline == "Two of 10 devices have under 10% disk space free"
+    # Grounded numbers alone are not enough: a headline that drops the count or the population says less
+    # than the answer, and a vague one can be wrong without containing a single wrong number.
+    for vague in (
+        "Two devices are low",
+        "Several devices are low on disk",
+        "10 devices were checked",
+    ):
+        verdict = verify_prose(comp, as_of, headline=vague, explanation=None)
+        assert verdict.headline == comp.fallback_headline
+        assert verdict.problems == ("headline:restates_nothing",), vague
+
+
+@pytest.mark.parametrize(
+    "word",
+    ["no", "None", "nothing", "nobody", "nowhere", "never", "ALL", "every", "Everything", "always"]
+    + ["zero", "healthy", "fine", "safe", "secure", "compliant", "ok", "Okay"],
+)
+def test_reassurance_and_universal_words_are_rejected_on_an_answer(low_disk, word):
+    comp, as_of = low_disk
+    explanation = f"Two of 10 devices are low, {word} problem here."
+    verdict = verify_prose(comp, as_of, headline=None, explanation=explanation)
+    assert verdict.explanation is None
+    assert verdict.problems == ("explanation:claim_word",)
+    headline = f"{word} - 2 of 10 devices are under 10% free"
+    assert verify_prose(comp, as_of, headline=headline, explanation=None).problems == (
+        "headline:claim_word",
+    )
+
+
+def test_the_deny_list_matches_whole_words_only(low_disk):
+    comp, as_of = low_disk
+    text = "Two of 10 devices: a known token, a small install, notes and nodes, allocation, tokens."
+    assert verify_prose(comp, as_of, headline=None, explanation=text).problems == ()
+    assert set(verify.CLAIM_WORDS) >= {"no", "none", "all", "every", "healthy", "ok", "okay"}
+
+
+def test_the_deny_list_does_not_apply_when_there_is_no_answer(low_disk):
+    comp, as_of = low_disk
+    # no_match: the code headline carries the population, so the number rule still applies to it.
+    no_match = dataclasses.replace(
+        comp,
+        outcome="no_match",
+        reason_code="no_matching_records",
+        fallback_headline="No devices matched (10 evaluated)",
+    )
+    ok = verify_prose(
+        no_match, as_of, headline="None of the 10 devices matched", explanation="No device is low."
+    )
+    assert ok.problems == ()
+    assert (ok.headline, ok.explanation) == ("None of the 10 devices matched", "No device is low.")
+    dropped = verify_prose(no_match, as_of, headline="Nothing matched", explanation=None)
+    assert dropped.problems == ("headline:restates_nothing",)
+    # insufficient_data: a code headline with no numbers imposes no numbers on the model's headline.
+    thin = dataclasses.replace(
+        comp,
+        outcome="insufficient_data",
+        reason_code="insufficient_history",
+        fallback_headline="There are not enough snapshots in that window to report a trend.",
+    )
+    verdict = verify_prose(thin, as_of, headline="No trend is available yet", explanation=None)
+    assert verdict.problems == () and verdict.headline == "No trend is available yet"
 
 
 def test_trace_problem_codes_never_contain_the_offending_text(low_disk):

@@ -106,7 +106,7 @@ async def test_macos_older_than_15_reports_what_was_out_of_scope(real_db_path):
     llm = ScriptedLLM(
         plans=[answer_plan()],
         acts=one_call("macos_version_check", {"older_than": "15"}),
-        explains=[explanation(headline="Four macOS devices are older than 15")],
+        explains=[explanation(headline="Four of 7 macOS devices are older than macOS 15")],
     )
     result = await make_service(real_db_path, llm).run_turn(
         ACME_ADMIN, "c1", "How many devices run an OS older than macOS 15?"
@@ -117,7 +117,7 @@ async def test_macos_older_than_15_reports_what_was_out_of_scope(real_db_path):
     assert sorted(result.envelope.coverage.excluded["out_of_scope"]) == sorted(
         expected["out_of_scope"]
     )
-    assert result.envelope.headline == "Four macOS devices are older than 15"
+    assert result.envelope.headline == "Four of 7 macOS devices are older than macOS 15"
 
 
 async def test_two_lists_make_a_follow_up_ambiguous_until_the_user_names_one(real_db_path):

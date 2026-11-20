@@ -39,7 +39,7 @@ def follow_up_plan(kind="ordinal", index=1, list_hint=None, device_ref=None, **k
     return Plan(intent="answer", summary="follow-up", reference=ref, **kw)
 
 
-def explanation(headline="Two devices are low on disk", text=None) -> Explanation:
+def explanation(headline="Two of 10 devices are low on disk", text=None) -> Explanation:
     return Explanation(headline=headline, explanation=text)
 
 
