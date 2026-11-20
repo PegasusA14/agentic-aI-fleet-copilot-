@@ -45,11 +45,14 @@ def test_the_graph_has_exactly_the_documented_stages_and_transitions():
     assert {(edge.source, edge.target) for edge in graph.edges} == EDGES
 
 
-def test_the_only_way_back_into_the_model_after_tools_is_the_bounded_act_stage():
-    # `act` is the only node that can reach `tools`, and `tools` only leads to `collect`, then `act`.
-    into_tools = {src for src, dst in EDGES if dst == "tools"}
-    out_of_tools = {dst for src, dst in EDGES if src == "tools"}
-    assert into_tools == {"act"} and out_of_tools == {"collect"}
+def test_tools_are_entered_only_from_act_and_lead_back_only_through_collect_to_act():
+    # Read from the compiled graph, so the claim holds for the real wiring, not just the constant above.
+    edges = {
+        (e.source, e.target) for e in build_graph(ScriptedLLM(), InMemorySaver()).get_graph().edges
+    }
+    assert {src for src, dst in edges if dst == "tools"} == {"act"}
+    assert {dst for src, dst in edges if src == "tools"} == {"collect"}
+    assert {dst for src, dst in edges if src == "collect"} == {"act"}
 
 
 FORBIDDEN_PARAMETERS = {
