@@ -109,8 +109,19 @@ async def test_a_crash_in_a_later_node_is_a_fixed_tool_error_with_only_the_type_
         assert "ZX-SECRET" not in text and "host-4411" not in text and "/var/private" not in text
 
 
+THREAD = "acme-001:admin-acme:c1"
+
+
 async def test_the_next_turn_still_works_after_a_crash(real_db_path, monkeypatch):
-    service = make_service(real_db_path, low_disk_script())
+    # The same service and the same conversation: a crash must not leave the conversation locked.
+    service = make_service(
+        real_db_path,
+        low_disk_script(
+            extra_plans=[answer_plan()],
+            extra_acts=[tool_calls_message(("low_disk_devices", {})), final_message()],
+            extra_explains=[explanation()],
+        ),
+    )
 
     def boom(*args, **kwargs):
         raise DistinctiveCrash(SECRET)
@@ -119,16 +130,92 @@ async def test_the_next_turn_still_works_after_a_crash(real_db_path, monkeypatch
         patch.setattr(graph_module, "verify_prose", boom)
         crashed = await service.run_turn(ACME_ADMIN, "c1", "low disk?")
     assert crashed.envelope.reason_code == "tool_failure"
+    assert not service._locks[THREAD].locked()
 
-    # the lock was released: a second turn on the same conversation completes
-    retry = ScriptedLLM(
+    result = await asyncio.wait_for(service.run_turn(ACME_ADMIN, "c1", "low disk?"), timeout=5)
+    assert result.envelope.outcome == "answer"
+
+
+class HangsOnce(ScriptedLLM):
+    """The first plan call never returns, like a gateway that stopped answering."""
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+        self.hung = asyncio.Event()
+
+    async def plan(self, messages):
+        if not self.hung.is_set():
+            self.hung.set()
+            await asyncio.Event().wait()
+        return await super().plan(messages)
+
+
+def hanging_service(real_db_path):
+    llm = HangsOnce(
         plans=[answer_plan()],
         acts=[tool_calls_message(("low_disk_devices", {})), final_message()],
         explains=[explanation()],
     )
-    again = make_service(real_db_path, retry)
-    result = await again.run_turn(ACME_ADMIN, "c2", "low disk?")
-    assert result.envelope.outcome == "answer"
+    service = make_service(real_db_path, llm)
+    service._gateway_hung = llm.hung  # lets a test wait until the gateway call is really hanging
+    return service
+
+
+async def test_a_hung_gateway_times_out_into_one_tool_error_and_frees_the_conversation(
+    real_db_path, monkeypatch
+):
+    monkeypatch.setattr(policy, "TURN_TIMEOUT_S", 0.05)
+    service = hanging_service(real_db_path)
+
+    async def collect():
+        return [item async for item in service.stream_turn(ACME_ADMIN, "c1", "low disk?")]
+
+    items = await asyncio.wait_for(collect(), timeout=5)
+    envelopes = [i for i in items if isinstance(i, AnswerEnvelope)]
+    events = [i for i in items if isinstance(i, TraceEvent)]
+    assert len(envelopes) == 1 and items[-1] is envelopes[0]
+    assert (envelopes[0].outcome, envelopes[0].reason_code) == ("tool_error", "tool_failure")
+    assert envelopes[0].headline == texts.TOOL_FAILED
+    error_steps = [e for e in events if e.kind == "error"]
+    assert len(error_steps) == 1 and error_steps[0].data == {"error": "TimeoutError"}
+    assert not service._locks[THREAD].locked()
+
+    # the same conversation on the same service still works
+    again = await asyncio.wait_for(service.run_turn(ACME_ADMIN, "c1", "low disk?"), timeout=5)
+    assert again.envelope.outcome == "answer"
+
+
+async def test_closing_the_stream_mid_turn_releases_the_conversation(real_db_path):
+    service = make_service(real_db_path, low_disk_script())
+    stream = service.stream_turn(ACME_ADMIN, "c1", "low disk?")
+    first = await asyncio.wait_for(stream.__anext__(), timeout=5)
+    assert isinstance(first, TraceEvent) and first.kind == "scope"
+    assert service._locks[THREAD].locked()
+    await asyncio.wait_for(stream.aclose(), timeout=5)
+    assert not service._locks[THREAD].locked()
+
+    again = await asyncio.wait_for(service.run_turn(ACME_ADMIN, "c1", "low disk?"), timeout=5)
+    assert again.envelope.outcome == "answer"
+
+
+async def test_a_reader_that_disconnects_while_the_gateway_hangs_releases_the_conversation(
+    real_db_path,
+):
+    service = hanging_service(real_db_path)
+
+    async def read_everything():
+        return [item async for item in service.stream_turn(ACME_ADMIN, "c1", "low disk?")]
+
+    reader = asyncio.create_task(read_everything())
+    await asyncio.wait_for(service._gateway_hung.wait(), timeout=5)
+    assert service._locks[THREAD].locked()
+    reader.cancel()
+    with pytest.raises(asyncio.CancelledError):
+        await reader
+    assert not service._locks[THREAD].locked()
+
+    again = await asyncio.wait_for(service.run_turn(ACME_ADMIN, "c1", "low disk?"), timeout=5)
+    assert again.envelope.outcome == "answer"
 
 
 async def test_an_envelope_from_another_turn_is_a_tool_error(real_db_path):

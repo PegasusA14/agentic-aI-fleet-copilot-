@@ -99,14 +99,25 @@ class AgentService:
         lock = self._locks.setdefault(thread, asyncio.Lock())
         seq = 0
         async with lock:  # one turn at a time per conversation
+            stream = self._graph.astream(
+                {"question": text}, config, context=ctx, stream_mode="custom"
+            )
+            # One deadline for the whole turn, so a hung gateway cannot hold the lock and block every
+            # later turn of this conversation. Only the awaits are inside the timeout, never a `yield`:
+            # a slow reader of the stream must not be cancelled by it.
+            deadline = asyncio.get_running_loop().time() + policy.TURN_TIMEOUT_S
             try:
-                async for chunk in self._graph.astream(
-                    {"question": text}, config, context=ctx, stream_mode="custom"
-                ):
+                while True:
+                    try:
+                        async with asyncio.timeout_at(deadline):
+                            chunk = await anext(stream)
+                    except StopAsyncIteration:
+                        break
                     if isinstance(chunk, dict) and chunk.get("type") == "trace":
                         yield to_event(chunk, trace_id=trace_id, seq=seq)
                         seq += 1
-                state = await self._graph.aget_state(config)
+                async with asyncio.timeout_at(deadline):
+                    state = await self._graph.aget_state(config)
                 raw = state.values.get("envelope")
                 envelope = AnswerEnvelope.model_validate(raw) if raw else None
                 if envelope is None or envelope.trace_id != trace_id:
@@ -124,6 +135,9 @@ class AgentService:
                 envelope = outcomes.tool_failure(
                     company_id=identity.company_id, as_of=as_of, trace_id=trace_id
                 )
+            finally:
+                # Also when the caller closes this stream mid-turn: stop the graph run it started.
+                await stream.aclose()
         yield envelope
 
     async def run_turn(self, identity: Identity, conversation_id: str, question: str) -> TurnResult:

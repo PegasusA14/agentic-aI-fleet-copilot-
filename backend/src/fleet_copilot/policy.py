@@ -18,6 +18,9 @@ MAX_WINDOW_DAYS = 60  # largest window a tool call may request
 MAX_REFS_PER_FINDING = 6  # cited readings shown per device in an answer
 MAX_TOOL_ROUNDS = 6  # model-driven rounds of tool calls in one turn
 MAX_CALLS_PER_ROUND = 4  # tool calls the graph will run from one model message
+TURN_TIMEOUT_S = (
+    90  # wall-clock limit for one whole turn; per-call timeouts belong to the 2C gateways
+)
 MAX_QUESTION_CHARS = 2000  # longest question a turn accepts
 MAX_HISTORY_TURNS = 6  # earlier turns the planner may see
 MAX_HEADLINE_CHARS = 160  # longest model-written headline that passes verification
