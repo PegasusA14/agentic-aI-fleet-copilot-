@@ -1,3 +1,5 @@
+import copy
+
 import pytest
 from agent_support import ACME, GLOBEX, INITECH, repo_for, run
 
@@ -146,6 +148,7 @@ def test_compliance_trend_names_the_first_failing_snapshot(real_db_path, real_co
     claim = comp.claims[0]
     assert "changed from pass to fail" in claim.text
     assert "1LYSSFD074BB" in claim.text and "2026-05-22 09:41Z" in claim.text
+    assert "failing since 2026-05-22 09:41Z" in claim.text
     assert claim.count == 5  # four laptops plus the Mac mini
 
 
@@ -266,3 +269,67 @@ def test_every_tool_composes_into_a_valid_envelope_for_every_tenant(
             tenant,
             name,
         )
+
+
+def test_battery_note_does_not_claim_an_earlier_reading_for_laptops_with_no_reading(
+    real_db_path, real_conn
+):
+    comp = composed(real_db_path, real_conn, [("trend", {"metric": "battery", "window_days": 1})])
+    assert any("no battery reading in the window" in n and "MT7PJB7N5LRE" in n for n in comp.notes)
+    assert not any("newest earlier reading was used" in n for n in comp.notes)
+    assert not any("MT7PJB7N5LRE" in n and "latest snapshot" in n for n in comp.notes)
+    assert "MT7PJB7N5LRE" in comp.coverage.missing_latest
+
+
+def test_differing_populations_are_disclosed_and_headlines_are_joined(real_db_path, real_conn):
+    comp = composed(
+        real_db_path,
+        real_conn,
+        [("low_disk_devices", {}), ("macos_version_check", {"older_than": "15"})],
+    )
+    assert comp.coverage.population == 10
+    assert (
+        "Populations differ per check: 10 (low_disk_devices), 7 (macos_version_check)."
+        in comp.notes
+    )
+    assert comp.fallback_headline == (
+        "2 of 10 devices have under 10% disk space free; 4 of 7 macOS devices run a version older than macOS 15"
+    )
+    assert as_envelope(comp, real_conn).scope.population == 10
+
+
+def test_a_single_record_has_no_population_note(real_db_path, real_conn):
+    comp = composed(real_db_path, real_conn, [("low_disk_devices", {})])
+    assert not any("Populations differ" in n for n in comp.notes)
+
+
+def test_battery_with_no_findings_still_discloses_the_missing_design_capacity(
+    real_db_path, real_conn
+):
+    comp = composed(real_db_path, real_conn, [("trend", {"metric": "battery"})], tenant=GLOBEX)
+    assert comp.outcome == "no_match"
+    assert any("design capacity" in n for n in comp.notes)
+
+
+def test_design_capacity_note_appears_once_for_two_battery_records(real_db_path, real_conn):
+    comp = composed(
+        real_db_path,
+        real_conn,
+        [("trend", {"metric": "battery"}), ("trend", {"metric": "battery", "window_days": 60})],
+    )
+    assert sum("design capacity" in n for n in comp.notes) == 1
+
+
+def test_recovered_compliance_reads_passing_since(real_db_path, real_conn):
+    record = run(
+        real_db_path,
+        real_conn,
+        "trend",
+        {"metric": "compliance", "check_id": "screen_lock", "window_days": 30},
+    )
+    altered = copy.deepcopy(record)
+    altered.findings[0].values["kind"] = "recovered"
+    comp = compose([altered], resolve=repo_for(real_conn).resolve)
+    recovered = next(c for c in comp.claims if "changed from fail back to pass" in c.text)
+    assert "passing since 2026-05-22 09:41Z" in recovered.text
+    assert "failing since" not in recovered.text and "first seen" not in recovered.text

@@ -155,8 +155,8 @@ class _Builder:
         self.lists: list[EntityList] = []
         self.notes: list[str] = []
         self.rules: list[str] = []
-        self.headline: str | None = None
-        self.population: int | None = None
+        self.headlines: list[str] = []
+        self.populations: list[tuple[str, int]] = []
         self.stale: set[str] = set()
         self.missing: set[str] = set()
         self.excluded: dict[str, set[str]] = {}
@@ -164,8 +164,7 @@ class _Builder:
     def coverage(self, rec: ToolRecord) -> None:
         for f in rec.findings:
             self._hosts[f.device_id] = f.hostname
-        if self.population is None:
-            self.population = rec.population
+        self.populations.append((rec.tool, rec.population))
         if rec.rule and rec.rule not in self.rules:
             self.rules.append(rec.rule)
         self.stale.update(rec.stale)
@@ -174,8 +173,16 @@ class _Builder:
             self.excluded.setdefault(reason, set()).update(ids)
 
     def set_headline(self, text: str) -> None:
-        if self.headline is None:
-            self.headline = text
+        if text not in self.headlines:
+            self.headlines.append(text)
+
+    def add_note(self, text: str) -> None:
+        if text not in self.notes:
+            self.notes.append(text)
+
+    @property
+    def population(self) -> int:
+        return max((n for _, n in self.populations), default=0)
 
     def claim(
         self,
@@ -213,6 +220,9 @@ class _Builder:
         )
 
     def disclosure_notes(self) -> None:
+        if len({n for _, n in self.populations}) > 1:
+            listing = ", ".join(f"{n} ({tool})" for tool, n in self.populations)
+            self.notes.append(f"Populations differ per check: {listing}.")
         for reason, ids in sorted(self.excluded.items()):
             template = _REASON_TEXT.get(reason)
             if template and ids:
@@ -231,10 +241,12 @@ class _Builder:
                 f"{len(self.stale)} {noun(len(self.stale), 'device')} had readings older than "
                 f"{policy.STALE_HOURS} hours before the as-of time: {', '.join(sorted(self.stale)[:10])}."
             )
-        if self.missing:
+        # A laptop with no reading anywhere in the window is already disclosed as `no_reading`.
+        fell_back = self.missing - self.excluded.get("no_reading", set())
+        if fell_back:
             self.notes.append(
-                f"{len(self.missing)} {noun(len(self.missing), 'laptop')} had no battery reading in the latest "
-                f"snapshot (the newest earlier reading was used): {', '.join(sorted(self.missing)[:10])}."
+                f"{len(fell_back)} {noun(len(fell_back), 'laptop')} had no battery reading in the latest "
+                f"snapshot (the newest earlier reading was used): {', '.join(sorted(fell_back)[:10])}."
             )
 
 
@@ -405,7 +417,8 @@ def _trend_compliance(rec: ToolRecord, idx: int, b: _Builder) -> None:
                 for f in group
             ]
         else:
-            items = [_item(f, f"first seen {fmt_ts(f.values['change_at'])}") for f in group]
+            since = "failing since" if kind == "transition" else "passing since"
+            items = [_item(f, f"{since} {fmt_ts(f.values['change_at'])}") for f in group]
         b.claim(
             f"{check} over the last {days} days: {len(group)} of {rec.population} {noun(rec.population, 'device')} "
             f"{_KIND_TEXT[kind]}. " + "; ".join(items) + ".",
@@ -421,6 +434,10 @@ def _trend_compliance(rec: ToolRecord, idx: int, b: _Builder) -> None:
 def _trend_battery(rec: ToolRecord, idx: int, b: _Builder) -> None:
     b.coverage(rec)
     days = rec.args.get("window_days") or policy.BATTERY_WINDOW_DAYS
+    b.add_note(
+        "The telemetry has no design capacity, so a battery health percentage cannot be computed; capacity change "
+        "is relative to each device's own first reading in the window."
+    )
     if not rec.findings:
         return
     items = []
@@ -446,10 +463,6 @@ def _trend_battery(rec: ToolRecord, idx: int, b: _Builder) -> None:
         rec.findings,
     )
     b.entity_list(f"{rec.tool}-{idx}-battery", f"Battery wear ({days} d)", rec.findings)
-    b.notes.append(
-        "The telemetry has no design capacity, so a battery health percentage cannot be computed; capacity change "
-        "is relative to each device's own first reading in the window."
-    )
     b.set_headline(
         f"{k} of {n} {noun(n, 'laptop')} show battery wear signals over the last {days} days"
     )
@@ -553,7 +566,7 @@ def compose(records: Sequence[ToolRecord], *, resolve: Resolver) -> Composition:
             coverage,
             builder.lists,
             builder.notes,
-            builder.headline or builder.claims[0].text.split(":")[0],
+            "; ".join(builder.headlines) or builder.claims[0].text.split(":")[0],
             builder.rules,
         )
     thin = [r for r in usable if r.excluded.get("insufficient_history")]
