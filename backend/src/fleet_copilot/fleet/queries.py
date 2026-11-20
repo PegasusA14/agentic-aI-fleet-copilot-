@@ -1,10 +1,11 @@
 from __future__ import annotations
 
-from collections.abc import Callable
+from collections.abc import Callable, Collection
 from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any
 
+from fleet_copilot import policy
 from fleet_copilot.domain.battery import BatteryReading, battery_signals
 from fleet_copilot.domain.metrics import free_pct, used_pct
 from fleet_copilot.domain.osversion import macos_older_than
@@ -46,8 +47,22 @@ def _stale(pairs: list[tuple[Device, Snapshot]], as_of: datetime) -> tuple[str, 
     return tuple(sorted(d.device_id for d, s in pairs if is_stale(s.collected_at, as_of)))
 
 
-def low_disk(repo: FleetRepository, as_of: datetime, threshold_pct: float = 10.0) -> QueryResult:
-    pairs = _latest_pairs(repo, repo.list_devices())
+def _devices(repo: FleetRepository, only: Collection[str] | None) -> list[Device]:
+    """Tenant devices, optionally narrowed to `only`. Ids outside the tenant are ignored."""
+    devices = repo.list_devices()
+    if only is None:
+        return devices
+    wanted = set(only)
+    return [d for d in devices if d.device_id in wanted]
+
+
+def low_disk(
+    repo: FleetRepository,
+    as_of: datetime,
+    threshold_pct: float = policy.LOW_DISK_FREE_PCT,
+    only_devices: Collection[str] | None = None,
+) -> QueryResult:
+    pairs = _latest_pairs(repo, _devices(repo, only_devices))
     findings = []
     for device, snap in pairs:
         pct = free_pct(snap.disk_size_bytes, snap.disk_available_bytes)
@@ -75,8 +90,13 @@ def low_disk(repo: FleetRepository, as_of: datetime, threshold_pct: float = 10.0
     )
 
 
-def macos_below(repo: FleetRepository, as_of: datetime, target: str = "15") -> QueryResult:
-    pairs = _latest_pairs(repo, repo.list_devices())
+def macos_below(
+    repo: FleetRepository,
+    as_of: datetime,
+    target: str = "15",
+    only_devices: Collection[str] | None = None,
+) -> QueryResult:
+    pairs = _latest_pairs(repo, _devices(repo, only_devices))
     findings, out_of_scope, unknown, in_scope = [], [], [], 0
     for device, snap in pairs:
         verdict = macos_older_than(snap.os_name, snap.os_version, target)
@@ -118,9 +138,12 @@ def compliance_failures(
     check_id: str | None = None,
     severity: str | None = None,
     form_factor: str | None = None,
+    only_devices: Collection[str] | None = None,
 ) -> QueryResult:
     devices = [
-        d for d in repo.list_devices() if form_factor is None or d.form_factor == form_factor
+        d
+        for d in _devices(repo, only_devices)
+        if form_factor is None or d.form_factor == form_factor
     ]
     pairs = _latest_pairs(repo, devices)
     findings = []
@@ -162,6 +185,7 @@ def compliance_failures(
 def _breach_trend(
     repo: FleetRepository,
     as_of: datetime,
+    devices: list[Device],
     window_days: int,
     rule: str,
     path: str,
@@ -169,7 +193,6 @@ def _breach_trend(
     value: Callable[[Snapshot], float],
 ) -> QueryResult:
     since = window_start(as_of, window_days)
-    devices = repo.list_devices()
     findings, insufficient, stale = [], [], []
     for device in devices:
         snaps = repo.snapshots(device.device_id, since=since)
@@ -208,7 +231,11 @@ def _breach_trend(
 
 
 def memory_trend(
-    repo: FleetRepository, as_of: datetime, window_days: int = 7, threshold_pct: float = 85.0
+    repo: FleetRepository,
+    as_of: datetime,
+    window_days: int = policy.TREND_WINDOW_DAYS,
+    threshold_pct: float = policy.MEMORY_USED_PCT,
+    only_devices: Collection[str] | None = None,
 ) -> QueryResult:
     def used(s: Snapshot) -> float:
         return used_pct(s.mem_total_bytes, s.mem_used_bytes)
@@ -216,6 +243,7 @@ def memory_trend(
     return _breach_trend(
         repo,
         as_of,
+        _devices(repo, only_devices),
         window_days,
         f"memory used >= {threshold_pct:g}% over the last {window_days} days",
         "memory",
@@ -225,7 +253,11 @@ def memory_trend(
 
 
 def disk_trend(
-    repo: FleetRepository, as_of: datetime, window_days: int = 7, threshold_pct: float = 10.0
+    repo: FleetRepository,
+    as_of: datetime,
+    window_days: int = policy.TREND_WINDOW_DAYS,
+    threshold_pct: float = policy.LOW_DISK_FREE_PCT,
+    only_devices: Collection[str] | None = None,
 ) -> QueryResult:
     def free(s: Snapshot) -> float:
         return free_pct(s.disk_size_bytes, s.disk_available_bytes)
@@ -233,6 +265,7 @@ def disk_trend(
     return _breach_trend(
         repo,
         as_of,
+        _devices(repo, only_devices),
         window_days,
         f"primary volume free space < {threshold_pct:g}% over the last {window_days} days",
         "disk",
@@ -242,10 +275,15 @@ def disk_trend(
 
 
 def compliance_trend(
-    repo: FleetRepository, as_of: datetime, *, check_id: str, window_days: int = 30
+    repo: FleetRepository,
+    as_of: datetime,
+    *,
+    check_id: str,
+    window_days: int = policy.COMPLIANCE_WINDOW_DAYS,
+    only_devices: Collection[str] | None = None,
 ) -> QueryResult:
     since = window_start(as_of, window_days)
-    devices = repo.list_devices()
+    devices = _devices(repo, only_devices)
     findings, insufficient, stale = [], [], []
     for device in devices:
         snaps = [
@@ -290,9 +328,14 @@ def compliance_trend(
     )
 
 
-def battery_overview(repo: FleetRepository, as_of: datetime, window_days: int = 30) -> QueryResult:
+def battery_overview(
+    repo: FleetRepository,
+    as_of: datetime,
+    window_days: int = policy.BATTERY_WINDOW_DAYS,
+    only_devices: Collection[str] | None = None,
+) -> QueryResult:
     since = window_start(as_of, window_days)
-    laptops = [d for d in repo.list_devices() if d.form_factor == "laptop"]
+    laptops = [d for d in _devices(repo, only_devices) if d.form_factor == "laptop"]
     findings, no_reading, missing_latest, stale = [], [], [], []
     for device in laptops:
         newest = repo.latest(device.device_id)
@@ -319,7 +362,10 @@ def battery_overview(repo: FleetRepository, as_of: datetime, window_days: int = 
                 for s in snaps
             ]
         )
-        declining = signals.capacity_change_pct is not None and signals.capacity_change_pct < -1.0
+        declining = (
+            signals.capacity_change_pct is not None
+            and signals.capacity_change_pct < -policy.BATTERY_DECLINE_PCT
+        )
         if declining or signals.service_streak > 0:
             # cite what each value rests on: the two readings the capacity change was measured between,
             # the latest reading (cycles, condition) and the snapshot where the service streak began
@@ -352,8 +398,43 @@ def battery_overview(repo: FleetRepository, as_of: datetime, window_days: int = 
         tuple(findings),
         len(laptops),
         as_of,
-        f"laptops with capacity down more than 1% or a Service Recommended flag over the last {window_days} days",
+        f"laptops with capacity down more than {policy.BATTERY_DECLINE_PCT:g}% or a Service Recommended flag over the last {window_days} days",
         excluded=excluded,
         stale=tuple(sorted(stale)),
         missing_latest=tuple(sorted(missing_latest)),
+    )
+
+
+def memory_state(
+    repo: FleetRepository,
+    as_of: datetime,
+    threshold_pct: float = policy.MEMORY_USED_PCT,
+    only_devices: Collection[str] | None = None,
+) -> QueryResult:
+    """Devices whose memory use at the latest snapshot is at or above the threshold."""
+    pairs = _latest_pairs(repo, _devices(repo, only_devices))
+    findings = []
+    for device, snap in pairs:
+        pct = used_pct(snap.mem_total_bytes, snap.mem_used_bytes)
+        if pct >= threshold_pct:
+            findings.append(
+                Finding(
+                    device.device_id,
+                    device.hostname,
+                    {
+                        "used_pct": pct,
+                        "total_bytes": snap.mem_total_bytes,
+                        "used_bytes": snap.mem_used_bytes,
+                        "collected_at": iso_z(snap.collected_at),
+                    },
+                    (str(snap.ref("memory")),),
+                )
+            )
+    findings.sort(key=lambda f: (-f.values["used_pct"], f.device_id))
+    return QueryResult(
+        tuple(findings),
+        len(pairs),
+        as_of,
+        f"memory used >= {threshold_pct:g}% at the latest snapshot",
+        stale=_stale(pairs, as_of),
     )

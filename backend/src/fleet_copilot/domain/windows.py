@@ -2,7 +2,9 @@ from __future__ import annotations
 
 from datetime import datetime, timedelta
 
-STALE_AFTER = timedelta(hours=48)
+from fleet_copilot.policy import STALE_HOURS
+
+STALE_AFTER = timedelta(hours=STALE_HOURS)
 
 
 def window_start(as_of: datetime, days: int) -> datetime:
