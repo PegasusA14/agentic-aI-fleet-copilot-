@@ -90,15 +90,16 @@ class Composition:
         headline: str | None = None,
         explanation: str | None = None,
     ) -> AnswerEnvelope:
-        matched = sum(c.count or 0 for c in self.claims)
+        distinct = len({device_id for c in self.claims for device_id in c.device_ids})
         scope = ScopeInfo(
             company_id=company_id,
             as_of=as_of,
             rule="; ".join(self.rules) or None,
             population=self.coverage.population if self.coverage else None,
             calculation=(
-                f"{matched} matching device entries across {len(self.claims)} claims; at most "
-                f"{policy.MAX_REFS_PER_FINDING} supporting readings are cited per device"
+                f"{distinct} distinct {noun(distinct, 'device')} across {len(self.claims)} "
+                f"{noun(len(self.claims), 'claim')}; at most {policy.MAX_REFS_PER_FINDING} "
+                "supporting readings are cited per device"
                 if self.claims
                 else None
             ),
@@ -111,7 +112,11 @@ class Composition:
             evidence=self.evidence,
             scope=scope,
             coverage=self.coverage,
-            entity_lists=self.entity_lists,
+            # One list id per turn: the raw ids repeat every turn, so follow-ups could not tell lists apart.
+            entity_lists=[
+                entity_list.model_copy(update={"list_id": f"{trace_id}/{entity_list.list_id}"})
+                for entity_list in self.entity_lists
+            ],
             reason_code=self.reason_code,
             explanation=explanation
             if self.outcome not in ("denied", "unsupported", "tool_error")
@@ -305,7 +310,7 @@ def _compliance_now(rec: ToolRecord, idx: int, b: _Builder) -> None:
     for check in sorted(by_check):
         rows = by_check[check]
         findings = [row[0] for row in rows]
-        severity = rows[0][1]
+        severity = "/".join(sorted({row[1] for row in rows}))
         items = [f"{f.device_id} ({f.hostname})" for f in findings]
         b.claim(
             f"Failing {check} ({severity} severity) at the latest snapshot: {len(findings)} of {rec.population} "

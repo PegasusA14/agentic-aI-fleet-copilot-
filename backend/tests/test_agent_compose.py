@@ -4,11 +4,11 @@ import pytest
 from agent_support import ACME, GLOBEX, INITECH, repo_for, run
 
 from fleet_copilot.agent.compose import Composition, compose, representative
-from fleet_copilot.agent.records import ToolRecord
+from fleet_copilot.agent.records import FindingRecord, ToolRecord
 from fleet_copilot.agent.texts import NOT_FOUND, PARTIAL_NOT_FOUND, TOOL_FAILED, unresolved_note
 from fleet_copilot.contracts import AnswerEnvelope
 from fleet_copilot.evidence import EvidenceRef
-from fleet_copilot.repository import dataset_as_of
+from fleet_copilot.repository import EvidenceValue, dataset_as_of
 
 
 def composed(real_db_path, real_conn, calls, tenant=ACME) -> Composition:
@@ -410,3 +410,219 @@ def test_an_all_not_found_request_is_still_a_denial_without_the_partial_note(
         [("device_history", {"device_id": "NOPE", "metric": "memory_used_pct"})],
     )
     assert (comp.outcome, comp.notes) == ("denied", [])
+
+
+# ---- synthetic records for paths the real dataset cannot reach ------------------------------
+
+TS = "2026-06-12T08:39:00Z"
+
+
+def _ref(device, path):
+    return f"{ACME}/{device}@{TS}#{path}"
+
+
+def _resolve(parsed):
+    if parsed.path == "disk":
+        value = {"size_bytes": 512 * 1024**3, "available_bytes": 10 * 1024**3}
+    else:
+        value = {"check_id": "screen_lock", "status": "fail", "severity": "low"}
+    return EvidenceValue(ref=str(parsed), collected_at=parsed.collected_at, value=value)
+
+
+def _low_disk_record(*devices, **overrides):
+    findings = [
+        FindingRecord(
+            device_id=d,
+            hostname=f"host-{d}",
+            values={"free_pct": 2.0, "available_bytes": 10 * 1024**3, "size_bytes": 512 * 1024**3},
+            refs=[_ref(d, "disk")],
+        )
+        for d in devices
+    ]
+    base = {
+        "tool": "low_disk_devices",
+        "findings": findings,
+        "population": 10,
+        "rule": "free < 10%",
+    }
+    return ToolRecord(**{**base, **overrides})
+
+
+def _compliance_record(*rows, population=10):
+    """`rows` are (device, severity) pairs that all fail screen_lock."""
+    findings = [
+        FindingRecord(
+            device_id=d,
+            hostname=f"host-{d}",
+            values={"failing": [{"check_id": "screen_lock", "severity": sev}]},
+            refs=[_ref(d, "compliance[screen_lock]")],
+        )
+        for d, sev in rows
+    ]
+    return ToolRecord(
+        tool="compliance_failures_now",
+        findings=findings,
+        population=population,
+        rule="failing checks",
+    )
+
+
+def _compose(*records):
+    return compose(list(records), resolve=_resolve)
+
+
+def test_facts_expose_only_code_written_text(real_db_path, real_conn):
+    comp = composed(real_db_path, real_conn, [("low_disk_devices", {})])
+    facts = comp.facts()
+    assert set(facts) == {"claims", "notes", "population", "rules"}
+    assert facts["claims"] == [c.text for c in comp.claims] and facts["claims"]
+    assert facts["notes"] == comp.notes
+    assert facts["population"] == comp.coverage.population == 10
+    assert facts["rules"] == comp.rules and facts["rules"]
+
+
+def test_facts_of_a_denial_are_empty():
+    denied = compose([ToolRecord(tool="trend", error="not_found")], resolve=_resolve)
+    assert denied.facts() == {"claims": [], "notes": [], "population": None, "rules": []}
+
+
+@pytest.mark.parametrize(
+    "comp",
+    [
+        Composition("denied", "not_found", fallback_headline=NOT_FOUND),
+        Composition("tool_error", "tool_failure", fallback_headline=TOOL_FAILED),
+        Composition("unsupported", "off_topic", fallback_headline="x"),
+    ],
+)
+def test_an_explanation_is_dropped_when_the_outcome_cannot_carry_one(comp, real_conn):
+    envelope = as_envelope(comp, real_conn, explanation="free text")
+    assert envelope.explanation is None
+
+
+def test_an_explanation_is_kept_on_an_answer_and_on_empty_results(real_db_path, real_conn):
+    answer = composed(real_db_path, real_conn, [("low_disk_devices", {})])
+    assert as_envelope(answer, real_conn, explanation="x").explanation == "x"
+    empty = composed(real_db_path, real_conn, [("compliance_failures_now", {"severity": "high"})])
+    assert empty.outcome == "no_match"
+    assert as_envelope(empty, real_conn, explanation="x").explanation == "x"
+
+
+def test_stale_devices_reach_coverage_and_a_note():
+    comp = _compose(_low_disk_record("D1", "D2", stale=["D1"]))
+    assert comp.coverage.stale == ["D1"]
+    note = next(n for n in comp.notes if "had readings older than 48 hours" in n)
+    assert note.startswith("1 device had readings") and "D1" in note
+    many = _compose(_low_disk_record("D1", "D2", stale=["D2", "D1"]))
+    assert many.coverage.stale == ["D1", "D2"]
+    assert any(n.startswith("2 devices had readings older than 48 hours") for n in many.notes)
+
+
+def test_stale_devices_merge_across_records():
+    comp = _compose(
+        _low_disk_record("D1", stale=["D1"]),
+        _low_disk_record("D2", stale=["D1", "D2"]),
+    )
+    assert comp.coverage.stale == ["D1", "D2"]
+
+
+def test_missing_latest_reaches_coverage_and_a_note_with_agreeing_plurals():
+    one = _compose(_low_disk_record("D1", missing_latest=["D1"]))
+    assert one.coverage.missing_latest == ["D1"]
+    note = next(n for n in one.notes if "latest snapshot" in n)
+    assert note.startswith("1 laptop had no battery reading in the latest snapshot")
+    assert "D1" in note
+    two = _compose(_low_disk_record("D1", "D2", missing_latest=["D2", "D1"]))
+    assert two.coverage.missing_latest == ["D1", "D2"]
+    assert any(n.startswith("2 laptops had no battery reading") for n in two.notes)
+
+
+def _thin(population, excluded):
+    return ToolRecord(
+        tool="trend",
+        args={"metric": "memory", "window_days": 1},
+        population=population,
+        rule="memory trend",
+        excluded={"insufficient_history": excluded},
+    )
+
+
+def test_insufficient_data_needs_every_device_excluded_for_thin_history():
+    every = _compose(_thin(2, ["A", "B"]))
+    assert (every.outcome, every.reason_code) == ("insufficient_data", "insufficient_history")
+    more = _compose(_thin(2, ["A", "B", "C"]))
+    assert more.outcome == "insufficient_data"
+    fewer = _compose(_thin(3, ["A", "B"]))
+    assert (fewer.outcome, fewer.reason_code) == ("no_match", "no_matching_records")
+    assert fewer.coverage.excluded == {"insufficient_history": ["A", "B"]}
+
+
+def test_an_empty_population_is_no_match_not_insufficient_data():
+    comp = _compose(_thin(0, ["A"]))
+    assert (comp.outcome, comp.reason_code) == ("no_match", "no_matching_records")
+    assert _compose(_thin(0, [])).outcome == "no_match"
+
+
+def test_every_usable_record_must_be_thin_for_insufficient_data():
+    plain = ToolRecord(tool="trend", args={"metric": "memory"}, population=4, rule="r")
+    assert _compose(_thin(2, ["A", "B"]), plain).outcome == "no_match"
+
+
+def test_one_severity_is_reported_as_is():
+    comp = _compose(_compliance_record(("D1", "medium"), ("D2", "medium")))
+    assert "Failing screen_lock (medium severity)" in comp.claims[0].text
+
+
+def test_differing_severities_for_one_check_are_all_reported():
+    comp = _compose(_compliance_record(("D1", "medium"), ("D2", "low"), ("D3", "medium")))
+    text = comp.claims[0].text
+    assert "Failing screen_lock (low/medium severity)" in text
+    assert comp.claims[0].device_ids == ["D1", "D2", "D3"]
+
+
+def test_scope_calculation_counts_distinct_devices_not_claim_counts(real_db_path, real_conn):
+    comp = composed(
+        real_db_path,
+        real_conn,
+        [
+            ("low_disk_devices", {"device_ids": ["MT7PJB7N5LRE", "8NM23J95R5I6"]}),
+            ("macos_version_check", {"device_ids": ["MT7PJB7N5LRE"]}),
+        ],
+    )
+    assert sum(c.count for c in comp.claims) == 3
+    assert as_envelope(comp, real_conn).scope.calculation == (
+        "2 distinct devices across 2 claims; at most 6 supporting readings are cited per device"
+    )
+
+
+def test_scope_calculation_uses_singular_forms(real_db_path, real_conn):
+    comp = composed(
+        real_db_path, real_conn, [("low_disk_devices", {"device_ids": ["MT7PJB7N5LRE"]})]
+    )
+    assert as_envelope(comp, real_conn).scope.calculation == (
+        "1 distinct device across 1 claim; at most 6 supporting readings are cited per device"
+    )
+
+
+def test_scope_calculation_is_absent_without_claims(real_db_path, real_conn):
+    comp = composed(real_db_path, real_conn, [("compliance_failures_now", {"severity": "high"})])
+    assert as_envelope(comp, real_conn).scope.calculation is None
+
+
+def test_entity_list_ids_are_namespaced_by_the_trace_id(real_db_path, real_conn):
+    comp = composed(
+        real_db_path,
+        real_conn,
+        [("low_disk_devices", {}), ("compliance_failures_now", {})],
+    )
+    raw = [e.list_id for e in comp.entity_lists]
+    first = comp.to_envelope(company_id=ACME, as_of=dataset_as_of(real_conn), trace_id="turn-1")
+    second = comp.to_envelope(company_id=ACME, as_of=dataset_as_of(real_conn), trace_id="turn-2")
+    ids_1 = [e.list_id for e in first.entity_lists]
+    ids_2 = [e.list_id for e in second.entity_lists]
+    assert len(ids_1) == len(raw) >= 2
+    assert not set(ids_1) & set(ids_2)
+    assert all(i.startswith("turn-1/") for i in ids_1)
+    assert all(i.startswith("turn-2/") for i in ids_2)
+    assert ids_1 == [f"turn-1/{r}" for r in raw]
+    assert [e.list_id for e in comp.entity_lists] == raw  # the composition itself is untouched
+    assert [e.items for e in first.entity_lists] == [e.items for e in comp.entity_lists]
