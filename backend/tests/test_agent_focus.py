@@ -112,6 +112,27 @@ def test_named_devices_match_ids_and_hostnames_case_insensitively():
     ]
 
 
+def test_a_named_device_id_typed_in_lower_case_resolves_to_the_tenants_device():
+    for typed in ("c", "  c  ", "C"):
+        assert ids(resolve_reference(Reference(kind="named", device_ref=typed), [], DEVICES)) == [
+            "C"
+        ]
+
+
+def test_a_real_tenant_device_id_in_lower_case_resolves_and_a_foreign_one_does_not(
+    real_conn,
+):
+    devices = repo_for(real_conn, ACME).list_devices()
+    assert ids(
+        resolve_reference(Reference(kind="named", device_ref="mt7pjb7n5lre"), [], devices)
+    ) == ["MT7PJB7N5LRE"]
+    for foreign in ("jrzsgxvmke6m", "JRZSGXVMKE6M", "nope"):
+        assert (
+            resolve_reference(Reference(kind="named", device_ref=foreign), [], devices)
+            == NotFoundRef()
+        )
+
+
 def test_unknown_and_foreign_named_devices_resolve_identically():
     foreign = resolve_reference(
         Reference(kind="named", device_ref="JRZSGXVMKE6M"), [LOW_DISK], DEVICES

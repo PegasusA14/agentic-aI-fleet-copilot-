@@ -64,9 +64,10 @@ def resolve_reference(
     in_tenant = {d.device_id for d in tenant_devices}
 
     if reference.kind == "named":
-        wanted = (reference.device_ref or "").strip()
+        wanted = (reference.device_ref or "").strip().lower()
         for device in tenant_devices:
-            if device.device_id == wanted or device.hostname.lower() == wanted.lower():
+            # Device ids are upper-case but people type them either way; only tenant devices are searched.
+            if device.device_id.lower() == wanted or device.hostname.lower() == wanted:
                 return Resolved((device.device_id,), None)
         return NotFoundRef()
 
