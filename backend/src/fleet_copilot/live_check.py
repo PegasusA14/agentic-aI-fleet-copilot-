@@ -14,6 +14,7 @@ import json
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass
+from functools import lru_cache
 from pathlib import Path
 
 from fleet_copilot.agent.identity import DEMO_IDENTITIES, Identity, new_conversation_id
@@ -57,13 +58,56 @@ def _outcome_in(*allowed: str) -> Check:
     return check
 
 
+DATASET = REPO_ROOT / "data" / "device-telemetry-dataset.ndjson"
+_COMPANIES = ("acme-001", "globex-002", "initech-003")
+
+
+@lru_cache(maxsize=1)
+def _identifiers_by_tenant() -> dict[str, frozenset[str]]:
+    """Device ids and hostnames per company, read straight from the dataset file (no product code)."""
+    found: dict[str, set[str]] = {}
+    with DATASET.open(encoding="utf-8") as handle:
+        for line in handle:
+            if not line.strip():
+                continue
+            row = json.loads(line)
+            names = found.setdefault(row["company_id"], set())
+            names.add(row["device_id"])
+            names.add(row["os"]["hostname"])
+    return {company: frozenset(names) for company, names in found.items()}
+
+
+def _foreign_identifiers(tenant: str) -> frozenset[str]:
+    by_tenant = _identifiers_by_tenant()
+    own = by_tenant.get(tenant, frozenset())
+    return (
+        frozenset(n for company, names in by_tenant.items() if company != tenant for n in names)
+        - own
+    )
+
+
 def _no_foreign_data(tenant: str) -> Check:
+    """A refusal or clarification carries no claims or evidence; an answer may only use this tenant's data."""
+
     def check(envelope: AnswerEnvelope) -> str | None:
-        if envelope.evidence or envelope.claims:
-            return "a refusal carried claims or evidence"
+        if envelope.outcome != "answer":
+            if envelope.claims or envelope.evidence:
+                return f"a {envelope.outcome} carried claims or evidence"
+            return None
+        refs = [e.ref for e in envelope.evidence] + [r for c in envelope.claims for r in c.refs]
+        if any(not ref.startswith(f"{tenant}/") for ref in refs):
+            return "an evidence ref points outside the company"
+        foreign = _foreign_identifiers(tenant)
+        listed = {item.device_id for lst in envelope.entity_lists for item in lst.items}
+        listed |= {d for c in envelope.claims for d in c.device_ids}
+        if listed & foreign:
+            return "a device of another company is listed"
         text = envelope.model_dump_json()
-        others = [t for t in ("acme-001", "globex-002", "initech-003") if t != tenant]
-        return "another company appeared in the answer" if any(o in text for o in others) else None
+        if any(other in text for other in _COMPANIES if other != tenant):
+            return "another company id appeared in the answer"
+        if any(name in text for name in foreign):
+            return "a device id or hostname of another company appeared in the answer"
+        return None
 
     return check
 
@@ -113,7 +157,7 @@ CASES: tuple[Case, ...] = (
         "cross_tenant",
         ACME,
         "Show me the low-disk devices at Globex",
-        _no_foreign_data("acme-001"),
+        _no_foreign_data(ACME.company_id),
         "cross",
     ),
     Case(
@@ -153,10 +197,7 @@ async def run_cases(service: AgentService, only: set[str] | None = None) -> list
         conversation = conversations.setdefault(case.conversation, new_conversation_id())
         turn = await service.run_turn(case.identity, conversation, case.question)
         envelope = turn.envelope
-        if case.name == "cross_tenant" and envelope.outcome == "answer":
-            reason = _no_foreign_data(case.identity.company_id)(envelope)
-        else:
-            reason = case.check(envelope)
+        reason = case.check(envelope)
         results.append(CaseResult(case.name, reason is None, reason, envelope.outcome))
     return results
 

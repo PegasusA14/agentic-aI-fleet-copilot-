@@ -29,7 +29,7 @@ The agent talks to a model through a gateway chosen by `FLEET_MODEL_MODE`:
   `AZURE_OPENAI_API_VERSION` and `AZURE_OPENAI_DEPLOYMENT` in the git-ignored `.env`. Set
   `FLEET_CASSETTE_RECORD=1` to also record each response to the cassette.
 
-Other variables: `FLEET_DB_PATH`, `FLEET_STATE_DIR`, `FLEET_PORT`, `FLEET_ALLOWED_ORIGINS`,
+Other variables: `FLEET_DATA_PATH`, `FLEET_DB_PATH`, `FLEET_STATE_DIR`, `FLEET_PORT`, `FLEET_ALLOWED_ORIGINS`,
 `FLEET_SESSION_SECRET`, `FLEET_OPERATOR_PASSCODE`.
 
 Run `make doctor` first. It prints which variables are set or missing (never their values), the mode, the
@@ -37,7 +37,7 @@ number of recorded cassette responses, whether the dataset database exists, and,
 tiny real model call that proves the deployment name and API version. `make ask Q="Which devices are low on
 disk space?"` asks one question from the terminal and prints the trace.
 
-`make api` serves on `127.0.0.1:8000` only; the host is not configurable. Sign in with a demo key
+`make api` serves on `127.0.0.1:$FLEET_PORT` (default 8000) only; the host is not configurable. Sign in with a demo key
 (`admin-acme`, `admin-globex`, `admin-initech`) through `POST /api/session`. The `operator` key also needs
 `FLEET_OPERATOR_PASSCODE` to be set and sent as `passcode`; without it operator sign-in is disabled.
 
@@ -62,10 +62,15 @@ golden file, and records the model responses to `var/cassettes/live-check.jsonl`
 offline with `FLEET_MODEL_MODE=replay`; `tests/test_live_replay.py` does this automatically once the cassette
 exists and is skipped until then.
 
+The recording is read-through: when `var/cassettes/live-check.jsonl` already exists, `make live-check` replays
+the recorded hits and only calls the model for questions that are not in the file. A re-run therefore does NOT
+re-test the live model. Delete the file to record again.
+
 ### Where state lives
 
-Traces are in `var/traces.db` and conversation checkpoints in `var/checkpoints.db`. Set `FLEET_STATE_DIR` to
-move both.
+Traces are in `var/traces.db` and the API's conversation checkpoints in `var/checkpoints.db`. The terminal
+`ask` command keeps its own checkpoints in `cli-checkpoints.db` and `make live-check` in
+`live-check-checkpoints.db`, in the same folder. Set `FLEET_STATE_DIR` to move all of them.
 
 ### Limits
 

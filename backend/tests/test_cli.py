@@ -1,11 +1,14 @@
 import json
+from pathlib import Path
 
 from graph_support import answer_plan, explanation
+from pydantic import SecretStr
 
 from fleet_copilot import cli
+from fleet_copilot.agent.azure import ModelUnavailable
 from fleet_copilot.agent.cassette import CassetteGateway
 from fleet_copilot.agent.llm import ScriptedLLM, final_message, tool_calls_message
-from fleet_copilot.config import Settings
+from fleet_copilot.config import AzureSettings, ModelSettings, Settings
 from fleet_copilot.data.cli import main as load_data_main
 
 
@@ -86,3 +89,66 @@ def test_ask_in_replay_mode_with_an_empty_cassette_fails_politely(
     code = run(["ask", "low disk?"], monkeypatch, tmp_path, real_db_path, gateway=gateway)
     out = capsys.readouterr().out
     assert code == 0 and "[tool_error]" in out
+
+
+def test_ask_with_unusable_settings_prints_variable_names_and_exits_2(
+    monkeypatch, tmp_path, real_db_path, capsys
+):
+    monkeypatch.setenv("FLEET_MODEL_MODE", "live")
+    monkeypatch.setenv("AZURE_OPENAI_API_KEY", "sk-super-secret-value")
+    code = run(["ask", "low disk?"], monkeypatch, tmp_path, real_db_path)
+    captured = capsys.readouterr()
+    assert code == 2
+    assert "AZURE_OPENAI_ENDPOINT" in captured.err and "Run make doctor." in captured.err
+    assert "sk-super-secret-value" not in captured.out + captured.err
+
+
+def test_doctor_does_not_echo_an_invalid_mode(monkeypatch, tmp_path, real_db_path, capsys):
+    monkeypatch.setenv("FLEET_MODEL_MODE", "sk-pasted-into-the-wrong-variable")
+    code = run(["doctor"], monkeypatch, tmp_path, real_db_path)
+    out = capsys.readouterr().out
+    assert code == 1
+    assert "mode: invalid" in out and "sk-pasted" not in out
+
+
+def azure_models():
+    return ModelSettings(
+        mode="live",
+        azure=AzureSettings(
+            api_key=SecretStr("sk-probe-secret"),
+            endpoint="https://hidden-resource.openai.azure.com/",
+            api_version="2024-01-01",
+            deployment="d",
+        ),
+        cassette_path=Path("unused.jsonl"),
+        record=True,
+        call_timeout_s=5.0,
+    )
+
+
+async def test_the_probe_never_records_a_cassette(monkeypatch):
+    seen = []
+
+    def fake_build(settings):
+        seen.append(settings)
+        return ScriptedLLM(explains=[explanation()])
+
+    monkeypatch.setattr(cli, "build_gateway", fake_build)
+    assert await cli._probe(azure_models()) == "ok"
+    assert [s.record for s in seen] == [False]
+
+
+async def test_the_probe_reports_only_type_names(monkeypatch):
+    class Broken:
+        async def explain(self, messages):
+            raise ModelUnavailable("RateLimitError")
+
+    monkeypatch.setattr(cli, "build_gateway", lambda settings: Broken())
+    assert await cli._probe(azure_models()) == "failed (ModelUnavailable: RateLimitError)"
+
+    def explode(settings):
+        raise RuntimeError("sk-probe-secret in the message")
+
+    monkeypatch.setattr(cli, "build_gateway", explode)
+    outcome = await cli._probe(azure_models())
+    assert outcome == "failed (RuntimeError)" and "sk-probe-secret" not in outcome

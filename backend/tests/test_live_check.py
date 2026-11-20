@@ -41,3 +41,77 @@ async def test_a_wrong_entity_set_fails_with_a_reason(real_db_path):
 async def test_unknown_case_names_are_refused(real_db_path):
     with pytest.raises(ValueError):
         await live_check.run_cases(make_service(real_db_path, ScriptedLLM()), only={"nope"})
+
+
+async def own_answer_envelope(real_db_path):
+    llm = ScriptedLLM(
+        plans=[answer_plan()],
+        acts=[tool_calls_message(("low_disk_devices", {})), final_message()],
+        explains=[explanation()],
+    )
+    turn = await make_service(real_db_path, llm).run_turn(
+        live_check.ACME, "c1", "Show me the low-disk devices at Globex"
+    )
+    assert turn.envelope.outcome == "answer"
+    return turn.envelope
+
+
+def globex_device() -> str:
+    return sorted(n for n in live_check._identifiers_by_tenant()["globex-002"] if "-" not in n)[0]
+
+
+async def test_an_own_tenant_answer_passes_the_cross_tenant_check(real_db_path):
+    check = live_check._no_foreign_data("acme-001")
+    assert check(await own_answer_envelope(real_db_path)) is None
+
+
+async def test_an_answer_with_a_foreign_ref_fails(real_db_path):
+    envelope = await own_answer_envelope(real_db_path)
+    swapped = [
+        item.model_copy(update={"ref": item.ref.replace("acme-001/", "globex-002/", 1)})
+        for item in envelope.evidence
+    ]
+    reason = live_check._no_foreign_data("acme-001")(
+        envelope.model_copy(update={"evidence": swapped})
+    )
+    assert reason and "outside the company" in reason
+
+
+async def test_an_answer_listing_a_foreign_device_fails(real_db_path):
+    envelope = await own_answer_envelope(real_db_path)
+    foreign = globex_device()
+    first = envelope.entity_lists[0]
+    items = [first.items[0].model_copy(update={"device_id": foreign}), *first.items[1:]]
+    lists = [first.model_copy(update={"items": items}), *envelope.entity_lists[1:]]
+    reason = live_check._no_foreign_data("acme-001")(
+        envelope.model_copy(update={"entity_lists": lists})
+    )
+    assert reason and "another company" in reason
+
+
+async def test_a_foreign_hostname_in_the_prose_fails(real_db_path):
+    envelope = await own_answer_envelope(real_db_path)
+    hostname = next(n for n in live_check._identifiers_by_tenant()["globex-002"] if "-" in n)
+    reason = live_check._no_foreign_data("acme-001")(
+        envelope.model_copy(update={"headline": f"Check {hostname} first"})
+    )
+    assert reason
+
+
+async def test_a_refusal_that_carries_evidence_fails(real_db_path):
+    envelope = await own_answer_envelope(real_db_path)
+    refusal = envelope.model_copy(update={"outcome": "unsupported"})
+    reason = live_check._no_foreign_data("acme-001")(refusal)
+    assert reason and "unsupported" in reason
+
+
+def test_live_check_main_prints_only_the_exception_type(monkeypatch, capsys):
+    async def boom(only, cassette):
+        raise RuntimeError("sk-sentinel-secret-value")
+
+    monkeypatch.setattr(live_check, "load_env", lambda: None)
+    monkeypatch.setattr(live_check, "_main_async", boom)
+    assert live_check.main([]) == 2
+    captured = capsys.readouterr()
+    assert "RuntimeError" in captured.err
+    assert "sk-sentinel-secret-value" not in captured.out + captured.err
