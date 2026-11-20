@@ -244,7 +244,9 @@
       "kind": "plan",
       "latency_ms": null,
       "seq": 1,
-      "summary": "List devices with any failing compliance check at the latest snapshot."
+      "summary": "List devices with any failing compliance check at the latest snapshot.",
+      "tool": null,
+      "trace_id": "replay-acme-001-compliance_failures"
     },
     {
       "data": {
@@ -254,7 +256,9 @@
       "kind": "tool_call",
       "latency_ms": null,
       "seq": 2,
-      "summary": "Call compliance_failures_now"
+      "summary": "Call compliance_failures_now",
+      "tool": null,
+      "trace_id": "replay-acme-001-compliance_failures"
     },
     {
       "data": {
@@ -267,7 +271,9 @@
       "kind": "tool_result",
       "latency_ms": null,
       "seq": 3,
-      "summary": "compliance_failures_now matched 10 of 10 devices (0 stale, 0 without a latest reading)"
+      "summary": "compliance_failures_now matched 10 of 10 devices (0 stale, 0 without a latest reading)",
+      "tool": null,
+      "trace_id": "replay-acme-001-compliance_failures"
     },
     {
       "data": {
@@ -277,7 +283,9 @@
       "kind": "verify",
       "latency_ms": null,
       "seq": 4,
-      "summary": "Claims, counts and evidence were written by code from the tool results."
+      "summary": "Claims, counts and evidence were written by code from the tool results.",
+      "tool": null,
+      "trace_id": "replay-acme-001-compliance_failures"
     },
     {
       "data": {
@@ -286,7 +294,9 @@
       "kind": "respond",
       "latency_ms": null,
       "seq": 5,
-      "summary": "Responded with answer."
+      "summary": "Responded with answer.",
+      "tool": null,
+      "trace_id": "replay-acme-001-compliance_failures"
     }
   ]
 }

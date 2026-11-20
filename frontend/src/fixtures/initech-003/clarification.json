@@ -47,7 +47,9 @@
       "kind": "plan",
       "latency_ms": null,
       "seq": 1,
-      "summary": "The question names no check, so ask which one to run."
+      "summary": "The question names no check, so ask which one to run.",
+      "tool": null,
+      "trace_id": "replay-initech-003-clarification"
     },
     {
       "data": {
@@ -56,7 +58,9 @@
       "kind": "respond",
       "latency_ms": null,
       "seq": 2,
-      "summary": "Responded with clarification."
+      "summary": "Responded with clarification.",
+      "tool": null,
+      "trace_id": "replay-initech-003-clarification"
     }
   ]
 }

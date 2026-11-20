@@ -17,9 +17,14 @@ interface EvidenceDrawerProps {
 }
 
 const KIND_WORD: Record<TraceEvent["kind"], string> = {
+  scope: "Scope",
   plan: "Plan",
+  reference: "Reference",
   tool_call: "Tool call",
   tool_result: "Tool result",
+  retry: "Retry",
+  compose: "Compose",
+  explain: "Explain",
   verify: "Check",
   respond: "Response",
   error: "Error",

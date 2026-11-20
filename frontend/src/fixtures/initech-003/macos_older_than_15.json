@@ -117,7 +117,9 @@
       "kind": "plan",
       "latency_ms": null,
       "seq": 1,
-      "summary": "List macOS devices below version 15; Windows devices are out of scope."
+      "summary": "List macOS devices below version 15; Windows devices are out of scope.",
+      "tool": null,
+      "trace_id": "replay-initech-003-macos_older_than_15"
     },
     {
       "data": {
@@ -127,7 +129,9 @@
       "kind": "tool_call",
       "latency_ms": null,
       "seq": 2,
-      "summary": "Call macos_version_check"
+      "summary": "Call macos_version_check",
+      "tool": null,
+      "trace_id": "replay-initech-003-macos_older_than_15"
     },
     {
       "data": {
@@ -142,7 +146,9 @@
       "kind": "tool_result",
       "latency_ms": null,
       "seq": 3,
-      "summary": "macos_version_check matched 4 of 5 devices (0 stale, 0 without a latest reading)"
+      "summary": "macos_version_check matched 4 of 5 devices (0 stale, 0 without a latest reading)",
+      "tool": null,
+      "trace_id": "replay-initech-003-macos_older_than_15"
     },
     {
       "data": {
@@ -152,7 +158,9 @@
       "kind": "verify",
       "latency_ms": null,
       "seq": 4,
-      "summary": "Claims, counts and evidence were written by code from the tool results."
+      "summary": "Claims, counts and evidence were written by code from the tool results.",
+      "tool": null,
+      "trace_id": "replay-initech-003-macos_older_than_15"
     },
     {
       "data": {
@@ -161,7 +169,9 @@
       "kind": "respond",
       "latency_ms": null,
       "seq": 5,
-      "summary": "Responded with answer."
+      "summary": "Responded with answer.",
+      "tool": null,
+      "trace_id": "replay-initech-003-macos_older_than_15"
     }
   ]
 }

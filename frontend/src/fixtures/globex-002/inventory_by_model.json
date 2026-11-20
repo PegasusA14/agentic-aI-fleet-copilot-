@@ -121,7 +121,9 @@
       "kind": "plan",
       "latency_ms": null,
       "seq": 1,
-      "summary": "Find macOS devices and group them by model."
+      "summary": "Find macOS devices and group them by model.",
+      "tool": null,
+      "trace_id": "replay-globex-002-inventory_by_model"
     },
     {
       "data": {
@@ -134,7 +136,9 @@
       "kind": "tool_call",
       "latency_ms": null,
       "seq": 2,
-      "summary": "Call find_devices"
+      "summary": "Call find_devices",
+      "tool": null,
+      "trace_id": "replay-globex-002-inventory_by_model"
     },
     {
       "data": {
@@ -147,7 +151,9 @@
       "kind": "tool_result",
       "latency_ms": null,
       "seq": 3,
-      "summary": "find_devices matched 5 of 8 devices (0 stale, 0 without a latest reading)"
+      "summary": "find_devices matched 5 of 8 devices (0 stale, 0 without a latest reading)",
+      "tool": null,
+      "trace_id": "replay-globex-002-inventory_by_model"
     },
     {
       "data": {
@@ -157,7 +163,9 @@
       "kind": "verify",
       "latency_ms": null,
       "seq": 4,
-      "summary": "Claims, counts and evidence were written by code from the tool results."
+      "summary": "Claims, counts and evidence were written by code from the tool results.",
+      "tool": null,
+      "trace_id": "replay-globex-002-inventory_by_model"
     },
     {
       "data": {
@@ -166,7 +174,9 @@
       "kind": "respond",
       "latency_ms": null,
       "seq": 5,
-      "summary": "Responded with answer."
+      "summary": "Responded with answer.",
+      "tool": null,
+      "trace_id": "replay-globex-002-inventory_by_model"
     }
   ]
 }
