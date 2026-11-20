@@ -1,3 +1,4 @@
+import dataclasses
 from datetime import UTC, datetime
 
 import pytest
@@ -8,6 +9,7 @@ from fleet_copilot.agent.compose import Composition, compose
 from fleet_copilot.agent.verify import (
     allowed_numbers,
     check_prose,
+    composition_of,
     known_ids,
     known_labels,
     number_tokens,
@@ -50,6 +52,14 @@ def test_ids_and_hostnames_are_not_read_as_numbers():
         ("go to https://evil.example/x", ["markup"]),
         ("[click](http://x)", ["markup"]),
         ("`code`", ["markup"]),
+        ("see www.evil.example", ["markup"]),
+        ("go to evil.example/login", ["markup"]),
+        ("write to mailto:a@b.c", ["markup"]),
+        ("run javascript:void", ["markup"]),
+        ("open data:text", ["markup"]),
+        ("this is **bold**", ["markup"]),
+        ("&lt;b&gt; is escaped", ["markup"]),
+        ("see [the note]", ["markup"]),
         ("ZZZ9QQQ88XYZ is low", ["unknown_id"]),
         ("acme-macbook-9 is low", ["unknown_host"]),
         ("37 devices", ["number:37"]),
@@ -58,6 +68,37 @@ def test_ids_and_hostnames_are_not_read_as_numbers():
 )
 def test_check_prose_reports_each_problem_class(text, expected):
     assert check_prose(text, allowed={"2"}, ids=set(), labels=set(), max_chars=100) == expected
+
+
+def test_check_prose_reports_unicode_tricks_as_the_numbers_they_spell():
+    def check(text: str, allowed: set[str]) -> list[str]:
+        return check_prose(text, allowed=allowed, ids=set(), labels=set(), max_chars=100)
+
+    assert check("\u2460 device", {"2"}) == ["number:1"]  # circled digit one
+    assert check("fi\u200bfty devices", {"2"}) == ["number:50"]  # zero-width split
+    assert check("fi\u2060fty\ufeff devices", {"2"}) == ["number:50"]
+    assert check("\uff12 devices", {"2"}) == []  # fullwidth two equals an allowed 2
+    assert check("\uff13\uff17 devices", {"2"}) == ["number:37"]
+    assert check("twice as many", set()) == ["number:2"]
+    assert check("twice as many", {"2"}) == []
+    assert check("a dozen devices", {"2"}) == ["number:12"]
+    assert check("half of them", {"2"}) == ["number:0.5"]
+
+
+def test_benign_prose_still_passes():
+    def check(text: str) -> list[str]:
+        return check_prose(
+            text,
+            allowed={"2", "10"},
+            ids={"MT7PJB7N5LRE"},
+            labels={"acme-macbook-2"},
+            max_chars=200,
+        )
+
+    assert check("Note: two devices are below the 10% threshold.") == []
+    assert check("Two are affected: MT7PJB7N5LRE and acme-macbook-2.") == []
+    assert check("Seen at 10:2 is not a link, e.g. a ratio.") == []
+    assert check("It is low (about two devices); see the list below.") == []
 
 
 @pytest.fixture
@@ -119,6 +160,17 @@ def test_no_model_prose_means_the_code_headline_and_no_explanation(low_disk):
     )
 
 
+def test_a_number_written_with_a_thousands_separator_is_accepted_by_value(low_disk):
+    comp, as_of = low_disk
+    with_cycles = dataclasses.replace(comp, notes=[*comp.notes, "Battery cycles: 1157"])
+    verdict = verify_prose(with_cycles, as_of, headline="Up to 1,157 cycles seen", explanation=None)
+    assert verdict.problems == ()
+    assert verdict.headline == "Up to 1,157 cycles seen"
+    assert verify_prose(comp, as_of, headline="Up to 1,157 cycles", explanation=None).problems == (
+        "headline:number",
+    )
+
+
 def test_trace_problem_codes_never_contain_the_offending_text(low_disk):
     comp, as_of = low_disk
     verdict = verify_prose(comp, as_of, headline="ZZZ9QQQ88XYZ has 4242 problems", explanation=None)
@@ -145,7 +197,9 @@ def test_clarification_text_must_be_plain(low_disk):
     )
     assert verify_clarification("Do you mean the 3 laptops?", []) is None
     assert verify_clarification("Click <b>here</b>", []) is None
-    assert verify_clarification("Which one?", ["see https://x.example"]) is None
+    assert verify_clarification("Which check?", ["see https://x.example"]) is None
+    assert verify_clarification("Which check?", ["www.evil.example"]) is None
+    assert verify_clarification("Which check?", ["screen_lock"]) is not None
     assert verify_clarification("Is it MT7PJB7N5LRE?", []) is None
 
 
@@ -174,6 +228,31 @@ def test_real_evidence_verifies_for_every_tool(real_db_path, real_conn):
         assert verify_evidence(envelope_for(comp, dataset_as_of(real_conn)), repo.resolve) == [], (
             name
         )
+
+
+def test_composition_of_round_trips_an_envelope(low_disk):
+    comp, as_of = low_disk
+    envelope = envelope_for(comp, as_of)
+    rebuilt = composition_of(envelope)
+    assert rebuilt.fallback_headline == envelope.headline
+    assert (rebuilt.claims, rebuilt.evidence) == (comp.claims, comp.evidence)
+    # to_envelope namespaces list ids with the trace id, so compare what the user sees.
+    assert [(el.title, el.items) for el in rebuilt.entity_lists] == [
+        (el.title, el.items) for el in comp.entity_lists
+    ]
+    assert rebuilt.notes == comp.notes
+    assert (rebuilt.coverage, rebuilt.rules) == (comp.coverage, comp.rules)
+    assert (rebuilt.outcome, rebuilt.reason_code) == (comp.outcome, comp.reason_code)
+    assert known_ids(rebuilt) == known_ids(comp) and known_labels(rebuilt) == known_labels(comp)
+    assert allowed_numbers(rebuilt, as_of) >= allowed_numbers(comp, as_of)
+
+
+def test_a_malformed_ref_is_caught(low_disk, real_conn):
+    comp, as_of = low_disk
+    envelope = envelope_for(comp, as_of)
+    junk = EvidenceItem(ref="not a ref", label="x", value="y")
+    tampered = envelope.model_copy(update={"evidence": [*envelope.evidence, junk]})
+    assert verify_evidence(tampered, repo_for(real_conn).resolve) == ["malformed_ref"]
 
 
 def test_tampered_evidence_text_is_caught(low_disk, real_conn):

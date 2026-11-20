@@ -11,6 +11,7 @@ Prose that fails is replaced by code-written text. Evidence that fails makes the
 from __future__ import annotations
 
 import re
+import unicodedata
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
@@ -25,8 +26,15 @@ _NUMBER = re.compile(r"\d[\d,]*(?:\.\d+)?")
 # Device ids look like MT7PJB7N5LRE (upper-case with at least one digit and one letter).
 _ID_LIKE = re.compile(r"\b(?=[A-Z0-9]*\d)(?=[A-Z0-9]*[A-Z])[A-Z0-9]{8,16}\b")
 _HOST_LIKE = re.compile(r"\b[a-z][a-z0-9]*-[a-z][a-z0-9]*-\d+\b")
-_MARKUP = re.compile(r"[<>`]|https?://|\]\(")
-_WORDS = {
+# Anything that could render as markup, a link or an address: angle brackets, backticks, asterisks,
+# square brackets, HTML entities, www. hosts, domain/path, and scheme: prefixes (mailto:, javascript:).
+# A colon followed by a space is ordinary prose and is not matched.
+_MARKUP = re.compile(
+    r"[<>`*\[\]]|&#?\w+;|https?://|\bwww\.|\b[a-z0-9-]+\.[a-z]{2,}/|\b[a-z][a-z0-9+.-]*:\S",
+    re.IGNORECASE,
+)
+_ZERO_WIDTH = dict.fromkeys(map(ord, "\u200b\u200c\u200d\u2060\ufeff"))
+_WORDS: dict[str, float] = {
     "zero": 0,
     "one": 1,
     "two": 2,
@@ -58,8 +66,16 @@ _WORDS = {
     "hundred": 100,
     "thousand": 1000,
     "million": 1_000_000,
+    "half": 0.5,
+    "dozen": 12,
+    "twice": 2,
 }
 _WORD = re.compile(r"\b(" + "|".join(_WORDS) + r")\b", re.IGNORECASE)
+
+
+def clean(text: str) -> str:
+    """Fold look-alike characters (circled or fullwidth digits) and drop zero-width ones."""
+    return unicodedata.normalize("NFKC", text).translate(_ZERO_WIDTH)
 
 
 def _norm(token: str) -> str:
@@ -73,8 +89,9 @@ def _norm(token: str) -> str:
 
 def number_tokens(text: str) -> set[str]:
     """Every number in `text`, digits and number-words alike, in canonical form."""
+    text = clean(text)
     found = {_norm(m) for m in _NUMBER.findall(text)}
-    found |= {str(_WORDS[w.lower()]) for w in _WORD.findall(text)}
+    found |= {_norm(str(_WORDS[w.lower()])) for w in _WORD.findall(text)}
     return found
 
 
@@ -130,6 +147,7 @@ def check_prose(
     text: str, *, allowed: set[str], ids: set[str], labels: set[str], max_chars: int
 ) -> list[str]:
     """Problems with `text`, as codes (`number:<n>` names the offending number)."""
+    text = clean(text)
     if not text.strip():
         return ["empty"]
     problems: list[str] = []
@@ -182,7 +200,7 @@ def verify_prose(
         if found:
             problems += [f"headline:{_code(p)}" for p in found]
         else:
-            final_headline = headline.strip()
+            final_headline = clean(headline).strip()
     final_explanation: str | None = None
     if explanation is not None and explanation.strip():
         found = check_prose(
@@ -195,7 +213,7 @@ def verify_prose(
         if found:
             problems += [f"explanation:{_code(p)}" for p in found]
         else:
-            final_explanation = explanation.strip()
+            final_explanation = clean(explanation).strip()
     return ProseVerdict(final_headline, final_explanation, tuple(dict.fromkeys(problems)))
 
 
@@ -205,7 +223,7 @@ def verify_clarification(question: str, options: list[str]) -> tuple[str, list[s
         problems = check_prose(text, allowed=set(), ids=set(), labels=set(), max_chars=300)
         if problems:
             return None
-    return question.strip(), [option.strip() for option in options]
+    return clean(question).strip(), [clean(option).strip() for option in options]
 
 
 def verify_evidence(envelope: AnswerEnvelope, resolve: Resolver) -> list[str]:
