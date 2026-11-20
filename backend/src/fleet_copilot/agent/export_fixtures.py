@@ -143,6 +143,14 @@ SCENARIOS: tuple[Scenario, ...] = (
         (("find_devices", {"os_name": "macOS", "group_by": "model"}),),
     ),
     Scenario(
+        "new_software",
+        "Has any new software been installed recently?",
+        ("software", "installed", "new apps"),
+        "tools",
+        "List apps newly installed in the last 30 days that are not in the common set.",
+        (("software_inventory", {"view": "new_installs"}),),
+    ),
+    Scenario(
         "device_not_found",
         "Show the disk history for device {foreign_id}",
         ("{foreign_id}",),

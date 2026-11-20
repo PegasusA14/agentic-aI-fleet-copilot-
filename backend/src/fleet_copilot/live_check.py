@@ -122,6 +122,11 @@ def _sustained_week() -> set[str]:
     }
 
 
+def _new_software() -> set[str]:
+    installs = _golden("acme-001")["software"]["new_installs"]["30"]
+    return {item["device_id"] for item in installs}
+
+
 @dataclass(frozen=True)
 class Case:
     name: str
@@ -152,6 +157,13 @@ CASES: tuple[Case, ...] = (
         "wich machines r almost outta disk space rite now",
         _entity_set(_low_disk),
         "typo",
+    ),
+    Case(
+        "new_software",
+        ACME,
+        "Has any new software been installed recently?",
+        _entity_set(_new_software),
+        "software",
     ),
     Case(
         "cross_tenant",

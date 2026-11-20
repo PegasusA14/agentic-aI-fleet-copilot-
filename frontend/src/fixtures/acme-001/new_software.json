@@ -1,0 +1,208 @@
+{
+  "envelope": {
+    "claims": [
+      {
+        "count": 1,
+        "device_ids": [
+          "7VP16KHV88LM"
+        ],
+        "refs": [
+          "acme-001/7VP16KHV88LM@2026-05-25T08:55:00Z#software[CleanMyMac X]",
+          "acme-001/7VP16KHV88LM@2026-06-12T10:41:00Z#software[CleanMyMac X]"
+        ],
+        "text": "Newly installed in the last 30 days and not in the common set: CleanMyMac X on 1 of 10 devices. 7VP16KHV88LM (acme-macbook-1; CleanMyMac X 4.15; first seen 2026-05-25 08:55Z)."
+      },
+      {
+        "count": 1,
+        "device_ids": [
+          "1LYSSFD074BB"
+        ],
+        "refs": [
+          "acme-001/1LYSSFD074BB@2026-05-31T11:13:00Z#software[uTorrent]",
+          "acme-001/1LYSSFD074BB@2026-06-12T09:47:00Z#software[uTorrent]"
+        ],
+        "text": "Newly installed in the last 30 days and not in the common set: uTorrent on 1 of 10 devices. 1LYSSFD074BB (acme-macbook-2; uTorrent 3.6; first seen 2026-05-31 11:13Z)."
+      }
+    ],
+    "clarification": null,
+    "coverage": {
+      "excluded": {},
+      "missing_latest": [],
+      "population": 10,
+      "stale": []
+    },
+    "entity_lists": [
+      {
+        "items": [
+          {
+            "device_id": "1LYSSFD074BB",
+            "label": "acme-macbook-2",
+            "rank": 1
+          },
+          {
+            "device_id": "7VP16KHV88LM",
+            "label": "acme-macbook-1",
+            "rank": 2
+          }
+        ],
+        "list_id": "replay-acme-001-new_software/software_inventory-1",
+        "title": "New software (30 d)"
+      }
+    ],
+    "evidence": [
+      {
+        "label": "Software · acme-macbook-1 · 2026-05-25 08:55Z",
+        "ref": "acme-001/7VP16KHV88LM@2026-05-25T08:55:00Z#software[CleanMyMac X]",
+        "value": "CleanMyMac X 4.15, published by MacPaw"
+      },
+      {
+        "label": "Software · acme-macbook-1 · 2026-06-12 10:41Z",
+        "ref": "acme-001/7VP16KHV88LM@2026-06-12T10:41:00Z#software[CleanMyMac X]",
+        "value": "CleanMyMac X 4.15, published by MacPaw"
+      },
+      {
+        "label": "Software · acme-macbook-2 · 2026-05-31 11:13Z",
+        "ref": "acme-001/1LYSSFD074BB@2026-05-31T11:13:00Z#software[uTorrent]",
+        "value": "uTorrent 3.6, published by Rainberry Inc"
+      },
+      {
+        "label": "Software · acme-macbook-2 · 2026-06-12 09:47Z",
+        "ref": "acme-001/1LYSSFD074BB@2026-06-12T09:47:00Z#software[uTorrent]",
+        "value": "uTorrent 3.6, published by Rainberry Inc"
+      }
+    ],
+    "explanation": null,
+    "headline": "2 new installs on 2 of 10 devices in the last 30 days (not in the common set)",
+    "notes": [],
+    "outcome": "answer",
+    "proposal": null,
+    "reason_code": null,
+    "scope": {
+      "as_of": "2026-06-12T11:00:00Z",
+      "calculation": "2 distinct devices across 2 claims; at most 6 supporting readings are cited per device",
+      "company_id": "acme-001",
+      "population": 10,
+      "rule": "software newly installed in the last 30 days: not in the common set and first seen after the device's first snapshot in the window. The common set is the apps on every device at its first snapshot in the window: 1Password, Google Chrome, Slack, Visual Studio Code, Zoom"
+    },
+    "trace_id": "replay-acme-001-new_software"
+  },
+  "meta": {
+    "keywords": [
+      "software",
+      "installed",
+      "new apps"
+    ],
+    "note": "",
+    "question": "Has any new software been installed recently?",
+    "scenario": "new_software",
+    "synthetic": false,
+    "tenant": "acme-001"
+  },
+  "trace": [
+    {
+      "data": {
+        "company_id": "acme-001"
+      },
+      "kind": "scope",
+      "latency_ms": null,
+      "seq": 0,
+      "summary": "Turn started",
+      "tool": null,
+      "trace_id": "replay-acme-001-new_software"
+    },
+    {
+      "data": {
+        "has_reference": false,
+        "intent": "answer",
+        "reference_kind": null,
+        "window_days": null
+      },
+      "kind": "plan",
+      "latency_ms": null,
+      "seq": 1,
+      "summary": "Planned the turn",
+      "tool": null,
+      "trace_id": "replay-acme-001-new_software"
+    },
+    {
+      "data": {
+        "args": {
+          "view": "new_installs"
+        }
+      },
+      "kind": "tool_call",
+      "latency_ms": null,
+      "seq": 2,
+      "summary": "Calling software_inventory",
+      "tool": "software_inventory",
+      "trace_id": "replay-acme-001-new_software"
+    },
+    {
+      "data": {
+        "matches": 2,
+        "population": 10,
+        "status": "ok"
+      },
+      "kind": "tool_result",
+      "latency_ms": null,
+      "seq": 3,
+      "summary": "software_inventory returned",
+      "tool": "software_inventory",
+      "trace_id": "replay-acme-001-new_software"
+    },
+    {
+      "data": {
+        "claims": 2,
+        "evidence": 4,
+        "outcome": "answer",
+        "records": 1
+      },
+      "kind": "compose",
+      "latency_ms": null,
+      "seq": 4,
+      "summary": "Composed the answer from tool records",
+      "tool": null,
+      "trace_id": "replay-acme-001-new_software"
+    },
+    {
+      "data": {
+        "ok": true
+      },
+      "kind": "explain",
+      "latency_ms": null,
+      "seq": 5,
+      "summary": "Model wrote a headline and explanation",
+      "tool": null,
+      "trace_id": "replay-acme-001-new_software"
+    },
+    {
+      "data": {
+        "evidence_ok": true,
+        "explanation_shown": false,
+        "headline_from_model": false,
+        "model_prose": true,
+        "problems": []
+      },
+      "kind": "verify",
+      "latency_ms": null,
+      "seq": 6,
+      "summary": "Checked the answer against the evidence",
+      "tool": null,
+      "trace_id": "replay-acme-001-new_software"
+    },
+    {
+      "data": {
+        "claims": 2,
+        "evidence": 4,
+        "outcome": "answer",
+        "reason_code": null
+      },
+      "kind": "respond",
+      "latency_ms": null,
+      "seq": 7,
+      "summary": "Answer ready",
+      "tool": null,
+      "trace_id": "replay-acme-001-new_software"
+    }
+  ]
+}

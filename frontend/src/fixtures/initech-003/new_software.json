@@ -1,0 +1,226 @@
+{
+  "envelope": {
+    "claims": [
+      {
+        "count": 1,
+        "device_ids": [
+          "DARFCP0BQM2G"
+        ],
+        "refs": [
+          "initech-003/DARFCP0BQM2G@2026-05-21T09:43:00Z#software[TeamViewer]",
+          "initech-003/DARFCP0BQM2G@2026-06-12T10:31:00Z#software[TeamViewer]"
+        ],
+        "text": "Newly installed in the last 30 days and not in the common set: TeamViewer on 1 of 7 devices. DARFCP0BQM2G (initech-macbook-6; TeamViewer 15.5; first seen 2026-05-21 09:43Z)."
+      },
+      {
+        "count": 2,
+        "device_ids": [
+          "W2656QDAE2ZJ",
+          "I3JLKILKQTAC"
+        ],
+        "refs": [
+          "initech-003/W2656QDAE2ZJ@2026-06-02T10:45:00Z#software[uTorrent]",
+          "initech-003/W2656QDAE2ZJ@2026-06-12T09:48:00Z#software[uTorrent]",
+          "initech-003/I3JLKILKQTAC@2026-05-29T10:52:00Z#software[uTorrent]",
+          "initech-003/I3JLKILKQTAC@2026-06-12T10:57:00Z#software[uTorrent]"
+        ],
+        "text": "Newly installed in the last 30 days and not in the common set: uTorrent on 2 of 7 devices. W2656QDAE2ZJ (initech-dell-1; uTorrent 3.6; first seen 2026-06-02 10:45Z); I3JLKILKQTAC (initech-mac-3; uTorrent 3.6; first seen 2026-05-29 10:52Z)."
+      }
+    ],
+    "clarification": null,
+    "coverage": {
+      "excluded": {},
+      "missing_latest": [],
+      "population": 7,
+      "stale": []
+    },
+    "entity_lists": [
+      {
+        "items": [
+          {
+            "device_id": "W2656QDAE2ZJ",
+            "label": "initech-dell-1",
+            "rank": 1
+          },
+          {
+            "device_id": "I3JLKILKQTAC",
+            "label": "initech-mac-3",
+            "rank": 2
+          },
+          {
+            "device_id": "DARFCP0BQM2G",
+            "label": "initech-macbook-6",
+            "rank": 3
+          }
+        ],
+        "list_id": "replay-initech-003-new_software/software_inventory-1",
+        "title": "New software (30 d)"
+      }
+    ],
+    "evidence": [
+      {
+        "label": "Software · initech-macbook-6 · 2026-05-21 09:43Z",
+        "ref": "initech-003/DARFCP0BQM2G@2026-05-21T09:43:00Z#software[TeamViewer]",
+        "value": "TeamViewer 15.5, published by TeamViewer"
+      },
+      {
+        "label": "Software · initech-macbook-6 · 2026-06-12 10:31Z",
+        "ref": "initech-003/DARFCP0BQM2G@2026-06-12T10:31:00Z#software[TeamViewer]",
+        "value": "TeamViewer 15.5, published by TeamViewer"
+      },
+      {
+        "label": "Software · initech-dell-1 · 2026-06-02 10:45Z",
+        "ref": "initech-003/W2656QDAE2ZJ@2026-06-02T10:45:00Z#software[uTorrent]",
+        "value": "uTorrent 3.6, published by Rainberry Inc"
+      },
+      {
+        "label": "Software · initech-dell-1 · 2026-06-12 09:48Z",
+        "ref": "initech-003/W2656QDAE2ZJ@2026-06-12T09:48:00Z#software[uTorrent]",
+        "value": "uTorrent 3.6, published by Rainberry Inc"
+      },
+      {
+        "label": "Software · initech-mac-3 · 2026-05-29 10:52Z",
+        "ref": "initech-003/I3JLKILKQTAC@2026-05-29T10:52:00Z#software[uTorrent]",
+        "value": "uTorrent 3.6, published by Rainberry Inc"
+      },
+      {
+        "label": "Software · initech-mac-3 · 2026-06-12 10:57Z",
+        "ref": "initech-003/I3JLKILKQTAC@2026-06-12T10:57:00Z#software[uTorrent]",
+        "value": "uTorrent 3.6, published by Rainberry Inc"
+      }
+    ],
+    "explanation": null,
+    "headline": "3 new installs on 3 of 7 devices in the last 30 days (not in the common set)",
+    "notes": [],
+    "outcome": "answer",
+    "proposal": null,
+    "reason_code": null,
+    "scope": {
+      "as_of": "2026-06-12T11:00:00Z",
+      "calculation": "3 distinct devices across 2 claims; at most 6 supporting readings are cited per device",
+      "company_id": "initech-003",
+      "population": 7,
+      "rule": "software newly installed in the last 30 days: not in the common set and first seen after the device's first snapshot in the window. The common set is the apps on every device at its first snapshot in the window: 1Password, Google Chrome, Slack, Visual Studio Code, Zoom"
+    },
+    "trace_id": "replay-initech-003-new_software"
+  },
+  "meta": {
+    "keywords": [
+      "software",
+      "installed",
+      "new apps"
+    ],
+    "note": "",
+    "question": "Has any new software been installed recently?",
+    "scenario": "new_software",
+    "synthetic": false,
+    "tenant": "initech-003"
+  },
+  "trace": [
+    {
+      "data": {
+        "company_id": "initech-003"
+      },
+      "kind": "scope",
+      "latency_ms": null,
+      "seq": 0,
+      "summary": "Turn started",
+      "tool": null,
+      "trace_id": "replay-initech-003-new_software"
+    },
+    {
+      "data": {
+        "has_reference": false,
+        "intent": "answer",
+        "reference_kind": null,
+        "window_days": null
+      },
+      "kind": "plan",
+      "latency_ms": null,
+      "seq": 1,
+      "summary": "Planned the turn",
+      "tool": null,
+      "trace_id": "replay-initech-003-new_software"
+    },
+    {
+      "data": {
+        "args": {
+          "view": "new_installs"
+        }
+      },
+      "kind": "tool_call",
+      "latency_ms": null,
+      "seq": 2,
+      "summary": "Calling software_inventory",
+      "tool": "software_inventory",
+      "trace_id": "replay-initech-003-new_software"
+    },
+    {
+      "data": {
+        "matches": 3,
+        "population": 7,
+        "status": "ok"
+      },
+      "kind": "tool_result",
+      "latency_ms": null,
+      "seq": 3,
+      "summary": "software_inventory returned",
+      "tool": "software_inventory",
+      "trace_id": "replay-initech-003-new_software"
+    },
+    {
+      "data": {
+        "claims": 2,
+        "evidence": 6,
+        "outcome": "answer",
+        "records": 1
+      },
+      "kind": "compose",
+      "latency_ms": null,
+      "seq": 4,
+      "summary": "Composed the answer from tool records",
+      "tool": null,
+      "trace_id": "replay-initech-003-new_software"
+    },
+    {
+      "data": {
+        "ok": true
+      },
+      "kind": "explain",
+      "latency_ms": null,
+      "seq": 5,
+      "summary": "Model wrote a headline and explanation",
+      "tool": null,
+      "trace_id": "replay-initech-003-new_software"
+    },
+    {
+      "data": {
+        "evidence_ok": true,
+        "explanation_shown": false,
+        "headline_from_model": false,
+        "model_prose": true,
+        "problems": []
+      },
+      "kind": "verify",
+      "latency_ms": null,
+      "seq": 6,
+      "summary": "Checked the answer against the evidence",
+      "tool": null,
+      "trace_id": "replay-initech-003-new_software"
+    },
+    {
+      "data": {
+        "claims": 2,
+        "evidence": 6,
+        "outcome": "answer",
+        "reason_code": null
+      },
+      "kind": "respond",
+      "latency_ms": null,
+      "seq": 7,
+      "summary": "Answer ready",
+      "tool": null,
+      "trace_id": "replay-initech-003-new_software"
+    }
+  ]
+}

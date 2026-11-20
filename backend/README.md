@@ -87,3 +87,28 @@ per turn.
 - `404 DeploymentNotFound`: the deployment name (`AZURE_OPENAI_DEPLOYMENT`) is wrong.
 - `400` that mentions `api-version`: the API version is wrong.
 - A rejection of `temperature`: the deployment is a reasoning model. Use a non-reasoning deployment.
+
+## Installed software
+
+Each telemetry row's `installed_software` (name, version, publisher) is loaded into the `software` table, one
+row per app per snapshot, and read through the same tenant filter as compliance results. A name is 1 to 60
+characters of letters, digits, space and `._+-`; a version and a publisher have similar limits. Anything else
+quarantines the whole row. `network` is still dropped at load.
+
+- **Common set**: the apps present on every device of the company in that device's earliest snapshot inside the
+  window (`SOFTWARE_WINDOW_DAYS`, 30 days, 1 to 60 on request).
+- **Newly installed**: an app outside the common set whose first appearance on a device is a later snapshot than
+  that device's earliest one in the window. The answer says "not in the common set" and "newly installed" and
+  never "unapproved", "risky" or "malicious": the telemetry carries no such label, and model prose that adds one
+  is dropped by the verify gate (`judgment_word`).
+- **Tool**: `software_inventory(view, app_name, window_days, device_ids)`. `current` lists the installed apps
+  (or the devices with one app); `new_installs` lists one entry per device and app with the first-seen time. An
+  app name the company has never reported is an input error that lists the company's own app names, so an app
+  only another company has reads the same as one nobody has.
+- **Evidence**: `software[<name>]` resolves to `{name, version, publisher}` and is fetched like any other
+  reference (`GET /api/evidence?ref=...`, with the spaces URL-encoded).
+- **Golden answers**: `make golden` recomputes the common sets, new installs and holders with the stdlib-only
+  oracle; `make fixtures` regenerates the replay fixtures (including `new_software`).
+- **Limit**: the verify gate compares each number on its own, so a date written from numbers that all appear in
+  the facts (for example a different day in the same month) is not caught; the code-written claims and
+  evidence remain the source of truth.

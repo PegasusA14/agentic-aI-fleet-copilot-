@@ -12,6 +12,7 @@ def test_the_cases_are_named_and_cover_the_demo_story():
         "low_disk",
         "low_disk_follow_up",
         "typo_paraphrase",
+        "new_software",
         "cross_tenant",
         "injection",
         "off_topic",
@@ -115,3 +116,27 @@ def test_live_check_main_prints_only_the_exception_type(monkeypatch, capsys):
     captured = capsys.readouterr()
     assert "RuntimeError" in captured.err
     assert "sk-sentinel-secret-value" not in captured.out + captured.err
+
+
+async def test_the_new_software_case_passes_on_the_golden_devices_and_fails_on_others(real_db_path):
+    right = ScriptedLLM(
+        plans=[answer_plan()],
+        acts=[
+            tool_calls_message(("software_inventory", {"view": "new_installs"})),
+            final_message(),
+        ],
+        explains=[explanation()],
+    )
+    passed = await live_check.run_cases(make_service(real_db_path, right), only={"new_software"})
+    assert [r.passed for r in passed] == [True], passed[0].reason
+
+    wrong = ScriptedLLM(
+        plans=[answer_plan()],
+        acts=[
+            tool_calls_message(("software_inventory", {"view": "current", "app_name": "Slack"})),
+            final_message(),
+        ],
+        explains=[explanation()],
+    )
+    failed = await live_check.run_cases(make_service(real_db_path, wrong), only={"new_software"})
+    assert failed[0].passed is False and "expected" in failed[0].reason

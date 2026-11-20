@@ -117,6 +117,18 @@
     },
     {
       "keywords": [
+        "software",
+        "installed",
+        "new apps"
+      ],
+      "note": "",
+      "question": "Has any new software been installed recently?",
+      "scenario": "new_software",
+      "synthetic": false,
+      "tenant": "acme-001"
+    },
+    {
+      "keywords": [
         "4sefdlptkxam"
       ],
       "note": "",
@@ -292,6 +304,18 @@
     },
     {
       "keywords": [
+        "software",
+        "installed",
+        "new apps"
+      ],
+      "note": "",
+      "question": "Has any new software been installed recently?",
+      "scenario": "new_software",
+      "synthetic": false,
+      "tenant": "globex-002"
+    },
+    {
+      "keywords": [
         "1lyssfd074bb"
       ],
       "note": "",
@@ -462,6 +486,18 @@
       "note": "",
       "question": "How many Macs do we have, by model?",
       "scenario": "inventory_by_model",
+      "synthetic": false,
+      "tenant": "initech-003"
+    },
+    {
+      "keywords": [
+        "software",
+        "installed",
+        "new apps"
+      ],
+      "note": "",
+      "question": "Has any new software been installed recently?",
+      "scenario": "new_software",
       "synthetic": false,
       "tenant": "initech-003"
     },

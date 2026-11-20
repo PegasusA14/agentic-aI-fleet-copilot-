@@ -19,6 +19,7 @@ from fleet_copilot.agent.llm import (
     final_message,
     tool_calls_message,
 )
+from fleet_copilot.config import REPO_ROOT
 from fleet_copilot.contracts import AnswerEnvelope, TraceEvent
 
 
@@ -85,6 +86,24 @@ def test_real_answers_match_the_golden_facts(exported):
     assert macos["claims"][0]["count"] == 4
     no_match = load(exported, "acme-001", "compliance_high_no_match")["envelope"]
     assert (no_match["outcome"], no_match["reason_code"]) == ("no_match", "no_matching_records")
+
+
+def test_the_new_software_answer_matches_the_golden_installs_for_every_tenant(exported):
+    golden = json.loads(
+        (REPO_ROOT / "evals" / "golden" / "golden.json").read_text(encoding="utf-8")
+    )
+    for tenant in TENANTS:
+        fixture = load(exported, tenant, "new_software")
+        assert fixture["meta"]["synthetic"] is False
+        envelope = fixture["envelope"]
+        wanted = golden["tenants"][tenant]["software"]["new_installs"]["30"]
+        assert {d for c in envelope["claims"] for d in c["device_ids"]} == {
+            i["device_id"] for i in wanted
+        }
+        assert [e["tool"] for e in fixture["trace"] if e["tool"]][0] == "software_inventory"
+        assert not any(
+            word in json.dumps(envelope).lower() for word in ("malicious", "unapproved", "risky")
+        )
 
 
 def test_a_foreign_device_is_denied_with_the_same_wording_as_any_unknown_one(exported):
