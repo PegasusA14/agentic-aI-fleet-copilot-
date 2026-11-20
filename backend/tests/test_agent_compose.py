@@ -5,7 +5,7 @@ from agent_support import ACME, GLOBEX, INITECH, repo_for, run
 
 from fleet_copilot.agent.compose import Composition, compose, representative
 from fleet_copilot.agent.records import ToolRecord
-from fleet_copilot.agent.texts import NOT_FOUND, TOOL_FAILED
+from fleet_copilot.agent.texts import NOT_FOUND, PARTIAL_NOT_FOUND, TOOL_FAILED, unresolved_note
 from fleet_copilot.contracts import AnswerEnvelope
 from fleet_copilot.evidence import EvidenceRef
 from fleet_copilot.repository import dataset_as_of
@@ -333,3 +333,80 @@ def test_recovered_compliance_reads_passing_since(real_db_path, real_conn):
     recovered = next(c for c in comp.claims if "changed from fail back to pass" in c.text)
     assert "passing since 2026-05-22 09:41Z" in recovered.text
     assert "failing since" not in recovered.text and "first seen" not in recovered.text
+
+
+MIXED_VALID = ["MT7PJB7N5LRE", "8NM23J95R5I6"]
+
+
+def test_a_partly_unknown_device_list_is_disclosed_in_the_notes(real_db_path, real_conn):
+    ids = [*MIXED_VALID, "JRZSGXVMKE6M", "NOPE"]
+    comp = composed(real_db_path, real_conn, [("low_disk_devices", {"device_ids": ids})])
+    assert comp.outcome == "answer" and comp.coverage.population == 2
+    assert comp.notes.count(unresolved_note(2)) == 1
+    assert "2 requested devices" in unresolved_note(2) and "were not included" in unresolved_note(2)
+    assert as_envelope(comp, real_conn).notes == comp.notes
+
+
+def test_the_unresolved_note_reads_the_same_for_foreign_and_nonexistent_ids(
+    real_db_path, real_conn
+):
+    foreign = composed(
+        real_db_path,
+        real_conn,
+        [("low_disk_devices", {"device_ids": [*MIXED_VALID, "JRZSGXVMKE6M"]})],
+    )
+    unknown = composed(
+        real_db_path, real_conn, [("low_disk_devices", {"device_ids": [*MIXED_VALID, "NOPE"]})]
+    )
+    assert foreign.notes == unknown.notes
+    assert unresolved_note(1) in foreign.notes
+    assert "1 requested device could not be found" in unresolved_note(1)
+    assert "was not included" in unresolved_note(1)
+
+
+def test_unresolved_counts_are_summed_into_one_note(real_db_path, real_conn):
+    calls = [
+        ("low_disk_devices", {"device_ids": [*MIXED_VALID, "NOPE"]}),
+        ("macos_version_check", {"device_ids": ["MT7PJB7N5LRE", "NOPE", "ALSO-NOPE"]}),
+    ]
+    comp = composed(real_db_path, real_conn, calls)
+    assert [n for n in comp.notes if "requested" in n] == [unresolved_note(3)]
+
+
+def test_an_all_valid_device_list_adds_no_unresolved_note(real_db_path, real_conn):
+    comp = composed(real_db_path, real_conn, [("low_disk_devices", {"device_ids": MIXED_VALID})])
+    assert not any("requested" in n for n in comp.notes)
+
+
+def test_a_not_found_record_next_to_usable_ones_is_disclosed(real_db_path, real_conn):
+    calls = [
+        ("low_disk_devices", {}),
+        ("device_history", {"device_id": "NOPE", "metric": "memory_used_pct"}),
+    ]
+    comp = composed(real_db_path, real_conn, calls)
+    assert comp.outcome == "answer" and comp.claims
+    assert comp.notes.count(PARTIAL_NOT_FOUND) == 1
+    assert PARTIAL_NOT_FOUND == (
+        "Part of the request referred to a device that could not be found, so that part was not answered."
+    )
+    foreign = composed(
+        real_db_path,
+        real_conn,
+        [
+            ("low_disk_devices", {}),
+            ("device_history", {"device_id": "JRZSGXVMKE6M", "metric": "memory_used_pct"}),
+        ],
+    )
+    assert foreign.notes == comp.notes
+    assert as_envelope(comp, real_conn).outcome == "answer"
+
+
+def test_an_all_not_found_request_is_still_a_denial_without_the_partial_note(
+    real_db_path, real_conn
+):
+    comp = composed(
+        real_db_path,
+        real_conn,
+        [("device_history", {"device_id": "NOPE", "metric": "memory_used_pct"})],
+    )
+    assert (comp.outcome, comp.notes) == ("denied", [])

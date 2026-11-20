@@ -24,6 +24,10 @@ OsName = Literal["macOS", "Windows"]
 Window = Annotated[int, Field(ge=1, le=policy.MAX_WINDOW_DAYS)]
 Percent = Annotated[float, Field(gt=0, le=100)]
 OsVersion = Annotated[str, Field(pattern=r"^\d{1,3}(\.\d{1,3}){0,2}$")]
+# Free-text filters are model-supplied: constrain the characters so odd input is rejected at the schema.
+Hostname = Annotated[str, Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,79}$")]
+ModelName = Annotated[str, Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9 ._-]{0,59}$")]
+EmployeeId = Annotated[str, Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$")]
 DeviceIds = Annotated[list[Annotated[str, Field(max_length=40)]], Field(max_length=100)] | None
 
 
@@ -163,15 +167,19 @@ def execute(tool_name: str, args: dict[str, Any], ctx: AgentContext) -> ToolReco
     try:
         repo = FleetRepository(conn, TenantContext(ctx.company_id, ctx.actor_id))
         requested = args.get("device_ids")
+        unresolved = 0
         if requested is not None:
             known = {d.device_id for d in repo.list_devices()}
             if not known & set(requested):
                 return ToolRecord(tool=tool_name, args=recorded, error="not_found")
+            unresolved = len(set(requested) - known)
         try:
             result = runner(repo, ctx.as_of, args)
         except NotFound:
             return ToolRecord(tool=tool_name, args=recorded, error="not_found")
-        return ToolRecord.from_query(tool_name, recorded, result)
+        record = ToolRecord.from_query(tool_name, recorded, result)
+        record.unresolved_ids = unresolved
+        return record
     finally:
         conn.close()
 
@@ -270,10 +278,10 @@ def trend(
 def find_devices(
     runtime: ToolRuntime[AgentContext],
     os_name: OsName | None = None,
-    model_name: Annotated[str, Field(min_length=1, max_length=60)] | None = None,
+    model_name: ModelName | None = None,
     form_factor: FormFactor | None = None,
-    hostname: Annotated[str, Field(min_length=1, max_length=80)] | None = None,
-    employee_id: Annotated[str, Field(min_length=1, max_length=40)] | None = None,
+    hostname: Hostname | None = None,
+    employee_id: EmployeeId | None = None,
     group_by: Literal["os", "model", "form_factor"] | None = None,
     device_ids: DeviceIds = None,
 ) -> tuple[str, dict[str, Any]]:

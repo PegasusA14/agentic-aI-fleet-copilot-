@@ -67,16 +67,17 @@ def find_devices(
                 (str(snap.ref("os")),),
             )
         )
-    filters = [
-        f"{label}={value}"
-        for label, value in (
-            ("os", os_name),
-            ("model", model_name),
-            ("form_factor", form_factor),
-            ("hostname", hostname),
-        )
-        if value
-    ]
+    # Enumerated filters are named by value. Free-text filters (hostname, model, employee) are named by
+    # kind only, so model-supplied text can never travel into the rule shown to the user or the explainer.
+    filters = []
+    if os_name:
+        filters.append(f"os={os_name}")
+    if model_name:
+        filters.append("model filter applied")
+    if form_factor:
+        filters.append(f"form_factor={form_factor}")
+    if hostname:
+        filters.append("hostname filter applied")
     if employee_id:
         filters.append("employee filter applied")
     rule = "devices matching " + (", ".join(filters) if filters else "no filter (all devices)")

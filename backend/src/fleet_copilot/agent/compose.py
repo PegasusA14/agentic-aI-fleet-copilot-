@@ -550,6 +550,11 @@ def compose(records: Sequence[ToolRecord], *, resolve: Resolver) -> Composition:
     for index, record in enumerate(usable, start=1):
         _TEMPLATES[record.tool](record, index, builder)
     builder.disclosure_notes()
+    unresolved = sum(r.unresolved_ids for r in usable)
+    if unresolved:
+        builder.add_note(texts.unresolved_note(unresolved))
+    if usable and any(r.error == "not_found" for r in records):
+        builder.add_note(texts.PARTIAL_NOT_FOUND)
     population = builder.population or 0
     coverage = Coverage(
         population=population,

@@ -36,6 +36,8 @@ class ToolRecord(BaseModel):
     excluded: dict[str, list[str]] = Field(default_factory=dict)
     stale: list[str] = Field(default_factory=list)
     missing_latest: list[str] = Field(default_factory=list)
+    # Requested `device_ids` that are not this tenant's devices. Foreign and nonexistent ids count alike.
+    unresolved_ids: int = Field(default=0, ge=0)
 
     @classmethod
     def from_query(cls, tool: str, args: dict[str, Any], result: QueryResult) -> ToolRecord:

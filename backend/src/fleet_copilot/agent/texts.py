@@ -17,6 +17,13 @@ PROMPT_INJECTION = (
 )
 STEP_LIMIT = "I couldn't gather enough evidence within the allowed number of steps."
 INSUFFICIENT_HISTORY = "There are not enough snapshots in that window to report a trend."
+PARTIAL_NOT_FOUND = "Part of the request referred to a device that could not be found, so that part was not answered."
+
+
+def unresolved_note(n: int) -> str:
+    """How many requested device ids were left out. Foreign and nonexistent ids are counted alike."""
+    noun, was = ("device", "was") if n == 1 else ("devices", "were")
+    return f"{n} requested {noun} could not be found in your fleet and {was} not included."
 
 
 def no_match(population: int) -> str:
