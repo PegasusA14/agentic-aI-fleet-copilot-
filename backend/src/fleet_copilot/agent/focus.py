@@ -49,6 +49,39 @@ def _words(text: str) -> list[str]:
     return [w for w in re.split(r"[^a-z0-9]+", text.lower()) if len(w) > 1]
 
 
+# Words a planner puts in `list_hint` that point back without naming a list ("those", "the ones above").
+_POINTING_WORDS = frozenset(
+    {
+        "those",
+        "these",
+        "them",
+        "they",
+        "that",
+        "this",
+        "the",
+        "ones",
+        "one",
+        "it",
+        "its",
+        "of",
+        "above",
+        "earlier",
+        "previous",
+        "same",
+        "devices",
+        "device",
+        "machines",
+        "machine",
+        "list",
+    }
+)
+
+
+def _hint_words(hint: str) -> list[str]:
+    """The words of a hint that can name a list; empty when the hint only points back."""
+    return [w for w in _words(hint) if w not in _POINTING_WORDS]
+
+
 def _matches(entity_list: EntityList, hint_words: list[str]) -> bool:
     title_words = set(_words(entity_list.title))
     return bool(hint_words) and all(word in title_words for word in hint_words)
@@ -75,8 +108,9 @@ def resolve_reference(
         return NeedsClarification(texts.NEED_REFERENCE, ())
 
     candidates = list(focus)
-    if reference.list_hint:
-        hinted = [el for el in focus if _matches(el, _words(reference.list_hint))]
+    hint = _hint_words(reference.list_hint or "")
+    if hint:
+        hinted = [el for el in focus if _matches(el, hint)]
         if not hinted:
             return NeedsClarification(
                 texts.WHICH_LIST, tuple(el.title for el in focus)[:_MAX_OPTIONS]

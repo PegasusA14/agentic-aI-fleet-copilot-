@@ -200,3 +200,22 @@ def test_a_globex_device_cannot_be_named_by_an_acme_admin(real_db_path, real_con
     assert ids(
         resolve_reference(Reference(kind="named", device_ref=foreign), [], globex_devices)
     ) == [foreign]
+
+
+def test_a_pronoun_hint_is_no_hint():
+    """Live planners put "those" or "the ones" in list_hint; that says nothing about which list."""
+    everything = resolve_reference(Reference(kind="all"), [SCREEN, OS_FAIL], DEVICES)
+    for hint in ("those", "them", "the ones", "these devices", "those machines above"):
+        result = resolve_reference(
+            Reference(kind="all", list_hint=hint), [SCREEN, OS_FAIL], DEVICES
+        )
+        assert ids(result) == ids(everything), hint
+
+
+def test_a_real_hint_next_to_a_pronoun_still_chooses_the_list():
+    result = resolve_reference(
+        Reference(kind="ordinal", index=1, list_hint="those screen lock ones"),
+        [SCREEN, OS_FAIL],
+        DEVICES,
+    )
+    assert isinstance(result, Resolved)

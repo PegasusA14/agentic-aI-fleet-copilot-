@@ -117,3 +117,10 @@ def test_explain_messages_fence_the_question_and_serialize_facts_deterministical
     assert "<user_question>\nwhat?\n</user_question>" in body
     assert '"population": 10' in body and "<facts>" in body and "</facts>" in body
     assert prompts.explain_messages(question="what?", facts=facts)[1].content == body
+
+
+def test_the_act_prompt_says_tools_are_already_scoped_to_the_company():
+    """A live model passed the company name as an employee id ("Acme"); the prompt must rule that out."""
+    act = prompts.ACT_SYSTEM.lower()
+    assert "already limited to the administrator's own company" in act
+    assert "never pass a company name" in act
