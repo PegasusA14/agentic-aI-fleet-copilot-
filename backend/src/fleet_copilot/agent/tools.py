@@ -31,6 +31,10 @@ EmployeeId = Annotated[str, Field(pattern=r"^[A-Za-z0-9][A-Za-z0-9._-]{0,39}$")]
 DeviceIds = Annotated[list[Annotated[str, Field(max_length=40)]], Field(max_length=100)] | None
 
 
+# Text the retry wrapper looks for: errors the model caused are never retried, only transient failures are.
+INVALID_INPUT_PREFIX = "Invalid tool input"
+
+
 class ToolInputError(ValueError):
     """Bad tool input that the model can fix and retry. The message is written by us, not by input."""
 
@@ -327,11 +331,11 @@ DEVICE_FILTER_TOOLS = frozenset(t.name for t in TOOLS) - {"device_history"}
 def tool_error_text(exc: Exception) -> str:
     """Fixed-format error text for the model. Never echoes input values or exception reprs."""
     if isinstance(exc, ToolInputError):
-        return f"Invalid tool input: {exc}"
+        return f"{INVALID_INPUT_PREFIX}: {exc}"
     if isinstance(exc, ToolInvocationError):
         problems = "; ".join(
             f"{'.'.join(str(part) for part in error['loc'])}: {error['msg']}"
             for error in exc.source.errors()
         )
-        return f"Invalid tool input: {problems}"
+        return f"{INVALID_INPUT_PREFIX}: {problems}"
     return "The data lookup failed. No result is available for this call."

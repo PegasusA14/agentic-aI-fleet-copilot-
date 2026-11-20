@@ -1,0 +1,460 @@
+"""The agent as an explicit LangGraph: scope -> plan -> (reference) -> act <-> tools -> compose -> explain -> verify -> respond.
+
+Rules the graph enforces, whatever the model says:
+  * tenant and actor come from `AgentContext`; no node or tool accepts them from the model;
+  * follow-up references are resolved by code against the lists last shown, and the resolved device
+    ids are injected into the tool calls, replacing any ids the model supplied;
+  * tool rounds, calls per round and retries are bounded;
+  * claims, evidence and numbers come from the composer; model prose is shown only if it verifies.
+Nodes are small and take what they need from state; `llm` is the only model dependency.
+"""
+
+from __future__ import annotations
+
+import time
+from collections.abc import Awaitable, Callable
+from contextlib import contextmanager
+from typing import Any
+
+from langchain_core.messages import AIMessage, RemoveMessage, ToolMessage
+from langgraph.graph import END, START, StateGraph
+from langgraph.graph.message import REMOVE_ALL_MESSAGES
+from langgraph.prebuilt import ToolNode
+from langgraph.prebuilt.tool_node import ToolCallRequest
+from langgraph.runtime import Runtime
+
+from fleet_copilot import policy
+from fleet_copilot.agent import outcomes, texts
+from fleet_copilot.agent.compose import compose
+from fleet_copilot.agent.context import AgentContext
+from fleet_copilot.agent.focus import (
+    NeedsClarification,
+    NotFoundRef,
+    Resolved,
+    focus_summary,
+    resolve_reference,
+)
+from fleet_copilot.agent.llm import LLMGateway, Plan
+from fleet_copilot.agent.prompts import act_messages, explain_messages, plan_messages
+from fleet_copilot.agent.records import ToolRecord, record_from_message, redact_tool_calls
+from fleet_copilot.agent.state import TurnState, next_focus, next_history
+from fleet_copilot.agent.tools import (
+    DEVICE_FILTER_TOOLS,
+    INVALID_INPUT_PREFIX,
+    TOOLS,
+    tool_error_text,
+)
+from fleet_copilot.agent.trace import emit, trace_args
+from fleet_copilot.agent.verify import (
+    composition_of,
+    verify_clarification,
+    verify_evidence,
+    verify_prose,
+)
+from fleet_copilot.contracts import AnswerEnvelope, EntityList
+from fleet_copilot.data.loader import connect
+from fleet_copilot.repository import FleetRepository, TenantContext
+
+# A turn is at most MAX_TOOL_ROUNDS x (act, tools, collect) plus the fixed nodes; leave headroom.
+RECURSION_LIMIT = 4 * policy.MAX_TOOL_ROUNDS + 20
+
+ToolCall = dict[str, Any]
+
+
+@contextmanager
+def _repo(ctx: AgentContext):
+    """A read-only repository for this tenant. The graph never writes to the dataset."""
+    conn = connect(ctx.db_path, read_only=True)
+    try:
+        yield FleetRepository(conn, TenantContext(ctx.company_id, ctx.actor_id))
+    finally:
+        conn.close()
+
+
+def _ms(started: float) -> int:
+    return max(0, round((time.perf_counter() - started) * 1000))
+
+
+def _dump(envelope: AnswerEnvelope) -> dict[str, Any]:
+    return envelope.model_dump(mode="json")
+
+
+def _failure(ctx: AgentContext) -> dict[str, Any]:
+    return {
+        "envelope": _dump(
+            outcomes.tool_failure(company_id=ctx.company_id, as_of=ctx.as_of, trace_id=ctx.trace_id)
+        )
+    }
+
+
+def inject_focus(name: str, args: ToolCall, focus_ids: list[str] | None) -> ToolCall:
+    """Replace model-supplied device ids with the ids code resolved from the user's follow-up."""
+    if not focus_ids:
+        return dict(args)
+    if name in DEVICE_FILTER_TOOLS:
+        return {**args, "device_ids": list(focus_ids)}
+    if name == "device_history" and len(focus_ids) == 1:
+        return {**args, "device_id": focus_ids[0]}
+    return dict(args)
+
+
+def _is_input_error(result: Any) -> bool:
+    """The model sent arguments the tool rejected. It sees the message and may call again."""
+    return (
+        isinstance(result, ToolMessage)
+        and result.status == "error"
+        and str(result.content).startswith(INVALID_INPUT_PREFIX)
+    )
+
+
+def _is_transient_error(result: Any) -> bool:
+    """A failed tool call worth one retry. Input errors are the model's to fix, so they are not retried."""
+    return (
+        isinstance(result, ToolMessage) and result.status == "error" and not _is_input_error(result)
+    )
+
+
+async def _tool_wrapper(
+    request: ToolCallRequest, execute: Callable[[ToolCallRequest], Awaitable[Any]]
+) -> Any:
+    """Inject resolved device ids, trace the call, and retry a transient failure once."""
+    call = request.tool_call
+    name = call["name"]
+    args = inject_focus(name, call["args"], request.state.get("focus_ids"))
+    if args != call["args"]:
+        request = request.override(tool_call={**call, "args": args})
+    emit("tool_call", f"Calling {name}", tool=name, data={"args": trace_args(args)})
+    started = time.perf_counter()
+    result = await execute(request)
+    if _is_transient_error(result):
+        emit("retry", f"Retrying {name} once after a failed lookup", tool=name)
+        result = await execute(request)
+    record = record_from_message(result, tool=name, args=args)
+    emit(
+        "tool_result",
+        f"{name} returned",
+        tool=name,
+        data={
+            "status": "invalid_input" if _is_input_error(result) else record.error or "ok",
+            "matches": len(record.findings),
+            "population": record.population,
+        },
+        latency_ms=_ms(started),
+    )
+    return result
+
+
+def build_graph(llm: LLMGateway, checkpointer: Any):
+    """Compile the agent graph around one model gateway and one checkpointer."""
+
+    async def scope(state: TurnState, runtime: Runtime[AgentContext]) -> dict[str, Any]:
+        emit("scope", "Turn started", data={"company_id": runtime.context.company_id})
+        return {
+            "turn_messages": [RemoveMessage(id=REMOVE_ALL_MESSAGES)],
+            "plan": None,
+            "focus_ids": None,
+            "pending_calls": False,
+            "rounds": 0,
+            "limit_hit": False,
+            "records": [],
+            "draft": None,
+            "prose": None,
+            "envelope": None,
+        }
+
+    async def plan_node(state: TurnState, runtime: Runtime[AgentContext]) -> dict[str, Any]:
+        ctx = runtime.context
+        focus = [EntityList.model_validate(item) for item in state.get("focus") or []]
+        started = time.perf_counter()
+        try:
+            plan = await llm.plan(
+                plan_messages(
+                    question=state["question"],
+                    as_of=ctx.as_of,
+                    history=state.get("history") or [],
+                    focus_lines=focus_summary(focus),
+                )
+            )
+        except Exception as exc:  # model outage or unusable structured output
+            emit("error", "Planning failed", data={"error": type(exc).__name__})
+            return _failure(ctx)
+        emit(
+            "plan",
+            "Planned the turn",
+            data={
+                "intent": plan.intent,
+                "window_days": plan.window_days,
+                "has_reference": plan.reference is not None,
+                "reference_kind": plan.reference.kind if plan.reference else None,
+            },
+            latency_ms=_ms(started),
+        )
+        update: dict[str, Any] = {"plan": plan.model_dump(mode="json")}
+        kwargs = {"company_id": ctx.company_id, "as_of": ctx.as_of, "trace_id": ctx.trace_id}
+        if plan.intent == "clarify":
+            checked = verify_clarification(
+                plan.clarification_question or "", list(plan.clarification_options)
+            )
+            question, options = checked if checked else (None, [])
+            update["envelope"] = _dump(outcomes.clarification(question, options, **kwargs))
+        elif plan.intent in ("refuse", "unsupported") and plan.refusal_reason:
+            update["envelope"] = _dump(outcomes.refusal(plan.refusal_reason, **kwargs))
+        return update
+
+    async def reference_node(state: TurnState, runtime: Runtime[AgentContext]) -> dict[str, Any]:
+        ctx = runtime.context
+        plan = Plan.model_validate(state["plan"])
+        focus = [EntityList.model_validate(item) for item in state.get("focus") or []]
+        with _repo(ctx) as repo:
+            resolution = resolve_reference(plan.reference, focus, repo.list_devices())  # type: ignore[arg-type]
+        kwargs = {"company_id": ctx.company_id, "as_of": ctx.as_of, "trace_id": ctx.trace_id}
+        if isinstance(resolution, Resolved):
+            emit(
+                "reference",
+                "Resolved the follow-up",
+                data={"kind": plan.reference.kind, "devices": len(resolution.device_ids)},  # type: ignore[union-attr]
+            )
+            return {"focus_ids": list(resolution.device_ids)}
+        if isinstance(resolution, NeedsClarification):
+            emit("reference", "The follow-up needs clarification", data={"resolved": False})
+            return {
+                "envelope": _dump(
+                    outcomes.clarification(resolution.question, list(resolution.options), **kwargs)
+                )
+            }
+        assert isinstance(resolution, NotFoundRef)
+        emit("reference", "The follow-up did not resolve to a device", data={"resolved": False})
+        return {"envelope": _dump(outcomes.refusal("cross_tenant", **kwargs))}
+
+    async def act_node(state: TurnState, runtime: Runtime[AgentContext]) -> dict[str, Any]:
+        ctx = runtime.context
+        plan = Plan.model_validate(state["plan"])
+        started = time.perf_counter()
+        try:
+            message = await llm.act(
+                act_messages(
+                    question=state["question"],
+                    as_of=ctx.as_of,
+                    plan_summary=plan.summary,
+                    window_days=plan.window_days,
+                    resolved_ids=state.get("focus_ids"),
+                    history=state.get("history") or [],
+                    turn_messages=state.get("turn_messages") or [],
+                )
+            )
+        except Exception as exc:
+            emit("error", "Gathering evidence failed", data={"error": type(exc).__name__})
+            return _failure(ctx)
+        calls = list(message.tool_calls)
+        if not calls:
+            return {"pending_calls": False}
+        if state.get("rounds", 0) >= policy.MAX_TOOL_ROUNDS:
+            emit(
+                "compose",
+                "Stopped at the tool-round limit",
+                data={"max_rounds": policy.MAX_TOOL_ROUNDS},
+                latency_ms=_ms(started),
+            )
+            return {"pending_calls": False, "limit_hit": True}
+        if len(calls) > policy.MAX_CALLS_PER_ROUND:
+            emit(
+                "tool_call",
+                "Dropped tool calls beyond the per-round limit",
+                data={"dropped": len(calls) - policy.MAX_CALLS_PER_ROUND},
+            )
+            calls = calls[: policy.MAX_CALLS_PER_ROUND]
+        # Free text from the model is not kept: only the calls are.
+        return {
+            "turn_messages": [AIMessage(content="", tool_calls=calls)],
+            "pending_calls": True,
+        }
+
+    async def collect_node(state: TurnState) -> dict[str, Any]:
+        """Turn this round's tool messages into records, and redact the call arguments kept in state."""
+        messages = state["turn_messages"]
+        ai = next(m for m in reversed(messages) if isinstance(m, AIMessage) and m.tool_calls)
+        replies = {m.tool_call_id: m for m in messages if isinstance(m, ToolMessage)}
+        records = list(state.get("records") or [])
+        for call in ai.tool_calls:
+            args = inject_focus(call["name"], call["args"], state.get("focus_ids"))
+            reply = replies.get(call["id"])
+            if _is_input_error(reply):
+                continue  # the model can correct this call; it must not turn the whole answer into an error
+            records.append(
+                (
+                    record_from_message(reply, tool=call["name"], args=args)
+                    if reply is not None
+                    else ToolRecord(tool=call["name"], args={}, error="tool_error")
+                ).model_dump(mode="json")
+            )
+        redacted = AIMessage(
+            content="", tool_calls=redact_tool_calls(list(ai.tool_calls)), id=ai.id
+        )
+        return {
+            "turn_messages": [redacted],
+            "records": records,
+            "rounds": state.get("rounds", 0) + 1,
+        }
+
+    async def compose_node(state: TurnState, runtime: Runtime[AgentContext]) -> dict[str, Any]:
+        ctx = runtime.context
+        records = [ToolRecord.model_validate(r) for r in state.get("records") or []]
+        kwargs = {"company_id": ctx.company_id, "as_of": ctx.as_of, "trace_id": ctx.trace_id}
+        if not records:
+            emit("compose", "No evidence was gathered", data={"records": 0})
+            return {"envelope": _dump(outcomes.clarification(None, [], **kwargs))}
+        try:
+            with _repo(ctx) as repo:
+                composition = compose(records, resolve=repo.resolve)
+            if state.get("limit_hit"):
+                if composition.outcome in ("no_match", "insufficient_data"):
+                    # Nothing was found and the search was cut short: say that, not "nothing matched".
+                    emit(
+                        "compose",
+                        "Round limit reached without evidence",
+                        data={"records": len(records)},
+                    )
+                    return {"envelope": _dump(outcomes.step_limit(**kwargs))}
+                if composition.outcome == "answer":
+                    composition.notes.append(texts.ROUND_LIMIT_NOTE)
+            draft = composition.to_envelope(
+                company_id=ctx.company_id, as_of=ctx.as_of, trace_id=ctx.trace_id
+            )
+        except Exception as exc:  # a composer or contract bug must not become a wrong answer
+            emit("error", "Composing the answer failed", data={"error": type(exc).__name__})
+            return _failure(ctx)
+        emit(
+            "compose",
+            "Composed the answer from tool records",
+            data={
+                "outcome": draft.outcome,
+                "claims": len(draft.claims),
+                "evidence": len(draft.evidence),
+                "records": len(records),
+            },
+        )
+        if draft.outcome in ("denied", "tool_error"):
+            return {"envelope": _dump(draft)}
+        return {"draft": _dump(draft)}
+
+    async def explain_node(state: TurnState, runtime: Runtime[AgentContext]) -> dict[str, Any]:
+        draft = AnswerEnvelope.model_validate(state["draft"])
+        if draft.outcome != "answer":
+            return {"prose": None}
+        started = time.perf_counter()
+        try:
+            explanation = await llm.explain(
+                explain_messages(question=state["question"], facts=composition_of(draft).facts())
+            )
+        except Exception as exc:  # the answer is complete without prose
+            emit(
+                "explain",
+                "Explanation unavailable",
+                data={"ok": False, "error": type(exc).__name__},
+            )
+            return {"prose": None}
+        emit(
+            "explain",
+            "Model wrote a headline and explanation",
+            data={"ok": True},
+            latency_ms=_ms(started),
+        )
+        return {"prose": explanation.model_dump(mode="json")}
+
+    async def verify_node(state: TurnState, runtime: Runtime[AgentContext]) -> dict[str, Any]:
+        ctx = runtime.context
+        draft = AnswerEnvelope.model_validate(state["draft"])
+        with _repo(ctx) as repo:
+            problems = verify_evidence(draft, repo.resolve)
+        if problems:
+            emit("verify", "Evidence failed verification", data={"problems": problems})
+            return _failure(ctx)
+        prose = state.get("prose") or {}
+        verdict = verify_prose(
+            composition_of(draft),
+            ctx.as_of,
+            headline=prose.get("headline"),
+            explanation=prose.get("explanation"),
+        )
+        emit(
+            "verify",
+            "Checked the answer against the evidence",
+            data={
+                "evidence_ok": True,
+                "model_prose": bool(prose),
+                "headline_from_model": bool(prose) and verdict.headline != draft.headline,
+                "explanation_shown": verdict.explanation is not None,
+                "problems": list(verdict.problems),
+            },
+        )
+        final = draft.model_copy(
+            update={"headline": verdict.headline, "explanation": verdict.explanation}
+        )
+        return {"envelope": _dump(AnswerEnvelope.model_validate(final.model_dump()))}
+
+    async def respond_node(state: TurnState, runtime: Runtime[AgentContext]) -> dict[str, Any]:
+        envelope = AnswerEnvelope.model_validate(state["envelope"])
+        emit(
+            "respond",
+            "Answer ready",
+            data={
+                "outcome": envelope.outcome,
+                "reason_code": envelope.reason_code,
+                "claims": len(envelope.claims),
+                "evidence": len(envelope.evidence),
+            },
+        )
+        return {
+            "history": next_history(state.get("history"), state["question"], envelope),
+            "focus": next_focus(state.get("focus"), envelope),
+            "envelope": _dump(envelope),
+        }
+
+    def after_plan(state: TurnState) -> str:
+        if state.get("envelope"):
+            return "respond"
+        return "reference" if (state.get("plan") or {}).get("reference") else "act"
+
+    def after_reference(state: TurnState) -> str:
+        return "respond" if state.get("envelope") else "act"
+
+    def after_act(state: TurnState) -> str:
+        if state.get("envelope"):
+            return "respond"
+        return "tools" if state.get("pending_calls") else "compose"
+
+    def after_compose(state: TurnState) -> str:
+        return "respond" if state.get("envelope") else "explain"
+
+    graph = StateGraph(TurnState, context_schema=AgentContext)
+    graph.add_node("scope", scope)
+    graph.add_node("plan", plan_node)
+    graph.add_node("reference", reference_node)
+    graph.add_node("act", act_node)
+    graph.add_node(
+        "tools",
+        ToolNode(
+            TOOLS,
+            messages_key="turn_messages",
+            handle_tool_errors=tool_error_text,
+            awrap_tool_call=_tool_wrapper,
+        ),
+    )
+    graph.add_node("collect", collect_node)
+    graph.add_node("compose", compose_node)
+    graph.add_node("explain", explain_node)
+    graph.add_node("verify", verify_node)
+    graph.add_node("respond", respond_node)
+
+    graph.add_edge(START, "scope")
+    graph.add_edge("scope", "plan")
+    graph.add_conditional_edges("plan", after_plan, ["respond", "reference", "act"])
+    graph.add_conditional_edges("reference", after_reference, ["respond", "act"])
+    graph.add_conditional_edges("act", after_act, ["respond", "tools", "compose"])
+    graph.add_edge("tools", "collect")
+    graph.add_edge("collect", "act")
+    graph.add_conditional_edges("compose", after_compose, ["respond", "explain"])
+    graph.add_edge("explain", "verify")
+    graph.add_edge("verify", "respond")
+    graph.add_edge("respond", END)
+    return graph.compile(checkpointer=checkpointer)
