@@ -27,6 +27,7 @@ def test_a_plain_answer_plan_is_valid():
         ({"intent": "refuse"}, "cross_tenant or prompt_injection"),
         ({"intent": "refuse", "refusal_reason": "off_topic"}, "cross_tenant or prompt_injection"),
         ({"intent": "unsupported"}, "off_topic or unsupported_action"),
+        ({"intent": "propose", "refusal_reason": "off_topic"}, "refusal_reason is only valid"),
         (
             {"intent": "unsupported", "refusal_reason": "cross_tenant"},
             "off_topic or unsupported_action",
@@ -182,3 +183,8 @@ def test_options_must_still_be_a_list_when_given():
                 "clarification_options": "a",
             }
         )
+
+
+def test_a_propose_plan_is_valid_without_a_refusal_reason():
+    plan = Plan(intent="propose", summary="Open a ticket for one device")
+    assert plan.intent == "propose" and plan.refusal_reason is None

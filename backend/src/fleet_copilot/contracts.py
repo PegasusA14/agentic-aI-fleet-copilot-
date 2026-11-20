@@ -16,7 +16,9 @@ OutcomeType = Literal[
     "unsupported",
     "tool_error",
 ]
-ActionType = Literal["remediation_ticket", "replacement_flag"]
+ActionType = Literal[
+    "remediation_ticket", "replacement_flag", "upgrade_order", "employee_notification"
+]
 ProposalStatus = Literal[
     "pending", "approved", "rejected", "executed", "failed", "uncertain", "invalidated"
 ]
@@ -42,6 +44,8 @@ ReasonCode = Literal[
     "prompt_injection",
     "tool_failure",
     "step_limit",
+    "not_eligible",
+    "insufficient_evidence",
 ]
 # The only keys a query may put in `excluded` (and so the only keys `Coverage.excluded` accepts).
 ExcludedReason = Literal[
@@ -53,7 +57,7 @@ ExcludedReason = Literal[
 ]
 _REASON_REQUIRED = {"denied", "unsupported", "tool_error", "insufficient_data", "no_match"}
 _VALID_REASONS: dict[str, frozenset[str]] = {
-    "denied": frozenset({"not_found", "prompt_injection"}),
+    "denied": frozenset({"not_found", "prompt_injection", "not_eligible", "insufficient_evidence"}),
     "unsupported": frozenset({"off_topic", "unsupported_action"}),
     "tool_error": frozenset({"tool_failure"}),
     "insufficient_data": frozenset({"insufficient_history", "step_limit"}),

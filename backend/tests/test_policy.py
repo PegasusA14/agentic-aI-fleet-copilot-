@@ -51,7 +51,17 @@ def test_disclosure_lists_every_default():
         "compliance_window_days": 30,
         "battery_window_days": 30,
         "software_window_days": 30,
+        "replacement_min_snapshots": 3,
+        "memory_upgrade_factor": 2,
+        "upgrade_trend_window_days": 7,
     }
+
+
+def test_upgrade_and_replacement_policy():
+    assert policy.REPLACEMENT_MIN_SNAPSHOTS == 3
+    assert policy.MEMORY_UPGRADE_FACTOR == 2
+    assert policy.STORAGE_SIZES_GIB == (256, 512, 1024, 2048)
+    assert policy.UPGRADE_TREND_WINDOW_DAYS == 7
 
 
 def test_agent_loop_limits():

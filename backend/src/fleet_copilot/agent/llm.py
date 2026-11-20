@@ -43,7 +43,7 @@ class Plan(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    intent: Literal["answer", "clarify", "refuse", "unsupported"]
+    intent: Literal["answer", "clarify", "refuse", "unsupported", "propose"]
     summary: str = Field(max_length=300)
     window_days: int | None = Field(default=None, ge=1, le=policy.MAX_WINDOW_DAYS)
     reference: Reference | None = None
@@ -73,7 +73,7 @@ class Plan(BaseModel):
             raise ValueError(
                 "an unsupported plan needs refusal_reason off_topic or unsupported_action"
             )
-        if self.intent in ("answer", "clarify") and self.refusal_reason is not None:
+        if self.intent in ("answer", "clarify", "propose") and self.refusal_reason is not None:
             raise ValueError("refusal_reason is only valid for refuse or unsupported plans")
         return self
 

@@ -7,6 +7,7 @@ prompt-injected or confused model cannot change what the user reads for these ou
 from __future__ import annotations
 
 from datetime import datetime
+from typing import Literal
 
 from fleet_copilot.agent import texts
 from fleet_copilot.agent.llm import RefusalReason
@@ -75,4 +76,29 @@ def clarification(
         clarification=Clarification(
             question=question or texts.DEFAULT_CLARIFICATION, options=options
         ),
+    )
+
+
+_ACTION_REFUSALS: dict[str, str] = {
+    "not_eligible": texts.ACTION_NOT_ELIGIBLE,
+    "insufficient_evidence": texts.ACTION_INSUFFICIENT_EVIDENCE,
+}
+
+
+def action_refusal(
+    reason: Literal["not_eligible", "insufficient_evidence"],
+    detail: str,
+    *,
+    company_id: str,
+    as_of: datetime,
+    trace_id: str,
+) -> AnswerEnvelope:
+    """A proposal that code declined. `detail` is the code-written reason, never model text."""
+    return AnswerEnvelope(
+        outcome="denied",
+        trace_id=trace_id,
+        headline=_ACTION_REFUSALS[reason],
+        scope=_scope(company_id, as_of),
+        reason_code=reason,
+        notes=[detail],
     )

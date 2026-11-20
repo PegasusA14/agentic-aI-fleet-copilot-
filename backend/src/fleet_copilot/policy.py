@@ -15,6 +15,14 @@ TREND_WINDOW_DAYS = 7  # default window for memory and disk trends
 COMPLIANCE_WINDOW_DAYS = 30
 BATTERY_WINDOW_DAYS = 30
 SOFTWARE_WINDOW_DAYS = 30  # "newly installed" looks this far back from the as-of time
+REPLACEMENT_MIN_SNAPSHOTS = (
+    3  # consecutive "Service Recommended" battery readings to propose a flag
+)
+MEMORY_UPGRADE_FACTOR = 2  # a memory upgrade order multiplies the current total by this
+STORAGE_SIZES_GIB = (256, 512, 1024, 2048)  # the standard sizes a storage upgrade steps through
+UPGRADE_TREND_WINDOW_DAYS = (
+    7  # a sustained memory or disk trend over this window supports an upgrade
+)
 MAX_WINDOW_DAYS = 60  # largest window a tool call may request
 MAX_REFS_PER_FINDING = 6  # cited readings shown per device in an answer
 MAX_TOOL_ROUNDS = 6  # model-driven rounds of tool calls in one turn
@@ -43,4 +51,7 @@ def disclosure() -> dict[str, float | int]:
         "compliance_window_days": COMPLIANCE_WINDOW_DAYS,
         "battery_window_days": BATTERY_WINDOW_DAYS,
         "software_window_days": SOFTWARE_WINDOW_DAYS,
+        "replacement_min_snapshots": REPLACEMENT_MIN_SNAPSHOTS,
+        "memory_upgrade_factor": MEMORY_UPGRADE_FACTOR,
+        "upgrade_trend_window_days": UPGRADE_TREND_WINDOW_DAYS,
     }

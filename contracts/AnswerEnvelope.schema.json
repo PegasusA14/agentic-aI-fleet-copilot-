@@ -207,7 +207,9 @@
         "action_type": {
           "enum": [
             "remediation_ticket",
-            "replacement_flag"
+            "replacement_flag",
+            "upgrade_order",
+            "employee_notification"
           ],
           "title": "Action Type",
           "type": "string"
@@ -450,7 +452,9 @@
             "unsupported_action",
             "prompt_injection",
             "tool_failure",
-            "step_limit"
+            "step_limit",
+            "not_eligible",
+            "insufficient_evidence"
           ],
           "type": "string"
         },

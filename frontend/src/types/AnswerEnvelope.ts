@@ -32,7 +32,7 @@ export type Headline = string;
 export type Notes = string[];
 export type Outcome =
   "answer" | "no_match" | "insufficient_data" | "clarification" | "proposal" | "denied" | "unsupported" | "tool_error";
-export type ActionType = "remediation_ticket" | "replacement_flag";
+export type ActionType = "remediation_ticket" | "replacement_flag" | "upgrade_order" | "employee_notification";
 export type CompanyId = string;
 /**
  * @minItems 1
@@ -55,6 +55,8 @@ export type ReasonCode =
       | "prompt_injection"
       | "tool_failure"
       | "step_limit"
+      | "not_eligible"
+      | "insufficient_evidence"
     )
   | null;
 export type AsOf = string;

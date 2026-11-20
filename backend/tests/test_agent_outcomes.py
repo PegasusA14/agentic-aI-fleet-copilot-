@@ -5,6 +5,7 @@ import pytest
 from fleet_copilot.agent import outcomes, texts
 from fleet_copilot.agent.compose import compose
 from fleet_copilot.agent.records import ToolRecord
+from fleet_copilot.contracts import AnswerEnvelope
 
 AS_OF = datetime(2026, 6, 12, 11, 0, tzinfo=UTC)
 KW = {"company_id": "acme-001", "as_of": AS_OF, "trace_id": "t-9"}
@@ -58,3 +59,23 @@ def test_clarification_carries_question_and_options_and_falls_back_to_a_default(
     default = outcomes.clarification(None, [], **KW)
     assert default.clarification is not None
     assert default.clarification.question == texts.DEFAULT_CLARIFICATION
+
+
+@pytest.mark.parametrize(
+    ("reason", "headline"),
+    [
+        ("not_eligible", texts.ACTION_NOT_ELIGIBLE),
+        ("insufficient_evidence", texts.ACTION_INSUFFICIENT_EVIDENCE),
+    ],
+)
+def test_action_refusal_is_denied_with_fixed_headline_and_the_code_written_note(reason, headline):
+    envelope = outcomes.action_refusal(reason, "Disk is at 40% free.", **KW)
+    assert (envelope.outcome, envelope.reason_code, envelope.headline) == (
+        "denied",
+        reason,
+        headline,
+    )
+    assert envelope.notes == ["Disk is at 40% free."]
+    assert not envelope.claims and not envelope.evidence and envelope.explanation is None
+    assert envelope.proposal is None and envelope.trace_id == "t-9"
+    assert AnswerEnvelope.model_validate(envelope.model_dump()) == envelope

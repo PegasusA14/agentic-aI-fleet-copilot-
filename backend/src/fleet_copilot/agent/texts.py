@@ -10,8 +10,21 @@ NOT_FOUND = "I can't find that in your fleet."
 TOOL_FAILED = "A data lookup failed, so I can't answer reliably. No changes were made."
 OFF_TOPIC = "I can only answer questions about this company's managed devices."
 UNSUPPORTED_ACTION = (
-    "Creating or changing anything isn't available yet. I can only look things up for now."
+    "I can propose one device at a time: a remediation ticket, a replacement flag, a memory or "
+    "storage upgrade, or an employee notification. Approvals happen in the review screen."
 )
+ACTION_NOT_ELIGIBLE = (
+    "That action is not supported by the current evidence, so no proposal was made."
+)
+ACTION_INSUFFICIENT_EVIDENCE = (
+    "There is not enough recent evidence to propose that action, so no proposal was made."
+)
+ACTION_LABELS = {
+    "remediation_ticket": "open a remediation ticket",
+    "replacement_flag": "flag the device for replacement",
+    "upgrade_order": "order a hardware upgrade",
+    "employee_notification": "notify the assigned employee",
+}
 PROMPT_INJECTION = (
     "I can't follow instructions that change how I work. I answer from your fleet's telemetry only."
 )
@@ -37,6 +50,14 @@ def unresolved_note(n: int) -> str:
     """How many requested device ids were left out. Foreign and nonexistent ids are counted alike."""
     noun, was = ("device", "was") if n == 1 else ("devices", "were")
     return f"{n} requested {noun} could not be found in your fleet and {was} not included."
+
+
+def proposal_headline(action_label: str, target_label: str) -> str:
+    """The fixed headline of a proposal card: it says plainly that nothing has happened yet."""
+    return (
+        f"Proposed: {action_label} for {target_label}. "
+        "It waits for your approval; nothing has changed yet."
+    )
 
 
 def no_match(population: int) -> str:

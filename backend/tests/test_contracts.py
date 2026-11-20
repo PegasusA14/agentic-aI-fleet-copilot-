@@ -8,6 +8,7 @@ from pydantic import ValidationError
 
 from fleet_copilot.config import REPO_ROOT
 from fleet_copilot.contracts import (
+    ActionType,
     AnswerEnvelope,
     Claim,
     Clarification,
@@ -364,7 +365,7 @@ def test_an_entity_device_may_be_mentioned_by_any_one_of_several_claims():
 
 
 ALLOWED_PAIRS = {
-    "denied": ["not_found", "prompt_injection"],
+    "denied": ["not_found", "prompt_injection", "not_eligible", "insufficient_evidence"],
     "unsupported": ["off_topic", "unsupported_action"],
     "tool_error": ["tool_failure"],
     "insufficient_data": ["insufficient_history", "step_limit"],
@@ -379,6 +380,8 @@ ALL_REASONS = [
     "prompt_injection",
     "tool_failure",
     "step_limit",
+    "not_eligible",
+    "insufficient_evidence",
 ]
 
 
@@ -530,3 +533,20 @@ def test_excluded_reasons_are_a_closed_set():
     }
     with pytest.raises(ValidationError):
         Coverage(population=1, excluded={"made_up_reason": ["A"]})
+
+
+def test_action_type_covers_the_four_sop_actions():
+    assert set(get_args(ActionType)) == {
+        "remediation_ticket",
+        "replacement_flag",
+        "upgrade_order",
+        "employee_notification",
+    }
+
+
+@pytest.mark.parametrize("reason", ["not_eligible", "insufficient_evidence"])
+def test_action_refusal_reasons_are_valid_only_on_denied(reason):
+    denied = envelope(outcome="denied", claims=[], evidence=[], reason_code=reason, notes=["why"])
+    assert denied.reason_code == reason and denied.notes == ["why"]
+    with pytest.raises(ValidationError, match="must not carry a reason_code"):
+        envelope(reason_code=reason)
