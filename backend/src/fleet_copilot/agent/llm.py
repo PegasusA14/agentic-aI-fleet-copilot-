@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from typing import Annotated, Any, Literal, Protocol
 
 from langchain_core.messages import AIMessage, BaseMessage
-from pydantic import BaseModel, ConfigDict, Field, model_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from fleet_copilot import policy
 
@@ -50,6 +50,12 @@ class Plan(BaseModel):
     clarification_question: str | None = Field(default=None, max_length=300)
     clarification_options: list[ShortText] = Field(default_factory=list, max_length=6)
     refusal_reason: RefusalReason | None = None
+
+    @field_validator("clarification_options", mode="before")
+    @classmethod
+    def _null_means_no_options(cls, value: object) -> object:
+        # Live models send `null` for an empty optional list; only that one value is read as "none".
+        return [] if value is None else value
 
     @model_validator(mode="after")
     def _consistent(self) -> Plan:

@@ -154,3 +154,31 @@ def test_tool_call_helpers_build_valid_messages_with_unique_ids():
     assert len(set(ids)) == 2
     other = tool_calls_message(("trend", {}))
     assert other.tool_calls[0]["id"] not in ids
+
+
+def test_a_null_options_list_from_the_model_means_no_options():
+    """Live models send `null` for an empty optional list; that must not fail the whole plan."""
+    plan = Plan.model_validate(
+        {
+            "intent": "answer",
+            "summary": "Identify devices with low disk space from fleet telemetry.",
+            "window_days": None,
+            "reference": None,
+            "clarification_question": None,
+            "clarification_options": None,
+            "refusal_reason": None,
+        }
+    )
+    assert plan.clarification_options == []
+
+
+def test_options_must_still_be_a_list_when_given():
+    with pytest.raises(ValidationError):
+        Plan.model_validate(
+            {
+                "intent": "clarify",
+                "summary": "s",
+                "clarification_question": "Which?",
+                "clarification_options": "a",
+            }
+        )
