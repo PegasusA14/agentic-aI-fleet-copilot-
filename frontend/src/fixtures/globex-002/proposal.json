@@ -1,0 +1,150 @@
+{
+  "envelope": {
+    "claims": [
+      {
+        "count": 2,
+        "device_ids": [
+          "JRZSGXVMKE6M",
+          "E4V0SB5I0MYU"
+        ],
+        "refs": [
+          "globex-002/JRZSGXVMKE6M@2026-06-12T10:46:00Z#disk",
+          "globex-002/E4V0SB5I0MYU@2026-06-12T08:54:00Z#disk"
+        ],
+        "text": "Low disk space (under 10% free on the primary volume, latest snapshot): 2 of 8 devices. JRZSGXVMKE6M (globex-thinkpad-8; 2.0% free, 20.5 GiB of 1.0 TiB); E4V0SB5I0MYU (globex-dell-7; 2.4% free, 12.2 GiB of 512.0 GiB)."
+      }
+    ],
+    "clarification": null,
+    "coverage": {
+      "excluded": {},
+      "missing_latest": [],
+      "population": 8,
+      "stale": []
+    },
+    "entity_lists": [
+      {
+        "items": [
+          {
+            "device_id": "JRZSGXVMKE6M",
+            "label": "globex-thinkpad-8",
+            "rank": 1
+          },
+          {
+            "device_id": "E4V0SB5I0MYU",
+            "label": "globex-dell-7",
+            "rank": 2
+          }
+        ],
+        "list_id": "replay-globex-002-proposal/low_disk_devices-1",
+        "title": "Low disk (<10% free)"
+      }
+    ],
+    "evidence": [
+      {
+        "label": "Disk · globex-thinkpad-8 · 2026-06-12 10:46Z",
+        "ref": "globex-002/JRZSGXVMKE6M@2026-06-12T10:46:00Z#disk",
+        "value": "20.5 GiB free of 1.0 TiB (2.0% free)"
+      },
+      {
+        "label": "Disk · globex-dell-7 · 2026-06-12 08:54Z",
+        "ref": "globex-002/E4V0SB5I0MYU@2026-06-12T08:54:00Z#disk",
+        "value": "12.2 GiB free of 512.0 GiB (2.4% free)"
+      }
+    ],
+    "explanation": null,
+    "headline": "Proposed: open a remediation ticket for globex-thinkpad-8",
+    "notes": [],
+    "outcome": "proposal",
+    "proposal": {
+      "action_type": "remediation_ticket",
+      "company_id": "globex-002",
+      "evidence_refs": [
+        "globex-002/JRZSGXVMKE6M@2026-06-12T10:46:00Z#disk"
+      ],
+      "expected_effect": "Simulated: a remediation ticket would be opened. Nothing changes in a real system.",
+      "payload_hash": "d6f6c64114632a631acccdc44b50aa00d31d4098dc5206cb1bb20527d23c3b97",
+      "proposal_id": "prop-replay-globex-002-proposal",
+      "rationale": "globex-thinkpad-8 has under 10% free disk space at its latest snapshot.",
+      "scope": {
+        "company": "globex-002",
+        "device": "JRZSGXVMKE6M",
+        "rule": "primary volume free space < 10% at the latest snapshot"
+      },
+      "status": "pending",
+      "target_device_id": "JRZSGXVMKE6M",
+      "target_label": "globex-thinkpad-8"
+    },
+    "reason_code": null,
+    "scope": {
+      "as_of": "2026-06-12T11:00:00Z",
+      "calculation": "2 distinct devices across 1 claim; at most 6 supporting readings are cited per device",
+      "company_id": "globex-002",
+      "population": 8,
+      "rule": "primary volume free space < 10% at the latest snapshot"
+    },
+    "trace_id": "replay-globex-002-proposal"
+  },
+  "meta": {
+    "keywords": [
+      "ticket",
+      "first one",
+      "open a ticket"
+    ],
+    "note": "No proposal backend exists yet (Plan 3); built from a real low-disk answer.",
+    "question": "Open a ticket for the first one",
+    "scenario": "proposal",
+    "synthetic": true,
+    "tenant": "globex-002"
+  },
+  "trace": [
+    {
+      "data": {},
+      "kind": "plan",
+      "latency_ms": null,
+      "seq": 1,
+      "summary": "Resolve 'the first one' against the last list, then propose a remediation ticket."
+    },
+    {
+      "data": {
+        "args": {},
+        "tool": "low_disk_devices"
+      },
+      "kind": "tool_call",
+      "latency_ms": null,
+      "seq": 2,
+      "summary": "Call low_disk_devices"
+    },
+    {
+      "data": {
+        "excluded": {},
+        "matched": 2,
+        "missing_latest": 0,
+        "population": 8,
+        "stale": 0
+      },
+      "kind": "tool_result",
+      "latency_ms": null,
+      "seq": 3,
+      "summary": "low_disk_devices matched 2 of 8 devices (0 stale, 0 without a latest reading)"
+    },
+    {
+      "data": {
+        "claims": 1,
+        "evidence": 2
+      },
+      "kind": "verify",
+      "latency_ms": null,
+      "seq": 4,
+      "summary": "Claims, counts and evidence were written by code from the tool results."
+    },
+    {
+      "data": {
+        "outcome": "proposal"
+      },
+      "kind": "respond",
+      "latency_ms": null,
+      "seq": 5,
+      "summary": "Responded with proposal."
+    }
+  ]
+}

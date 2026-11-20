@@ -1,0 +1,62 @@
+{
+  "envelope": {
+    "claims": [],
+    "clarification": {
+      "options": [
+        "Low disk space",
+        "Outdated macOS",
+        "Failing compliance checks",
+        "High memory use"
+      ],
+      "question": "“OK” can mean a few things. Which check do you want?"
+    },
+    "coverage": null,
+    "entity_lists": [],
+    "evidence": [],
+    "explanation": null,
+    "headline": "Which check should I run?",
+    "notes": [],
+    "outcome": "clarification",
+    "proposal": null,
+    "reason_code": null,
+    "scope": {
+      "as_of": "2026-06-12T11:00:00Z",
+      "calculation": null,
+      "company_id": "acme-001",
+      "population": null,
+      "rule": null
+    },
+    "trace_id": "replay-acme-001-clarification"
+  },
+  "meta": {
+    "keywords": [
+      "are my devices ok",
+      "healthy",
+      "overview",
+      "status"
+    ],
+    "note": "Asking this needs the language model; built here from the contract.",
+    "question": "Are my devices OK?",
+    "scenario": "clarification",
+    "synthetic": true,
+    "tenant": "acme-001"
+  },
+  "trace": [
+    {
+      "data": {},
+      "kind": "plan",
+      "latency_ms": null,
+      "seq": 1,
+      "summary": "The question names no check, so ask which one to run."
+    },
+    {
+      "data": {
+        "outcome": "clarification"
+      },
+      "kind": "respond",
+      "latency_ms": null,
+      "seq": 2,
+      "summary": "Responded with clarification."
+    }
+  ]
+}

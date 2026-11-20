@@ -1,0 +1,96 @@
+{
+  "envelope": {
+    "claims": [],
+    "clarification": null,
+    "coverage": {
+      "excluded": {},
+      "missing_latest": [],
+      "population": 5,
+      "stale": []
+    },
+    "entity_lists": [],
+    "evidence": [],
+    "explanation": null,
+    "headline": "No devices matched (5 evaluated)",
+    "notes": [
+      "The telemetry has no design capacity, so a battery health percentage cannot be computed; capacity change is relative to each device's own first reading in the window."
+    ],
+    "outcome": "no_match",
+    "proposal": null,
+    "reason_code": "no_matching_records",
+    "scope": {
+      "as_of": "2026-06-12T11:00:00Z",
+      "calculation": null,
+      "company_id": "initech-003",
+      "population": 5,
+      "rule": "laptops with capacity down more than 1% or a Service Recommended flag over the last 30 days"
+    },
+    "trace_id": "replay-initech-003-battery_wear"
+  },
+  "meta": {
+    "keywords": [
+      "battery",
+      "wear",
+      "cycles"
+    ],
+    "note": "",
+    "question": "Which laptops show battery wear?",
+    "scenario": "battery_wear",
+    "synthetic": false,
+    "tenant": "initech-003"
+  },
+  "trace": [
+    {
+      "data": {},
+      "kind": "plan",
+      "latency_ms": null,
+      "seq": 1,
+      "summary": "Look for battery wear signals over the last 30 days."
+    },
+    {
+      "data": {
+        "args": {
+          "metric": "battery"
+        },
+        "tool": "trend"
+      },
+      "kind": "tool_call",
+      "latency_ms": null,
+      "seq": 2,
+      "summary": "Call trend"
+    },
+    {
+      "data": {
+        "excluded": {},
+        "matched": 0,
+        "missing_latest": 0,
+        "population": 5,
+        "stale": 0
+      },
+      "kind": "tool_result",
+      "latency_ms": null,
+      "seq": 3,
+      "summary": "trend matched 0 of 5 devices (0 stale, 0 without a latest reading)"
+    },
+    {
+      "data": {
+        "claims": 0,
+        "evidence": 0
+      },
+      "kind": "verify",
+      "latency_ms": null,
+      "seq": 4,
+      "summary": "Claims, counts and evidence were written by code from the tool results."
+    },
+    {
+      "data": {
+        "outcome": "no_match",
+        "reason_code": "no_matching_records"
+      },
+      "kind": "respond",
+      "latency_ms": null,
+      "seq": 5,
+      "summary": "Responded with no_match."
+    }
+  ]
+}

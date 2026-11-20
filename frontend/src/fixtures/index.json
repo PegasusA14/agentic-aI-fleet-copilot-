@@ -1,0 +1,527 @@
+{
+  "acme-001": [
+    {
+      "keywords": [
+        "disk",
+        "storage",
+        "space",
+        "free"
+      ],
+      "note": "",
+      "question": "Which devices are low on disk space?",
+      "scenario": "low_disk",
+      "synthetic": false,
+      "tenant": "acme-001"
+    },
+    {
+      "keywords": [
+        "macos",
+        "mac",
+        "version",
+        "older",
+        "outdated"
+      ],
+      "note": "",
+      "question": "Which Macs run a macOS version older than 15?",
+      "scenario": "macos_older_than_15",
+      "synthetic": false,
+      "tenant": "acme-001"
+    },
+    {
+      "keywords": [
+        "compliance",
+        "fail",
+        "encryption",
+        "screen lock",
+        "checks"
+      ],
+      "note": "",
+      "question": "Which devices fail a compliance check?",
+      "scenario": "compliance_failures",
+      "synthetic": false,
+      "tenant": "acme-001"
+    },
+    {
+      "keywords": [
+        "high severity",
+        "severity",
+        "high-severity"
+      ],
+      "note": "",
+      "question": "Are any high-severity compliance checks failing?",
+      "scenario": "compliance_high_no_match",
+      "synthetic": false,
+      "tenant": "acme-001"
+    },
+    {
+      "keywords": [
+        "memory",
+        "ram"
+      ],
+      "note": "",
+      "question": "Which devices are using too much memory right now?",
+      "scenario": "memory_pressure",
+      "synthetic": false,
+      "tenant": "acme-001"
+    },
+    {
+      "keywords": [
+        "week",
+        "trend",
+        "sustained",
+        "all week"
+      ],
+      "note": "",
+      "question": "Which devices have had low disk space all week?",
+      "scenario": "disk_trend",
+      "synthetic": false,
+      "tenant": "acme-001"
+    },
+    {
+      "keywords": [
+        "last day",
+        "yesterday",
+        "24 hours",
+        "today"
+      ],
+      "note": "",
+      "question": "Is memory use trending up over the last day?",
+      "scenario": "insufficient_trend",
+      "synthetic": false,
+      "tenant": "acme-001"
+    },
+    {
+      "keywords": [
+        "battery",
+        "wear",
+        "cycles"
+      ],
+      "note": "",
+      "question": "Which laptops show battery wear?",
+      "scenario": "battery_wear",
+      "synthetic": false,
+      "tenant": "acme-001"
+    },
+    {
+      "keywords": [
+        "inventory",
+        "how many",
+        "models",
+        "by model"
+      ],
+      "note": "",
+      "question": "How many Macs do we have, by model?",
+      "scenario": "inventory_by_model",
+      "synthetic": false,
+      "tenant": "acme-001"
+    },
+    {
+      "keywords": [
+        "4sefdlptkxam"
+      ],
+      "note": "",
+      "question": "Show the disk history for device 4SEFDLPTKXAM",
+      "scenario": "device_not_found",
+      "synthetic": false,
+      "tenant": "acme-001"
+    },
+    {
+      "keywords": [
+        "are my devices ok",
+        "healthy",
+        "overview",
+        "status"
+      ],
+      "note": "Asking this needs the language model; built here from the contract.",
+      "question": "Are my devices OK?",
+      "scenario": "clarification",
+      "synthetic": true,
+      "tenant": "acme-001"
+    },
+    {
+      "keywords": [
+        "weather",
+        "berlin"
+      ],
+      "note": "The refusal text is the composer's fixed wording; routing needs the model.",
+      "question": "What's the weather in Berlin?",
+      "scenario": "unsupported",
+      "synthetic": true,
+      "tenant": "acme-001"
+    },
+    {
+      "keywords": [
+        "ticket",
+        "first one",
+        "open a ticket"
+      ],
+      "note": "No proposal backend exists yet (Plan 3); built from a real low-disk answer.",
+      "question": "Open a ticket for the first one",
+      "scenario": "proposal",
+      "synthetic": true,
+      "tenant": "acme-001"
+    },
+    {
+      "keywords": [
+        "simulate",
+        "lookup failure",
+        "outage"
+      ],
+      "note": "The failure is simulated; the failure wording is the composer's own.",
+      "question": "Simulate a data lookup failure",
+      "scenario": "tool_error",
+      "synthetic": true,
+      "tenant": "acme-001"
+    }
+  ],
+  "globex-002": [
+    {
+      "keywords": [
+        "disk",
+        "storage",
+        "space",
+        "free"
+      ],
+      "note": "",
+      "question": "Which devices are low on disk space?",
+      "scenario": "low_disk",
+      "synthetic": false,
+      "tenant": "globex-002"
+    },
+    {
+      "keywords": [
+        "macos",
+        "mac",
+        "version",
+        "older",
+        "outdated"
+      ],
+      "note": "",
+      "question": "Which Macs run a macOS version older than 15?",
+      "scenario": "macos_older_than_15",
+      "synthetic": false,
+      "tenant": "globex-002"
+    },
+    {
+      "keywords": [
+        "compliance",
+        "fail",
+        "encryption",
+        "screen lock",
+        "checks"
+      ],
+      "note": "",
+      "question": "Which devices fail a compliance check?",
+      "scenario": "compliance_failures",
+      "synthetic": false,
+      "tenant": "globex-002"
+    },
+    {
+      "keywords": [
+        "high severity",
+        "severity",
+        "high-severity"
+      ],
+      "note": "",
+      "question": "Are any high-severity compliance checks failing?",
+      "scenario": "compliance_high_no_match",
+      "synthetic": false,
+      "tenant": "globex-002"
+    },
+    {
+      "keywords": [
+        "memory",
+        "ram"
+      ],
+      "note": "",
+      "question": "Which devices are using too much memory right now?",
+      "scenario": "memory_pressure",
+      "synthetic": false,
+      "tenant": "globex-002"
+    },
+    {
+      "keywords": [
+        "week",
+        "trend",
+        "sustained",
+        "all week"
+      ],
+      "note": "",
+      "question": "Which devices have had low disk space all week?",
+      "scenario": "disk_trend",
+      "synthetic": false,
+      "tenant": "globex-002"
+    },
+    {
+      "keywords": [
+        "last day",
+        "yesterday",
+        "24 hours",
+        "today"
+      ],
+      "note": "",
+      "question": "Is memory use trending up over the last day?",
+      "scenario": "insufficient_trend",
+      "synthetic": false,
+      "tenant": "globex-002"
+    },
+    {
+      "keywords": [
+        "battery",
+        "wear",
+        "cycles"
+      ],
+      "note": "",
+      "question": "Which laptops show battery wear?",
+      "scenario": "battery_wear",
+      "synthetic": false,
+      "tenant": "globex-002"
+    },
+    {
+      "keywords": [
+        "inventory",
+        "how many",
+        "models",
+        "by model"
+      ],
+      "note": "",
+      "question": "How many Macs do we have, by model?",
+      "scenario": "inventory_by_model",
+      "synthetic": false,
+      "tenant": "globex-002"
+    },
+    {
+      "keywords": [
+        "1lyssfd074bb"
+      ],
+      "note": "",
+      "question": "Show the disk history for device 1LYSSFD074BB",
+      "scenario": "device_not_found",
+      "synthetic": false,
+      "tenant": "globex-002"
+    },
+    {
+      "keywords": [
+        "are my devices ok",
+        "healthy",
+        "overview",
+        "status"
+      ],
+      "note": "Asking this needs the language model; built here from the contract.",
+      "question": "Are my devices OK?",
+      "scenario": "clarification",
+      "synthetic": true,
+      "tenant": "globex-002"
+    },
+    {
+      "keywords": [
+        "weather",
+        "berlin"
+      ],
+      "note": "The refusal text is the composer's fixed wording; routing needs the model.",
+      "question": "What's the weather in Berlin?",
+      "scenario": "unsupported",
+      "synthetic": true,
+      "tenant": "globex-002"
+    },
+    {
+      "keywords": [
+        "ticket",
+        "first one",
+        "open a ticket"
+      ],
+      "note": "No proposal backend exists yet (Plan 3); built from a real low-disk answer.",
+      "question": "Open a ticket for the first one",
+      "scenario": "proposal",
+      "synthetic": true,
+      "tenant": "globex-002"
+    },
+    {
+      "keywords": [
+        "simulate",
+        "lookup failure",
+        "outage"
+      ],
+      "note": "The failure is simulated; the failure wording is the composer's own.",
+      "question": "Simulate a data lookup failure",
+      "scenario": "tool_error",
+      "synthetic": true,
+      "tenant": "globex-002"
+    }
+  ],
+  "initech-003": [
+    {
+      "keywords": [
+        "disk",
+        "storage",
+        "space",
+        "free"
+      ],
+      "note": "",
+      "question": "Which devices are low on disk space?",
+      "scenario": "low_disk",
+      "synthetic": false,
+      "tenant": "initech-003"
+    },
+    {
+      "keywords": [
+        "macos",
+        "mac",
+        "version",
+        "older",
+        "outdated"
+      ],
+      "note": "",
+      "question": "Which Macs run a macOS version older than 15?",
+      "scenario": "macos_older_than_15",
+      "synthetic": false,
+      "tenant": "initech-003"
+    },
+    {
+      "keywords": [
+        "compliance",
+        "fail",
+        "encryption",
+        "screen lock",
+        "checks"
+      ],
+      "note": "",
+      "question": "Which devices fail a compliance check?",
+      "scenario": "compliance_failures",
+      "synthetic": false,
+      "tenant": "initech-003"
+    },
+    {
+      "keywords": [
+        "high severity",
+        "severity",
+        "high-severity"
+      ],
+      "note": "",
+      "question": "Are any high-severity compliance checks failing?",
+      "scenario": "compliance_high_no_match",
+      "synthetic": false,
+      "tenant": "initech-003"
+    },
+    {
+      "keywords": [
+        "memory",
+        "ram"
+      ],
+      "note": "",
+      "question": "Which devices are using too much memory right now?",
+      "scenario": "memory_pressure",
+      "synthetic": false,
+      "tenant": "initech-003"
+    },
+    {
+      "keywords": [
+        "week",
+        "trend",
+        "sustained",
+        "all week"
+      ],
+      "note": "",
+      "question": "Which devices have had low disk space all week?",
+      "scenario": "disk_trend",
+      "synthetic": false,
+      "tenant": "initech-003"
+    },
+    {
+      "keywords": [
+        "last day",
+        "yesterday",
+        "24 hours",
+        "today"
+      ],
+      "note": "",
+      "question": "Is memory use trending up over the last day?",
+      "scenario": "insufficient_trend",
+      "synthetic": false,
+      "tenant": "initech-003"
+    },
+    {
+      "keywords": [
+        "battery",
+        "wear",
+        "cycles"
+      ],
+      "note": "",
+      "question": "Which laptops show battery wear?",
+      "scenario": "battery_wear",
+      "synthetic": false,
+      "tenant": "initech-003"
+    },
+    {
+      "keywords": [
+        "inventory",
+        "how many",
+        "models",
+        "by model"
+      ],
+      "note": "",
+      "question": "How many Macs do we have, by model?",
+      "scenario": "inventory_by_model",
+      "synthetic": false,
+      "tenant": "initech-003"
+    },
+    {
+      "keywords": [
+        "4sefdlptkxam"
+      ],
+      "note": "",
+      "question": "Show the disk history for device 4SEFDLPTKXAM",
+      "scenario": "device_not_found",
+      "synthetic": false,
+      "tenant": "initech-003"
+    },
+    {
+      "keywords": [
+        "are my devices ok",
+        "healthy",
+        "overview",
+        "status"
+      ],
+      "note": "Asking this needs the language model; built here from the contract.",
+      "question": "Are my devices OK?",
+      "scenario": "clarification",
+      "synthetic": true,
+      "tenant": "initech-003"
+    },
+    {
+      "keywords": [
+        "weather",
+        "berlin"
+      ],
+      "note": "The refusal text is the composer's fixed wording; routing needs the model.",
+      "question": "What's the weather in Berlin?",
+      "scenario": "unsupported",
+      "synthetic": true,
+      "tenant": "initech-003"
+    },
+    {
+      "keywords": [
+        "ticket",
+        "first one",
+        "open a ticket"
+      ],
+      "note": "No proposal backend exists yet (Plan 3); built from a real low-disk answer.",
+      "question": "Open a ticket for the first one",
+      "scenario": "proposal",
+      "synthetic": true,
+      "tenant": "initech-003"
+    },
+    {
+      "keywords": [
+        "simulate",
+        "lookup failure",
+        "outage"
+      ],
+      "note": "The failure is simulated; the failure wording is the composer's own.",
+      "question": "Simulate a data lookup failure",
+      "scenario": "tool_error",
+      "synthetic": true,
+      "tenant": "initech-003"
+    }
+  ]
+}

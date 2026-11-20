@@ -1,0 +1,168 @@
+{
+  "envelope": {
+    "claims": [
+      {
+        "count": 4,
+        "device_ids": [
+          "1LYSSFD074BB",
+          "7VP16KHV88LM",
+          "MT7PJB7N5LRE",
+          "XSU9UUDGU6AC"
+        ],
+        "refs": [
+          "acme-001/1LYSSFD074BB@2026-06-12T09:47:00Z#os",
+          "acme-001/7VP16KHV88LM@2026-06-12T10:41:00Z#os",
+          "acme-001/MT7PJB7N5LRE@2026-06-12T08:39:00Z#os",
+          "acme-001/XSU9UUDGU6AC@2026-06-12T09:52:00Z#os"
+        ],
+        "text": "macOS older than 15: 4 of 7 macOS devices. 1LYSSFD074BB (acme-macbook-2; macOS 14.5); 7VP16KHV88LM (acme-macbook-1; macOS 13.6); MT7PJB7N5LRE (acme-macbook-4; macOS 14.5); XSU9UUDGU6AC (acme-macbook-6; macOS 14.5)."
+      }
+    ],
+    "clarification": null,
+    "coverage": {
+      "excluded": {
+        "out_of_scope": [
+          "8NM23J95R5I6",
+          "9MXJVZ1I0DKA",
+          "M4XVHUV1MEPZ"
+        ]
+      },
+      "missing_latest": [],
+      "population": 7,
+      "stale": []
+    },
+    "entity_lists": [
+      {
+        "items": [
+          {
+            "device_id": "1LYSSFD074BB",
+            "label": "acme-macbook-2",
+            "rank": 1
+          },
+          {
+            "device_id": "7VP16KHV88LM",
+            "label": "acme-macbook-1",
+            "rank": 2
+          },
+          {
+            "device_id": "MT7PJB7N5LRE",
+            "label": "acme-macbook-4",
+            "rank": 3
+          },
+          {
+            "device_id": "XSU9UUDGU6AC",
+            "label": "acme-macbook-6",
+            "rank": 4
+          }
+        ],
+        "list_id": "replay-acme-001-macos_older_than_15/macos_version_check-1",
+        "title": "macOS older than 15"
+      }
+    ],
+    "evidence": [
+      {
+        "label": "OS version · acme-macbook-2 · 2026-06-12 09:47Z",
+        "ref": "acme-001/1LYSSFD074BB@2026-06-12T09:47:00Z#os",
+        "value": "macOS 14.5"
+      },
+      {
+        "label": "OS version · acme-macbook-1 · 2026-06-12 10:41Z",
+        "ref": "acme-001/7VP16KHV88LM@2026-06-12T10:41:00Z#os",
+        "value": "macOS 13.6"
+      },
+      {
+        "label": "OS version · acme-macbook-4 · 2026-06-12 08:39Z",
+        "ref": "acme-001/MT7PJB7N5LRE@2026-06-12T08:39:00Z#os",
+        "value": "macOS 14.5"
+      },
+      {
+        "label": "OS version · acme-macbook-6 · 2026-06-12 09:52Z",
+        "ref": "acme-001/XSU9UUDGU6AC@2026-06-12T09:52:00Z#os",
+        "value": "macOS 14.5"
+      }
+    ],
+    "explanation": null,
+    "headline": "4 of 7 macOS devices run a version older than macOS 15",
+    "notes": [
+      "3 devices are out of scope for this check: 8NM23J95R5I6, 9MXJVZ1I0DKA, M4XVHUV1MEPZ."
+    ],
+    "outcome": "answer",
+    "proposal": null,
+    "reason_code": null,
+    "scope": {
+      "as_of": "2026-06-12T11:00:00Z",
+      "calculation": "4 distinct devices across 1 claim; at most 6 supporting readings are cited per device",
+      "company_id": "acme-001",
+      "population": 7,
+      "rule": "macOS devices with version < 15"
+    },
+    "trace_id": "replay-acme-001-macos_older_than_15"
+  },
+  "meta": {
+    "keywords": [
+      "macos",
+      "mac",
+      "version",
+      "older",
+      "outdated"
+    ],
+    "note": "",
+    "question": "Which Macs run a macOS version older than 15?",
+    "scenario": "macos_older_than_15",
+    "synthetic": false,
+    "tenant": "acme-001"
+  },
+  "trace": [
+    {
+      "data": {},
+      "kind": "plan",
+      "latency_ms": null,
+      "seq": 1,
+      "summary": "List macOS devices below version 15; Windows devices are out of scope."
+    },
+    {
+      "data": {
+        "args": {},
+        "tool": "macos_version_check"
+      },
+      "kind": "tool_call",
+      "latency_ms": null,
+      "seq": 2,
+      "summary": "Call macos_version_check"
+    },
+    {
+      "data": {
+        "excluded": {
+          "out_of_scope": 3
+        },
+        "matched": 4,
+        "missing_latest": 0,
+        "population": 7,
+        "stale": 0
+      },
+      "kind": "tool_result",
+      "latency_ms": null,
+      "seq": 3,
+      "summary": "macos_version_check matched 4 of 7 devices (0 stale, 0 without a latest reading)"
+    },
+    {
+      "data": {
+        "claims": 1,
+        "evidence": 4
+      },
+      "kind": "verify",
+      "latency_ms": null,
+      "seq": 4,
+      "summary": "Claims, counts and evidence were written by code from the tool results."
+    },
+    {
+      "data": {
+        "outcome": "answer"
+      },
+      "kind": "respond",
+      "latency_ms": null,
+      "seq": 5,
+      "summary": "Responded with answer."
+    }
+  ]
+}

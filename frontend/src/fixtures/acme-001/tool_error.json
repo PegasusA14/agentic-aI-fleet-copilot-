@@ -1,0 +1,73 @@
+{
+  "envelope": {
+    "claims": [],
+    "clarification": null,
+    "coverage": null,
+    "entity_lists": [],
+    "evidence": [],
+    "explanation": null,
+    "headline": "A data lookup failed, so I can't answer reliably. No changes were made.",
+    "notes": [],
+    "outcome": "tool_error",
+    "proposal": null,
+    "reason_code": "tool_failure",
+    "scope": {
+      "as_of": "2026-06-12T11:00:00Z",
+      "calculation": null,
+      "company_id": "acme-001",
+      "population": null,
+      "rule": null
+    },
+    "trace_id": "replay-acme-001-tool_error"
+  },
+  "meta": {
+    "keywords": [
+      "simulate",
+      "lookup failure",
+      "outage"
+    ],
+    "note": "The failure is simulated; the failure wording is the composer's own.",
+    "question": "Simulate a data lookup failure",
+    "scenario": "tool_error",
+    "synthetic": true,
+    "tenant": "acme-001"
+  },
+  "trace": [
+    {
+      "data": {},
+      "kind": "plan",
+      "latency_ms": null,
+      "seq": 1,
+      "summary": "Check the latest free disk space against the low-disk rule."
+    },
+    {
+      "data": {
+        "args": {},
+        "tool": "low_disk_devices"
+      },
+      "kind": "tool_call",
+      "latency_ms": null,
+      "seq": 2,
+      "summary": "Call low_disk_devices"
+    },
+    {
+      "data": {
+        "error": "tool_error"
+      },
+      "kind": "error",
+      "latency_ms": null,
+      "seq": 3,
+      "summary": "low_disk_devices failed"
+    },
+    {
+      "data": {
+        "outcome": "tool_error",
+        "reason_code": "tool_failure"
+      },
+      "kind": "respond",
+      "latency_ms": null,
+      "seq": 4,
+      "summary": "Responded with tool_error."
+    }
+  ]
+}

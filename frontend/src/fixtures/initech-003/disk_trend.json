@@ -1,0 +1,195 @@
+{
+  "envelope": {
+    "claims": [
+      {
+        "count": 2,
+        "device_ids": [
+          "DARFCP0BQM2G",
+          "RLD7WV7J82SH"
+        ],
+        "refs": [
+          "initech-003/DARFCP0BQM2G@2026-06-06T09:37:00Z#disk",
+          "initech-003/DARFCP0BQM2G@2026-06-07T10:17:00Z#disk",
+          "initech-003/DARFCP0BQM2G@2026-06-08T10:08:00Z#disk",
+          "initech-003/DARFCP0BQM2G@2026-06-10T08:38:00Z#disk",
+          "initech-003/DARFCP0BQM2G@2026-06-11T09:41:00Z#disk",
+          "initech-003/DARFCP0BQM2G@2026-06-12T10:31:00Z#disk",
+          "initech-003/RLD7WV7J82SH@2026-06-06T10:09:00Z#disk",
+          "initech-003/RLD7WV7J82SH@2026-06-07T09:44:00Z#disk",
+          "initech-003/RLD7WV7J82SH@2026-06-08T09:58:00Z#disk",
+          "initech-003/RLD7WV7J82SH@2026-06-10T08:42:00Z#disk",
+          "initech-003/RLD7WV7J82SH@2026-06-11T10:42:00Z#disk",
+          "initech-003/RLD7WV7J82SH@2026-06-12T08:50:00Z#disk"
+        ],
+        "text": "Sustained (breached in at least 80% of the window's snapshots and still breached at the latest), free disk space under 10% over the last 7 days: 2 of 7 devices. DARFCP0BQM2G (initech-macbook-6; breached in 7 of 7 snapshots; latest 2.0% free); RLD7WV7J82SH (initech-mac-4; breached in 7 of 7 snapshots; latest 2.0% free)."
+      }
+    ],
+    "clarification": null,
+    "coverage": {
+      "excluded": {},
+      "missing_latest": [],
+      "population": 7,
+      "stale": []
+    },
+    "entity_lists": [
+      {
+        "items": [
+          {
+            "device_id": "DARFCP0BQM2G",
+            "label": "initech-macbook-6",
+            "rank": 1
+          },
+          {
+            "device_id": "RLD7WV7J82SH",
+            "label": "initech-mac-4",
+            "rank": 2
+          }
+        ],
+        "list_id": "replay-initech-003-disk_trend/trend-1-sustained",
+        "title": "sustained disk (7 d)"
+      }
+    ],
+    "evidence": [
+      {
+        "label": "Disk · initech-macbook-6 · 2026-06-06 09:37Z",
+        "ref": "initech-003/DARFCP0BQM2G@2026-06-06T09:37:00Z#disk",
+        "value": "40.5 GiB free of 1.0 TiB (4.0% free)"
+      },
+      {
+        "label": "Disk · initech-macbook-6 · 2026-06-07 10:17Z",
+        "ref": "initech-003/DARFCP0BQM2G@2026-06-07T10:17:00Z#disk",
+        "value": "36.9 GiB free of 1.0 TiB (3.6% free)"
+      },
+      {
+        "label": "Disk · initech-macbook-6 · 2026-06-08 10:08Z",
+        "ref": "initech-003/DARFCP0BQM2G@2026-06-08T10:08:00Z#disk",
+        "value": "33.2 GiB free of 1.0 TiB (3.2% free)"
+      },
+      {
+        "label": "Disk · initech-macbook-6 · 2026-06-10 08:38Z",
+        "ref": "initech-003/DARFCP0BQM2G@2026-06-10T08:38:00Z#disk",
+        "value": "25.9 GiB free of 1.0 TiB (2.5% free)"
+      },
+      {
+        "label": "Disk · initech-macbook-6 · 2026-06-11 09:41Z",
+        "ref": "initech-003/DARFCP0BQM2G@2026-06-11T09:41:00Z#disk",
+        "value": "22.3 GiB free of 1.0 TiB (2.2% free)"
+      },
+      {
+        "label": "Disk · initech-macbook-6 · 2026-06-12 10:31Z",
+        "ref": "initech-003/DARFCP0BQM2G@2026-06-12T10:31:00Z#disk",
+        "value": "20.5 GiB free of 1.0 TiB (2.0% free)"
+      },
+      {
+        "label": "Disk · initech-mac-4 · 2026-06-06 10:09Z",
+        "ref": "initech-003/RLD7WV7J82SH@2026-06-06T10:09:00Z#disk",
+        "value": "6.2 GiB free of 256.0 GiB (2.4% free)"
+      },
+      {
+        "label": "Disk · initech-mac-4 · 2026-06-07 09:44Z",
+        "ref": "initech-003/RLD7WV7J82SH@2026-06-07T09:44:00Z#disk",
+        "value": "5.7 GiB free of 256.0 GiB (2.2% free)"
+      },
+      {
+        "label": "Disk · initech-mac-4 · 2026-06-08 09:58Z",
+        "ref": "initech-003/RLD7WV7J82SH@2026-06-08T09:58:00Z#disk",
+        "value": "5.1 GiB free of 256.0 GiB (2.0% free)"
+      },
+      {
+        "label": "Disk · initech-mac-4 · 2026-06-10 08:42Z",
+        "ref": "initech-003/RLD7WV7J82SH@2026-06-10T08:42:00Z#disk",
+        "value": "5.1 GiB free of 256.0 GiB (2.0% free)"
+      },
+      {
+        "label": "Disk · initech-mac-4 · 2026-06-11 10:42Z",
+        "ref": "initech-003/RLD7WV7J82SH@2026-06-11T10:42:00Z#disk",
+        "value": "5.1 GiB free of 256.0 GiB (2.0% free)"
+      },
+      {
+        "label": "Disk · initech-mac-4 · 2026-06-12 08:50Z",
+        "ref": "initech-003/RLD7WV7J82SH@2026-06-12T08:50:00Z#disk",
+        "value": "5.1 GiB free of 256.0 GiB (2.0% free)"
+      }
+    ],
+    "explanation": null,
+    "headline": "2 of 7 devices breached free disk space under 10% in the last 7 days (2 sustained)",
+    "notes": [],
+    "outcome": "answer",
+    "proposal": null,
+    "reason_code": null,
+    "scope": {
+      "as_of": "2026-06-12T11:00:00Z",
+      "calculation": "2 distinct devices across 1 claim; at most 6 supporting readings are cited per device",
+      "company_id": "initech-003",
+      "population": 7,
+      "rule": "primary volume free space < 10% over the last 7 days"
+    },
+    "trace_id": "replay-initech-003-disk_trend"
+  },
+  "meta": {
+    "keywords": [
+      "week",
+      "trend",
+      "sustained",
+      "all week"
+    ],
+    "note": "",
+    "question": "Which devices have had low disk space all week?",
+    "scenario": "disk_trend",
+    "synthetic": false,
+    "tenant": "initech-003"
+  },
+  "trace": [
+    {
+      "data": {},
+      "kind": "plan",
+      "latency_ms": null,
+      "seq": 1,
+      "summary": "Classify low free disk space over the last 7 days."
+    },
+    {
+      "data": {
+        "args": {
+          "metric": "disk"
+        },
+        "tool": "trend"
+      },
+      "kind": "tool_call",
+      "latency_ms": null,
+      "seq": 2,
+      "summary": "Call trend"
+    },
+    {
+      "data": {
+        "excluded": {},
+        "matched": 2,
+        "missing_latest": 0,
+        "population": 7,
+        "stale": 0
+      },
+      "kind": "tool_result",
+      "latency_ms": null,
+      "seq": 3,
+      "summary": "trend matched 2 of 7 devices (0 stale, 0 without a latest reading)"
+    },
+    {
+      "data": {
+        "claims": 1,
+        "evidence": 12
+      },
+      "kind": "verify",
+      "latency_ms": null,
+      "seq": 4,
+      "summary": "Claims, counts and evidence were written by code from the tool results."
+    },
+    {
+      "data": {
+        "outcome": "answer"
+      },
+      "kind": "respond",
+      "latency_ms": null,
+      "seq": 5,
+      "summary": "Responded with answer."
+    }
+  ]
+}

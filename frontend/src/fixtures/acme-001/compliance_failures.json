@@ -1,0 +1,292 @@
+{
+  "envelope": {
+    "claims": [
+      {
+        "count": 9,
+        "device_ids": [
+          "1LYSSFD074BB",
+          "7VP16KHV88LM",
+          "8NM23J95R5I6",
+          "9MXJVZ1I0DKA",
+          "DSYPSES7SKBB",
+          "M4XVHUV1MEPZ",
+          "MT7PJB7N5LRE",
+          "Q3VUITEGQ400",
+          "XSU9UUDGU6AC"
+        ],
+        "refs": [
+          "acme-001/1LYSSFD074BB@2026-06-12T09:47:00Z#compliance[os_up_to_date]",
+          "acme-001/7VP16KHV88LM@2026-06-12T10:41:00Z#compliance[os_up_to_date]",
+          "acme-001/8NM23J95R5I6@2026-06-12T09:02:00Z#compliance[os_up_to_date]",
+          "acme-001/9MXJVZ1I0DKA@2026-06-12T09:13:00Z#compliance[os_up_to_date]",
+          "acme-001/DSYPSES7SKBB@2026-06-12T10:57:00Z#compliance[os_up_to_date]",
+          "acme-001/M4XVHUV1MEPZ@2026-06-12T11:00:00Z#compliance[os_up_to_date]",
+          "acme-001/MT7PJB7N5LRE@2026-06-12T08:39:00Z#compliance[os_up_to_date]",
+          "acme-001/Q3VUITEGQ400@2026-06-12T09:26:00Z#compliance[os_up_to_date]",
+          "acme-001/XSU9UUDGU6AC@2026-06-12T09:52:00Z#compliance[os_up_to_date]"
+        ],
+        "text": "Failing os_up_to_date (medium severity) at the latest snapshot: 9 of 10 devices. 1LYSSFD074BB (acme-macbook-2); 7VP16KHV88LM (acme-macbook-1); 8NM23J95R5I6 (acme-thinkpad-8); 9MXJVZ1I0DKA (acme-thinkpad-10); DSYPSES7SKBB (acme-macbook-3); M4XVHUV1MEPZ (acme-dell-9); MT7PJB7N5LRE (acme-macbook-4); Q3VUITEGQ400 (acme-macbook-7); XSU9UUDGU6AC (acme-macbook-6)."
+      },
+      {
+        "count": 5,
+        "device_ids": [
+          "1LYSSFD074BB",
+          "8NM23J95R5I6",
+          "DLT35MHGTH2D",
+          "DSYPSES7SKBB",
+          "MT7PJB7N5LRE"
+        ],
+        "refs": [
+          "acme-001/1LYSSFD074BB@2026-06-12T09:47:00Z#compliance[screen_lock]",
+          "acme-001/8NM23J95R5I6@2026-06-12T09:02:00Z#compliance[screen_lock]",
+          "acme-001/DLT35MHGTH2D@2026-06-12T09:36:00Z#compliance[screen_lock]",
+          "acme-001/DSYPSES7SKBB@2026-06-12T10:57:00Z#compliance[screen_lock]",
+          "acme-001/MT7PJB7N5LRE@2026-06-12T08:39:00Z#compliance[screen_lock]"
+        ],
+        "text": "Failing screen_lock (medium severity) at the latest snapshot: 5 of 10 devices. 1LYSSFD074BB (acme-macbook-2); 8NM23J95R5I6 (acme-thinkpad-8); DLT35MHGTH2D (acme-mac-5); DSYPSES7SKBB (acme-macbook-3); MT7PJB7N5LRE (acme-macbook-4)."
+      }
+    ],
+    "clarification": null,
+    "coverage": {
+      "excluded": {},
+      "missing_latest": [],
+      "population": 10,
+      "stale": []
+    },
+    "entity_lists": [
+      {
+        "items": [
+          {
+            "device_id": "1LYSSFD074BB",
+            "label": "acme-macbook-2",
+            "rank": 1
+          },
+          {
+            "device_id": "7VP16KHV88LM",
+            "label": "acme-macbook-1",
+            "rank": 2
+          },
+          {
+            "device_id": "8NM23J95R5I6",
+            "label": "acme-thinkpad-8",
+            "rank": 3
+          },
+          {
+            "device_id": "9MXJVZ1I0DKA",
+            "label": "acme-thinkpad-10",
+            "rank": 4
+          },
+          {
+            "device_id": "DSYPSES7SKBB",
+            "label": "acme-macbook-3",
+            "rank": 5
+          },
+          {
+            "device_id": "M4XVHUV1MEPZ",
+            "label": "acme-dell-9",
+            "rank": 6
+          },
+          {
+            "device_id": "MT7PJB7N5LRE",
+            "label": "acme-macbook-4",
+            "rank": 7
+          },
+          {
+            "device_id": "Q3VUITEGQ400",
+            "label": "acme-macbook-7",
+            "rank": 8
+          },
+          {
+            "device_id": "XSU9UUDGU6AC",
+            "label": "acme-macbook-6",
+            "rank": 9
+          }
+        ],
+        "list_id": "replay-acme-001-compliance_failures/compliance_failures_now-1-os_up_to_date",
+        "title": "os_up_to_date failures"
+      },
+      {
+        "items": [
+          {
+            "device_id": "1LYSSFD074BB",
+            "label": "acme-macbook-2",
+            "rank": 1
+          },
+          {
+            "device_id": "8NM23J95R5I6",
+            "label": "acme-thinkpad-8",
+            "rank": 2
+          },
+          {
+            "device_id": "DLT35MHGTH2D",
+            "label": "acme-mac-5",
+            "rank": 3
+          },
+          {
+            "device_id": "DSYPSES7SKBB",
+            "label": "acme-macbook-3",
+            "rank": 4
+          },
+          {
+            "device_id": "MT7PJB7N5LRE",
+            "label": "acme-macbook-4",
+            "rank": 5
+          }
+        ],
+        "list_id": "replay-acme-001-compliance_failures/compliance_failures_now-1-screen_lock",
+        "title": "screen_lock failures"
+      }
+    ],
+    "evidence": [
+      {
+        "label": "Compliance · acme-macbook-2 · 2026-06-12 09:47Z",
+        "ref": "acme-001/1LYSSFD074BB@2026-06-12T09:47:00Z#compliance[os_up_to_date]",
+        "value": "os_up_to_date: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · acme-macbook-1 · 2026-06-12 10:41Z",
+        "ref": "acme-001/7VP16KHV88LM@2026-06-12T10:41:00Z#compliance[os_up_to_date]",
+        "value": "os_up_to_date: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · acme-thinkpad-8 · 2026-06-12 09:02Z",
+        "ref": "acme-001/8NM23J95R5I6@2026-06-12T09:02:00Z#compliance[os_up_to_date]",
+        "value": "os_up_to_date: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · acme-thinkpad-10 · 2026-06-12 09:13Z",
+        "ref": "acme-001/9MXJVZ1I0DKA@2026-06-12T09:13:00Z#compliance[os_up_to_date]",
+        "value": "os_up_to_date: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · acme-macbook-3 · 2026-06-12 10:57Z",
+        "ref": "acme-001/DSYPSES7SKBB@2026-06-12T10:57:00Z#compliance[os_up_to_date]",
+        "value": "os_up_to_date: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · acme-dell-9 · 2026-06-12 11:00Z",
+        "ref": "acme-001/M4XVHUV1MEPZ@2026-06-12T11:00:00Z#compliance[os_up_to_date]",
+        "value": "os_up_to_date: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · acme-macbook-4 · 2026-06-12 08:39Z",
+        "ref": "acme-001/MT7PJB7N5LRE@2026-06-12T08:39:00Z#compliance[os_up_to_date]",
+        "value": "os_up_to_date: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · acme-macbook-7 · 2026-06-12 09:26Z",
+        "ref": "acme-001/Q3VUITEGQ400@2026-06-12T09:26:00Z#compliance[os_up_to_date]",
+        "value": "os_up_to_date: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · acme-macbook-6 · 2026-06-12 09:52Z",
+        "ref": "acme-001/XSU9UUDGU6AC@2026-06-12T09:52:00Z#compliance[os_up_to_date]",
+        "value": "os_up_to_date: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · acme-macbook-2 · 2026-06-12 09:47Z",
+        "ref": "acme-001/1LYSSFD074BB@2026-06-12T09:47:00Z#compliance[screen_lock]",
+        "value": "screen_lock: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · acme-thinkpad-8 · 2026-06-12 09:02Z",
+        "ref": "acme-001/8NM23J95R5I6@2026-06-12T09:02:00Z#compliance[screen_lock]",
+        "value": "screen_lock: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · acme-mac-5 · 2026-06-12 09:36Z",
+        "ref": "acme-001/DLT35MHGTH2D@2026-06-12T09:36:00Z#compliance[screen_lock]",
+        "value": "screen_lock: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · acme-macbook-3 · 2026-06-12 10:57Z",
+        "ref": "acme-001/DSYPSES7SKBB@2026-06-12T10:57:00Z#compliance[screen_lock]",
+        "value": "screen_lock: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · acme-macbook-4 · 2026-06-12 08:39Z",
+        "ref": "acme-001/MT7PJB7N5LRE@2026-06-12T08:39:00Z#compliance[screen_lock]",
+        "value": "screen_lock: fail (medium severity)"
+      }
+    ],
+    "explanation": null,
+    "headline": "10 of 10 devices fail at least one compliance check",
+    "notes": [],
+    "outcome": "answer",
+    "proposal": null,
+    "reason_code": null,
+    "scope": {
+      "as_of": "2026-06-12T11:00:00Z",
+      "calculation": "10 distinct devices across 2 claims; at most 6 supporting readings are cited per device",
+      "company_id": "acme-001",
+      "population": 10,
+      "rule": "failing check at the latest snapshot"
+    },
+    "trace_id": "replay-acme-001-compliance_failures"
+  },
+  "meta": {
+    "keywords": [
+      "compliance",
+      "fail",
+      "encryption",
+      "screen lock",
+      "checks"
+    ],
+    "note": "",
+    "question": "Which devices fail a compliance check?",
+    "scenario": "compliance_failures",
+    "synthetic": false,
+    "tenant": "acme-001"
+  },
+  "trace": [
+    {
+      "data": {},
+      "kind": "plan",
+      "latency_ms": null,
+      "seq": 1,
+      "summary": "List devices with any failing compliance check at the latest snapshot."
+    },
+    {
+      "data": {
+        "args": {},
+        "tool": "compliance_failures_now"
+      },
+      "kind": "tool_call",
+      "latency_ms": null,
+      "seq": 2,
+      "summary": "Call compliance_failures_now"
+    },
+    {
+      "data": {
+        "excluded": {},
+        "matched": 10,
+        "missing_latest": 0,
+        "population": 10,
+        "stale": 0
+      },
+      "kind": "tool_result",
+      "latency_ms": null,
+      "seq": 3,
+      "summary": "compliance_failures_now matched 10 of 10 devices (0 stale, 0 without a latest reading)"
+    },
+    {
+      "data": {
+        "claims": 2,
+        "evidence": 14
+      },
+      "kind": "verify",
+      "latency_ms": null,
+      "seq": 4,
+      "summary": "Claims, counts and evidence were written by code from the tool results."
+    },
+    {
+      "data": {
+        "outcome": "answer"
+      },
+      "kind": "respond",
+      "latency_ms": null,
+      "seq": 5,
+      "summary": "Responded with answer."
+    }
+  ]
+}

@@ -1,0 +1,172 @@
+{
+  "envelope": {
+    "claims": [
+      {
+        "count": 5,
+        "device_ids": [
+          "DARFCP0BQM2G",
+          "I3JLKILKQTAC",
+          "RLD7WV7J82SH",
+          "SPKRRDF0L786",
+          "XZYK11QTPWEC"
+        ],
+        "refs": [
+          "initech-003/DARFCP0BQM2G@2026-06-12T10:31:00Z#os",
+          "initech-003/I3JLKILKQTAC@2026-06-12T10:57:00Z#os",
+          "initech-003/RLD7WV7J82SH@2026-06-12T08:50:00Z#os",
+          "initech-003/SPKRRDF0L786@2026-06-12T10:13:00Z#os",
+          "initech-003/XZYK11QTPWEC@2026-06-12T10:36:00Z#os"
+        ],
+        "text": "Devices by model: 5 of 7 devices. Mac mini: 2; MacBook Air: 1; MacBook Pro: 2."
+      }
+    ],
+    "clarification": null,
+    "coverage": {
+      "excluded": {},
+      "missing_latest": [],
+      "population": 7,
+      "stale": []
+    },
+    "entity_lists": [
+      {
+        "items": [
+          {
+            "device_id": "DARFCP0BQM2G",
+            "label": "initech-macbook-6",
+            "rank": 1
+          },
+          {
+            "device_id": "I3JLKILKQTAC",
+            "label": "initech-mac-3",
+            "rank": 2
+          },
+          {
+            "device_id": "RLD7WV7J82SH",
+            "label": "initech-mac-4",
+            "rank": 3
+          },
+          {
+            "device_id": "SPKRRDF0L786",
+            "label": "initech-macbook-2",
+            "rank": 4
+          },
+          {
+            "device_id": "XZYK11QTPWEC",
+            "label": "initech-macbook-7",
+            "rank": 5
+          }
+        ],
+        "list_id": "replay-initech-003-inventory_by_model/find_devices-1",
+        "title": "Matching devices"
+      }
+    ],
+    "evidence": [
+      {
+        "label": "OS version · initech-macbook-6 · 2026-06-12 10:31Z",
+        "ref": "initech-003/DARFCP0BQM2G@2026-06-12T10:31:00Z#os",
+        "value": "macOS 14.5"
+      },
+      {
+        "label": "OS version · initech-mac-3 · 2026-06-12 10:57Z",
+        "ref": "initech-003/I3JLKILKQTAC@2026-06-12T10:57:00Z#os",
+        "value": "macOS 15.3"
+      },
+      {
+        "label": "OS version · initech-mac-4 · 2026-06-12 08:50Z",
+        "ref": "initech-003/RLD7WV7J82SH@2026-06-12T08:50:00Z#os",
+        "value": "macOS 14.5"
+      },
+      {
+        "label": "OS version · initech-macbook-2 · 2026-06-12 10:13Z",
+        "ref": "initech-003/SPKRRDF0L786@2026-06-12T10:13:00Z#os",
+        "value": "macOS 13.6"
+      },
+      {
+        "label": "OS version · initech-macbook-7 · 2026-06-12 10:36Z",
+        "ref": "initech-003/XZYK11QTPWEC@2026-06-12T10:36:00Z#os",
+        "value": "macOS 13.6"
+      }
+    ],
+    "explanation": null,
+    "headline": "5 devices grouped by model",
+    "notes": [],
+    "outcome": "answer",
+    "proposal": null,
+    "reason_code": null,
+    "scope": {
+      "as_of": "2026-06-12T11:00:00Z",
+      "calculation": "5 distinct devices across 1 claim; at most 6 supporting readings are cited per device",
+      "company_id": "initech-003",
+      "population": 7,
+      "rule": "devices matching os=macOS"
+    },
+    "trace_id": "replay-initech-003-inventory_by_model"
+  },
+  "meta": {
+    "keywords": [
+      "inventory",
+      "how many",
+      "models",
+      "by model"
+    ],
+    "note": "",
+    "question": "How many Macs do we have, by model?",
+    "scenario": "inventory_by_model",
+    "synthetic": false,
+    "tenant": "initech-003"
+  },
+  "trace": [
+    {
+      "data": {},
+      "kind": "plan",
+      "latency_ms": null,
+      "seq": 1,
+      "summary": "Find macOS devices and group them by model."
+    },
+    {
+      "data": {
+        "args": {
+          "group_by": "model",
+          "os_name": "macOS"
+        },
+        "tool": "find_devices"
+      },
+      "kind": "tool_call",
+      "latency_ms": null,
+      "seq": 2,
+      "summary": "Call find_devices"
+    },
+    {
+      "data": {
+        "excluded": {},
+        "matched": 5,
+        "missing_latest": 0,
+        "population": 7,
+        "stale": 0
+      },
+      "kind": "tool_result",
+      "latency_ms": null,
+      "seq": 3,
+      "summary": "find_devices matched 5 of 7 devices (0 stale, 0 without a latest reading)"
+    },
+    {
+      "data": {
+        "claims": 1,
+        "evidence": 5
+      },
+      "kind": "verify",
+      "latency_ms": null,
+      "seq": 4,
+      "summary": "Claims, counts and evidence were written by code from the tool results."
+    },
+    {
+      "data": {
+        "outcome": "answer"
+      },
+      "kind": "respond",
+      "latency_ms": null,
+      "seq": 5,
+      "summary": "Responded with answer."
+    }
+  ]
+}

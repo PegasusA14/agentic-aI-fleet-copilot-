@@ -1,0 +1,53 @@
+{
+  "envelope": {
+    "claims": [],
+    "clarification": null,
+    "coverage": null,
+    "entity_lists": [],
+    "evidence": [],
+    "explanation": null,
+    "headline": "I can only answer questions about this company's managed devices.",
+    "notes": [],
+    "outcome": "unsupported",
+    "proposal": null,
+    "reason_code": "off_topic",
+    "scope": {
+      "as_of": "2026-06-12T11:00:00Z",
+      "calculation": null,
+      "company_id": "acme-001",
+      "population": null,
+      "rule": null
+    },
+    "trace_id": "replay-acme-001-unsupported"
+  },
+  "meta": {
+    "keywords": [
+      "weather",
+      "berlin"
+    ],
+    "note": "The refusal text is the composer's fixed wording; routing needs the model.",
+    "question": "What's the weather in Berlin?",
+    "scenario": "unsupported",
+    "synthetic": true,
+    "tenant": "acme-001"
+  },
+  "trace": [
+    {
+      "data": {},
+      "kind": "plan",
+      "latency_ms": null,
+      "seq": 1,
+      "summary": "Decide whether the question is about this fleet."
+    },
+    {
+      "data": {
+        "outcome": "unsupported",
+        "reason_code": "off_topic"
+      },
+      "kind": "respond",
+      "latency_ms": null,
+      "seq": 2,
+      "summary": "Responded with unsupported."
+    }
+  ]
+}

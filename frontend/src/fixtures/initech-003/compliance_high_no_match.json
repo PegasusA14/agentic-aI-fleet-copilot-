@@ -1,0 +1,94 @@
+{
+  "envelope": {
+    "claims": [],
+    "clarification": null,
+    "coverage": {
+      "excluded": {},
+      "missing_latest": [],
+      "population": 7,
+      "stale": []
+    },
+    "entity_lists": [],
+    "evidence": [],
+    "explanation": null,
+    "headline": "No devices matched (7 evaluated)",
+    "notes": [],
+    "outcome": "no_match",
+    "proposal": null,
+    "reason_code": "no_matching_records",
+    "scope": {
+      "as_of": "2026-06-12T11:00:00Z",
+      "calculation": null,
+      "company_id": "initech-003",
+      "population": 7,
+      "rule": "failing check at the latest snapshot, severity=high"
+    },
+    "trace_id": "replay-initech-003-compliance_high_no_match"
+  },
+  "meta": {
+    "keywords": [
+      "high severity",
+      "severity",
+      "high-severity"
+    ],
+    "note": "",
+    "question": "Are any high-severity compliance checks failing?",
+    "scenario": "compliance_high_no_match",
+    "synthetic": false,
+    "tenant": "initech-003"
+  },
+  "trace": [
+    {
+      "data": {},
+      "kind": "plan",
+      "latency_ms": null,
+      "seq": 1,
+      "summary": "List failing compliance checks of high severity."
+    },
+    {
+      "data": {
+        "args": {
+          "severity": "high"
+        },
+        "tool": "compliance_failures_now"
+      },
+      "kind": "tool_call",
+      "latency_ms": null,
+      "seq": 2,
+      "summary": "Call compliance_failures_now"
+    },
+    {
+      "data": {
+        "excluded": {},
+        "matched": 0,
+        "missing_latest": 0,
+        "population": 7,
+        "stale": 0
+      },
+      "kind": "tool_result",
+      "latency_ms": null,
+      "seq": 3,
+      "summary": "compliance_failures_now matched 0 of 7 devices (0 stale, 0 without a latest reading)"
+    },
+    {
+      "data": {
+        "claims": 0,
+        "evidence": 0
+      },
+      "kind": "verify",
+      "latency_ms": null,
+      "seq": 4,
+      "summary": "Claims, counts and evidence were written by code from the tool results."
+    },
+    {
+      "data": {
+        "outcome": "no_match",
+        "reason_code": "no_matching_records"
+      },
+      "kind": "respond",
+      "latency_ms": null,
+      "seq": 5,
+      "summary": "Responded with no_match."
+    }
+  ]
+}

@@ -1,0 +1,195 @@
+{
+  "envelope": {
+    "claims": [
+      {
+        "count": 2,
+        "device_ids": [
+          "8NM23J95R5I6",
+          "MT7PJB7N5LRE"
+        ],
+        "refs": [
+          "acme-001/8NM23J95R5I6@2026-06-06T08:49:00Z#disk",
+          "acme-001/8NM23J95R5I6@2026-06-07T10:35:00Z#disk",
+          "acme-001/8NM23J95R5I6@2026-06-08T11:06:00Z#disk",
+          "acme-001/8NM23J95R5I6@2026-06-10T08:39:00Z#disk",
+          "acme-001/8NM23J95R5I6@2026-06-11T08:32:00Z#disk",
+          "acme-001/8NM23J95R5I6@2026-06-12T09:02:00Z#disk",
+          "acme-001/MT7PJB7N5LRE@2026-06-06T08:53:00Z#disk",
+          "acme-001/MT7PJB7N5LRE@2026-06-07T10:01:00Z#disk",
+          "acme-001/MT7PJB7N5LRE@2026-06-08T10:42:00Z#disk",
+          "acme-001/MT7PJB7N5LRE@2026-06-10T09:13:00Z#disk",
+          "acme-001/MT7PJB7N5LRE@2026-06-11T09:58:00Z#disk",
+          "acme-001/MT7PJB7N5LRE@2026-06-12T08:39:00Z#disk"
+        ],
+        "text": "Sustained (breached in at least 80% of the window's snapshots and still breached at the latest), free disk space under 10% over the last 7 days: 2 of 10 devices. 8NM23J95R5I6 (acme-thinkpad-8; breached in 7 of 7 snapshots; latest 2.6% free); MT7PJB7N5LRE (acme-macbook-4; breached in 7 of 7 snapshots; latest 2.0% free)."
+      }
+    ],
+    "clarification": null,
+    "coverage": {
+      "excluded": {},
+      "missing_latest": [],
+      "population": 10,
+      "stale": []
+    },
+    "entity_lists": [
+      {
+        "items": [
+          {
+            "device_id": "8NM23J95R5I6",
+            "label": "acme-thinkpad-8",
+            "rank": 1
+          },
+          {
+            "device_id": "MT7PJB7N5LRE",
+            "label": "acme-macbook-4",
+            "rank": 2
+          }
+        ],
+        "list_id": "replay-acme-001-disk_trend/trend-1-sustained",
+        "title": "sustained disk (7 d)"
+      }
+    ],
+    "evidence": [
+      {
+        "label": "Disk · acme-thinkpad-8 · 2026-06-06 08:49Z",
+        "ref": "acme-001/8NM23J95R5I6@2026-06-06T08:49:00Z#disk",
+        "value": "57.6 GiB free of 1.0 TiB (5.6% free)"
+      },
+      {
+        "label": "Disk · acme-thinkpad-8 · 2026-06-07 10:35Z",
+        "ref": "acme-001/8NM23J95R5I6@2026-06-07T10:35:00Z#disk",
+        "value": "52.4 GiB free of 1.0 TiB (5.1% free)"
+      },
+      {
+        "label": "Disk · acme-thinkpad-8 · 2026-06-08 11:06Z",
+        "ref": "acme-001/8NM23J95R5I6@2026-06-08T11:06:00Z#disk",
+        "value": "47.2 GiB free of 1.0 TiB (4.6% free)"
+      },
+      {
+        "label": "Disk · acme-thinkpad-8 · 2026-06-10 08:39Z",
+        "ref": "acme-001/8NM23J95R5I6@2026-06-10T08:39:00Z#disk",
+        "value": "36.9 GiB free of 1.0 TiB (3.6% free)"
+      },
+      {
+        "label": "Disk · acme-thinkpad-8 · 2026-06-11 08:32Z",
+        "ref": "acme-001/8NM23J95R5I6@2026-06-11T08:32:00Z#disk",
+        "value": "31.7 GiB free of 1.0 TiB (3.1% free)"
+      },
+      {
+        "label": "Disk · acme-thinkpad-8 · 2026-06-12 09:02Z",
+        "ref": "acme-001/8NM23J95R5I6@2026-06-12T09:02:00Z#disk",
+        "value": "26.5 GiB free of 1.0 TiB (2.6% free)"
+      },
+      {
+        "label": "Disk · acme-macbook-4 · 2026-06-06 08:53Z",
+        "ref": "acme-001/MT7PJB7N5LRE@2026-06-06T08:53:00Z#disk",
+        "value": "12.0 GiB free of 512.0 GiB (2.3% free)"
+      },
+      {
+        "label": "Disk · acme-macbook-4 · 2026-06-07 10:01Z",
+        "ref": "acme-001/MT7PJB7N5LRE@2026-06-07T10:01:00Z#disk",
+        "value": "10.9 GiB free of 512.0 GiB (2.1% free)"
+      },
+      {
+        "label": "Disk · acme-macbook-4 · 2026-06-08 10:42Z",
+        "ref": "acme-001/MT7PJB7N5LRE@2026-06-08T10:42:00Z#disk",
+        "value": "10.2 GiB free of 512.0 GiB (2.0% free)"
+      },
+      {
+        "label": "Disk · acme-macbook-4 · 2026-06-10 09:13Z",
+        "ref": "acme-001/MT7PJB7N5LRE@2026-06-10T09:13:00Z#disk",
+        "value": "10.2 GiB free of 512.0 GiB (2.0% free)"
+      },
+      {
+        "label": "Disk · acme-macbook-4 · 2026-06-11 09:58Z",
+        "ref": "acme-001/MT7PJB7N5LRE@2026-06-11T09:58:00Z#disk",
+        "value": "10.2 GiB free of 512.0 GiB (2.0% free)"
+      },
+      {
+        "label": "Disk · acme-macbook-4 · 2026-06-12 08:39Z",
+        "ref": "acme-001/MT7PJB7N5LRE@2026-06-12T08:39:00Z#disk",
+        "value": "10.2 GiB free of 512.0 GiB (2.0% free)"
+      }
+    ],
+    "explanation": null,
+    "headline": "2 of 10 devices breached free disk space under 10% in the last 7 days (2 sustained)",
+    "notes": [],
+    "outcome": "answer",
+    "proposal": null,
+    "reason_code": null,
+    "scope": {
+      "as_of": "2026-06-12T11:00:00Z",
+      "calculation": "2 distinct devices across 1 claim; at most 6 supporting readings are cited per device",
+      "company_id": "acme-001",
+      "population": 10,
+      "rule": "primary volume free space < 10% over the last 7 days"
+    },
+    "trace_id": "replay-acme-001-disk_trend"
+  },
+  "meta": {
+    "keywords": [
+      "week",
+      "trend",
+      "sustained",
+      "all week"
+    ],
+    "note": "",
+    "question": "Which devices have had low disk space all week?",
+    "scenario": "disk_trend",
+    "synthetic": false,
+    "tenant": "acme-001"
+  },
+  "trace": [
+    {
+      "data": {},
+      "kind": "plan",
+      "latency_ms": null,
+      "seq": 1,
+      "summary": "Classify low free disk space over the last 7 days."
+    },
+    {
+      "data": {
+        "args": {
+          "metric": "disk"
+        },
+        "tool": "trend"
+      },
+      "kind": "tool_call",
+      "latency_ms": null,
+      "seq": 2,
+      "summary": "Call trend"
+    },
+    {
+      "data": {
+        "excluded": {},
+        "matched": 2,
+        "missing_latest": 0,
+        "population": 10,
+        "stale": 0
+      },
+      "kind": "tool_result",
+      "latency_ms": null,
+      "seq": 3,
+      "summary": "trend matched 2 of 10 devices (0 stale, 0 without a latest reading)"
+    },
+    {
+      "data": {
+        "claims": 1,
+        "evidence": 12
+      },
+      "kind": "verify",
+      "latency_ms": null,
+      "seq": 4,
+      "summary": "Claims, counts and evidence were written by code from the tool results."
+    },
+    {
+      "data": {
+        "outcome": "answer"
+      },
+      "kind": "respond",
+      "latency_ms": null,
+      "seq": 5,
+      "summary": "Responded with answer."
+    }
+  ]
+}

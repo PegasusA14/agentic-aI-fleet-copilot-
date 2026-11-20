@@ -1,0 +1,196 @@
+{
+  "envelope": {
+    "claims": [
+      {
+        "count": 4,
+        "device_ids": [
+          "4SEFDLPTKXAM",
+          "CUXW0BQSV1B7",
+          "Q1AFVLH3YV33",
+          "QPZSXKINA7GP"
+        ],
+        "refs": [
+          "globex-002/4SEFDLPTKXAM@2026-06-12T08:34:00Z#compliance[os_up_to_date]",
+          "globex-002/CUXW0BQSV1B7@2026-06-12T10:47:00Z#compliance[os_up_to_date]",
+          "globex-002/Q1AFVLH3YV33@2026-06-12T08:34:00Z#compliance[os_up_to_date]",
+          "globex-002/QPZSXKINA7GP@2026-06-12T10:04:00Z#compliance[os_up_to_date]"
+        ],
+        "text": "Failing os_up_to_date (medium severity) at the latest snapshot: 4 of 8 devices. 4SEFDLPTKXAM (globex-macbook-3); CUXW0BQSV1B7 (globex-thinkpad-6); Q1AFVLH3YV33 (globex-macbook-4); QPZSXKINA7GP (globex-macbook-5)."
+      },
+      {
+        "count": 2,
+        "device_ids": [
+          "CUXW0BQSV1B7",
+          "JRZSGXVMKE6M"
+        ],
+        "refs": [
+          "globex-002/CUXW0BQSV1B7@2026-06-12T10:47:00Z#compliance[screen_lock]",
+          "globex-002/JRZSGXVMKE6M@2026-06-12T10:46:00Z#compliance[screen_lock]"
+        ],
+        "text": "Failing screen_lock (medium severity) at the latest snapshot: 2 of 8 devices. CUXW0BQSV1B7 (globex-thinkpad-6); JRZSGXVMKE6M (globex-thinkpad-8)."
+      }
+    ],
+    "clarification": null,
+    "coverage": {
+      "excluded": {},
+      "missing_latest": [],
+      "population": 8,
+      "stale": []
+    },
+    "entity_lists": [
+      {
+        "items": [
+          {
+            "device_id": "4SEFDLPTKXAM",
+            "label": "globex-macbook-3",
+            "rank": 1
+          },
+          {
+            "device_id": "CUXW0BQSV1B7",
+            "label": "globex-thinkpad-6",
+            "rank": 2
+          },
+          {
+            "device_id": "Q1AFVLH3YV33",
+            "label": "globex-macbook-4",
+            "rank": 3
+          },
+          {
+            "device_id": "QPZSXKINA7GP",
+            "label": "globex-macbook-5",
+            "rank": 4
+          }
+        ],
+        "list_id": "replay-globex-002-compliance_failures/compliance_failures_now-1-os_up_to_date",
+        "title": "os_up_to_date failures"
+      },
+      {
+        "items": [
+          {
+            "device_id": "CUXW0BQSV1B7",
+            "label": "globex-thinkpad-6",
+            "rank": 1
+          },
+          {
+            "device_id": "JRZSGXVMKE6M",
+            "label": "globex-thinkpad-8",
+            "rank": 2
+          }
+        ],
+        "list_id": "replay-globex-002-compliance_failures/compliance_failures_now-1-screen_lock",
+        "title": "screen_lock failures"
+      }
+    ],
+    "evidence": [
+      {
+        "label": "Compliance · globex-macbook-3 · 2026-06-12 08:34Z",
+        "ref": "globex-002/4SEFDLPTKXAM@2026-06-12T08:34:00Z#compliance[os_up_to_date]",
+        "value": "os_up_to_date: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · globex-thinkpad-6 · 2026-06-12 10:47Z",
+        "ref": "globex-002/CUXW0BQSV1B7@2026-06-12T10:47:00Z#compliance[os_up_to_date]",
+        "value": "os_up_to_date: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · globex-macbook-4 · 2026-06-12 08:34Z",
+        "ref": "globex-002/Q1AFVLH3YV33@2026-06-12T08:34:00Z#compliance[os_up_to_date]",
+        "value": "os_up_to_date: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · globex-macbook-5 · 2026-06-12 10:04Z",
+        "ref": "globex-002/QPZSXKINA7GP@2026-06-12T10:04:00Z#compliance[os_up_to_date]",
+        "value": "os_up_to_date: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · globex-thinkpad-6 · 2026-06-12 10:47Z",
+        "ref": "globex-002/CUXW0BQSV1B7@2026-06-12T10:47:00Z#compliance[screen_lock]",
+        "value": "screen_lock: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · globex-thinkpad-8 · 2026-06-12 10:46Z",
+        "ref": "globex-002/JRZSGXVMKE6M@2026-06-12T10:46:00Z#compliance[screen_lock]",
+        "value": "screen_lock: fail (medium severity)"
+      }
+    ],
+    "explanation": null,
+    "headline": "5 of 8 devices fail at least one compliance check",
+    "notes": [],
+    "outcome": "answer",
+    "proposal": null,
+    "reason_code": null,
+    "scope": {
+      "as_of": "2026-06-12T11:00:00Z",
+      "calculation": "5 distinct devices across 2 claims; at most 6 supporting readings are cited per device",
+      "company_id": "globex-002",
+      "population": 8,
+      "rule": "failing check at the latest snapshot"
+    },
+    "trace_id": "replay-globex-002-compliance_failures"
+  },
+  "meta": {
+    "keywords": [
+      "compliance",
+      "fail",
+      "encryption",
+      "screen lock",
+      "checks"
+    ],
+    "note": "",
+    "question": "Which devices fail a compliance check?",
+    "scenario": "compliance_failures",
+    "synthetic": false,
+    "tenant": "globex-002"
+  },
+  "trace": [
+    {
+      "data": {},
+      "kind": "plan",
+      "latency_ms": null,
+      "seq": 1,
+      "summary": "List devices with any failing compliance check at the latest snapshot."
+    },
+    {
+      "data": {
+        "args": {},
+        "tool": "compliance_failures_now"
+      },
+      "kind": "tool_call",
+      "latency_ms": null,
+      "seq": 2,
+      "summary": "Call compliance_failures_now"
+    },
+    {
+      "data": {
+        "excluded": {},
+        "matched": 5,
+        "missing_latest": 0,
+        "population": 8,
+        "stale": 0
+      },
+      "kind": "tool_result",
+      "latency_ms": null,
+      "seq": 3,
+      "summary": "compliance_failures_now matched 5 of 8 devices (0 stale, 0 without a latest reading)"
+    },
+    {
+      "data": {
+        "claims": 2,
+        "evidence": 6
+      },
+      "kind": "verify",
+      "latency_ms": null,
+      "seq": 4,
+      "summary": "Claims, counts and evidence were written by code from the tool results."
+    },
+    {
+      "data": {
+        "outcome": "answer"
+      },
+      "kind": "respond",
+      "latency_ms": null,
+      "seq": 5,
+      "summary": "Responded with answer."
+    }
+  ]
+}

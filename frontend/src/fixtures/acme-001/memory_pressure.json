@@ -1,0 +1,119 @@
+{
+  "envelope": {
+    "claims": [
+      {
+        "count": 1,
+        "device_ids": [
+          "M4XVHUV1MEPZ"
+        ],
+        "refs": [
+          "acme-001/M4XVHUV1MEPZ@2026-06-12T11:00:00Z#memory"
+        ],
+        "text": "High memory use (at least 85% used, latest snapshot): 1 of 10 devices. M4XVHUV1MEPZ (acme-dell-9; 99.0% used, 15.8 GiB of 16.0 GiB)."
+      }
+    ],
+    "clarification": null,
+    "coverage": {
+      "excluded": {},
+      "missing_latest": [],
+      "population": 10,
+      "stale": []
+    },
+    "entity_lists": [
+      {
+        "items": [
+          {
+            "device_id": "M4XVHUV1MEPZ",
+            "label": "acme-dell-9",
+            "rank": 1
+          }
+        ],
+        "list_id": "replay-acme-001-memory_pressure/memory_pressure_now-1",
+        "title": "High memory (>=85% used)"
+      }
+    ],
+    "evidence": [
+      {
+        "label": "Memory · acme-dell-9 · 2026-06-12 11:00Z",
+        "ref": "acme-001/M4XVHUV1MEPZ@2026-06-12T11:00:00Z#memory",
+        "value": "99.0% used (15.8 GiB of 16.0 GiB)"
+      }
+    ],
+    "explanation": null,
+    "headline": "1 of 10 devices use at least 85% of memory",
+    "notes": [],
+    "outcome": "answer",
+    "proposal": null,
+    "reason_code": null,
+    "scope": {
+      "as_of": "2026-06-12T11:00:00Z",
+      "calculation": "1 distinct device across 1 claim; at most 6 supporting readings are cited per device",
+      "company_id": "acme-001",
+      "population": 10,
+      "rule": "memory used >= 85% at the latest snapshot"
+    },
+    "trace_id": "replay-acme-001-memory_pressure"
+  },
+  "meta": {
+    "keywords": [
+      "memory",
+      "ram"
+    ],
+    "note": "",
+    "question": "Which devices are using too much memory right now?",
+    "scenario": "memory_pressure",
+    "synthetic": false,
+    "tenant": "acme-001"
+  },
+  "trace": [
+    {
+      "data": {},
+      "kind": "plan",
+      "latency_ms": null,
+      "seq": 1,
+      "summary": "Check memory use at the latest snapshot against the memory rule."
+    },
+    {
+      "data": {
+        "args": {},
+        "tool": "memory_pressure_now"
+      },
+      "kind": "tool_call",
+      "latency_ms": null,
+      "seq": 2,
+      "summary": "Call memory_pressure_now"
+    },
+    {
+      "data": {
+        "excluded": {},
+        "matched": 1,
+        "missing_latest": 0,
+        "population": 10,
+        "stale": 0
+      },
+      "kind": "tool_result",
+      "latency_ms": null,
+      "seq": 3,
+      "summary": "memory_pressure_now matched 1 of 10 devices (0 stale, 0 without a latest reading)"
+    },
+    {
+      "data": {
+        "claims": 1,
+        "evidence": 1
+      },
+      "kind": "verify",
+      "latency_ms": null,
+      "seq": 4,
+      "summary": "Claims, counts and evidence were written by code from the tool results."
+    },
+    {
+      "data": {
+        "outcome": "answer"
+      },
+      "kind": "respond",
+      "latency_ms": null,
+      "seq": 5,
+      "summary": "Responded with answer."
+    }
+  ]
+}
