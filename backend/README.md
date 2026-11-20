@@ -13,3 +13,7 @@ answer, a deny-list of negation, universal and reassurance words (`CLAIM_WORDS`)
 It cannot check meaning. A sentence can use only grounded numbers and still be wrong. The code-written
 claims, evidence readings and headline remain the source of truth; model prose is an optional rewording that is
 dropped, field by field, whenever it fails a check.
+
+Two limits are inherent: cross-script homoglyphs (for example Cyrillic letters that look Latin) and number glyphs
+that are not digits (for example CJK numerals) are not detected. Code-written claims and evidence remain the source
+of truth.

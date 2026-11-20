@@ -95,13 +95,22 @@ CLAIM_WORDS = (
 _CLAIM_WORD = re.compile(r"\b(" + "|".join(CLAIM_WORDS) + r")\b", re.IGNORECASE)
 
 
+_MARK_CATEGORIES = frozenset({"Mn", "Mc", "Me"})
+
+
+def _next_to_ascii_digit(text: str, index: int) -> bool:
+    before = text[index - 1] if index > 0 else ""
+    after = text[index + 1] if index + 1 < len(text) else ""
+    return ("0" <= before <= "9" and before != "") or ("0" <= after <= "9" and after != "")
+
+
 def bad_chars(text: str) -> bool:
     """True if `text` has a character outside what a plain sentence needs.
 
     Allowed: letters, ASCII digits, punctuation, symbols, U+0020 and a newline. Rejected rather than
     removed, so the string a reader sees is exactly the string that was checked.
     """
-    for char in text:
+    for index, char in enumerate(text):
         if char in " \n":
             continue
         if (
@@ -115,6 +124,10 @@ def bad_chars(text: str) -> bool:
             return True
         if category == "Nd" and not "0" <= char <= "9":
             return True
+        if category in _MARK_CATEGORIES and _next_to_ascii_digit(text, index):
+            return (
+                True  # a joiner or mark between digits would split a number the reader sees whole
+            )
     return False
 
 

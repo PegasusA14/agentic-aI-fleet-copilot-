@@ -144,6 +144,31 @@ def test_a_headline_with_a_hiding_character_falls_back_to_the_code_headline(low_
     assert all(char not in p for p in verdict.problems)
 
 
+@pytest.mark.parametrize(
+    "joined",
+    ["1\u2d7f5", "1\u17d25", "1\u03015", "1\u0301", "5\u20dd", "\u09bc1", "1\u093e"],
+    ids=[
+        "tifinagh-joiner",
+        "khmer-coeng",
+        "acute-between",
+        "acute-after",
+        "enclosing",
+        "before",
+        "spacing",
+    ],
+)
+def test_marks_next_to_a_digit_are_rejected(joined):
+    problems = check_prose(
+        f"{joined} devices", allowed={"1", "5", "15"}, ids=set(), labels=set(), max_chars=100
+    )
+    assert "bad_chars" in problems
+
+
+def test_accents_on_letters_are_still_fine():
+    for text in ("caf\u00e9", "cafe\u0301", "na\u00efve", "nai\u0308ve", "Z\u00fcrich 2 devices"):
+        assert check_prose(text, allowed={"2"}, ids=set(), labels=set(), max_chars=100) == [], text
+
+
 def test_ordinary_typography_is_not_a_bad_character(low_disk):
     comp, as_of = low_disk
 
