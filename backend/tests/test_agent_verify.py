@@ -304,6 +304,26 @@ def test_reassurance_and_universal_words_are_rejected_on_an_answer(low_disk, wor
     )
 
 
+@pytest.mark.parametrize(
+    ("headline", "explanation"),
+    [
+        (
+            "\uff25\uff56\uff45\uff52\uff59\uff54\uff48\uff49\uff4e\uff47 is ok",
+            "\uff25\uff56\uff45\uff52\uff59\uff54\uff48\uff49\uff4e\uff47 is "
+            "\uff48\uff45\uff41\uff4c\uff54\uff48\uff59 and \uff4e\uff4f\uff4e\uff45 need attention.",
+        ),
+        ("\U0001d40d\U0001d428 devices are low: 2 of 10", "\U0001d40d\U0001d428 devices are low."),
+    ],
+)
+def test_the_deny_list_sees_folded_look_alike_letters(low_disk, headline, explanation):
+    comp, as_of = low_disk
+    verdict = verify_prose(comp, as_of, headline=headline, explanation=explanation)
+    assert verdict.headline == comp.fallback_headline
+    assert verdict.explanation is None
+    assert "headline:claim_word" in verdict.problems
+    assert "explanation:claim_word" in verdict.problems
+
+
 def test_the_deny_list_matches_whole_words_only(low_disk):
     comp, as_of = low_disk
     text = "Two of 10 devices: a known token, a small install, notes and nodes, allocation, tokens."

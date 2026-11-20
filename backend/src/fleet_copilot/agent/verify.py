@@ -250,7 +250,7 @@ def verify_prose(
             labels=labels,
             max_chars=policy.MAX_HEADLINE_CHARS,
         )
-        if is_answer and _CLAIM_WORD.search(headline):
+        if is_answer and _CLAIM_WORD.search(_fold(headline)):
             found.append("claim_word")
         # The code headline states the result; the model's may reword it but must keep its numbers.
         if not required <= number_tokens(headline):
@@ -268,7 +268,7 @@ def verify_prose(
             labels=labels,
             max_chars=policy.MAX_EXPLANATION_CHARS,
         )
-        if is_answer and _CLAIM_WORD.search(explanation):
+        if is_answer and _CLAIM_WORD.search(_fold(explanation)):
             found.append("claim_word")
         if found:
             problems += [f"explanation:{_code(p)}" for p in found]
