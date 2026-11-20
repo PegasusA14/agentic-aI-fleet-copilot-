@@ -33,7 +33,18 @@ _MARKUP = re.compile(
     r"[<>`*\[\]]|&#?\w+;|https?://|\bwww\.|\b[a-z0-9-]+\.[a-z]{2,}/|\b[a-z][a-z0-9+.-]*:\S",
     re.IGNORECASE,
 )
-_ZERO_WIDTH = dict.fromkeys(map(ord, "\u200b\u200c\u200d\u2060\ufeff"))
+# Unicode categories that hide, reorder or imitate what a reader sees: format (soft hyphen, zero-width,
+# bidi controls, invisible operators), control, private use, unassigned, line/paragraph separators and
+# every space but U+0020. Letters, ASCII digits, punctuation and symbols are fine.
+_REJECTED_CATEGORIES = frozenset({"Cf", "Cc", "Co", "Cn", "Zl", "Zp", "Zs"})
+# Characters that render as blank or join glyphs invisibly although they are letters, symbols or marks.
+_BLANK_LOOKING = frozenset(
+    "\u2800"  # braille pattern blank
+    "\u3164\uffa0\u115f\u1160"  # hangul fillers
+    "\u034f"  # combining grapheme joiner
+    "\u17b4\u17b5"  # khmer inherent vowels
+    "\u180b\u180c\u180d\u180e"  # mongolian free variation selectors
+)
 _WORDS: dict[str, float] = {
     "zero": 0,
     "one": 1,
@@ -73,9 +84,35 @@ _WORDS: dict[str, float] = {
 _WORD = re.compile(r"\b(" + "|".join(_WORDS) + r")\b", re.IGNORECASE)
 
 
-def clean(text: str) -> str:
-    """Fold look-alike characters (circled or fullwidth digits) and drop zero-width ones."""
-    return unicodedata.normalize("NFKC", text).translate(_ZERO_WIDTH)
+def bad_chars(text: str) -> bool:
+    """True if `text` has a character outside what a plain sentence needs.
+
+    Allowed: letters, ASCII digits, punctuation, symbols, U+0020 and a newline. Rejected rather than
+    removed, so the string a reader sees is exactly the string that was checked.
+    """
+    for char in text:
+        if char in " \n":
+            continue
+        if (
+            char in _BLANK_LOOKING
+            or "\ufe00" <= char <= "\ufe0f"
+            or "\U000e0100" <= char <= "\U000e01ef"
+        ):
+            return True
+        category = unicodedata.category(char)
+        if category in _REJECTED_CATEGORIES:
+            return True
+        if category == "Nd" and not "0" <= char <= "9":
+            return True
+    return False
+
+
+def _fold(text: str) -> str:
+    """The text as the scans read it: look-alike characters (circled, fullwidth) folded to plain ones.
+
+    Only ever used for checking, never for what is shown.
+    """
+    return unicodedata.normalize("NFKC", text)
 
 
 def _norm(token: str) -> str:
@@ -89,7 +126,7 @@ def _norm(token: str) -> str:
 
 def number_tokens(text: str) -> set[str]:
     """Every number in `text`, digits and number-words alike, in canonical form."""
-    text = clean(text)
+    text = _fold(text)
     found = {_norm(m) for m in _NUMBER.findall(text)}
     found |= {_norm(str(_WORDS[w.lower()])) for w in _WORD.findall(text)}
     return found
@@ -147,12 +184,15 @@ def check_prose(
     text: str, *, allowed: set[str], ids: set[str], labels: set[str], max_chars: int
 ) -> list[str]:
     """Problems with `text`, as codes (`number:<n>` names the offending number)."""
-    text = clean(text)
-    if not text.strip():
+    text = text.strip()
+    if not text:
         return ["empty"]
     problems: list[str] = []
     if len(text) > max_chars:
         problems.append("too_long")
+    if bad_chars(text):
+        problems.append("bad_chars")
+    text = _fold(text)
     if _MARKUP.search(text):
         problems.append("markup")
     if any(found not in ids for found in _ID_LIKE.findall(text)):
@@ -200,7 +240,7 @@ def verify_prose(
         if found:
             problems += [f"headline:{_code(p)}" for p in found]
         else:
-            final_headline = clean(headline).strip()
+            final_headline = headline.strip()
     final_explanation: str | None = None
     if explanation is not None and explanation.strip():
         found = check_prose(
@@ -213,7 +253,7 @@ def verify_prose(
         if found:
             problems += [f"explanation:{_code(p)}" for p in found]
         else:
-            final_explanation = clean(explanation).strip()
+            final_explanation = explanation.strip()
     return ProseVerdict(final_headline, final_explanation, tuple(dict.fromkeys(problems)))
 
 
@@ -223,7 +263,7 @@ def verify_clarification(question: str, options: list[str]) -> tuple[str, list[s
         problems = check_prose(text, allowed=set(), ids=set(), labels=set(), max_chars=300)
         if problems:
             return None
-    return clean(question).strip(), [clean(option).strip() for option in options]
+    return question.strip(), [option.strip() for option in options]
 
 
 def verify_evidence(envelope: AnswerEnvelope, resolve: Resolver) -> list[str]:
