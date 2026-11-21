@@ -8,3 +8,10 @@ export const SUGGESTIONS: readonly string[] = [
   "Which laptops show battery wear?",
   "How many Macs do we have, by model?",
 ];
+
+/** The three on the empty home screen: short enough to read at a glance, and each one the replay can answer. */
+export const HOME_SUGGESTIONS: readonly string[] = [
+  "Which devices are low on disk?",
+  "Which Macs need a macOS update?",
+  "Which devices fail a compliance check?",
+];

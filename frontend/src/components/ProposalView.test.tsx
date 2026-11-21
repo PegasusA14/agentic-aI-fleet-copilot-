@@ -52,12 +52,41 @@ describe("the proposal card", () => {
     expect(within(card).getByText("Open a remediation ticket for acme-macbook-2")).toBeInTheDocument();
     expect(within(card).getByText("1LYSSFD074BB", { selector: ".token" })).toBeInTheDocument();
     expect(within(card).getByText(CARD.rationale)).toBeInTheDocument();
+    expect(within(card).getByText("If you approve")).toBeInTheDocument();
     expect(within(card).getByText(CARD.expected_effect)).toBeInTheDocument();
     expect(within(card).getByText("Check").nextElementSibling).toHaveTextContent("Screen lock");
     expect(within(card).getByText("Severity").nextElementSibling).toHaveTextContent("medium");
     expect(within(card).getByText(HASH.slice(0, 12))).toBeInTheDocument();
     expect(within(card).queryByText(HASH)).not.toBeInTheDocument();
-    expect(within(card).getByText("Pending")).toBeInTheDocument();
+    expect(within(card).getByText("Awaiting your approval")).toBeInTheDocument();
+  });
+
+  it("does not repeat the device as a fact when it is already the title token, and shows the hash as a quiet line", () => {
+    setup();
+    const card = screen.getByRole("region", { name: "Proposed action" });
+    expect(within(card).queryByText("Device")).not.toBeInTheDocument();
+    expect(within(card).queryByText("Proposal hash")).not.toBeInTheDocument();
+    expect(within(card).getByText(HASH.slice(0, 12)).closest("p")).toHaveTextContent(`Proposal ${HASH.slice(0, 12)}`);
+    expect(within(card).getByText(HASH.slice(0, 12)).closest("dl")).toBeNull();
+  });
+
+  it("reads an upgrade as one Change and names the component, in the card and in the dialog", async () => {
+    const upgrade: ProposalCard = {
+      ...CARD,
+      action_type: "upgrade_order",
+      scope: { device: CARD.target_device_id, component: "storage", current: "512 GiB", target: "1 TiB" },
+    };
+    const user = userEvent.setup();
+    render(<ProposalView proposal={upgrade} decide={deciders()} onOpenEvidence={() => {}} />);
+    const card = screen.getByRole("region", { name: "Proposed action" });
+    expect(within(card).getByText("Order a storage upgrade for acme-macbook-2")).toBeInTheDocument();
+    expect(within(card).getByText("Change").nextElementSibling).toHaveTextContent("512 GiB → 1 TiB");
+    expect(within(card).queryByText("Current")).not.toBeInTheDocument();
+    expect(within(card).queryByText("Target")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Approve" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByText("Order a storage upgrade for acme-macbook-2")).toBeInTheDocument();
+    expect(within(dialog).getByText("Change").nextElementSibling).toHaveTextContent("512 GiB → 1 TiB");
   });
 
   it("opens the evidence on the card's own references", async () => {
@@ -95,8 +124,8 @@ describe("approving", () => {
     expect(decide.approve).toHaveBeenCalledTimes(1);
     expect(decide.approve).toHaveBeenCalledWith(CARD.proposal_id, HASH);
     const status = await screen.findByRole("status");
-    expect(status).toHaveTextContent(/recorded in tickets as entry 7/i);
-    expect(status).toHaveTextContent(/\(simulated\)/i);
+    expect(status).toHaveTextContent("Recorded in Tickets as entry 7. Nothing left this system.");
+    expect(status).not.toHaveTextContent(/executed/i);
     expect(screen.getByText("Executed (simulated)")).toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(onDecided).toHaveBeenCalledWith(expect.objectContaining({ status: "executed" }));
@@ -211,7 +240,7 @@ describe("approving", () => {
     await approveThroughDialog(user);
     expect(await screen.findByRole("alert")).toHaveTextContent("The copilot could not be reached.");
     expect(screen.getByRole("button", { name: "Approve" })).toBeEnabled();
-    expect(screen.getByText("Pending")).toBeInTheDocument();
+    expect(screen.getByText("Awaiting your approval")).toBeInTheDocument();
   });
 
   it("hands a lost session back to the app", async () => {
@@ -233,7 +262,7 @@ describe("rejecting", () => {
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(decide.reject).toHaveBeenCalledWith(CARD.proposal_id);
     expect(decide.approve).not.toHaveBeenCalled();
-    expect(await screen.findByRole("status")).toHaveTextContent("Rejected. Nothing was executed.");
+    expect(await screen.findByRole("status")).toHaveTextContent("Nothing was executed.");
     expect(screen.getByText("Rejected", { selector: ".mark span" })).toBeInTheDocument();
     expect(onDecided).toHaveBeenCalledWith(expect.objectContaining({ status: "rejected" }));
     expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();

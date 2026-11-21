@@ -1,4 +1,5 @@
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { firstSentence, replyOf } from "../lib/reply";
 import type { AnswerEnvelope, ProposalCard, TraceEvent } from "../lib/types";
 import { AssistantMessage } from "./chat/AssistantMessage";
 import { UserMessage } from "./chat/UserMessage";
@@ -17,10 +18,14 @@ export interface TurnData {
   note?: string;
   /** Present when the turn failed before an answer: the words shown in the reply. */
   failure?: string;
+  /** Asked in this session. A reopened turn is not fresh: it appears at once and the thread jumps to the bottom. */
+  fresh?: boolean;
 }
 
 interface TurnViewProps {
   turn: TurnData;
+  /** The newest turn in the thread: where a reopened conversation lands. */
+  last: boolean;
   /** A turn is running somewhere in the thread; chips in every reply wait. */
   busy: boolean;
   onOpenEvidence: (turn: TurnData, refs?: string[]) => void;
@@ -48,16 +53,44 @@ function FailureMessage({ turn, onAsk }: { turn: TurnData; onAsk: (question: str
   );
 }
 
-function TurnView({ turn, busy, onOpenEvidence, onOpenTrace, onAsk, decide, onDecided, onSessionEnded }: TurnViewProps) {
+const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
+
+function scrollBehavior(): ScrollBehavior {
+  return typeof window.matchMedia === "function" && window.matchMedia(REDUCED_MOTION).matches ? "auto" : "smooth";
+}
+
+function TurnView({ turn, last, busy, onOpenEvidence, onOpenTrace, onAsk, decide, onDecided, onSessionEnded }: TurnViewProps) {
   const root = useRef<HTMLElement>(null);
+  const previous = useRef(turn.status);
+  /** What a screen reader hears when the reply lands. The region stays mounted so the change is announced. */
+  const [announcement, setAnnouncement] = useState("");
 
   useEffect(() => {
-    // Bring the turn into view when it starts and again once the full answer has grown it.
-    root.current?.scrollIntoView?.({ block: "start", behavior: "smooth" });
-  }, [turn.status]);
+    if (turn.fresh) {
+      // Bring the question into view when the turn starts and again once the full answer has grown it.
+      root.current?.querySelector(".msg--user")?.scrollIntoView?.({ block: "start", behavior: scrollBehavior() });
+    } else if (last) {
+      // A reopened conversation lands at its end, without travelling there.
+      root.current?.scrollIntoView?.({ block: "end", behavior: "auto" });
+    }
+  }, [turn.status, turn.fresh, last]);
+
+  useEffect(() => {
+    if (previous.current === "working" && turn.status !== "working") {
+      const words = turn.status === "done" && turn.envelope ? replyOf(turn.envelope).lead : (turn.failure ?? "");
+      setAnnouncement(`Reply ready. ${firstSentence(words)}`.trim());
+    }
+    previous.current = turn.status;
+  }, [turn.status, turn.envelope, turn.failure]);
 
   return (
-    <section className="turn" id={`turn-${turn.id}`} ref={root} aria-label={`Question: ${turn.question}`}>
+    <section
+      className="turn"
+      id={`turn-${turn.id}`}
+      ref={root}
+      data-fresh={turn.fresh || undefined}
+      aria-label={`Question: ${turn.question}`}
+    >
       <UserMessage text={turn.question} />
       {turn.status === "done" && turn.envelope ? (
         <AssistantMessage
@@ -76,11 +109,14 @@ function TurnView({ turn, busy, onOpenEvidence, onOpenTrace, onAsk, decide, onDe
       ) : (
         <WorkingLine events={turn.events} />
       )}
+      <div className="sr-only" role="status" aria-live="polite">
+        {announcement}
+      </div>
     </section>
   );
 }
 
-interface ThreadProps extends Omit<TurnViewProps, "turn" | "busy"> {
+interface ThreadProps extends Omit<TurnViewProps, "turn" | "last" | "busy"> {
   turns: TurnData[];
 }
 
@@ -88,8 +124,8 @@ export function Thread({ turns, ...rest }: ThreadProps) {
   const busy = turns.some((turn) => turn.status === "working");
   return (
     <div className="thread">
-      {turns.map((turn) => (
-        <TurnView key={turn.id} turn={turn} busy={busy} {...rest} />
+      {turns.map((turn, index) => (
+        <TurnView key={turn.id} turn={turn} last={index === turns.length - 1} busy={busy} {...rest} />
       ))}
     </div>
   );

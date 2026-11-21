@@ -137,12 +137,12 @@ describe("streamed chat", () => {
     });
     const user = await signedInApp(transport);
     await ask(user, "Which devices are low on disk space?");
-    const working = await screen.findByRole("status", { name: "Working" });
-    expect(working).toHaveTextContent(STEPS[0].summary);
+    const working = await screen.findByText("Reading your question…");
+    expect(screen.queryByText(STEPS[0].summary)).not.toBeInTheDocument();
     expect(screen.queryByRole("article")).not.toBeInTheDocument();
     gate.resolve(ENVELOPE);
     expect(await screen.findByText(ENVELOPE.headline)).toBeInTheDocument();
-    expect(screen.queryByRole("status", { name: "Working" })).not.toBeInTheDocument();
+    expect(working).not.toBeInTheDocument();
   });
 
   it("keeps suggestion chips from earlier replies disabled while the next turn runs", async () => {
@@ -169,7 +169,7 @@ describe("streamed chat", () => {
     expect(chip).toBeEnabled();
     await user.click(chip);
     expect(ask1).toHaveBeenLastCalledWith("conv-1", "Order a storage upgrade for acme-macbook-4", expect.any(Function));
-    expect(await screen.findByRole("status", { name: "Working" })).toBeInTheDocument();
+    expect(await screen.findByText("Reading your question…")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Order a storage upgrade/ })).toBeDisabled();
     gate.resolve(ENVELOPE);
     await waitFor(() => expect(screen.getByRole("button", { name: /Order a storage upgrade/ })).toBeEnabled());
@@ -285,7 +285,7 @@ describe("streamed chat", () => {
     await ask(user, "tell me everything");
     expect(await screen.findByRole("alert")).toHaveTextContent("question is too long");
     expect(screen.queryByRole("article")).not.toBeInTheDocument();
-    expect(screen.queryByRole("status", { name: "Working" })).not.toBeInTheDocument();
+    expect(document.querySelector(".working")).toBeNull();
     expect(screen.getByLabelText(/ask a question about your fleet/i)).toHaveValue("tell me everything");
   });
 

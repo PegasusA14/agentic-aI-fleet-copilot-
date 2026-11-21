@@ -1,6 +1,7 @@
-import { ArrowUp, MessageCircle, Plus } from "lucide-react";
+import { ArrowUp, Lightbulb } from "lucide-react";
 import { type KeyboardEvent, useEffect, useId, useRef, useState } from "react";
 import { SUGGESTIONS } from "../lib/suggestions";
+import { useMediaQuery } from "../lib/useMediaQuery";
 
 interface ComposerProps {
   docked: boolean;
@@ -21,6 +22,9 @@ export function Composer({ docked, busy, onAsk, error = null, restore = null, on
   const menuId = useId();
   const errorId = useId();
   const canSend = value.trim().length > 0 && !busy;
+  /** Docked on a phone the one-row box has no room for the full prompt. */
+  const tight = useMediaQuery("(max-width: 640px)");
+  const placeholder = !docked ? "Ask about your fleet…" : tight ? "Ask a follow-up…" : "Ask a follow-up, or ask what to do…";
 
   useEffect(() => {
     const el = input.current;
@@ -68,7 +72,7 @@ export function Composer({ docked, busy, onAsk, error = null, restore = null, on
           ref={input}
           className="composer__input"
           rows={1}
-          placeholder="Ask about your fleet…"
+          placeholder={placeholder}
           value={value}
           aria-invalid={error ? true : undefined}
           aria-describedby={error ? errorId : undefined}
@@ -84,17 +88,14 @@ export function Composer({ docked, busy, onAsk, error = null, restore = null, on
               type="button"
               className="icon-btn"
               aria-label="Suggested questions"
+              title="Suggested questions"
               aria-haspopup="true"
               aria-expanded={menuOpen}
               aria-controls={menuOpen ? menuId : undefined}
               onClick={() => setMenuOpen((open) => !open)}
             >
-              <Plus size={20} aria-hidden="true" />
+              <Lightbulb size={18} aria-hidden="true" />
             </button>
-            <span className="mode">
-              <MessageCircle size={15} aria-hidden="true" />
-              Ask
-            </span>
           </div>
           <button type="submit" className="send" disabled={!canSend} aria-label="Send question">
             <ArrowUp size={20} strokeWidth={2.6} aria-hidden="true" />

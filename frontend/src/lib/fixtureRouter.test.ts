@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { routeQuestion } from "./fixtureRouter";
+import { HOME_SUGGESTIONS } from "./suggestions";
 import { FIXTURE_INDEX, TENANTS, fixturesFor, getFixture } from "./fixtures";
 
 const scenario = (tenant: string, question: string) => routeQuestion(tenant, question).meta.scenario;
@@ -20,6 +21,13 @@ describe("routeQuestion", () => {
     expect(scenario(acme, "How many Macs do we have, by model?")).toBe("inventory_by_model");
     expect(scenario(acme, "Open a ticket for the first one")).toBe("proposal");
     expect(scenario(acme, "What's the weather in Berlin?")).toBe("unsupported");
+  });
+
+  it("answers each shorter home-screen suggestion with the real answer it stands for", () => {
+    const expected = ["low_disk", "macos_older_than_15", "compliance_failures"];
+    HOME_SUGGESTIONS.forEach((question, i) => {
+      for (const tenant of TENANTS) expect(scenario(tenant.id, question)).toBe(expected[i]);
+    });
   });
 
   it("refuses a device of another company exactly like any unknown device", () => {

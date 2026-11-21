@@ -52,17 +52,22 @@ function StatusMark({ status }: { status: ProposalCard["status"] }) {
 function Scope({ card, label }: { card: ProposalCard; label: string }) {
   return (
     <dl className="facts proposal__facts" aria-label={label}>
-      {scopeFacts(card.scope).map((fact) => (
+      {scopeFacts(card.scope, card.target_device_id).map((fact) => (
         <div key={fact.key}>
           <dt>{fact.label}</dt>
           <dd className={fact.token ? "mono" : undefined}>{fact.value}</dd>
         </div>
       ))}
-      <div>
-        <dt>Proposal hash</dt>
-        <dd className="mono">{shortHash(card.payload_hash)}</dd>
-      </div>
     </dl>
+  );
+}
+
+/** The short hash a person approves against: a quiet reference line, not a fact about the change. */
+function ProposalHash({ card }: { card: ProposalCard }) {
+  return (
+    <p className="proposal__hash">
+      Proposal <span className="mono">{shortHash(card.payload_hash)}</span>
+    </p>
   );
 }
 
@@ -76,14 +81,14 @@ function describe(card: ProposalCard, result: { effect: { effect_id: number } | 
     case "executed":
       if (result.duplicate) return "Already executed — no second effect.";
       return result.effect
-        ? `Executed. Recorded in ${EFFECT_TABLE_WORDS[card.action_type]} as entry ${result.effect.effect_id} (simulated). Nothing left this system.`
-        : "Executed (simulated). Nothing left this system.";
+        ? `Recorded in ${EFFECT_TABLE_WORDS[card.action_type]} as entry ${result.effect.effect_id}. Nothing left this system.`
+        : "Nothing left this system.";
     case "invalidated":
       return "This proposal no longer holds on the current data. Nothing was executed.";
     case "failed":
       return "The simulated action did not run, so nothing was recorded.";
     case "rejected":
-      return "Rejected. Nothing was executed.";
+      return "Nothing was executed.";
     default:
       return `This proposal is ${STATUS_STYLE[card.status].word.toLowerCase()}.`;
   }
@@ -185,10 +190,12 @@ export function ProposalView({ proposal, onOpenEvidence, decide, onDecided, onSe
         <span className="token mono">{proposal.target_device_id}</span>
       </div>
       <p className="proposal__rationale">{proposal.rationale}</p>
-      <p className="proposal__effect" id={effectId}>
-        {proposal.expected_effect}
-      </p>
       <Scope card={proposal} label="What this proposal covers" />
+      <div className="proposal__effect" id={effectId}>
+        <p className="proposal__effect-label">If you approve</p>
+        <p className="proposal__effect-text">{proposal.expected_effect}</p>
+      </div>
+      <ProposalHash card={proposal} />
       <div className="sheet__foot">
         <button type="button" className="link-btn" onClick={() => onOpenEvidence(proposal.evidence_refs)}>
           <FileSearch size={15} aria-hidden="true" />
@@ -205,7 +212,7 @@ export function ProposalView({ proposal, onOpenEvidence, decide, onDecided, onSe
               </button>
             </Dialog.Trigger>
             <Dialog.Portal>
-              <Dialog.Overlay className="overlay" />
+              <Dialog.Overlay className="overlay overlay--fades" />
               <Dialog.Content
                 className="modal"
                 onOpenAutoFocus={(event) => {
@@ -222,6 +229,7 @@ export function ProposalView({ proposal, onOpenEvidence, decide, onDecided, onSe
                   <span className="token mono">{proposal.target_device_id}</span>
                 </div>
                 <Scope card={proposal} label="What you are approving" />
+                <ProposalHash card={proposal} />
                 <div className="modal__actions">
                   <button type="button" className="btn" ref={cancel} onClick={() => setConfirming(false)}>
                     Cancel

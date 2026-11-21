@@ -1,7 +1,7 @@
 import { ChevronDown, FileSearch, ListTree } from "lucide-react";
 import { useId, useState } from "react";
 import { EXCLUDED_TEXT, REASON_TEXT, plural } from "../../lib/format";
-import { decidedSheet } from "../../lib/proposals";
+import { replyOf } from "../../lib/reply";
 import type { AnswerEnvelope, EntityList, ProposalCard } from "../../lib/types";
 import { ProposalView, type Decide } from "../ProposalView";
 import { StateMark } from "../StateMark";
@@ -22,12 +22,24 @@ interface AssistantMessageProps {
   onSessionEnded?: () => void;
 }
 
+/** One claim reads as a sentence; several read as a list. */
+function Claims({ claims }: { claims: AnswerEnvelope["claims"] }) {
+  if (claims.length === 1) return <p className="msg__claim">{claims[0].text}</p>;
+  return (
+    <ul className="msg__claims">
+      {claims.map((claim) => (
+        <li key={claim.text}>{claim.text}</li>
+      ))}
+    </ul>
+  );
+}
+
 function DeviceChips({ list }: { list: EntityList }) {
   const titleId = useId();
   return (
     <div className="devlist">
       <p className="devlist__title" id={titleId}>
-        {list.title} — in this order
+        {list.items.length > 1 ? `${list.title} — in this order` : list.title}
       </p>
       <ol className="devchips" aria-labelledby={titleId}>
         {list.items.map((item) => (
@@ -112,17 +124,19 @@ export function AssistantMessage({
 }: AssistantMessageProps) {
   const detailsId = useId();
   const [open, setOpen] = useState(false);
+  const [opened, setOpened] = useState(false);
   /** What the person decided, once they have: the reply then stops saying the proposal waits. */
   const [decision, setDecision] = useState<ProposalCard["status"] | null>(null);
   const { outcome } = envelope;
-  const decided = envelope.proposal ? decidedSheet(decision ?? envelope.proposal.status, envelope.proposal) : null;
+  const status = decision ?? envelope.proposal?.status;
+  const { lead, explanation } = replyOf(envelope, status);
   const clarification = envelope.clarification;
-  const explanation = !decided && !clarification ? envelope.explanation : null;
-  const lead = decided ? decided.headline : clarification ? clarification.question : (explanation ?? envelope.headline);
-  const claimsInReply = !explanation && !decided && envelope.claims.length > 0;
   const suggestions = envelope.suggested_actions ?? [];
+  /** The reply carries the claims only when nothing else already says them: no explanation, no chips that name each action. */
+  const claimsInReply = !explanation && !envelope.proposal && suggestions.length === 0 && envelope.claims.length > 0;
   const lists = suggestions.length > 0 ? [] : envelope.entity_lists;
-  const markShown = outcome !== "answer";
+  /** A proposal's card owns its state, so the reply carries no second mark above it. */
+  const markShown = outcome !== "answer" && outcome !== "proposal";
 
   function pick(question: string) {
     onAsk(question);
@@ -133,7 +147,7 @@ export function AssistantMessage({
     <article className="msg msg--assistant" data-outcome={outcome} aria-label="Copilot reply">
       {markShown ? (
         <div className="msg__state">
-          <StateMark outcome={outcome} as={decided ?? undefined} />
+          <StateMark outcome={outcome} />
         </div>
       ) : null}
 
@@ -141,13 +155,7 @@ export function AssistantMessage({
         {lead}
       </p>
 
-      {claimsInReply ? (
-        <ul className="msg__claims">
-          {envelope.claims.map((claim) => (
-            <li key={claim.text}>{claim.text}</li>
-          ))}
-        </ul>
-      ) : null}
+      {claimsInReply ? <Claims claims={envelope.claims} /> : null}
 
       {clarification ? (
         <div className="chips" role="group" aria-label="Choose one">
@@ -163,7 +171,7 @@ export function AssistantMessage({
         <DeviceChips key={list.list_id} list={list} />
       ))}
 
-      <SuggestionChips actions={suggestions} busy={busy} onAsk={onAsk} />
+      <SuggestionChips actions={suggestions} busy={busy} onAsk={onAsk} withReason={!explanation} />
 
       {envelope.proposal ? (
         <ProposalView
@@ -192,36 +200,38 @@ export function AssistantMessage({
           className="details__toggle"
           aria-expanded={open}
           aria-controls={detailsId}
-          onClick={() => setOpen((value) => !value)}
+          onClick={() => {
+            setOpened(true);
+            setOpen((value) => !value);
+          }}
         >
           <ChevronDown size={15} aria-hidden="true" />
           Details
         </button>
-        {open ? (
-          <div className="details__body" id={detailsId}>
-            {explanation && envelope.claims.length > 0 ? (
-              <ul className="msg__claims">
-                {envelope.claims.map((claim) => (
-                  <li key={claim.text}>{claim.text}</li>
-                ))}
-              </ul>
+        {/* Closed, the panel is folded to nothing and inert; its content mounts on first open and stays for the close. */}
+        <div className="details__panel" id={detailsId} data-open={open} inert={!open} aria-hidden={!open}>
+          <div className="details__clip">
+            {opened ? (
+              <div className="details__body">
+                {!claimsInReply && envelope.claims.length > 0 ? <Claims claims={envelope.claims} /> : null}
+                <Facts envelope={envelope} />
+                {note ? <p className="details__note">Simulated example. {note}</p> : null}
+                <div className="details__actions">
+                  {envelope.evidence.length > 0 ? (
+                    <button type="button" className="link-btn" onClick={() => onOpenEvidence()}>
+                      <FileSearch size={15} aria-hidden="true" />
+                      Evidence ({envelope.evidence.length})
+                    </button>
+                  ) : null}
+                  <button type="button" className="link-btn" onClick={onOpenTrace}>
+                    <ListTree size={15} aria-hidden="true" />
+                    Show work
+                  </button>
+                </div>
+              </div>
             ) : null}
-            <Facts envelope={envelope} />
-            {note ? <p className="details__note">Simulated example. {note}</p> : null}
-            <div className="details__actions">
-              {envelope.evidence.length > 0 ? (
-                <button type="button" className="link-btn" onClick={() => onOpenEvidence()}>
-                  <FileSearch size={15} aria-hidden="true" />
-                  Evidence ({envelope.evidence.length})
-                </button>
-              ) : null}
-              <button type="button" className="link-btn" onClick={onOpenTrace}>
-                <ListTree size={15} aria-hidden="true" />
-                Show work
-              </button>
-            </div>
           </div>
-        ) : null}
+        </div>
       </div>
     </article>
   );

@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import { getFixture } from "../../lib/fixtures";
 import type { ApprovalResult } from "../../lib/transport";
-import type { AnswerEnvelope, ProposalCard } from "../../lib/types";
+import type { AnswerEnvelope, EntityList, ProposalCard } from "../../lib/types";
 import type { Decide } from "../ProposalView";
 import { AssistantMessage } from "./AssistantMessage";
 
@@ -49,6 +49,30 @@ describe("an answer", () => {
     expect(screen.getByText(LOW_DISK.claims[0].text)).toBeInTheDocument();
   });
 
+  it("reads one claim as a paragraph, not a one-bullet list", () => {
+    const one = { ...LOW_DISK, claims: [LOW_DISK.claims[0]] };
+    const { container } = setup(one);
+    expect(screen.getByText(one.claims[0].text).tagName).toBe("P");
+    expect(container.querySelector(".msg__claims")).toBeNull();
+  });
+
+  it("keeps several claims as a list", () => {
+    const { container } = setup({ ...LOW_DISK, claims: [LOW_DISK.claims[0], { ...LOW_DISK.claims[0], text: "Another claim." }] });
+    expect(container.querySelectorAll(".msg__claims li")).toHaveLength(2);
+  });
+
+  it("says 'in this order' only for a list of more than one device", () => {
+    const one = {
+      ...LOW_DISK,
+      entity_lists: [{ ...LOW_DISK.entity_lists[0], items: [LOW_DISK.entity_lists[0].items[0]] as EntityList["items"] }],
+    };
+    const { unmount } = setup(LOW_DISK);
+    expect(screen.getByText(/in this order/)).toBeInTheDocument();
+    unmount();
+    setup(one);
+    expect(screen.queryByText(/in this order/)).not.toBeInTheDocument();
+  });
+
   it("keeps rule, coverage, evidence and trace behind a collapsed Details disclosure", async () => {
     const { user, onOpenEvidence, onOpenTrace } = setup(LOW_DISK);
     const toggle = screen.getByRole("button", { name: "Details" });
@@ -71,7 +95,25 @@ describe("an answer", () => {
 
     await user.click(toggle);
     expect(toggle).toHaveAttribute("aria-expanded", "false");
-    expect(screen.queryByText(/Evaluated/)).not.toBeInTheDocument();
+    // Closing folds the panel (so it can animate); it is inert and hidden from assistive technology meanwhile.
+    expect(document.getElementById(toggle.getAttribute("aria-controls") as string)).toHaveAttribute("inert");
+    expect(screen.queryByRole("button", { name: "Show work" })).not.toBeInTheDocument();
+  });
+
+  it("folds Details open and shut on one panel that is inert while closed", async () => {
+    const { user } = setup(LOW_DISK);
+    const toggle = screen.getByRole("button", { name: "Details" });
+    const panel = document.getElementById(toggle.getAttribute("aria-controls") as string) as HTMLElement;
+    expect(panel).toHaveAttribute("data-open", "false");
+    expect(panel).toHaveAttribute("inert");
+    expect(panel).toHaveAttribute("aria-hidden", "true");
+    await user.click(toggle);
+    expect(panel).toHaveAttribute("data-open", "true");
+    expect(panel).not.toHaveAttribute("inert");
+    expect(panel).not.toHaveAttribute("aria-hidden", "true");
+    await user.click(toggle);
+    expect(panel).toHaveAttribute("data-open", "false");
+    expect(panel).toHaveAttribute("inert");
   });
 
   it("opens and closes Details from the keyboard", async () => {
@@ -197,6 +239,44 @@ describe("suggested actions", () => {
     expect(onAsk).not.toHaveBeenCalled();
   });
 
+  it("does not repeat the claims in the reply when chips already name each action; they stay under Details", async () => {
+    const { user } = setup(ADVISE);
+    expect(screen.queryByText(LOW_DISK.claims[0].text)).not.toBeInTheDocument();
+    expect(document.querySelector(".msg__claims, .msg__claim")).toBeNull();
+    await user.click(screen.getByRole("button", { name: "Details" }));
+    expect(screen.getByText(LOW_DISK.claims[0].text)).toBeInTheDocument();
+  });
+
+  it("gives each chip a third line with its reason when no explanation covers it, and keeps the title", () => {
+    setup(ADVISE);
+    const chips = within(screen.getByRole("group", { name: "Suggested actions" })).getAllByRole("button");
+    expect(chips[0]).toHaveTextContent("2.0% free of 512.0 GiB.");
+    expect(chips[0].querySelector(".chip__reason")).not.toBeNull();
+    expect(chips[0]).toHaveAttribute("title", "2.0% free of 512.0 GiB.");
+  });
+
+  it("leaves the reason off the chips when the reply's explanation already gives it", () => {
+    setup({ ...ADVISE, explanation: "Both laptops are nearly full, so each needs more storage." });
+    const chips = within(screen.getByRole("group", { name: "Suggested actions" })).getAllByRole("button");
+    expect(chips[0].querySelector(".chip__reason")).toBeNull();
+    expect(chips[0]).toHaveAttribute("title", "2.0% free of 512.0 GiB.");
+  });
+
+  it("marks a chip as used once picked: pressed, checked, still focusable", async () => {
+    const { user, onAsk } = setup(ADVISE);
+    const chips = within(screen.getByRole("group", { name: "Suggested actions" })).getAllByRole("button");
+    expect(chips[0]).toHaveAttribute("aria-pressed", "false");
+    await user.click(chips[0]);
+    expect(onAsk).toHaveBeenCalledWith("Order a storage upgrade for acme-macbook-4");
+    expect(chips[0]).toHaveAttribute("aria-pressed", "true");
+    expect(chips[0].querySelector(".chip__label svg")).not.toBeNull();
+    expect(chips[1]).toHaveAttribute("aria-pressed", "false");
+    expect(chips[1].querySelector("svg")).toBeNull();
+    chips[0].focus();
+    expect(chips[0]).toHaveFocus();
+    expect(chips[0]).toBeEnabled();
+  });
+
   it("does not list the same devices twice as device chips", () => {
     setup({ ...ADVISE, entity_lists: [{ list_id: "x", title: "Suggested actions", items: [{ device_id: "MT7PJB7N5LRE", label: "acme-macbook-4", rank: 1 }] }] });
     expect(screen.queryByRole("list", { name: "Suggested actions" })).not.toBeInTheDocument();
@@ -235,23 +315,28 @@ describe("a proposal in the thread", () => {
     }
     return { ...view, decideNow };
   }
-  const mark = () => document.querySelector(".msg__state .mark") as HTMLElement;
+  const marks = () => Array.from(document.querySelectorAll(".mark"));
+  const cardMark = () => document.querySelector(".proposal .mark") as HTMLElement;
 
-  it("reads as waiting while nobody has decided", () => {
+  it("reads as waiting while nobody has decided, with one mark and one lead", () => {
     proposal("executed");
-    expect(mark()).toHaveTextContent("Proposal for your decision");
-    expect(screen.getByText(/waits for your approval/)).toBeInTheDocument();
+    expect(screen.getByText("Here is the proposal. Nothing changes until you approve it.")).toBeInTheDocument();
+    expect(marks()).toHaveLength(1);
+    expect(cardMark()).toHaveTextContent("Awaiting your approval");
+    expect(document.querySelector(".msg__state")).toBeNull();
+    expect(document.body.textContent).not.toMatch(/Proposal for your decision|waits for your approval/);
     expect(screen.getByRole("region", { name: "Proposed action" })).toBeInTheDocument();
   });
 
-  it("says it was executed, in code-written words, once approved", async () => {
+  it("says it was executed, in code-written words, once approved, with the card's single mark", async () => {
     const { decideNow } = proposal("executed");
     await decideNow();
     expect(await screen.findByText("Executed (simulated): Remediation ticket for acme-macbook-2.")).toBeInTheDocument();
-    expect(mark()).toHaveTextContent("Executed (simulated)");
-    expect(mark()).toHaveAttribute("data-tone", "pass");
-    expect(mark().querySelector("svg")).not.toBeNull();
-    expect(document.body.textContent).not.toMatch(/waits for your approval|Proposal for your decision/);
+    expect(marks()).toHaveLength(1);
+    expect(cardMark()).toHaveTextContent("Executed (simulated)");
+    expect(cardMark()).toHaveAttribute("data-tone", "pass");
+    expect(cardMark().querySelector("svg")).not.toBeNull();
+    expect(document.body.textContent).not.toMatch(/waits for your approval|Proposal for your decision|Here is the proposal/);
     expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Reject" })).not.toBeInTheDocument();
   });
@@ -260,7 +345,8 @@ describe("a proposal in the thread", () => {
     const { decideNow } = proposal("rejected", "reject");
     await decideNow();
     expect(await screen.findByText("Rejected: no action was taken.")).toBeInTheDocument();
-    expect(mark()).toHaveTextContent("Rejected");
+    expect(marks()).toHaveLength(1);
+    expect(cardMark()).toHaveTextContent("Rejected");
     expect(document.body.textContent).not.toMatch(/waits for your approval/);
   });
 
@@ -268,13 +354,13 @@ describe("a proposal in the thread", () => {
     const { decideNow } = proposal("invalidated");
     await decideNow();
     expect(await screen.findByText("Not executed: the evidence no longer supports it.")).toBeInTheDocument();
-    expect(mark()).toHaveTextContent("Not executed");
+    expect(cardMark()).toHaveTextContent("Invalidated");
   });
 
   it("says the simulated action failed", async () => {
     const { decideNow } = proposal("failed");
     await decideNow();
     expect(await screen.findByText("Not executed: the simulated action failed.")).toBeInTheDocument();
-    expect(mark()).toHaveAttribute("data-tone", "alert");
+    expect(cardMark()).toHaveAttribute("data-tone", "alert");
   });
 });

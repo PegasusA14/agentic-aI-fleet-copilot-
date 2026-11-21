@@ -1,4 +1,4 @@
-import { SUGGESTIONS } from "../lib/suggestions";
+import { HOME_SUGGESTIONS } from "../lib/suggestions";
 
 export function Hero() {
   return (
@@ -12,7 +12,7 @@ export function Hero() {
 export function Suggestions({ onAsk }: { onAsk: (question: string) => void }) {
   return (
     <div className="suggestions" role="group" aria-label="Suggested questions">
-      {SUGGESTIONS.slice(0, 3).map((question) => (
+      {HOME_SUGGESTIONS.map((question) => (
         <button key={question} type="button" className="chip" onClick={() => onAsk(question)}>
           {question}
         </button>

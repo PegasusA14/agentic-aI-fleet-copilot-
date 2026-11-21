@@ -50,7 +50,7 @@ describe("sign-in and company boundary", () => {
 describe("the working thread", () => {
   it("docks into a thread on the first question and shows the answer first", async () => {
     const user = await signInAs("Acme");
-    await user.click(screen.getByRole("button", { name: "Which devices are low on disk space?" }));
+    await user.click(screen.getByRole("button", { name: "Which devices are low on disk?" }));
     const headline = await screen.findByText("2 of 10 devices have under 10% disk space free");
     const reply = headline.closest("article") as HTMLElement;
     expect(within(reply).queryByText("Answer")).not.toBeInTheDocument();
@@ -96,15 +96,20 @@ describe("the working thread", () => {
   it("makes approval deliberate and labels the outcome as simulated", async () => {
     const user = await signInAs("Acme");
     await ask(user, "Open a ticket for the first one");
-    expect(await screen.findByText("Proposal for your decision")).toBeInTheDocument();
+    expect(await screen.findByText("Awaiting your approval")).toBeInTheDocument();
+    expect(screen.getByText("Here is the proposal. Nothing changes until you approve it.")).toBeInTheDocument();
+    const card = screen.getByRole("region", { name: "Proposed action" });
     await user.click(screen.getByRole("button", { name: "Approve" }));
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByRole("button", { name: "Cancel" })).toHaveFocus();
-    expect(screen.queryByRole("status")).not.toBeInTheDocument();
+    expect(within(card).queryByRole("status")).not.toBeInTheDocument();
     await user.click(within(dialog).getByRole("button", { name: "Approve and execute (simulated)" }));
-    expect(await screen.findByRole("status")).toHaveTextContent(/recorded in tickets as entry 1 \(simulated\)/i);
-    expect(screen.getAllByText("Executed (simulated)").length).toBeGreaterThan(0);
-    expect(screen.queryByText("Proposal for your decision")).not.toBeInTheDocument();
+    expect(await within(card).findByRole("status")).toHaveTextContent(
+      "Recorded in Tickets as entry 1. Nothing left this system.",
+    );
+    expect(document.querySelectorAll(".mark")).toHaveLength(1);
+    expect(within(card).getByText("Executed (simulated)")).toBeInTheDocument();
+    expect(screen.queryByText("Awaiting your approval")).not.toBeInTheDocument();
     expect(screen.queryByText(/waits for your approval/)).not.toBeInTheDocument();
     expect(screen.getByText("Executed (simulated): Remediation ticket for acme-macbook-2.")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
@@ -116,17 +121,24 @@ describe("the working thread", () => {
     await ask(user, "What should I do?");
     const group = await screen.findByRole("group", { name: "Suggested actions" });
     const chips = within(group).getAllByRole("button");
-    expect(chips.map((chip) => chip.textContent)).toEqual([
-      "Order a storage upgrade (512 GiB → 1 TiB)acme-macbook-4",
-      "Order a storage upgrade (1 TiB → 2 TiB)acme-thinkpad-8",
+    const part = (chip: HTMLElement, name: string) => chip.querySelector(`.chip__${name}`)?.textContent;
+    expect(chips.map((chip) => [part(chip, "label"), part(chip, "device")])).toEqual([
+      ["Order a storage upgrade (512 GiB → 1 TiB)", "acme-macbook-4"],
+      ["Order a storage upgrade (1 TiB → 2 TiB)", "acme-thinkpad-8"],
     ]);
+    expect(part(chips[0], "reason")).toBe("10.2 GiB free of 512.0 GiB (2.0% free) in the latest reading.");
+    // The advice is the chips; the claims behind them wait under Details.
+    expect(screen.queryByText(/^acme-macbook-4 \(MT7PJB7N5LRE\):/)).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Details" }));
     expect(screen.getByText(/Simulated example\. Built from the stored low-disk answer/)).toBeInTheDocument();
 
     await user.click(chips[1]);
     expect(screen.getByRole("region", { name: "Question: Order a storage upgrade for acme-thinkpad-8" })).toBeInTheDocument();
     const card = await screen.findByRole("region", { name: "Proposed action" });
-    expect(card).toHaveTextContent("Order a hardware upgrade for acme-thinkpad-8");
+    expect(card).toHaveTextContent("Order a storage upgrade for acme-thinkpad-8");
+    expect(card).toHaveTextContent("1 TiB → 2 TiB");
+    expect(card).not.toHaveTextContent(/hardware/i);
+    expect(chips[1]).toHaveAttribute("aria-pressed", "true");
     expect(card).toHaveTextContent("8NM23J95R5I6");
     expect(screen.getByRole("button", { name: "Approve" })).toBeInTheDocument();
     expect(screen.getByLabelText(/ask a question about your fleet/i)).toHaveFocus();
@@ -136,7 +148,9 @@ describe("the working thread", () => {
     const user = await signInAs("Acme");
     await ask(user, "Open a ticket for the first one");
     await user.click(await screen.findByRole("button", { name: "Reject" }));
-    expect(await screen.findByRole("status")).toHaveTextContent(/rejected\. nothing was executed/i);
+    const card = screen.getByRole("region", { name: "Proposed action" });
+    expect(await within(card).findByRole("status")).toHaveTextContent("Nothing was executed.");
+    expect(within(card).getByText("Rejected")).toBeInTheDocument();
   });
 });
 
@@ -349,7 +363,8 @@ describe("approvals", () => {
     expect(within(drawer).queryByRole("tab", { name: /trace/i })).not.toBeInTheDocument();
     await user.keyboard("{Escape}");
     await user.click(within(card).getByRole("button", { name: "Reject" }));
-    expect(await within(card).findByRole("status")).toHaveTextContent(/rejected/i);
+    expect(await within(card).findByRole("status")).toHaveTextContent("Nothing was executed.");
+    expect(within(card).getByText("Rejected")).toBeInTheDocument();
     await user.click(screen.getByRole("link", { name: /back to chat/i }));
     expect(await screen.findByLabelText(/ask a question about your fleet/i)).toBeInTheDocument();
   });
@@ -380,6 +395,30 @@ describe("the composer", () => {
     expect(send).toBeEnabled();
   });
 
+  it("has no static 'Ask' pill, and the suggestions button is a lightbulb titled 'Suggested questions'", async () => {
+    await signInAs("Acme");
+    const button = screen.getByRole("button", { name: "Suggested questions" });
+    expect(button).toHaveAttribute("title", "Suggested questions");
+    expect(button.querySelector("svg.lucide-lightbulb")).not.toBeNull();
+    expect(document.querySelector(".mode")).toBeNull();
+  });
+
+  it("asks for a follow-up once docked, with the box, the suggestions button and send in one row", async () => {
+    const user = await signInAs("Acme");
+    const box = screen.getByLabelText(/ask a question about your fleet/i);
+    expect(box).toHaveAttribute("placeholder", "Ask about your fleet…");
+    await ask(user, "Which devices are low on disk space?");
+    await screen.findByText("2 of 10 devices have under 10% disk space free");
+    expect(screen.getByLabelText(/ask a question about your fleet/i)).toHaveAttribute(
+      "placeholder",
+      "Ask a follow-up, or ask what to do…",
+    );
+    const form = document.querySelector(".composer") as HTMLElement;
+    expect(form).toHaveAttribute("data-docked", "true");
+    expect(within(form).getByRole("button", { name: "Suggested questions" })).toBeInTheDocument();
+    expect(within(form).getByRole("button", { name: "Send question" })).toBeInTheDocument();
+  });
+
   it("fills the box from the suggestions menu without sending", async () => {
     const user = await signInAs("Acme");
     await user.click(screen.getByRole("button", { name: "Suggested questions" }));
@@ -399,6 +438,11 @@ describe("outcome states", () => {
       const mark = container.querySelector(".msg__state .mark") as HTMLElement | null;
       if (fixture.envelope.outcome === "answer") {
         expect(mark).toBeNull();
+      } else if (fixture.envelope.outcome === "proposal") {
+        // The proposal card owns the state: no second mark above it.
+        expect(mark).toBeNull();
+        expect(container.querySelector(".proposal .mark")).toHaveTextContent("Awaiting your approval");
+        seen.set("proposal", "Awaiting your approval");
       } else {
         expect(mark?.textContent).toBe(OUTCOMES[fixture.envelope.outcome].word);
         expect(mark?.querySelector("svg")).not.toBeNull();

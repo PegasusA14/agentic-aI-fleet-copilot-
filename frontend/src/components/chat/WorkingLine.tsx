@@ -1,14 +1,34 @@
 import type { TraceEvent } from "../../lib/types";
 
-/** One line while a turn runs: the latest step. The full steps stay under Details, Show work, once the answer lands. */
+const START = "Reading your question…";
+
+/** What each step means to the person waiting. The raw step summary is not for this line; it stays under Details, Show work. */
+const STEP_WORDS: Partial<Record<TraceEvent["kind"], string>> = {
+  scope: START,
+  plan: START,
+  tool_call: "Checking the telemetry…",
+  tool_result: "Reading the results…",
+  compose: "Writing the answer…",
+  explain: "Writing the answer…",
+  verify: "Checking every number…",
+  retry: "Trying a different lookup…",
+};
+
+/** One plain line while a turn runs. A step with no words of its own keeps the line before it. */
 export function WorkingLine({ events }: { events: TraceEvent[] }) {
-  const steps = events.filter((event) => event.kind !== "respond");
-  const latest = steps.length > 0 ? steps[steps.length - 1].summary : "Reading your question…";
+  let words = START;
+  for (let i = events.length - 1; i >= 0; i--) {
+    const found = STEP_WORDS[events[i].kind];
+    if (found) {
+      words = found;
+      break;
+    }
+  }
   return (
-    <p className="working" role="status" aria-label="Working">
+    <p className="working" role="status">
       <span className="spinner" aria-hidden="true" />
-      <span key={latest} className="working__step">
-        {latest}
+      <span key={words} className="working__step">
+        {words}
       </span>
     </p>
   );

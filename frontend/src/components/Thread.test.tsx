@@ -1,6 +1,6 @@
-import { render, screen, within } from "@testing-library/react";
+import { act, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { getFixture } from "../lib/fixtures";
 import { Thread, type TurnData } from "./Thread";
 
@@ -28,7 +28,8 @@ describe("Thread", () => {
 
   it("shows one working line with the latest step while a turn runs, and no reply yet", () => {
     setup([turn({ id: "1", status: "working", envelope: undefined, events: LOW.trace.slice(0, 3) })]);
-    expect(screen.getByRole("status", { name: "Working" })).toHaveTextContent(LOW.trace[2].summary);
+    expect(screen.getByText("Checking the telemetry…")).toBeInTheDocument();
+    expect(screen.queryByText(LOW.trace[2].summary)).not.toBeInTheDocument();
     expect(screen.queryByRole("article")).not.toBeInTheDocument();
   });
 
@@ -36,8 +37,46 @@ describe("Thread", () => {
     const { container } = render(
       <Thread turns={[turn({ id: "1", events: LOW.trace })]} onAsk={() => {}} onOpenEvidence={() => {}} onOpenTrace={() => {}} />,
     );
-    expect(screen.queryByRole("status", { name: "Working" })).not.toBeInTheDocument();
+    expect(container.querySelector(".working")).toBeNull();
     expect(container.querySelector(".spinner")).toBeNull();
+  });
+
+  it("announces 'Reply ready.' and the first sentence once, when a running turn finishes", () => {
+    const handlers = { onAsk: vi.fn(), onOpenEvidence: vi.fn(), onOpenTrace: vi.fn() };
+    const { rerender, container } = render(
+      <Thread turns={[turn({ id: "1", status: "working", envelope: undefined, fresh: true })]} {...handlers} />,
+    );
+    const region = container.querySelector(".sr-only[role='status']") as HTMLElement;
+    expect(region).toBeEmptyDOMElement();
+    const explained = { ...LOW.envelope, explanation: "Two laptops are nearly full. Both need a storage upgrade." };
+    act(() => {
+      rerender(<Thread turns={[turn({ id: "1", envelope: explained, fresh: true })]} {...handlers} />);
+    });
+    expect(region).toHaveTextContent("Reply ready. Two laptops are nearly full.");
+    expect(region).not.toHaveTextContent("Both need");
+    expect(region).toHaveAttribute("aria-live", "polite");
+    expect(region).toHaveClass("sr-only");
+  });
+
+  it("stays silent for a reopened turn that was never running", () => {
+    const { container } = render(
+      <Thread turns={[turn({ id: "1" })]} onAsk={() => {}} onOpenEvidence={() => {}} onOpenTrace={() => {}} />,
+    );
+    expect(container.querySelector(".sr-only[role='status']")).toBeEmptyDOMElement();
+  });
+
+  it("animates only turns asked in this session", () => {
+    const { container } = render(
+      <Thread
+        turns={[turn({ id: "1" }), turn({ id: "2", fresh: true })]}
+        onAsk={() => {}}
+        onOpenEvidence={() => {}}
+        onOpenTrace={() => {}}
+      />,
+    );
+    const [reopened, fresh] = Array.from(container.querySelectorAll(".turn"));
+    expect(reopened).not.toHaveAttribute("data-fresh");
+    expect(fresh).toHaveAttribute("data-fresh");
   });
 
   it("disables chips in earlier replies while a later turn runs", () => {
@@ -73,5 +112,56 @@ describe("Thread", () => {
     await user.click(screen.getAllByRole("button", { name: "Details" })[0]);
     await user.click(screen.getByRole("button", { name: "Show work" }));
     expect(onOpenTrace).toHaveBeenCalledWith(expect.objectContaining({ id: "1" }));
+  });
+});
+
+describe("Thread scrolling", () => {
+  const original = window.matchMedia;
+  afterEach(() => {
+    window.matchMedia = original;
+    delete (Element.prototype as { scrollIntoView?: unknown }).scrollIntoView;
+  });
+
+  function reduced(on: boolean) {
+    window.matchMedia = ((query: string) => ({ ...original(query), matches: on && /reduce/.test(query) })) as typeof window.matchMedia;
+  }
+
+  it("brings a new question into view smoothly, or at once under reduced motion", () => {
+    for (const [on, behavior] of [
+      [false, "smooth"],
+      [true, "auto"],
+    ] as const) {
+      reduced(on);
+      const scroll = vi.fn();
+      Element.prototype.scrollIntoView = scroll;
+      const { unmount } = render(
+        <Thread
+          turns={[turn({ id: "1", fresh: true, status: "working", envelope: undefined })]}
+          onAsk={() => {}}
+          onOpenEvidence={() => {}}
+          onOpenTrace={() => {}}
+        />,
+      );
+      expect(scroll).toHaveBeenCalledWith({ block: "start", behavior });
+      expect(scroll.mock.contexts[0]).toHaveClass("msg--user");
+      unmount();
+    }
+  });
+
+  it("lands a reopened conversation at its end in one jump, only for the newest turn", () => {
+    reduced(false);
+    const scroll = vi.fn();
+    Element.prototype.scrollIntoView = scroll;
+    render(
+      <Thread
+        turns={[turn({ id: "1" }), turn({ id: "2", question: "Q2" })]}
+        onAsk={() => {}}
+        onOpenEvidence={() => {}}
+        onOpenTrace={() => {}}
+      />,
+    );
+    expect(scroll).toHaveBeenCalledTimes(1);
+    expect(scroll).toHaveBeenCalledWith({ block: "end", behavior: "auto" });
+    expect(scroll.mock.contexts[0]).toHaveAccessibleName("Question: Q2");
   });
 });

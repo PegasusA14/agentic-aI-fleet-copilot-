@@ -243,7 +243,7 @@ export default function App({ transport: given }: AppProps) {
       const id = String(++turnSeq.current);
       setBanner(null);
       setComposerError(null);
-      setTurns((prev) => [...prev, { id, question, events: [], status: "working" }]);
+      setTurns((prev) => [...prev, { id, question, events: [], status: "working", fresh: true }]);
 
       const drop = () => setTurns((prev) => prev.filter((turn) => turn.id !== id));
 

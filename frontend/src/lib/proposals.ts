@@ -5,8 +5,16 @@ import type { ProposalCard } from "./types";
 type ActionType = ProposalCard["action_type"];
 type Status = ProposalCard["status"];
 
-/** The sentence a person approves: what will be done, to which device. */
-export function actionSentence(card: Pick<ProposalCard, "action_type" | "target_label">): string {
+type ActionCard = Pick<ProposalCard, "action_type" | "target_label"> & { scope?: ProposalCard["scope"] };
+
+/** What an upgrade is for, in a word: the component the proposal names, or "hardware" only when it names none. */
+function upgradeKind(card: ActionCard): string {
+  const component = card.scope?.component?.trim().toLowerCase();
+  return component ? component.replaceAll("_", " ") : "hardware";
+}
+
+/** The sentence a person approves: what will be done, to which device. The same words in the card, the dialog and Approvals. */
+export function actionSentence(card: ActionCard): string {
   const device = card.target_label;
   switch (card.action_type) {
     case "remediation_ticket":
@@ -14,10 +22,17 @@ export function actionSentence(card: Pick<ProposalCard, "action_type" | "target_
     case "replacement_flag":
       return `Flag ${device} for replacement`;
     case "upgrade_order":
-      return `Order a hardware upgrade for ${device}`;
+      return `Order a ${upgradeKind(card)} upgrade for ${device}`;
     case "employee_notification":
       return `Notify the assigned employee about ${device}`;
   }
+}
+
+/** The thing that was made, as a noun phrase: "Storage upgrade order". */
+function actionNoun(card: ActionCard): string {
+  if (card.action_type !== "upgrade_order") return ACTION_WORDS[card.action_type];
+  const kind = upgradeKind(card);
+  return `${kind.charAt(0).toUpperCase()}${kind.slice(1)} upgrade order`;
 }
 
 /** The simulated table each action writes to, in words. */
@@ -79,15 +94,28 @@ function displayValue(key: string, value: string): string {
   return words[value] ?? humanise(value);
 }
 
-export function scopeFacts(scope: Record<string, string>): ScopeFact[] {
-  return Object.entries(scope)
-    .filter(([, value]) => value)
-    .map(([key, value]) => ({
+/**
+ * The facts a proposal rests on, in words. The device is left out when the card already names it
+ * (`target`), and Current and Target read as one change: "512 GiB → 1 TiB".
+ */
+export function scopeFacts(scope: Record<string, string>, target?: string): ScopeFact[] {
+  const facts: ScopeFact[] = [];
+  const change = scope.current && scope.target ? `${scope.current} → ${scope.target}` : null;
+  for (const [key, value] of Object.entries(scope)) {
+    if (!value) continue;
+    if (key === "device" && value === target) continue;
+    if (change && (key === "current" || key === "target")) {
+      if (key === "current") facts.push({ key: "change", label: "Change", value: change, token: false });
+      continue;
+    }
+    facts.push({
       key,
       label: SCOPE_LABELS[key] ?? humanise(key),
       value: displayValue(key, value),
       token: key === "device" || key === "employee",
-    }));
+    });
+  }
+  return facts;
 }
 
 export function shortHash(hash: string): string {
@@ -98,7 +126,7 @@ export type StatusTone = "action" | "pass" | "neutral" | "attention" | "alert";
 export type StatusMarkName = "review" | "check" | "x" | "triangle" | "alert" | "hollow";
 
 export const STATUS_STYLE: Record<Status, { word: string; tone: StatusTone; mark: StatusMarkName }> = {
-  pending: { word: "Pending", tone: "action", mark: "review" },
+  pending: { word: "Awaiting your approval", tone: "action", mark: "review" },
   approved: { word: "Approved", tone: "action", mark: "check" },
   executed: { word: "Executed (simulated)", tone: "pass", mark: "check" },
   rejected: { word: "Rejected", tone: "neutral", mark: "x" },
@@ -107,44 +135,23 @@ export const STATUS_STYLE: Record<Status, { word: string; tone: StatusTone; mark
   uncertain: { word: "Outcome uncertain", tone: "attention", mark: "triangle" },
 };
 
+/** What the reply says once a person has decided. The card's own mark carries the state; this is only the words. */
 export interface DecidedSheet {
-  /** The state chip on the answer sheet, once the decision is known. */
-  word: string;
-  tone: "pass" | "neutral" | "attention" | "alert";
-  mark: "check" | "hollow" | "triangle" | "alert";
   /** Written by code from the decision; the server's "waits for your approval" no longer holds. */
   headline: string;
 }
 
-/** What the answer sheet says once a person has decided; null while the proposal still waits. */
-export function decidedSheet(
-  status: Status,
-  card: Pick<ProposalCard, "action_type" | "target_label">,
-): DecidedSheet | null {
+/** What the reply says once a person has decided; null while the proposal still waits. */
+export function decidedSheet(status: Status, card: ActionCard): DecidedSheet | null {
   switch (status) {
     case "executed":
-      return {
-        word: "Executed (simulated)",
-        tone: "pass",
-        mark: "check",
-        headline: `Executed (simulated): ${ACTION_WORDS[card.action_type]} for ${card.target_label}.`,
-      };
+      return { headline: `Executed (simulated): ${actionNoun(card)} for ${card.target_label}.` };
     case "rejected":
-      return { word: "Rejected", tone: "neutral", mark: "hollow", headline: "Rejected: no action was taken." };
+      return { headline: "Rejected: no action was taken." };
     case "invalidated":
-      return {
-        word: "Not executed",
-        tone: "attention",
-        mark: "triangle",
-        headline: "Not executed: the evidence no longer supports it.",
-      };
+      return { headline: "Not executed: the evidence no longer supports it." };
     case "failed":
-      return {
-        word: "Not executed",
-        tone: "alert",
-        mark: "alert",
-        headline: "Not executed: the simulated action failed.",
-      };
+      return { headline: "Not executed: the simulated action failed." };
     default:
       return null;
   }

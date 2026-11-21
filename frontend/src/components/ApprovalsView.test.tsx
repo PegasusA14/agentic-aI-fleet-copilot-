@@ -65,7 +65,7 @@ describe("the approvals view", () => {
     renderView(transport, { onDecided });
     const cards = await screen.findAllByRole("region", { name: "Proposed action" });
     await user.click(within(cards[1]).getByRole("button", { name: "Reject" }));
-    expect(await within(cards[1]).findByRole("status")).toHaveTextContent("Rejected. Nothing was executed.");
+    expect(await within(cards[1]).findByRole("status")).toHaveTextContent("Nothing was executed.");
     expect(screen.getByText("1 proposal awaiting your decision")).toBeInTheDocument();
     expect(onDecided).toHaveBeenCalledTimes(1);
 
