@@ -712,3 +712,85 @@ def test_no_suggestions_compose_into_no_match_with_a_note_per_device(real_db_pat
     comp = compose([record], resolve=repo_for(real_conn).resolve)
     assert comp.outcome == "no_match" and comp.fallback_headline == texts.NO_SUGGESTIONS
     assert comp.notes == [texts.no_suggestion_note("host-1")]
+
+
+# ---- a find_devices lookup that only narrows a later call is scaffolding --------------------
+
+
+def _find_then(real_db_path, real_conn, find_args, tool, args, tenant=ACME):
+    """A find_devices record, then `tool` called with exactly the devices that find returned."""
+    found = run(real_db_path, real_conn, "find_devices", find_args, tenant)
+    later = run(real_db_path, real_conn, tool, {**args, "device_ids": found.device_ids}, tenant)
+    return found, later, compose([found, later], resolve=repo_for(real_conn, tenant).resolve)
+
+
+def test_a_find_used_only_to_narrow_a_battery_trend_adds_no_claim_or_list(real_db_path, real_conn):
+    found, later, comp = _find_then(
+        real_db_path, real_conn, {"form_factor": "laptop"}, "trend", {"metric": "battery"}
+    )
+    assert len(found.device_ids) == 9 and len(later.device_ids) == 3
+    assert comp.outcome == "answer"
+    assert [c.device_ids for c in comp.claims] == [later.device_ids]
+    assert [[i.device_id for i in e.items] for e in comp.entity_lists] == [later.device_ids]
+    assert all(e.list_id.startswith("trend") for e in comp.entity_lists)
+    shown = {EvidenceRef.parse(e.ref).device_id for e in comp.evidence}
+    assert shown == set(later.device_ids)
+    assert comp.coverage.population == later.population == 9
+
+
+def test_a_find_used_only_to_narrow_a_macos_check_keeps_the_macs_as_the_population(
+    real_db_path, real_conn
+):
+    found, later, comp = _find_then(
+        real_db_path, real_conn, {"os_name": "macOS", "group_by": "os"}, "macos_version_check",
+        {"older_than": "15"},
+    )  # fmt: skip
+    assert comp.outcome == "answer"
+    assert [c.device_ids for c in comp.claims] == [
+        ["1LYSSFD074BB", "7VP16KHV88LM", "MT7PJB7N5LRE", "XSU9UUDGU6AC"]
+    ]
+    assert len(comp.entity_lists) == 1
+    assert comp.coverage.population == 7
+    assert not any("Populations differ" in n for n in comp.notes)
+    assert comp.fallback_headline == "4 of 7 macOS devices run a version older than macOS 15"
+
+
+def test_a_narrowed_call_with_no_findings_is_no_match_not_a_list_of_the_find(
+    real_db_path, real_conn
+):
+    _, later, comp = _find_then(
+        real_db_path, real_conn, {"form_factor": "laptop"}, "trend", {"metric": "battery"}, GLOBEX
+    )
+    assert later.findings == []
+    assert comp.outcome == "no_match" and comp.claims == [] and comp.entity_lists == []
+    assert comp.coverage.population == later.population
+
+
+def test_a_find_next_to_a_call_without_device_ids_is_still_composed(real_db_path, real_conn):
+    comp = composed(
+        real_db_path,
+        real_conn,
+        [("find_devices", {"form_factor": "laptop"}), ("low_disk_devices", {})],
+    )
+    assert len(comp.claims) == 2 and len(comp.entity_lists) == 2
+    assert comp.claims[0].text.startswith("Matching devices")
+
+
+def test_a_find_is_composed_when_the_later_call_used_other_devices(real_db_path, real_conn):
+    found = run(real_db_path, real_conn, "find_devices", {"os_name": "macOS"})
+    other = [d for d in ("8NM23J95R5I6", "9MXJVZ1I0DKA") if d not in found.device_ids]
+    assert other  # Windows devices: not a subset of the Macs
+    later = run(real_db_path, real_conn, "trend", {"metric": "battery", "device_ids": other})
+    comp = compose([found, later], resolve=repo_for(real_conn).resolve)
+    assert comp.claims[0].text.startswith("Matching devices")
+
+
+def test_a_find_is_composed_when_the_narrowed_call_failed(real_db_path, real_conn):
+    found = run(real_db_path, real_conn, "find_devices", {"form_factor": "laptop"})
+    failed = ToolRecord(
+        tool="trend",
+        args={"metric": "battery", "device_ids": found.device_ids},
+        error="not_found",
+    )
+    comp = compose([found, failed], resolve=repo_for(real_conn).resolve)
+    assert comp.outcome == "answer" and comp.claims[0].text.startswith("Matching devices")

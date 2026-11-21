@@ -725,6 +725,27 @@ def _advice(record: ToolRecord, resolve: Resolver) -> Composition:
     )
 
 
+def _scaffolding(usable: Sequence[ToolRecord]) -> set[int]:
+    """Positions of `find_devices` records that only narrowed a later call.
+
+    A lookup is scaffolding when a later record that succeeded was called with `device_ids` that are
+    all among the lookup's devices: the model used the lookup to pick the devices for that call. The
+    later record answers the question; the lookup adds no claim, list or evidence. A lookup nothing
+    was filtered by (a genuine "list my laptops and ...") is composed as usual.
+    """
+    hidden: set[int] = set()
+    for i, record in enumerate(usable):
+        if record.tool != "find_devices":
+            continue
+        found = set(record.device_ids)
+        for later in usable[i + 1 :]:
+            asked = later.args.get("device_ids")
+            if isinstance(asked, list) and asked and set(asked) <= found:
+                hidden.add(i)
+                break
+    return hidden
+
+
 def compose(records: Sequence[ToolRecord], *, resolve: Resolver) -> Composition:
     """Turn tool records into claims, evidence, coverage and entity lists. No model involved."""
     if any(r.error == "tool_error" for r in records):
@@ -760,7 +781,9 @@ def compose(records: Sequence[ToolRecord], *, resolve: Resolver) -> Composition:
         return _advice(advised, resolve)
     builder = _Builder(resolve)
     usable = [r for r in records if not r.error]
-    for index, record in enumerate(usable, start=1):
+    hidden = _scaffolding(usable)
+    shown = [r for i, r in enumerate(usable) if i not in hidden]
+    for index, record in enumerate(shown, start=1):
         _TEMPLATES[record.tool](record, index, builder)
     builder.disclosure_notes()
     unresolved = sum(r.unresolved_ids for r in usable)
