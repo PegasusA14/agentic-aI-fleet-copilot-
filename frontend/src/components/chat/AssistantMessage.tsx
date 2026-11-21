@@ -19,6 +19,8 @@ interface AssistantMessageProps {
   /** How a person decides the proposal on this answer. Without it the proposal is shown read-only. */
   decide?: Decide;
   onDecided?: (card: ProposalCard) => void;
+  /** The answer was stored in an earlier session: its proposal may have been decided since. */
+  reopened?: boolean;
   onSessionEnded?: () => void;
 }
 
@@ -120,6 +122,7 @@ export function AssistantMessage({
   onAsk,
   decide,
   onDecided,
+  reopened,
   onSessionEnded,
 }: AssistantMessageProps) {
   const detailsId = useId();
@@ -178,6 +181,8 @@ export function AssistantMessage({
           proposal={envelope.proposal}
           onOpenEvidence={onOpenEvidence}
           decide={decide}
+          recheck={reopened}
+          onSynced={(card) => setDecision(card.status)}
           onDecided={(card) => {
             setDecision(card.status);
             onDecided?.(card);

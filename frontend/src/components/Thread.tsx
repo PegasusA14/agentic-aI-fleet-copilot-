@@ -101,6 +101,7 @@ function TurnView({ turn, last, busy, onOpenEvidence, onOpenTrace, onAsk, decide
           onOpenTrace={() => onOpenTrace(turn)}
           onAsk={onAsk}
           decide={decide}
+          reopened={!turn.fresh}
           onDecided={onDecided}
           onSessionEnded={onSessionEnded}
         />

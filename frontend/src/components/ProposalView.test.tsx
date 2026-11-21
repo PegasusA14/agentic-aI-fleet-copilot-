@@ -284,3 +284,88 @@ describe("a proposal that is already decided", () => {
     expect(screen.queryByRole("button", { name: "Reject" })).not.toBeInTheDocument();
   });
 });
+
+describe("a proposal reopened from a stored conversation", () => {
+  function reopened(current: () => Promise<ProposalCard>, extra: { onSynced?: (c: ProposalCard) => void; onSessionEnded?: () => void } = {}) {
+    const proposal = vi.fn(current);
+    const decide = { ...deciders(), proposal } as unknown as Decide;
+    render(<ProposalView proposal={CARD} decide={decide} recheck onOpenEvidence={() => {}} {...extra} />);
+    return { proposal, decide };
+  }
+
+  it("shows an executed proposal as executed, with no buttons and no 'If you approve'", async () => {
+    const onSynced = vi.fn();
+    const { proposal } = reopened(async () => ({ ...CARD, status: "executed" }), { onSynced });
+    expect(await screen.findByText("Executed (simulated)")).toBeInTheDocument();
+    expect(proposal).toHaveBeenCalledTimes(1);
+    expect(proposal).toHaveBeenCalledWith(CARD.proposal_id);
+    expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Reject" })).not.toBeInTheDocument();
+    expect(screen.queryByText("If you approve")).not.toBeInTheDocument();
+    expect(onSynced).toHaveBeenCalledWith(expect.objectContaining({ status: "executed" }));
+  });
+
+  it.each(["rejected", "invalidated", "failed"] as const)("shows a %s proposal as decided", async (status) => {
+    reopened(async () => ({ ...CARD, status }));
+    await waitFor(() => expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument());
+    expect(screen.queryByRole("button", { name: "Reject" })).not.toBeInTheDocument();
+    expect(screen.queryByText("If you approve")).not.toBeInTheDocument();
+  });
+
+  it("keeps the buttons disabled while the current card loads, then enables them when it is still pending", async () => {
+    let resolve!: (card: ProposalCard) => void;
+    const { proposal } = reopened(() => new Promise<ProposalCard>((r) => (resolve = r)));
+    expect(screen.getByText("If you approve")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Approve" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Reject" })).toBeDisabled();
+    resolve(CARD);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Approve" })).toBeEnabled());
+    expect(screen.getByRole("button", { name: "Reject" })).toBeEnabled();
+    expect(proposal).toHaveBeenCalledTimes(1);
+  });
+
+  it("says the proposal is not available on a 404, with no buttons", async () => {
+    reopened(async () => {
+      throw new ApiError(404, "not found");
+    });
+    expect(await screen.findByRole("status")).toHaveTextContent("This proposal is not available.");
+    expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Reject" })).not.toBeInTheDocument();
+  });
+
+  it("keeps the stored card with enabled buttons when the server cannot be reached", async () => {
+    const { proposal } = reopened(async () => {
+      throw new ApiError(0, "unreachable");
+    });
+    await waitFor(() => expect(proposal).toHaveBeenCalled());
+    await waitFor(() => expect(screen.getByRole("button", { name: "Approve" })).toBeEnabled());
+    expect(screen.getByRole("button", { name: "Reject" })).toBeEnabled();
+    expect(screen.getByText("If you approve")).toBeInTheDocument();
+  });
+
+  it("hands a lost session back to the app", async () => {
+    const onSessionEnded = vi.fn();
+    reopened(async () => {
+      throw new ApiError(401, "no session");
+    }, { onSessionEnded });
+    await waitFor(() => expect(onSessionEnded).toHaveBeenCalled());
+  });
+
+  it("does not fetch again when it re-renders", async () => {
+    const proposal = vi.fn(async () => CARD);
+    const decide = { ...deciders(), proposal } as unknown as Decide;
+    const view = render(<ProposalView proposal={CARD} decide={decide} recheck onOpenEvidence={() => {}} />);
+    await waitFor(() => expect(screen.getByRole("button", { name: "Approve" })).toBeEnabled());
+    view.rerender(<ProposalView proposal={CARD} decide={decide} recheck onOpenEvidence={() => {}} />);
+    expect(proposal).toHaveBeenCalledTimes(1);
+  });
+
+  it("does not fetch for a card made in this session, or one already decided", () => {
+    const proposal = vi.fn(async () => CARD);
+    const decide = { ...deciders(), proposal } as unknown as Decide;
+    render(<ProposalView proposal={CARD} decide={decide} onOpenEvidence={() => {}} />);
+    render(<ProposalView proposal={{ ...CARD, status: "executed" }} decide={decide} recheck onOpenEvidence={() => {}} />);
+    expect(proposal).not.toHaveBeenCalled();
+    expect(screen.getAllByRole("button", { name: "Approve" })[0]).toBeEnabled();
+  });
+});

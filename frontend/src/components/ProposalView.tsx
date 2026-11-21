@@ -13,7 +13,8 @@ import {
 import type { Transport } from "../lib/transport";
 import type { ProposalCard } from "../lib/types";
 
-export type Decide = Pick<Transport, "approve" | "reject">;
+/** How a person decides. `proposal`, when given, lets a reopened card ask where the proposal stands now. */
+export type Decide = Pick<Transport, "approve" | "reject"> & Partial<Pick<Transport, "proposal">>;
 
 interface ProposalViewProps {
   proposal: ProposalCard;
@@ -22,6 +23,13 @@ interface ProposalViewProps {
   decide?: Decide;
   /** Called with the proposal as the server now holds it, after any decision that reached the server. */
   onDecided?: (card: ProposalCard) => void;
+  /**
+   * The card was stored with an earlier answer: ask the server once where it stands now, since it may have been
+   * decided or invalidated since. Leave off for a card made in this session or listed straight from the server.
+   */
+  recheck?: boolean;
+  /** Called when that check finds the proposal no longer pending. Nobody decided it here. */
+  onSynced?: (card: ProposalCard) => void;
   onSessionEnded?: () => void;
 }
 
@@ -95,12 +103,14 @@ function describe(card: ProposalCard, result: { effect: { effect_id: number } | 
 }
 
 /** Only a person decides. Approval is confirmed against the exact hash they saw; every result is labelled simulated. */
-export function ProposalView({ proposal, onOpenEvidence, decide, onDecided, onSessionEnded }: ProposalViewProps) {
+export function ProposalView({ proposal, onOpenEvidence, decide, onDecided, recheck, onSynced, onSessionEnded }: ProposalViewProps) {
   const [status, setStatus] = useState<ProposalCard["status"]>(proposal.status);
   const [outcome, setOutcome] = useState<Outcome | null>(null);
   /** Set once the server has refused or answered in a way that closes the proposal to further decisions. */
   const [closed, setClosed] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  /** True until a reopened pending card has heard from the server: the stored card shows, but cannot be acted on. */
+  const [checking, setChecking] = useState(Boolean(recheck && proposal.status === "pending" && decide?.proposal));
   const sending = useRef(false);
   const cancel = useRef<HTMLButtonElement>(null);
   const result = useRef<HTMLParagraphElement>(null);
@@ -109,7 +119,39 @@ export function ProposalView({ proposal, onOpenEvidence, decide, onDecided, onSe
   const busy = outcome?.kind === "busy";
   /** Once decided, the buttons go: a dark disabled Approve would still read as available. */
   const decided = closed || status !== "pending";
-  const locked = busy || decided;
+  const locked = busy || decided || checking;
+
+  // Once, when the card mounts: the stored card says "pending" whatever has happened since.
+  useEffect(() => {
+    if (!checking) return;
+    let live = true;
+    const lookup = decide?.proposal;
+    if (!lookup) return;
+    lookup(proposal.proposal_id).then(
+      (current) => {
+        if (!live) return;
+        setChecking(false);
+        if (current.status === "pending") return;
+        setStatus(current.status);
+        onSynced?.(current);
+      },
+      (error: unknown) => {
+        if (!live) return;
+        setChecking(false);
+        if (error instanceof ApiError && error.status === 404) {
+          setClosed(true);
+          setOutcome({ kind: "text", text: "This proposal is not available." });
+        } else if (error instanceof ApiError && error.status === 401) {
+          onSessionEnded?.();
+        }
+        // Any other failure: the stored card stays, and the server still refuses a stale decision.
+      },
+    );
+    return () => {
+      live = false;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- a single look at mount, not on every render
+  }, []);
 
   useEffect(() => {
     if (outcome && outcome.kind !== "busy") result.current?.focus();
