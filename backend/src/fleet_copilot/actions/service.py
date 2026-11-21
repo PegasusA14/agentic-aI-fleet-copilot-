@@ -188,7 +188,7 @@ class ActionService:
                 action_type,
                 device_id,
                 params,
-                as_of - timedelta(days=policy.ACTION_REPEAT_WINDOW_DAYS),
+                self._store.now() - timedelta(days=policy.ACTION_REPEAT_WINDOW_DAYS),
             )
             if done is not None:
                 day = (done.decided_at or done.created_at or "")[:10]

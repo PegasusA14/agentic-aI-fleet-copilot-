@@ -292,6 +292,10 @@ class ActionStore:
         ).fetchone()
         return _proposal(found) if found else None
 
+    def now(self) -> datetime:
+        """The store clock: the time proposals and decisions are stamped with."""
+        return self._now()
+
     def count_pending(self, conn: sqlite3.Connection, company_id: str) -> int:
         row = conn.execute(
             "SELECT COUNT(*) AS n FROM proposals WHERE company_id = ? AND status = 'pending'",

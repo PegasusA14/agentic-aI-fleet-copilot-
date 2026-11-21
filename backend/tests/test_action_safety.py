@@ -4,7 +4,7 @@ and the per-tenant pending cap."""
 import json
 import shutil
 import sqlite3
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -114,12 +114,16 @@ def test_a_rejected_proposal_is_not_a_completed_action(svc):
 
 
 def test_an_execution_older_than_the_repeat_window_may_be_proposed_again(real_db_path, tmp_path):
-    old = datetime(2026, 4, 1, tzinfo=UTC)  # more than the window before the as-of
-    assert (AS_OF - old).days > policy.ACTION_REPEAT_WINDOW_DAYS
-    clock = {"now": old}
+    # The window is measured on the store clock (when the effect was executed), not the dataset as-of.
+    start = datetime(2026, 11, 1, tzinfo=UTC)
+    clock = {"now": start}
     svc = make_service(real_db_path, tmp_path, now=lambda: clock["now"])
     first = ticket(svc)
     svc.approve(ACME, first.card.proposal_id, first.card.payload_hash)
+    clock["now"] = start + timedelta(days=policy.ACTION_REPEAT_WINDOW_DAYS - 1)
+    inside = ticket(svc)
+    assert isinstance(inside, Refused) and inside.reason == "already_done"
+    clock["now"] = start + timedelta(days=policy.ACTION_REPEAT_WINDOW_DAYS + 1)
     again = ticket(svc)
     assert isinstance(again, Proposed) and again.reused is False
 
