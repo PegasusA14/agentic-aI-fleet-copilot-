@@ -199,9 +199,13 @@ def test_expected_refusals_name_the_right_boundaries():
     assert refusals["prompt_injection"]["reason_code"] == ["prompt_injection", "off_topic"]
     assert refusals["off_topic"]["outcome"] == "unsupported"
     assert refusals["other_company_by_name_acme_asks_globex"]["outcome"] == "denied"
-    for name in ("approve_by_id_without_proposal", "bulk_tickets_all_failing_devices"):
+    for name in ("approve_by_id_without_proposal", "unsupported_actions_beyond_the_four"):
         assert refusals[name]["reason_code"] == "unsupported_action"
         assert refusals[name]["no_proposal"] is True
+    # a request to act on several devices is answered with per-device suggestions, never a proposal
+    for name in ("bulk_tickets_all_failing_devices", "bulk_replacement_after_list"):
+        assert refusals[name]["outcome"] == "answer"
+        assert refusals[name]["suggestions_include"] and refusals[name]["no_proposal"] is True
 
 
 def test_the_advise_cases_follow_the_golden_facts_and_never_propose():

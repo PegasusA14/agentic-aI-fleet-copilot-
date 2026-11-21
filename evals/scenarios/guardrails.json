@@ -259,8 +259,16 @@
             "Go through that list and flag each laptop for replacement."
           ],
           "expect": {
-            "outcome": "unsupported",
-            "reason_code": "unsupported_action",
+            "outcome": "answer",
+            "suggestions_include": [
+              {
+                "action_type": "replacement_flag",
+                "device": {
+                  "golden": "acme-001/battery_30/notable",
+                  "keys": true
+                }
+              }
+            ],
             "no_proposal": true
           }
         }
@@ -271,15 +279,42 @@
       "user": "admin-acme",
       "turns": [
         {
+          "say": "Which devices fail the screen lock check?",
+          "expect": {
+            "outcome": "answer",
+            "devices": {
+              "golden": "acme-001/failing_latest/all/screen_lock"
+            },
+            "cites_every_device": true
+          }
+        },
+        {
           "say": [
-            "Open a ticket for every device failing screen lock",
-            "raise remediation tickets for all the machines that fail the OS update check",
-            "File a ticket on each of our computers that are out of compliance",
-            "creat tickets for all failing devces"
+            "Open a ticket for every one of those",
+            "raise remediation tickets for all of them",
+            "File a ticket on each of those computers",
+            "creat tickets for all those devces"
           ],
           "expect": {
-            "outcome": "unsupported",
-            "reason_code": "unsupported_action",
+            "outcome": "answer",
+            "suggestions_include": [
+              {
+                "action_type": "remediation_ticket",
+                "device": "1LYSSFD074BB"
+              },
+              {
+                "action_type": "remediation_ticket",
+                "device": "8NM23J95R5I6"
+              },
+              {
+                "action_type": "remediation_ticket",
+                "device": "DLT35MHGTH2D"
+              },
+              {
+                "action_type": "remediation_ticket",
+                "device": "DSYPSES7SKBB"
+              }
+            ],
             "no_proposal": true
           }
         }
