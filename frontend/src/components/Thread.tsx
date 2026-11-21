@@ -1,7 +1,8 @@
 import { motion } from "motion/react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { CROSSFADE, ENTER, Presence, usePrefersReducedMotion } from "../lib/motion";
 import { firstSentence, replyOf } from "../lib/reply";
+import { revealDelta } from "../lib/reveal";
 import type { AnswerEnvelope, ProposalCard, TraceEvent } from "../lib/types";
 import { AssistantMessage } from "./chat/AssistantMessage";
 import { UserMessage } from "./chat/UserMessage";
@@ -64,6 +65,9 @@ function FailureMessage({ turn, onAsk }: { turn: TurnData; onAsk: (question: str
   );
 }
 
+/** Space kept between a revealed box and the scroller's edge; the arriving reply is still rising 6px. */
+const REVEAL_MARGIN = 16;
+
 const REDUCED_MOTION = "(prefers-reduced-motion: reduce)";
 
 function scrollBehavior(): ScrollBehavior {
@@ -76,15 +80,40 @@ function TurnView({ turn, last, busy, onOpenEvidence, onOpenTrace, onAsk, decide
   /** What a screen reader hears when the reply lands. The region stays mounted so the change is announced. */
   const [announcement, setAnnouncement] = useState("");
 
+  /**
+   * Brings a fresh turn into view: its question at the top, unless that would leave the proposal's Approve / Reject row
+   * (or the reply's headline) out of sight, in which case that is seated above the docked composer instead.
+   */
+  const reveal = useCallback(() => {
+    const section = root.current;
+    const question = section?.querySelector(".msg--user");
+    if (!section || !question) return;
+    const scroller = section.closest<HTMLElement>(".stage__main");
+    if (!scroller || typeof scroller.scrollTo !== "function") {
+      question.scrollIntoView?.({ block: "start", behavior: scrollBehavior() });
+      return;
+    }
+    const rect = (el: Element | null | undefined) => el?.getBoundingClientRect() ?? null;
+    const delta = revealDelta({
+      scroller: scroller.getBoundingClientRect(),
+      composer: rect(document.querySelector(".stage__composer")),
+      margin: REVEAL_MARGIN,
+      question: question.getBoundingClientRect(),
+      headline: rect(section.querySelector(".msg--assistant .msg__lead")),
+      decision: rect(section.querySelector(".proposal__actions")),
+    });
+    scroller.scrollTo({ top: scroller.scrollTop + delta, behavior: scrollBehavior() });
+  }, []);
+
   useEffect(() => {
     if (turn.fresh) {
-      // Bring the question into view when the turn starts and again once the full answer has grown it.
-      root.current?.querySelector(".msg--user")?.scrollIntoView?.({ block: "start", behavior: scrollBehavior() });
+      // When the turn starts, and again as the answer lands and grows it.
+      reveal();
     } else if (last) {
       // A reopened conversation lands at its end, without travelling there.
       root.current?.scrollIntoView?.({ block: "end", behavior: "auto" });
     }
-  }, [turn.status, turn.fresh, last]);
+  }, [turn.status, turn.fresh, last, reveal]);
 
   useEffect(() => {
     if (previous.current === "working" && turn.status !== "working") {
@@ -116,6 +145,7 @@ function TurnView({ turn, last, busy, onOpenEvidence, onOpenTrace, onAsk, decide
             onAsk={onAsk}
             decide={decide}
             reopened={!turn.fresh}
+            onArrive={turn.fresh ? reveal : undefined}
             onDecided={onDecided}
             onSessionEnded={onSessionEnded}
           />

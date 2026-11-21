@@ -167,6 +167,70 @@ describe("Thread scrolling", () => {
   });
 });
 
+describe("Thread reveal of a proposal's decision row", () => {
+  const original = window.matchMedia;
+  const PROPOSAL = getFixture("acme-001", "proposal");
+  afterEach(() => {
+    window.matchMedia = original;
+    vi.restoreAllMocks();
+  });
+
+  function reduced(on: boolean) {
+    window.matchMedia = ((query: string) => ({ ...original(query), matches: on && /reduce/.test(query) })) as typeof window.matchMedia;
+  }
+
+  /** A 400px scroller (y 0..400) over a composer (y 400..480); the decision row's bottom is at y 900 before any scroll. */
+  function rig() {
+    const rect = (top: number, bottom: number) => ({ top, bottom, left: 0, right: 0, width: 0, height: bottom - top, x: 0, y: top, toJSON: () => ({}) });
+    vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (this: Element) {
+      if (this.classList.contains("stage__main")) return rect(0, 400) as DOMRect;
+      if (this.classList.contains("stage__composer")) return rect(400, 480) as DOMRect;
+      if (this.classList.contains("msg--user")) return rect(120, 160) as DOMRect;
+      if (this.classList.contains("msg__lead")) return rect(180, 230) as DOMRect;
+      if (this.classList.contains("proposal__actions")) return rect(850, 900) as DOMRect;
+      return rect(0, 0) as DOMRect;
+    });
+    const scrollTo = vi.fn();
+    Element.prototype.scrollTo = scrollTo as unknown as typeof Element.prototype.scrollTo;
+    return { scrollTo };
+  }
+
+  function mount(envelope = PROPOSAL.envelope) {
+    return render(
+      <div className="stage__main">
+        <Thread
+          turns={[turn({ id: "1", fresh: true, envelope })]}
+          onAsk={() => {}}
+          onOpenEvidence={() => {}}
+          onOpenTrace={() => {}}
+          decide={{ approve: vi.fn(), reject: vi.fn() } as never}
+        />
+        <div className="stage__composer" />
+      </div>,
+    );
+  }
+
+  it("scrolls so the Approve / Reject row ends above the composer, not the question at the top", () => {
+    reduced(true);
+    const { scrollTo } = rig();
+    mount();
+    expect(scrollTo).toHaveBeenCalled();
+    const last = scrollTo.mock.calls.at(-1)![0] as ScrollToOptions;
+    // The row's bottom (900) minus the band's bottom (400 - 16): 516. The question alone would have been 120 - 16 = 104.
+    expect(last.top).toBe(900 - (400 - 16));
+    expect(last.behavior).toBe("auto");
+  });
+
+  it("keeps the question at the top for a reply with no decision row", () => {
+    reduced(false);
+    const { scrollTo } = rig();
+    mount(LOW.envelope);
+    const last = scrollTo.mock.calls.at(-1)![0] as ScrollToOptions;
+    expect(last.top).toBe(120 - 16);
+    expect(last.behavior).toBe("smooth");
+  });
+});
+
 describe("Thread motion", () => {
   afterEach(() => setReducedMotion(true));
   const handlers = { onAsk: vi.fn(), onOpenEvidence: vi.fn(), onOpenTrace: vi.fn() };

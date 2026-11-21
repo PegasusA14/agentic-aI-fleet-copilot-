@@ -1,7 +1,7 @@
 import { FileSearch, ListTree } from "lucide-react";
 import { motion } from "motion/react";
-import { useId, useState } from "react";
-import { EXCLUDED_TEXT, REASON_TEXT, plural } from "../../lib/format";
+import { useEffect, useId, useRef, useState } from "react";
+import { EXCLUDED_TEXT, plural, reasonWords } from "../../lib/format";
 import { CROSSFADE, ENTER, FOLD_IN, FOLD_OUT, Presence, usePrefersReducedMotion } from "../../lib/motion";
 import { leadCount, replyOf } from "../../lib/reply";
 import type { AnswerEnvelope, EntityList, ProposalCard } from "../../lib/types";
@@ -22,6 +22,8 @@ interface AssistantMessageProps {
   /** How a person decides the proposal on this answer. Without it the proposal is shown read-only. */
   decide?: Decide;
   onDecided?: (card: ProposalCard) => void;
+  /** Called once the reply is on screen, so the thread can bring what needs a decision into view. */
+  onArrive?: () => void;
   /** The answer was stored in an earlier session: its proposal may have been decided since. */
   reopened?: boolean;
   onSessionEnded?: () => void;
@@ -131,7 +133,7 @@ function Facts({ envelope }: { envelope: AnswerEnvelope }) {
       {envelope.reason_code ? (
         <div>
           <dt>Reason</dt>
-          <dd>{REASON_TEXT[envelope.reason_code] ?? envelope.reason_code}</dd>
+          <dd>{reasonWords(envelope.reason_code)}</dd>
         </div>
       ) : null}
     </dl>
@@ -150,6 +152,7 @@ export function AssistantMessage({
   onDecided,
   reopened,
   onSessionEnded,
+  onArrive,
 }: AssistantMessageProps) {
   const detailsId = useId();
   const reduce = usePrefersReducedMotion();
@@ -166,6 +169,12 @@ export function AssistantMessage({
   const lists = suggestions.length > 0 ? [] : envelope.entity_lists;
   /** A proposal's card owns its state, so the reply carries no second mark above it. */
   const markShown = outcome !== "answer" && outcome !== "proposal";
+
+  const arrive = useRef(onArrive);
+  arrive.current = onArrive;
+  useEffect(() => {
+    arrive.current?.();
+  }, []);
 
   function pick(question: string) {
     onAsk(question);
@@ -185,7 +194,7 @@ export function AssistantMessage({
     >
       {markShown ? (
         <div className="msg__state">
-          <StateMark outcome={outcome} />
+          <StateMark outcome={outcome} reason={envelope.reason_code} />
         </div>
       ) : null}
 
