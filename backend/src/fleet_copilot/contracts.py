@@ -76,10 +76,25 @@ _VALID_REASONS: dict[str, frozenset[str]] = {
     "no_match": frozenset({"no_matching_records"}),
 }
 _NO_FREE_TEXT = {"denied", "unsupported", "tool_error"}
+ColumnKind = Literal["device", "text", "number", "percent", "version", "pill", "date"]
+Tone = Literal["neutral", "attention", "ok"]
+MAX_TABLE_ROWS = 50
+MAX_EXCLUDED_DEVICES = 100
+MAX_FOLLOW_UPS = 4
+MAX_SUMMARY_CHARS = 200
 
 
 class _Model(BaseModel):
     model_config = ConfigDict(extra="forbid", json_schema_serialization_defaults_required=True)
+
+
+class ExcludedDevice(_Model):
+    """One device a check did not cover, with a code-written reason a person can read."""
+
+    device_id: str = Field(min_length=1)
+    label: str = Field(min_length=1)
+    reason: ExcludedReason
+    reason_text: str = Field(min_length=1, max_length=160)
 
 
 class Coverage(_Model):
@@ -89,6 +104,17 @@ class Coverage(_Model):
     stale: list[str] = Field(default_factory=list)
     missing_latest: list[str] = Field(default_factory=list)
     excluded: dict[ExcludedReason, list[str]] = Field(default_factory=dict)
+    # The same devices as `excluded`, one entry each, with hostname and reason in words.
+    excluded_devices: list[ExcludedDevice] = Field(
+        default_factory=list, max_length=MAX_EXCLUDED_DEVICES
+    )
+
+    @model_validator(mode="after")
+    def _excluded_devices_are_excluded(self) -> Coverage:
+        for item in self.excluded_devices:
+            if item.device_id not in self.excluded.get(item.reason, []):
+                raise ValueError("excluded_devices lists a device that `excluded` does not")
+        return self
 
 
 class EntityRef(_Model):
@@ -186,6 +212,83 @@ class Alternative(_Model):
     request: str = Field(min_length=1, max_length=160)
 
 
+class Column(_Model):
+    key: str = Field(pattern=r"^[a-z][a-z0-9_]{0,31}$")
+    label: str = Field(min_length=1, max_length=40)
+    kind: ColumnKind
+
+
+class Cell(_Model):
+    """One value in a table row: `display` is what is shown, `value` is what a sort compares."""
+
+    display: str = Field(max_length=120)
+    value: str | float | int | None = None
+    tone: Tone | None = None
+
+
+class Row(_Model):
+    """One device (or one device and finding) in a table. `refs` are its sources, all in `evidence`."""
+
+    device_id: str = Field(min_length=1)
+    label: str = Field(min_length=1)
+    cells: dict[str, Cell]
+    refs: list[str] = Field(min_length=1)
+
+
+class SortSpec(_Model):
+    key: str
+    direction: Literal["asc", "desc"]
+
+
+class AnswerTable(_Model):
+    """A list answer as a table. Every cell is code-written from tool records; the rows are already sorted."""
+
+    title: str = Field(min_length=1, max_length=120)
+    columns: list[Column] = Field(min_length=1, max_length=8)
+    rows: list[Row] = Field(max_length=MAX_TABLE_ROWS)
+    # How many rows there were before the cap, when it cut any.
+    total_rows: int | None = Field(default=None, ge=0)
+    default_sort: SortSpec
+
+    @model_validator(mode="after")
+    def _consistent(self) -> AnswerTable:
+        keys = [column.key for column in self.columns]
+        if len(keys) != len(set(keys)):
+            raise ValueError("duplicate column keys")
+        if self.default_sort.key not in keys:
+            raise ValueError("default_sort names a column that is not in the table")
+        for row in self.rows:
+            if not set(row.cells) <= set(keys):
+                raise ValueError("a row has a cell for a column that is not in the table")
+        if self.total_rows is not None and self.total_rows < len(self.rows):
+            raise ValueError("total_rows is smaller than the rows shown")
+        return self
+
+
+class ScopeLine(_Model):
+    """The counts behind the footer line: what was checked, what matched, what was left out."""
+
+    checked: int = Field(ge=0)
+    matched: int = Field(ge=0)
+    # Checked devices that did not match, when every checked device has a known status; else None.
+    ok: int | None = Field(default=None, ge=0)
+    ok_label: str = Field(
+        default="", max_length=40
+    )  # what `ok` counts: "up to date", "healthy", ...
+    not_checked: int = Field(ge=0)
+    company_name: str = Field(default="", max_length=120)
+    basis: str = Field(min_length=1, max_length=120)  # e.g. "latest snapshot per device"
+    as_of: AwareDatetime
+
+    @model_validator(mode="after")
+    def _counts(self) -> ScopeLine:
+        if self.matched > self.checked:
+            raise ValueError("matched cannot exceed checked")
+        if self.ok is not None and (self.ok + self.matched > self.checked or not self.ok_label):
+            raise ValueError("ok must fit within the unmatched checked devices and be labelled")
+        return self
+
+
 class AnswerEnvelope(_Model):
     """The only shape the agent returns. The UI maps it to fixed components; the LLM never emits markup."""
 
@@ -204,6 +307,13 @@ class AnswerEnvelope(_Model):
     reason_code: ReasonCode | None = None
     explanation: str | None = None
     alternatives: list[Alternative] = Field(default_factory=list, max_length=4)
+    # Presentation of a list answer. All code-written and optional, so older envelopes still validate.
+    table: AnswerTable | None = None
+    summary: str = Field(default="", max_length=MAX_SUMMARY_CHARS)
+    scope_line: ScopeLine | None = None
+    follow_ups: list[Alternative] = Field(default_factory=list, max_length=MAX_FOLLOW_UPS)
+    # trace_id of the earlier turn in this conversation that gave this same answer.
+    repeat_of: str | None = None
 
     @model_validator(mode="after")
     def _outcome_payloads(self) -> AnswerEnvelope:
@@ -234,6 +344,12 @@ class AnswerEnvelope(_Model):
         for suggestion in self.suggested_actions:
             for ref in suggestion.refs:
                 self._check_ref(ref)
+        if self.table is not None:
+            for row in self.table.rows:
+                for ref in row.refs:
+                    self._check_ref(ref)
+                    if EvidenceRef.parse(ref).device_id != row.device_id:
+                        raise ValueError("a table row cites a reading of another device")
         known = {item.ref for item in self.evidence}
         for claim in self.claims:
             missing = [r for r in claim.refs if r not in known]
@@ -243,6 +359,19 @@ class AnswerEnvelope(_Model):
             missing = [r for r in suggestion.refs if r not in known]
             if missing:
                 raise ValueError(f"suggested action cites refs without evidence: {missing}")
+        if self.table is not None:
+            if self.outcome != "answer":
+                raise ValueError("only an answer outcome may carry a table")
+            for row in self.table.rows:
+                missing = [r for r in row.refs if r not in known]
+                if missing:
+                    raise ValueError(f"table row cites refs without evidence: {missing}")
+        if self.outcome in _NO_FREE_TEXT and (
+            self.summary or self.scope_line or self.follow_ups or self.repeat_of
+        ):
+            raise ValueError(f"{self.outcome} outcome must not carry list-answer presentation")
+        if self.repeat_of is not None and self.outcome != "answer":
+            raise ValueError("only an answer outcome may repeat an earlier answer")
         if self.proposal is not None:
             if self.proposal.company_id != self.scope.company_id:
                 raise ValueError("proposal company_id must match scope company_id")

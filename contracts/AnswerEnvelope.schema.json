@@ -24,6 +24,113 @@
       "title": "Alternative",
       "type": "object"
     },
+    "AnswerTable": {
+      "additionalProperties": false,
+      "description": "A list answer as a table. Every cell is code-written from tool records; the rows are already sorted.",
+      "properties": {
+        "columns": {
+          "items": {
+            "$ref": "#/$defs/Column"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "title": "Columns",
+          "type": "array"
+        },
+        "default_sort": {
+          "$ref": "#/$defs/SortSpec"
+        },
+        "rows": {
+          "items": {
+            "$ref": "#/$defs/Row"
+          },
+          "maxItems": 50,
+          "title": "Rows",
+          "type": "array"
+        },
+        "title": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Title",
+          "type": "string"
+        },
+        "total_rows": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Total Rows"
+        }
+      },
+      "required": [
+        "title",
+        "columns",
+        "rows",
+        "total_rows",
+        "default_sort"
+      ],
+      "title": "AnswerTable",
+      "type": "object"
+    },
+    "Cell": {
+      "additionalProperties": false,
+      "description": "One value in a table row: `display` is what is shown, `value` is what a sort compares.",
+      "properties": {
+        "display": {
+          "maxLength": 120,
+          "title": "Display",
+          "type": "string"
+        },
+        "tone": {
+          "anyOf": [
+            {
+              "enum": [
+                "neutral",
+                "attention",
+                "ok"
+              ],
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Tone"
+        },
+        "value": {
+          "anyOf": [
+            {
+              "type": "string"
+            },
+            {
+              "type": "number"
+            },
+            {
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Value"
+        }
+      },
+      "required": [
+        "display",
+        "value",
+        "tone"
+      ],
+      "title": "Cell",
+      "type": "object"
+    },
     "Claim": {
       "additionalProperties": false,
       "properties": {
@@ -91,6 +198,42 @@
       "title": "Clarification",
       "type": "object"
     },
+    "Column": {
+      "additionalProperties": false,
+      "properties": {
+        "key": {
+          "pattern": "^[a-z][a-z0-9_]{0,31}$",
+          "title": "Key",
+          "type": "string"
+        },
+        "kind": {
+          "enum": [
+            "device",
+            "text",
+            "number",
+            "percent",
+            "version",
+            "pill",
+            "date"
+          ],
+          "title": "Kind",
+          "type": "string"
+        },
+        "label": {
+          "maxLength": 40,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "label",
+        "kind"
+      ],
+      "title": "Column",
+      "type": "object"
+    },
     "Coverage": {
       "additionalProperties": false,
       "description": "What the answer covered and what it could not: the disclosures a reviewer needs.",
@@ -113,6 +256,14 @@
           },
           "title": "Excluded",
           "type": "object"
+        },
+        "excluded_devices": {
+          "items": {
+            "$ref": "#/$defs/ExcludedDevice"
+          },
+          "maxItems": 100,
+          "title": "Excluded Devices",
+          "type": "array"
         },
         "missing_latest": {
           "items": {
@@ -138,7 +289,8 @@
         "population",
         "stale",
         "missing_latest",
-        "excluded"
+        "excluded",
+        "excluded_devices"
       ],
       "title": "Coverage",
       "type": "object"
@@ -223,6 +375,47 @@
         "value"
       ],
       "title": "EvidenceItem",
+      "type": "object"
+    },
+    "ExcludedDevice": {
+      "additionalProperties": false,
+      "description": "One device a check did not cover, with a code-written reason a person can read.",
+      "properties": {
+        "device_id": {
+          "minLength": 1,
+          "title": "Device Id",
+          "type": "string"
+        },
+        "label": {
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "reason": {
+          "enum": [
+            "out_of_scope",
+            "unknown_version",
+            "insufficient_history",
+            "no_reading",
+            "no_readings"
+          ],
+          "title": "Reason",
+          "type": "string"
+        },
+        "reason_text": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Reason Text",
+          "type": "string"
+        }
+      },
+      "required": [
+        "device_id",
+        "label",
+        "reason",
+        "reason_text"
+      ],
+      "title": "ExcludedDevice",
       "type": "object"
     },
     "ProposalCard": {
@@ -311,6 +504,45 @@
       "title": "ProposalCard",
       "type": "object"
     },
+    "Row": {
+      "additionalProperties": false,
+      "description": "One device (or one device and finding) in a table. `refs` are its sources, all in `evidence`.",
+      "properties": {
+        "cells": {
+          "additionalProperties": {
+            "$ref": "#/$defs/Cell"
+          },
+          "title": "Cells",
+          "type": "object"
+        },
+        "device_id": {
+          "minLength": 1,
+          "title": "Device Id",
+          "type": "string"
+        },
+        "label": {
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "refs": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Refs",
+          "type": "array"
+        }
+      },
+      "required": [
+        "device_id",
+        "label",
+        "cells",
+        "refs"
+      ],
+      "title": "Row",
+      "type": "object"
+    },
     "ScopeInfo": {
       "additionalProperties": false,
       "properties": {
@@ -368,6 +600,98 @@
         "calculation"
       ],
       "title": "ScopeInfo",
+      "type": "object"
+    },
+    "ScopeLine": {
+      "additionalProperties": false,
+      "description": "The counts behind the footer line: what was checked, what matched, what was left out.",
+      "properties": {
+        "as_of": {
+          "format": "date-time",
+          "title": "As Of",
+          "type": "string"
+        },
+        "basis": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Basis",
+          "type": "string"
+        },
+        "checked": {
+          "minimum": 0,
+          "title": "Checked",
+          "type": "integer"
+        },
+        "company_name": {
+          "default": "",
+          "maxLength": 120,
+          "title": "Company Name",
+          "type": "string"
+        },
+        "matched": {
+          "minimum": 0,
+          "title": "Matched",
+          "type": "integer"
+        },
+        "not_checked": {
+          "minimum": 0,
+          "title": "Not Checked",
+          "type": "integer"
+        },
+        "ok": {
+          "anyOf": [
+            {
+              "minimum": 0,
+              "type": "integer"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Ok"
+        },
+        "ok_label": {
+          "default": "",
+          "maxLength": 40,
+          "title": "Ok Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "checked",
+        "matched",
+        "ok",
+        "ok_label",
+        "not_checked",
+        "company_name",
+        "basis",
+        "as_of"
+      ],
+      "title": "ScopeLine",
+      "type": "object"
+    },
+    "SortSpec": {
+      "additionalProperties": false,
+      "properties": {
+        "direction": {
+          "enum": [
+            "asc",
+            "desc"
+          ],
+          "title": "Direction",
+          "type": "string"
+        },
+        "key": {
+          "title": "Key",
+          "type": "string"
+        }
+      },
+      "required": [
+        "key",
+        "direction"
+      ],
+      "title": "SortSpec",
       "type": "object"
     },
     "SuggestedAction": {
@@ -497,6 +821,14 @@
       "default": null,
       "title": "Explanation"
     },
+    "follow_ups": {
+      "items": {
+        "$ref": "#/$defs/Alternative"
+      },
+      "maxItems": 4,
+      "title": "Follow Ups",
+      "type": "array"
+    },
     "headline": {
       "title": "Headline",
       "type": "string"
@@ -560,8 +892,31 @@
       "default": null,
       "title": "Reason Code"
     },
+    "repeat_of": {
+      "anyOf": [
+        {
+          "type": "string"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null,
+      "title": "Repeat Of"
+    },
     "scope": {
       "$ref": "#/$defs/ScopeInfo"
+    },
+    "scope_line": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/ScopeLine"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     },
     "suggested_actions": {
       "items": {
@@ -569,6 +924,23 @@
       },
       "title": "Suggested Actions",
       "type": "array"
+    },
+    "summary": {
+      "default": "",
+      "maxLength": 200,
+      "title": "Summary",
+      "type": "string"
+    },
+    "table": {
+      "anyOf": [
+        {
+          "$ref": "#/$defs/AnswerTable"
+        },
+        {
+          "type": "null"
+        }
+      ],
+      "default": null
     },
     "trace_id": {
       "minLength": 1,
@@ -591,7 +963,12 @@
     "suggested_actions",
     "reason_code",
     "explanation",
-    "alternatives"
+    "alternatives",
+    "table",
+    "summary",
+    "scope_line",
+    "follow_ups",
+    "repeat_of"
   ],
   "title": "AnswerEnvelope",
   "type": "object"
