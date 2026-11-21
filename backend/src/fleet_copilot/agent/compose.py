@@ -727,17 +727,31 @@ def _advice(record: ToolRecord, resolve: Resolver) -> Composition:
     )
 
 
-def _scaffolding(usable: Sequence[ToolRecord]) -> set[int]:
-    """Positions of `find_devices` records that only narrowed a later call.
+# Tools that analyse the fleet and answer a question themselves. A `find_devices` record is only an
+# inventory answer when none of these ran in the turn; next to one it is a lookup (a way to pick or
+# name devices) and adds no claim, list or evidence, even when the model never fed its devices to the
+# analysis call (a sibling call in the same round). `device_history` counts: it answers for one
+# device. `recommend_actions` and `propose_action` never reach this path (composed earlier).
+ANALYSIS_TOOLS = frozenset(_TEMPLATES) - {"find_devices"}
 
-    A lookup is scaffolding when a later record that succeeded was called with `device_ids` that are
-    all among the lookup's devices: the model used the lookup to pick the devices for that call. The
-    later record answers the question; the lookup adds no claim, list or evidence. A lookup nothing
-    was filtered by (a genuine "list my laptops and ...") is composed as usual.
+
+def _scaffolding(usable: Sequence[ToolRecord]) -> set[int]:
+    """Positions of `find_devices` records that are lookups, not answers.
+
+    A lookup is scaffolding when a succeeded analysis record (`ANALYSIS_TOOLS`) is in the turn,
+    whether it came before, after or in the same round as the lookup. The analysis record answers
+    the question; the lookup adds no claim, list or evidence, and if the analysis is empty the
+    outcome is no_match over the analysis population. It is also scaffolding when a later record that
+    succeeded was called with `device_ids` that are all among the lookup's devices. A lookup nothing
+    was filtered by, with no analysis beside it (a plain inventory question), is composed as usual.
     """
     hidden: set[int] = set()
+    analysed = any(r.tool in ANALYSIS_TOOLS for r in usable)
     for i, record in enumerate(usable):
         if record.tool != "find_devices":
+            continue
+        if analysed:
+            hidden.add(i)
             continue
         found = set(record.device_ids)
         for later in usable[i + 1 :]:

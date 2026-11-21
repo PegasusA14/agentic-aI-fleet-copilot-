@@ -740,3 +740,43 @@ async def test_a_provider_content_filter_while_gathering_evidence_is_a_fixed_ref
     result = await make_service(real_db_path, llm).run_turn(ACME_ADMIN, "c1", "low disk?")
     assert (result.envelope.outcome, result.envelope.reason_code) == ("denied", "prompt_injection")
     assert "error" not in kinds(result)
+
+
+# ---- a sibling find_devices in the same round never becomes the answer ---------------------------
+
+
+async def test_a_parallel_find_next_to_an_empty_battery_trend_is_no_match(real_db_path):
+    llm = ScriptedLLM(
+        plans=[answer_plan()],
+        acts=[
+            tool_calls_message(
+                ("find_devices", {"form_factor": "laptop"}), ("trend", {"metric": "battery"})
+            ),
+            final_message(),
+        ],
+        explains=[explanation()],
+    )
+    result = await ask(make_service(real_db_path, llm), "any laptop battery issues?", GLOBEX_ADMIN)
+    envelope = result.envelope
+    assert envelope.outcome == "no_match" and envelope.reason_code == "no_matching_records"
+    assert envelope.claims == [] and envelope.evidence == [] and envelope.entity_lists == []
+
+
+async def test_a_parallel_find_next_to_a_trend_with_hits_claims_only_the_trend_devices(
+    real_db_path,
+):
+    llm = ScriptedLLM(
+        plans=[answer_plan()],
+        acts=[
+            tool_calls_message(
+                ("find_devices", {"form_factor": "laptop"}), ("trend", {"metric": "battery"})
+            ),
+            final_message(),
+        ],
+        explains=[explanation()],
+    )
+    result = await ask(make_service(real_db_path, llm), "any laptop battery issues?")
+    envelope = result.envelope
+    assert envelope.outcome == "answer"
+    assert all(not e.list_id.startswith("find_devices") for e in envelope.entity_lists)
+    assert not any(c.text.startswith("Matching devices") for c in envelope.claims)

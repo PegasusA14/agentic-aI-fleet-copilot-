@@ -766,23 +766,31 @@ def test_a_narrowed_call_with_no_findings_is_no_match_not_a_list_of_the_find(
     assert comp.coverage.population == later.population
 
 
-def test_a_find_next_to_a_call_without_device_ids_is_still_composed(real_db_path, real_conn):
+def test_a_find_next_to_a_call_without_device_ids_is_a_lookup_too(real_db_path, real_conn):
     comp = composed(
         real_db_path,
         real_conn,
         [("find_devices", {"form_factor": "laptop"}), ("low_disk_devices", {})],
     )
-    assert len(comp.claims) == 2 and len(comp.entity_lists) == 2
-    assert comp.claims[0].text.startswith("Matching devices")
+    assert len(comp.claims) == 1 and len(comp.entity_lists) == 1
+    assert comp.entity_lists[0].list_id == "low_disk_devices-1"
 
 
-def test_a_find_is_composed_when_the_later_call_used_other_devices(real_db_path, real_conn):
+def test_a_find_is_composed_when_the_later_find_used_other_devices(real_db_path, real_conn):
     found = run(real_db_path, real_conn, "find_devices", {"os_name": "macOS"})
     other = [d for d in ("8NM23J95R5I6", "9MXJVZ1I0DKA") if d not in found.device_ids]
     assert other  # Windows devices: not a subset of the Macs
-    later = run(real_db_path, real_conn, "trend", {"metric": "battery", "device_ids": other})
+    later = run(real_db_path, real_conn, "find_devices", {"device_ids": other})
     comp = compose([found, later], resolve=repo_for(real_conn).resolve)
     assert comp.claims[0].text.startswith("Matching devices")
+    assert len(comp.claims) == 2
+
+
+def test_a_find_used_to_narrow_a_later_find_adds_no_claim(real_db_path, real_conn):
+    found = run(real_db_path, real_conn, "find_devices", {"os_name": "macOS"})
+    later = run(real_db_path, real_conn, "find_devices", {"device_ids": found.device_ids[:2]})
+    comp = compose([found, later], resolve=repo_for(real_conn).resolve)
+    assert len(comp.claims) == 1 and comp.claims[0].device_ids == later.device_ids
 
 
 def test_a_find_is_composed_when_the_narrowed_call_failed(real_db_path, real_conn):
@@ -792,5 +800,74 @@ def test_a_find_is_composed_when_the_narrowed_call_failed(real_db_path, real_con
         args={"metric": "battery", "device_ids": found.device_ids},
         error="not_found",
     )
+    comp = compose([found, failed], resolve=repo_for(real_conn).resolve)
+    assert comp.outcome == "answer" and comp.claims[0].text.startswith("Matching devices")
+
+
+# ---- a sibling find_devices next to an analysis call is a lookup, whatever the call order --------
+
+
+def _siblings(real_db_path, real_conn, tenant, find_args, tool, args):
+    """find_devices and an analysis call made in the same round: neither used the other's devices."""
+    records = [
+        run(real_db_path, real_conn, "find_devices", find_args, tenant),
+        run(real_db_path, real_conn, tool, args, tenant),
+    ]
+    return records, compose(records, resolve=repo_for(real_conn, tenant).resolve)
+
+
+def test_a_sibling_find_next_to_an_empty_battery_trend_is_no_match_not_the_find(
+    real_db_path, real_conn
+):
+    (found, trend), comp = _siblings(
+        real_db_path, real_conn, GLOBEX, {"form_factor": "laptop"}, "trend", {"metric": "battery"}
+    )
+    assert len(found.device_ids) > 0 and trend.findings == []
+    assert not set(trend.device_ids) & set(found.device_ids)
+    assert comp.outcome == "no_match" and comp.reason_code == "no_matching_records"
+    assert comp.claims == [] and comp.evidence == [] and comp.entity_lists == []
+    assert comp.coverage.population == trend.population
+
+
+def test_a_sibling_find_next_to_a_non_empty_trend_claims_only_the_trend_devices(
+    real_db_path, real_conn
+):
+    (found, trend), comp = _siblings(
+        real_db_path, real_conn, ACME, {"form_factor": "laptop"}, "trend", {"metric": "battery"}
+    )
+    assert trend.device_ids and set(trend.device_ids) < set(found.device_ids)
+    assert comp.outcome == "answer"
+    assert [c.device_ids for c in comp.claims] == [trend.device_ids]
+    assert [e.list_id for e in comp.entity_lists] == ["trend-1-battery"]
+    assert {EvidenceRef.parse(e.ref).device_id for e in comp.evidence} == set(trend.device_ids)
+    assert comp.coverage.population == trend.population
+
+
+def test_a_sibling_find_listed_after_the_analysis_call_is_a_lookup_too(real_db_path, real_conn):
+    trend = run(real_db_path, real_conn, "trend", {"metric": "battery"}, GLOBEX)
+    found = run(real_db_path, real_conn, "find_devices", {"form_factor": "laptop"}, GLOBEX)
+    comp = compose([trend, found], resolve=repo_for(real_conn, GLOBEX).resolve)
+    assert comp.outcome == "no_match" and comp.claims == [] and comp.entity_lists == []
+
+
+def test_a_find_alone_still_answers_the_inventory_question(real_db_path, real_conn):
+    comp = composed(real_db_path, real_conn, [("find_devices", {"group_by": "model"})])
+    assert comp.outcome == "answer"
+    assert comp.claims[0].text.startswith("Devices by model")
+    assert [e.list_id for e in comp.entity_lists] == ["find_devices-1"]
+
+
+def test_two_finds_alone_are_both_composed(real_db_path, real_conn):
+    comp = composed(
+        real_db_path,
+        real_conn,
+        [("find_devices", {"os_name": "macOS"}), ("find_devices", {"form_factor": "desktop"})],
+    )
+    assert len(comp.claims) == 2 and len(comp.entity_lists) == 2
+
+
+def test_a_find_is_still_composed_when_every_analysis_call_failed(real_db_path, real_conn):
+    found = run(real_db_path, real_conn, "find_devices", {"form_factor": "laptop"})
+    failed = ToolRecord(tool="trend", args={"metric": "battery"}, error="not_found")
     comp = compose([found, failed], resolve=repo_for(real_conn).resolve)
     assert comp.outcome == "answer" and comp.claims[0].text.startswith("Matching devices")
