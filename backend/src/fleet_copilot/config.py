@@ -40,6 +40,9 @@ class Settings:
     data_path: Path
     db_path: Path
     state_dir: Path | None = None
+    static_dir: Path | None = (
+        None  # the built frontend; the API serves it only if it has index.html
+    )
 
     @classmethod
     def from_env(cls) -> Settings:
@@ -49,7 +52,13 @@ class Settings:
         )
         db = os.environ.get("FLEET_DB_PATH") or REPO_ROOT / "var" / "fleet.db"
         state = os.environ.get("FLEET_STATE_DIR") or None
-        return cls(data_path=Path(data), db_path=Path(db), state_dir=Path(state) if state else None)
+        static = os.environ.get("FLEET_STATIC_DIR") or REPO_ROOT / "frontend" / "dist"
+        return cls(
+            data_path=Path(data),
+            db_path=Path(db),
+            state_dir=Path(state) if state else None,
+            static_dir=Path(static),
+        )
 
     def state_path(self) -> Path:
         """Where traces and conversation checkpoints live."""

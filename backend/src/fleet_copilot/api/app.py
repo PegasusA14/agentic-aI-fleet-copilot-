@@ -4,9 +4,11 @@ from __future__ import annotations
 
 from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
+from pathlib import Path
 
-from fastapi import FastAPI
-from fastapi.responses import JSONResponse
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import FileResponse, JSONResponse
+from fastapi.staticfiles import StaticFiles
 from starlette.middleware.sessions import SessionMiddleware
 
 from fleet_copilot.actions.service import ActionService
@@ -39,6 +41,23 @@ class OriginGuard:
                 )
                 return
         await self.app(scope, receive, send)
+
+
+def _mount_frontend(app: FastAPI, dist: Path) -> None:
+    """Serve the built single-page app from `dist`; nothing outside it is ever read."""
+    root = dist.resolve()
+    index = root / "index.html"
+    if (root / "assets").is_dir():
+        app.mount("/assets", StaticFiles(directory=root / "assets"), name="assets")
+
+    @app.get("/{path:path}", include_in_schema=False)
+    async def single_page_app(path: str) -> FileResponse:
+        if path == "api" or path.startswith("api/"):
+            raise HTTPException(status_code=404)  # unknown API paths stay a JSON 404
+        candidate = (root / path).resolve()
+        if path and candidate.is_file() and candidate.is_relative_to(root):
+            return FileResponse(candidate)  # e.g. favicon.svg
+        return FileResponse(index, headers={"Cache-Control": "no-cache"})
 
 
 def create_app(
@@ -98,6 +117,8 @@ def create_app(
     app.include_router(routes_chat.router)
     app.include_router(routes_data.router)
     app.include_router(routes_actions.router)
+    if settings.static_dir is not None and (settings.static_dir / "index.html").is_file():
+        _mount_frontend(app, settings.static_dir)  # last, so it never shadows an API route
     return app
 
 

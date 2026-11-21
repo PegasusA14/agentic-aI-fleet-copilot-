@@ -1,4 +1,4 @@
-.PHONY: setup load-data api ask doctor live-check test lint golden contracts fixtures frontend-install frontend-dev frontend-build frontend-test
+.PHONY: setup load-data api ask doctor live-check test lint golden contracts fixtures frontend-install frontend-dev frontend-build frontend-test dev demo
 
 setup:
 	cd backend && uv sync
@@ -45,3 +45,9 @@ frontend-build:
 
 frontend-test:
 	cd frontend && npm run typecheck && npm test
+
+dev:
+	sh scripts/dev.sh
+
+demo: frontend-build
+	$(MAKE) api

@@ -14,8 +14,17 @@ ORIGIN = "http://127.0.0.1:8000"
 
 
 @asynccontextmanager
-async def client_for(db_path, state_dir: Path, llm, *, operator_passcode: str | None = "op-pass"):
-    settings = Settings(data_path=Path("unused"), db_path=db_path, state_dir=state_dir)
+async def client_for(
+    db_path,
+    state_dir: Path,
+    llm,
+    *,
+    operator_passcode: str | None = "op-pass",
+    static_dir: Path | None = None,
+):
+    settings = Settings(
+        data_path=Path("unused"), db_path=db_path, state_dir=state_dir, static_dir=static_dir
+    )
     api = ApiSettings(
         session_secret=SecretStr("test-secret"),
         operator_passcode=SecretStr(operator_passcode) if operator_passcode else None,

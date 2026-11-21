@@ -4,7 +4,34 @@ A natural-language copilot that turns device telemetry into evidence-backed flee
 decisions and human-approved actions. Built for the Senior Agentic AI Engineer
 assessment.
 
-> Status: foundation layer. The agent, API and UI arrive in later plans.
+> Status: the agent, API and web console run end to end. `make eval` is not available yet.
+
+## Quick start
+
+```bash
+make setup        # install backend dependencies
+make load-data    # load the dataset into var/fleet.db
+make frontend-install   # install frontend dependencies (once)
+make demo         # build the frontend, then serve app and API at http://127.0.0.1:8000
+```
+
+`make demo` needs a `.env` with the model settings (copy `.env.example`); it builds the
+frontend into `frontend/dist`, and the API serves it. The API only serves the build when
+`frontend/dist/index.html` exists, so `make api` alone still works without it. Set
+`FLEET_STATIC_DIR` to serve a build from another directory.
+
+For development, run `make dev`. It starts the API on `127.0.0.1:8000` and the Vite dev
+server on `127.0.0.1:5173` (open this one), which proxies `/api` to the API. Stop both
+with Ctrl+C.
+
+To try the interface with no backend and no model, use fixture mode:
+
+```bash
+cd frontend && VITE_FLEET_DATA=fixtures npm run dev
+```
+
+Tests: `make test` (backend), `make frontend-test` (typecheck and unit tests), `make lint`.
+`make eval` is not available yet.
 
 ## Setup
 
