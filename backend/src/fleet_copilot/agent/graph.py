@@ -42,7 +42,7 @@ from fleet_copilot.agent.llm import (
     Reference,
     plan_problems,
 )
-from fleet_copilot.agent.present import ADVISABLE_TOOLS
+from fleet_copilot.agent.present import ADVISABLE_TOOLS, relevant_to
 from fleet_copilot.agent.prompts import (
     act_messages,
     explain_messages,
@@ -288,7 +288,8 @@ def _list_suggestions(
     """Code-only suggested actions for the devices a list answer found, or None.
 
     The same deterministic `recommend_actions` an advise turn runs, over the devices the answer lists
-    (in the order it lists them), with the same cap. It makes no model call. The result is kept out of the
+    (in the order it lists them), with the same cap, but keeping only the next steps that belong to the
+    answer's subject (`present.SUBJECT_ACTIONS`). It makes no model call. The result is kept out of the
     draft the model reads, and merged into the final envelope after the prose is verified.
     """
     advisable = [r for r in records if r.tool in ADVISABLE_TOOLS and not r.error]
@@ -302,7 +303,7 @@ def _list_suggestions(
     if not ids:
         return None
     try:
-        record = execute_recommend({"device_ids": ids}, ctx)
+        record = execute_recommend({"device_ids": ids}, ctx, only=relevant_to(advisable))
         if record.error or not record.suggestions:
             return None
         suggestions = [SuggestedAction.model_validate(s) for s in record.suggestions]

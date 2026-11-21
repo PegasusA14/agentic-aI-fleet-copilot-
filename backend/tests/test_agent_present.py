@@ -122,12 +122,18 @@ def test_the_macos_follow_ups_offer_the_unchecked_devices_and_advice(initech_mac
     assert len(ups) <= 4
 
 
-def test_the_old_claim_entity_list_and_evidence_are_unchanged(initech_macos):
+def test_the_old_claim_and_evidence_are_unchanged_and_the_entity_list_follows_the_table(
+    initech_macos,
+):
     (claim,) = initech_macos.claims
     assert claim.device_ids == ["DARFCP0BQM2G", "RLD7WV7J82SH", "SPKRRDF0L786", "XZYK11QTPWEC"]
     assert "SPKRRDF0L786 (initech-macbook-2; macOS 13.6)" in claim.text
     (entity_list,) = initech_macos.entity_lists
-    assert [i.device_id for i in entity_list.items] == claim.device_ids
+    # same devices as the claim, in the table's order: the first row is "the first one"
+    assert [i.device_id for i in entity_list.items] == [
+        r.device_id for r in initech_macos.table.rows
+    ]
+    assert sorted(i.device_id for i in entity_list.items) == claim.device_ids
     assert {e.ref for e in initech_macos.evidence} == set(claim.refs)
 
 

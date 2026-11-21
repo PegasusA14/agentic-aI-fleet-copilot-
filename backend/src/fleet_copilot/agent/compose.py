@@ -215,8 +215,12 @@ def _item(finding: FindingRecord, detail: str) -> str:
 
 
 class _Builder:
-    def __init__(self, resolve: Resolver) -> None:
+    def __init__(self, resolve: Resolver, order: Sequence[tuple[str, str]] | None = None) -> None:
         self._resolve = resolve
+        # Where each (list group, device) stands in the answer table's default row order, if it has a table.
+        self._position: dict[tuple[str, str], int] = {}
+        for place, key in enumerate(order or ()):
+            self._position.setdefault(key, place)
         self._hosts: dict[str, str] = {}
         self.claims: list[Claim] = []
         self.evidence: dict[str, EvidenceItem] = {}
@@ -271,7 +275,15 @@ class _Builder:
         ids = [f.device_id for f in findings]
         self.claims.append(Claim(text=text, refs=refs, count=len(ids), device_ids=ids))
 
-    def entity_list(self, list_id: str, title: str, findings: Sequence[FindingRecord]) -> None:
+    def entity_list(
+        self, list_id: str, title: str, findings: Sequence[FindingRecord], group: str = ""
+    ) -> None:
+        """A list "the first one" can point at, in the order the answer table shows its devices."""
+        if self._position:
+            findings = sorted(
+                findings,
+                key=lambda f: self._position.get((group, f.device_id), len(self._position)),
+            )
         items = [
             EntityRef(rank=i, device_id=f.device_id, label=f.hostname)
             for i, f in enumerate(findings, 1)
@@ -412,7 +424,7 @@ def _compliance_now(rec: ToolRecord, idx: int, b: _Builder) -> None:
             findings,
             refs_by_device={f.device_id: [ref] for f, _, ref in rows},
         )
-        b.entity_list(f"{rec.tool}-{idx}-{check}", f"{check} failures", findings)
+        b.entity_list(f"{rec.tool}-{idx}-{check}", f"{check} failures", findings, check)
     if len(by_check) == 1:
         check = next(iter(by_check))
         b.set_headline(f"{len(by_check[check])} of {rec.population} {scope_noun} fail {check}")
@@ -845,10 +857,13 @@ def compose(records: Sequence[ToolRecord], *, resolve: Resolver) -> Composition:
     advised = next((r for r in records if not r.error and r.suggestions is not None), None)
     if advised is not None:
         return _advice(advised, resolve)
-    builder = _Builder(resolve)
     usable = [r for r in records if not r.error]
     hidden = _scaffolding(usable)
     shown = [r for i, r in enumerate(usable) if i not in hidden]
+    # One list tool in the turn gets a table, a sentence, scope counts and next questions. Its row order is
+    # decided once, there, and the entity lists follow it, so the first row is "the first one".
+    shown_presentation = present(shown[0]) if len(shown) == 1 else None
+    builder = _Builder(resolve, shown_presentation.order if shown_presentation else None)
     for index, record in enumerate(shown, start=1):
         _TEMPLATES[record.tool](record, index, builder)
     builder.disclosure_notes()
@@ -865,8 +880,6 @@ def compose(records: Sequence[ToolRecord], *, resolve: Resolver) -> Composition:
         excluded={reason: sorted(ids) for reason, ids in sorted(builder.excluded.items())},
         excluded_devices=builder.excluded_devices(),
     )
-    # One list tool in the turn gets a table, a sentence, scope counts and next questions.
-    shown_presentation = present(shown[0]) if len(shown) == 1 else None
     ui: dict = {}
     if shown_presentation is not None:
         ui = {

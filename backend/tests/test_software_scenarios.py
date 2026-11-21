@@ -91,13 +91,23 @@ async def test_who_has_an_app_resolves_a_follow_up_to_the_listed_device(real_db_
     )
     service = make_service(real_db_path, llm)
     first = await service.run_turn(INITECH_ADMIN, "c1", "Which devices have uTorrent?")
-    assert listed_ids(first.envelope) == golden("initech-003")["software"]["holders"]["uTorrent"]
+    holders = golden("initech-003")["software"]["holders"]["uTorrent"]
+    assert set(listed_ids(first.envelope)) == set(holders)
+    # the list follows the table, which is ordered by hostname: "the last one" is the last row
+    rows = first.envelope.table.rows
+    assert [r.label for r in rows] == sorted(r.label for r in rows)
+    assert listed_ids(first.envelope) == [r.device_id for r in rows]
     second = await service.run_turn(INITECH_ADMIN, "c1", "When was it installed on the last one?")
-    last = golden("initech-003")["software"]["holders"]["uTorrent"][-1]
+    last = rows[-1].device_id
     assert second.envelope.outcome == "answer"
     assert {d for c in second.envelope.claims for d in c.device_ids} == {last}
     assert second.envelope.coverage.population == 1
-    assert "first seen 2026-06-02 10:45Z" in second.envelope.claims[0].text
+    first_seen = next(
+        i["first_seen"]
+        for i in installs("initech-003")
+        if i["device_id"] == last and i["app"] == "uTorrent"
+    )
+    assert f"first seen {first_seen[:10]} {first_seen[11:16]}Z" in second.envelope.claims[0].text
 
 
 async def test_open_the_first_one_after_a_new_install_list_means_the_newest_install(real_db_path):

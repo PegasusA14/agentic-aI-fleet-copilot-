@@ -9,6 +9,7 @@ Recommending never creates a proposal: acting on a suggestion is a separate, app
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from dataclasses import dataclass
 from datetime import datetime
 
@@ -100,9 +101,15 @@ def _notification(got: Eligible, check_id: str | None) -> Suggestion:
 
 
 def _for_device(
-    repo: FleetRepository, as_of: datetime, device_id: str
+    repo: FleetRepository,
+    as_of: datetime,
+    device_id: str,
+    only: Callable[[Suggestion], bool] | None = None,
 ) -> list[tuple[tuple[int, int], Suggestion]]:
-    """Every eligible suggestion for one device with its sort key, in no particular order."""
+    """Every eligible suggestion for one device with its sort key, in no particular order.
+
+    With `only`, the one notification is the strongest finding `only` accepts, not the strongest overall.
+    """
     try:
         latest = repo.latest(device_id)
     except NotFound:
@@ -146,8 +153,10 @@ def _for_device(
     for topic, check_id in candidates:
         got = ask("employee_notification", topic=topic, check_id=check_id)
         if got is not None:
-            out.append(((_NOTIFICATION, 0), _notification(got, check_id)))
-            break
+            note = _notification(got, check_id)
+            if only is None or only(note):
+                out.append(((_NOTIFICATION, 0), note))
+                break
     return out
 
 
@@ -156,10 +165,12 @@ def recommend(
     as_of: datetime,
     device_ids: list[str] | tuple[str, ...],
     action_type: ActionType | None = None,
+    only: Callable[[Suggestion], bool] | None = None,
 ) -> list[Suggestion]:
     """Eligible suggestions for the given devices, best first, at most `max_suggestions()`.
 
-    With `action_type`, only suggestions of that type are kept (before the cap is applied).
+    With `action_type`, only suggestions of that type are kept; with `only`, only those it accepts.
+    Both filters apply before the cap, so unrelated suggestions never crowd out related ones.
 
     Unknown and out-of-tenant ids are skipped without a trace. Order is by rank, then by the order
     the devices were given (duplicates ignored), then by action within a device, so the same input
@@ -167,8 +178,12 @@ def recommend(
     """
     ranked: list[tuple[tuple[int, int, int, int], Suggestion]] = []
     for position, device_id in enumerate(dict.fromkeys(device_ids)):
-        for index, ((rank, sub), suggestion) in enumerate(_for_device(repo, as_of, device_id)):
+        for index, ((rank, sub), suggestion) in enumerate(
+            _for_device(repo, as_of, device_id, only)
+        ):
             if action_type is not None and suggestion.action_type != action_type:
+                continue
+            if only is not None and not only(suggestion):
                 continue
             ranked.append(((rank, sub if rank == _CHECK else 0, position, index), suggestion))
     ranked.sort(key=lambda item: item[0])

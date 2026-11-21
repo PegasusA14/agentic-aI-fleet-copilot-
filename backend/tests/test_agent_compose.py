@@ -731,7 +731,9 @@ def test_a_find_used_only_to_narrow_a_battery_trend_adds_no_claim_or_list(real_d
     assert len(found.device_ids) == 9 and len(later.device_ids) == 3
     assert comp.outcome == "answer"
     assert [c.device_ids for c in comp.claims] == [later.device_ids]
-    assert [[i.device_id for i in e.items] for e in comp.entity_lists] == [later.device_ids]
+    (entity_list,) = comp.entity_lists
+    assert sorted(i.device_id for i in entity_list.items) == sorted(later.device_ids)
+    assert [i.device_id for i in entity_list.items] == [r.device_id for r in comp.table.rows]
     assert all(e.list_id.startswith("trend") for e in comp.entity_lists)
     shown = {EvidenceRef.parse(e.ref).device_id for e in comp.evidence}
     assert shown == set(later.device_ids)

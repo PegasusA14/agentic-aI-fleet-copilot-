@@ -1,5 +1,6 @@
 """Repeat detection, and code-only suggested actions on list answers. Neither may change what a model reads."""
 
+from agent_support import run
 from graph_support import (
     ACME_ADMIN,
     INITECH_ADMIN,
@@ -13,6 +14,7 @@ from graph_support import (
 from fleet_copilot.agent.compose import Composition
 from fleet_copilot.agent.context import AgentContext
 from fleet_copilot.agent.llm import ScriptedLLM, final_message, tool_calls_message
+from fleet_copilot.agent.present import relevant_to
 from fleet_copilot.agent.state import history_entry, turn_fingerprint
 from fleet_copilot.agent.tools import execute_recommend
 from fleet_copilot.agent.verify import composition_of
@@ -117,8 +119,6 @@ async def test_only_answers_are_repeats(real_db_path):
 
 
 def test_the_fingerprint_depends_on_what_was_answered_not_on_the_words(real_db_path, real_conn):
-    from agent_support import run
-
     ctx_as_of = dataset_as_of(real_conn)
     low = run(real_db_path, real_conn, "low_disk_devices", {})
     other = run(real_db_path, real_conn, "low_disk_devices", {"threshold_pct": 5})
@@ -179,13 +179,16 @@ def _ctx(real_db_path, real_conn, tenant="acme-001"):
     )
 
 
-async def test_a_low_disk_answer_carries_what_recommend_returns_for_the_listed_devices(
+async def test_a_low_disk_answer_carries_what_recommend_returns_for_the_listed_devices_on_its_subject(
     real_db_path, real_conn
 ):
     llm = scripted(LOW)
     result = await ask(make_service(real_db_path, llm), "low disk?")
     envelope = result.envelope
-    expected = execute_recommend({"device_ids": LOW_DISK_DEVICES}, _ctx(real_db_path, real_conn))
+    record = run(real_db_path, real_conn, "low_disk_devices", {})
+    expected = execute_recommend(
+        {"device_ids": LOW_DISK_DEVICES}, _ctx(real_db_path, real_conn), only=relevant_to([record])
+    )
     assert expected.suggestions  # the dataset has eligible actions for these devices
     assert [s.model_dump(mode="json") for s in envelope.suggested_actions] == [
         {k: v for k, v in s.items()} for s in expected.suggestions
@@ -248,12 +251,16 @@ async def test_a_macos_answer_gets_whatever_recommend_returns_for_its_devices(
     )
     result = await ask(make_service(real_db_path, llm), "old macs?", identity=INITECH_ADMIN)
     ids = [i.device_id for i in result.envelope.entity_lists[0].items]
-    expected = execute_recommend(
-        {"device_ids": ids}, _ctx(real_db_path, real_conn, "initech-003")
-    ).suggestions
-    assert [s.model_dump(mode="json") for s in result.envelope.suggested_actions] == (
-        expected or []
+    record = run(
+        real_db_path, real_conn, "macos_version_check", {"older_than": "15"}, "initech-003"
     )
+    expected = execute_recommend(
+        {"device_ids": ids},
+        _ctx(real_db_path, real_conn, "initech-003"),
+        only=relevant_to([record]),
+    ).suggestions
+    assert expected
+    assert [s.model_dump(mode="json") for s in result.envelope.suggested_actions] == expected
 
 
 async def test_inventory_answers_get_no_suggestions(real_db_path):

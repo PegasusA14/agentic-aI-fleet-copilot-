@@ -187,7 +187,11 @@ def test_the_inventory_is_one_claim_that_flags_the_apps_not_on_every_device(
     assert claim.text.count("5 apps") == 8
     assert "Google Chrome 126.0" in comp.rules[0]
     assert comp.fallback_headline == "10 of 10 devices report installed software"
-    assert [i.device_id for i in comp.entity_lists[0].items] == claim.device_ids
+    # the entity list follows the table (hostname order); the claim keeps the device-id order
+    assert [i.device_id for i in comp.entity_lists[0].items] == [
+        r.device_id for r in comp.table.rows
+    ]
+    assert sorted(i.device_id for i in comp.entity_lists[0].items) == claim.device_ids
     assert len(comp.evidence) == 10  # one cited reading per device
 
 

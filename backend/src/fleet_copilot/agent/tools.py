@@ -257,8 +257,15 @@ def execute_propose(args: dict[str, Any], ctx: AgentContext) -> ToolRecord:
     )
 
 
-def execute_recommend(args: dict[str, Any], ctx: AgentContext) -> ToolRecord:
+def execute_recommend(
+    args: dict[str, Any],
+    ctx: AgentContext,
+    only: Callable[[recommender.Suggestion], bool] | None = None,
+) -> ToolRecord:
     """Recommend actions for the given devices as the context's tenant, on a READ-ONLY connection.
+
+    `only` is for the code that attaches next steps to a list answer (never a model argument): it keeps
+    the suggestions that belong to the answer's subject, before the cap.
 
     Code decides which actions the evidence supports and writes every word; nothing is proposed or
     stored. Unknown and foreign devices are the uniform `not_found`, as for every other tool.
@@ -277,11 +284,11 @@ def execute_recommend(args: dict[str, Any], ctx: AgentContext) -> ToolRecord:
         if not considered:
             return ToolRecord(tool="recommend_actions", args=recorded, error="not_found")
         wanted = args.get("action_type")
-        suggestions = recommender.recommend(repo, ctx.as_of, considered, wanted)
+        suggestions = recommender.recommend(repo, ctx.as_of, considered, wanted, only)
         fallback = None
         if wanted and not suggestions:
             # Nothing qualifies for the requested action: show what the evidence does support, and say so.
-            suggestions = recommender.recommend(repo, ctx.as_of, considered)
+            suggestions = recommender.recommend(repo, ctx.as_of, considered, None, only)
             fallback = wanted if suggestions else None
         return ToolRecord(
             tool="recommend_actions",

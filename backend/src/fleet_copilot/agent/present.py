@@ -13,6 +13,7 @@ from dataclasses import dataclass, field
 
 from fleet_copilot import policy
 from fleet_copilot.actions.eligibility import display_hostname
+from fleet_copilot.actions.recommend import Suggestion
 from fleet_copilot.agent.format import fmt_bytes, fmt_day, fmt_pct, fmt_signed_pct, noun
 from fleet_copilot.agent.records import FindingRecord, ToolRecord
 from fleet_copilot.contracts import (
@@ -85,6 +86,9 @@ class Presentation:
     summary: str = ""
     scope: ScopeParts | None = None
     follow_ups: list[Alternative] = field(default_factory=list)
+    # (list group, device id) in the table's default row order, for every row (the table itself stops
+    # at MAX_TABLE_ROWS). The entity lists that "the first one" resolves against follow this order.
+    order: list[tuple[str, str]] = field(default_factory=list)
 
 
 # ---- small helpers ------------------------------------------------------------------------------
@@ -148,6 +152,11 @@ def _table(
         total_rows=len(rows),
         default_sort=sort,
     )
+
+
+def _order(rows: Sequence[Row], groups: Sequence[str] | None = None) -> list[tuple[str, str]]:
+    """The default order of the devices of a table: (group, device id) per row, `groups` aligned to rows."""
+    return [(groups[i] if groups else "", row.device_id) for i, row in enumerate(rows)]
 
 
 def _row(f: FindingRecord, refs: Sequence[str], **cells: Cell) -> Row:
@@ -220,6 +229,7 @@ def _macos(rec: ToolRecord) -> Presentation:
     unknown = _excluded_ids(rec, "unknown_version")
     matched = _distinct(ordered)
     return Presentation(
+        order=_order(rows),
         table=_table(
             f"macOS older than {target}",
             columns,
@@ -263,6 +273,7 @@ def _low_disk(rec: ToolRecord) -> Presentation:
         else _sentence([f"{_who(n).lower()} {_are(n)} under {thr:g}% free, the lowest at {lowest}"])
     )
     return Presentation(
+        order=_order(rows),
         table=_table(
             f"Low disk (<{thr:g}% free)",
             [
@@ -310,6 +321,7 @@ def _memory(rec: ToolRecord) -> Presentation:
         )
     )
     return Presentation(
+        order=_order(rows),
         table=_table(
             f"High memory (>={thr:g}% used)",
             [
@@ -366,6 +378,7 @@ def _compliance_now(rec: ToolRecord) -> Presentation:
             )
         )
     return Presentation(
+        order=_order(rows, [check for _, check, _, _ in pairs]),
         table=_table(
             "Failing compliance checks",
             [
@@ -420,6 +433,7 @@ def _trend_breach(rec: ToolRecord, metric: str) -> Presentation:
         [f"{_word(k)} {_are(k)} {cls}" for cls, k in _counted(counts, tuple(_PATTERN_RANK))]
     )
     return Presentation(
+        order=_order(rows),
         table=_table(
             f"{'Memory' if metric == 'memory' else 'Disk'} trend ({days} d)",
             [
@@ -467,6 +481,7 @@ def _trend_compliance(rec: ToolRecord) -> Presentation:
         ]
     )
     return Presentation(
+        order=_order(rows),
         table=_table(
             f"{check} ({days} d)",
             [
@@ -532,6 +547,7 @@ def _battery(rec: ToolRecord) -> Presentation:
             f"{_word(servicing)} {'has' if servicing == 1 else 'have'} a Service Recommended flag"
         )
     return Presentation(
+        order=_order(rows),
         table=_table(
             f"Battery wear ({days} d)",
             [
@@ -575,6 +591,7 @@ def _find(rec: ToolRecord) -> Presentation:
             ]
         )
     return Presentation(
+        order=_order(rows),
         table=_table(
             "Matching devices",
             [
@@ -650,6 +667,7 @@ def _inventory(rec: ToolRecord) -> Presentation:
         else _sentence(["no device has apps beyond the shared set"])
     )
     return Presentation(
+        order=_order(rows),
         table=_table(
             "Installed software",
             [
@@ -679,6 +697,7 @@ def _holders(rec: ToolRecord) -> Presentation:
     groups = sorted(versions.items(), key=lambda kv: parse_version(kv[0]) or ())
     summary = _sentence([f"{_word(k)} {'has' if k == 1 else 'have'} {name} {v}" for v, k in groups])
     return Presentation(
+        order=_order(rows),
         table=_table(
             f"Devices with {name}",
             [Column(key="version", label="Version", kind="version")],
@@ -724,6 +743,7 @@ def _new_installs(rec: ToolRecord) -> Presentation:
         for app, ids in sorted(by_app.items(), key=lambda kv: (-len(kv[1]), kv[0]))
     ]
     return Presentation(
+        order=_order(rows),
         table=_table(
             f"New software ({days} d)",
             [
@@ -814,6 +834,66 @@ ADVISABLE_TOOLS = frozenset(
         "trend",
     }
 )
+
+# The next steps a list answer offers: only those that belong to what it answered. Keyed by the subject
+# ("trend" splits by its metric); each rule is (action_type, parameter name, required value), where the
+# parameter is what eligibility puts in the suggestion's params (component, topic or check_id), and no
+# parameter means any suggestion of that action type. `_ANSWER_CHECKS` stands for the compliance check(s)
+# the answer itself lists. An advise turn ignores this table and recommends over every rule.
+_ANSWER_CHECKS = "answer"
+_STORAGE_STEPS = (
+    ("upgrade_order", "component", "storage"),
+    ("employee_notification", "topic", "low_disk"),
+)
+_MEMORY_STEPS = (("upgrade_order", "component", "memory"),)
+_TICKET_STEPS = (("remediation_ticket", "check_id", _ANSWER_CHECKS),)
+SUBJECT_ACTIONS: dict[str, tuple[tuple[str, str | None, str | None], ...]] = {
+    "low_disk_devices": _STORAGE_STEPS,
+    "trend:disk": _STORAGE_STEPS,
+    "memory_pressure_now": _MEMORY_STEPS,
+    "trend:memory": _MEMORY_STEPS,
+    # Only where the check is failing now: eligibility refuses a ticket for a check that passes.
+    "macos_version_check": (("remediation_ticket", "check_id", "os_up_to_date"),),
+    "compliance_failures_now": _TICKET_STEPS,
+    "trend:compliance": _TICKET_STEPS,
+    "trend:battery": (
+        ("replacement_flag", None, None),
+        ("employee_notification", "topic", "battery_service"),
+    ),
+}
+
+
+def _subject(rec: ToolRecord) -> str:
+    if rec.tool != "trend":
+        return rec.tool
+    metric = rec.args.get("metric")
+    return f"trend:{metric if metric in ('memory', 'disk', 'compliance') else 'battery'}"
+
+
+def _answer_checks(rec: ToolRecord) -> set[str]:
+    if rec.tool == "trend":
+        return {str(rec.args["check_id"])} if rec.args.get("check_id") else set()
+    return {failing["check_id"] for f in rec.findings for failing in f.values.get("failing", [])}
+
+
+def relevant_to(records: Sequence[ToolRecord]) -> Callable[[Suggestion], bool]:
+    """Whether a suggestion belongs to the subject of the list answer these records make."""
+    wanted: set[tuple[str, str | None, str | None]] = set()
+    for rec in records:
+        for action, name, value in SUBJECT_ACTIONS.get(_subject(rec), ()):
+            if value == _ANSWER_CHECKS:
+                wanted |= {(action, name, check) for check in _answer_checks(rec)}
+            else:
+                wanted.add((action, name, value))
+
+    def accepts(suggestion: Suggestion) -> bool:
+        return any(
+            suggestion.action_type == action
+            and (name is None or suggestion.params.get(name) == value)
+            for action, name, value in wanted
+        )
+
+    return accepts
 
 
 def _scope_only(rec: ToolRecord) -> ScopeParts:
