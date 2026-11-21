@@ -9,7 +9,7 @@ synthetic envelopes and independent of the product code that produced the answer
 
 from __future__ import annotations
 
-from collections.abc import Callable, Collection, Sequence
+from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
@@ -247,6 +247,30 @@ def check_no_proposal(envelope: AnswerEnvelope, created: int) -> Check:
     return Check("no_proposal", True, "no proposal was created")
 
 
+def check_proposal_status_of_turn(expected: dict[str, Any], statuses: Mapping[int, str]) -> Check:
+    """The proposal an earlier (or this) turn made must have the stated status right now."""
+    turn, want = expected["turn"], expected["status"]
+    got = statuses.get(turn)
+    if got is None:
+        return Check("proposal_status_of_turn", False, f"turn {turn} made no proposal to look at")
+    if got != want:
+        return Check(
+            "proposal_status_of_turn",
+            False,
+            f"the proposal from turn {turn} is {got}, expected {want}",
+        )
+    return Check("proposal_status_of_turn", True, f"the proposal from turn {turn} is {got}")
+
+
+def check_no_effects(effects: Mapping[str, int]) -> Check:
+    """`effects` is what the effects ledger gained since the conversation began, by table."""
+    made = {table: n for table, n in effects.items() if n}
+    if made:
+        listed = ", ".join(f"{table} {n:+d}" for table, n in sorted(made.items()))
+        return Check("no_effects", False, f"an action was executed: {listed}")
+    return Check("no_effects", True, "nothing has been executed in this conversation")
+
+
 _KEYS = (
     "outcome",
     "reason_code",
@@ -260,6 +284,8 @@ _KEYS = (
     "prose_verified",
     "proposal",
     "no_proposal",
+    "proposal_status_of_turn",
+    "no_effects",
 )
 # The runner executes these; they are not evaluated on the envelope.
 _RUNNER_KEYS = ("decisions",)
@@ -278,8 +304,15 @@ def check_turn(
     repo_resolve: Callable[[str], bool],
     foreign_ids: Collection[str],
     proposals_created: int,
+    proposal_statuses: Mapping[int, str] | None = None,
+    effects_so_far: Mapping[str, int] | None = None,
 ) -> list[Check]:
-    """One `Check` per expect key that is set (a boolean key set to false makes no check)."""
+    """One `Check` per expect key that is set (a boolean key set to false makes no check).
+
+    `proposal_statuses` maps a turn number to the current status of the proposal that turn made, and
+    `effects_so_far` is what the effects ledger gained since the conversation began, by table. The runner
+    passes both; `proposal_status_of_turn` and `no_effects` read them.
+    """
     unknown = sorted(set(expect) - set(_KEYS) - set(_RUNNER_KEYS))
     if unknown:
         raise ValueError(f"unknown expect key {unknown}")
@@ -314,6 +347,8 @@ def check_turn(
             checks.append(check_population(value, envelope))
         elif key == "proposal":
             checks.append(check_proposal(value, envelope, proposals_created))
+        elif key == "proposal_status_of_turn":
+            checks.append(check_proposal_status_of_turn(value, proposal_statuses or {}))
         elif value is True:  # the remaining keys are switches
             if key == "cites_every_device":
                 checks.append(check_cites_every_device(envelope, tenant, repo_resolve))
@@ -323,4 +358,8 @@ def check_turn(
                 checks.append(check_prose_verified(envelope, trace))
             elif key == "no_proposal":
                 checks.append(check_no_proposal(envelope, proposals_created))
+            elif key == "no_effects":
+                if effects_so_far is None:
+                    raise ValueError("expect.no_effects needs the effects ledger (effects_so_far)")
+                checks.append(check_no_effects(effects_so_far))
     return checks

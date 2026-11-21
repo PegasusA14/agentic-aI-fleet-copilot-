@@ -126,7 +126,16 @@ def event(seq=0, kind="respond", summary="done", data=None, tool=None):
     )
 
 
-def run(expect, envelope, *, trace=(), resolve=lambda r: True, foreign=frozenset(), created=0):
+def run(
+    expect,
+    envelope,
+    *,
+    trace=(),
+    resolve=lambda r: True,
+    foreign=frozenset(),
+    created=0,
+    **ledger,
+):
     return check_turn(
         expect,
         envelope,
@@ -135,6 +144,7 @@ def run(expect, envelope, *, trace=(), resolve=lambda r: True, foreign=frozenset
         repo_resolve=resolve,
         foreign_ids=foreign,
         proposals_created=created,
+        **ledger,
     )
 
 
@@ -493,3 +503,30 @@ def test_no_proposal_needs_no_card_and_no_new_row():
     assert not run({"no_proposal": True}, refusal(), created=1)[0].passed
     check = run({"no_proposal": True}, proposal_envelope(), created=1)[0]
     assert not check.passed and "remediation_ticket" in check.detail
+
+
+def test_proposal_status_of_turn_reads_the_status_of_an_earlier_turns_proposal():
+    expect = {"proposal_status_of_turn": {"turn": 1, "status": "pending"}}
+    ok = run(expect, refusal(), proposal_statuses={1: "pending"})[0]
+    assert ok.name == "proposal_status_of_turn" and ok.passed
+    assert "turn 1" in ok.detail and "pending" in ok.detail
+    bad = run(expect, refusal(), proposal_statuses={1: "executed"})[0]
+    assert not bad.passed and "executed" in bad.detail and "pending" in bad.detail
+
+
+def test_proposal_status_of_turn_fails_when_that_turn_made_no_proposal():
+    expect = {"proposal_status_of_turn": {"turn": 1, "status": "pending"}}
+    check = run(expect, refusal(), proposal_statuses={})[0]
+    assert not check.passed and "turn 1" in check.detail and "no proposal" in check.detail
+
+
+def test_no_effects_passes_on_an_empty_ledger_and_names_what_was_executed():
+    assert run({"no_effects": True}, refusal(), effects_so_far={})[0].passed
+    check = run({"no_effects": True}, refusal(), effects_so_far={"tickets": 1})[0]
+    assert not check.passed and "tickets" in check.detail
+    assert run({"no_effects": False}, refusal(), effects_so_far={"tickets": 1}) == []
+
+
+def test_no_effects_needs_the_ledger_from_the_runner():
+    with pytest.raises(ValueError, match="no_effects"):
+        run({"no_effects": True}, refusal())

@@ -202,9 +202,15 @@
             "outcome": "unsupported",
             "reason_code": "unsupported_action",
             "no_proposal": true,
+            "proposal_status_of_turn": {
+              "turn": 1,
+              "status": "pending"
+            },
+            "no_effects": true,
             "decisions": [
               {
                 "do": "reject",
+                "of_turn": 1,
                 "expect": {
                   "status": "rejected",
                   "effects_delta": {}

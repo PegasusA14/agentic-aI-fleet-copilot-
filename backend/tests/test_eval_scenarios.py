@@ -257,6 +257,112 @@ def test_an_instance_without_decisions_has_none(tmp_path):
     assert expand(scenario.cases[0])[0].decisions == ()
 
 
+# --- decisions and checks that name an earlier turn ---------------------------------------------------
+
+PROPOSAL = {"action_type": "remediation_ticket", "target": "1LYSSFD074BB", "status": "pending"}
+
+
+def two_turn_case(decision=None, *, second=None, first=None):
+    """Turn 1 proposes a ticket; turn 2 is a refusal that carries the decision (or `second`)."""
+    first_expect = {"outcome": "proposal", "proposal": PROPOSAL} if first is None else first
+    second_expect = (
+        {"outcome": "unsupported", "decisions": [decision]} if second is None else second
+    )
+    return case(
+        turns=[
+            {"say": "Open a ticket", "expect": first_expect},
+            {"say": "Approve it", "expect": second_expect},
+        ]
+    )
+
+
+def test_a_decision_may_name_the_turn_whose_proposal_it_acts_on(tmp_path):
+    step = {"do": "reject", "of_turn": 1, "expect": {"status": "rejected"}}
+    write_suite(tmp_path, suite="guardrails", cases=[two_turn_case(step)])
+    (scenario,) = load_suites(tmp_path)
+    (instance,) = expand(scenario.cases[0])
+    assert instance.decisions[0]["of_turn"] == 1
+
+
+def test_a_decision_may_name_the_current_turn_when_it_made_the_proposal(tmp_path):
+    step = {"do": "reject", "of_turn": 1, "expect": {}}
+    single = case(
+        turns=[
+            {
+                "say": "Open a ticket",
+                "expect": {"outcome": "proposal", "proposal": PROPOSAL, "decisions": [step]},
+            }
+        ]
+    )
+    write_suite(tmp_path, suite="actions", cases=[single])
+    assert load_suites(tmp_path)
+
+
+@pytest.mark.parametrize(
+    "of_turn", [0, -1, 3, "1", True, 1.0, None], ids=repr
+)  # 3 is a turn the case does not have
+def test_of_turn_must_be_a_whole_number_naming_a_turn_of_the_case(tmp_path, of_turn):
+    step = {"do": "reject", "of_turn": of_turn, "expect": {}}
+    write_suite(tmp_path, suite="guardrails", cases=[two_turn_case(step)])
+    with pytest.raises(ScenarioError, match="of_turn"):
+        load_suites(tmp_path)
+
+
+def test_of_turn_must_name_a_turn_that_expects_a_proposal(tmp_path):
+    step = {"do": "reject", "of_turn": 1, "expect": {}}
+    write_suite(
+        tmp_path,
+        suite="guardrails",
+        cases=[two_turn_case(step, first={"outcome": "answer"})],
+    )
+    with pytest.raises(ScenarioError, match="of_turn.*proposal"):
+        load_suites(tmp_path)
+
+
+def test_proposal_status_of_turn_loads_and_no_effects_is_a_switch(tmp_path):
+    second = {
+        "outcome": "unsupported",
+        "proposal_status_of_turn": {"turn": 1, "status": "pending"},
+        "no_effects": True,
+    }
+    write_suite(tmp_path, suite="guardrails", cases=[two_turn_case(second=second)])
+    assert load_suites(tmp_path)
+
+
+@pytest.mark.parametrize(
+    "check",
+    [
+        {"turn": 1},
+        {"status": "pending"},
+        {"turn": 1, "status": "flying"},
+        {"turn": 0, "status": "pending"},
+        {"turn": 3, "status": "pending"},  # later than the turn that asks
+        {"turn": "1", "status": "pending"},
+        {"turn": 1, "status": "pending", "extra": 1},
+        "pending",
+    ],
+)
+def test_malformed_proposal_status_of_turn_is_rejected(tmp_path, check):
+    second = {"outcome": "unsupported", "proposal_status_of_turn": check}
+    write_suite(tmp_path, suite="guardrails", cases=[two_turn_case(second=second)])
+    with pytest.raises(ScenarioError, match="proposal_status_of_turn"):
+        load_suites(tmp_path)
+
+
+def test_proposal_status_of_turn_must_name_a_turn_that_expects_a_proposal(tmp_path):
+    second = {"proposal_status_of_turn": {"turn": 2, "status": "pending"}}
+    write_suite(tmp_path, suite="guardrails", cases=[two_turn_case(second=second)])
+    with pytest.raises(ScenarioError, match="proposal_status_of_turn.*proposal"):
+        load_suites(tmp_path)
+
+
+def test_no_effects_must_be_true_or_false(tmp_path):
+    second = {"outcome": "unsupported", "no_effects": "yes"}
+    write_suite(tmp_path, suite="guardrails", cases=[two_turn_case(second=second)])
+    with pytest.raises(ScenarioError, match="no_effects"):
+        load_suites(tmp_path)
+
+
 # --- golden references -------------------------------------------------------------------------------
 
 

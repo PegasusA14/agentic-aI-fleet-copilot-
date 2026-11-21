@@ -21,7 +21,13 @@ _ID = re.compile(r"^[a-z][a-z0-9_]*$")
 _OUTCOMES = frozenset(get_args(OutcomeType))
 _REASONS = frozenset(get_args(ReasonCode))
 _ACTIONS = frozenset(get_args(ActionType))
-_BOOLEAN_KEYS = ("cites_every_device", "no_foreign_data", "prose_verified", "no_proposal")
+_BOOLEAN_KEYS = (
+    "cites_every_device",
+    "no_foreign_data",
+    "prose_verified",
+    "no_proposal",
+    "no_effects",
+)
 _DEVICE_SET_KEYS = ("devices", "devices_include", "devices_exclude")
 _EXPECT_KEYS = frozenset(
     {
@@ -29,6 +35,7 @@ _EXPECT_KEYS = frozenset(
         "reason_code",
         "population",
         "proposal",
+        "proposal_status_of_turn",
         "decisions",
         "suggestions_include",
         *_BOOLEAN_KEYS,
@@ -178,6 +185,7 @@ def _load_case(suite: str, item: Any) -> Case:
     turns = tuple(_load_turn(n, t, last=n == len(raw_turns)) for n, t in enumerate(raw_turns, 1))
     if sum(1 for t in turns if not isinstance(t.say, str)) > 1:
         raise ScenarioError("at most one turn may list several phrasings in 'say'")
+    _check_turn_references(turns)
     return Case(suite=suite, id=case_id, user=user, turns=turns)
 
 
@@ -252,6 +260,8 @@ def _check_expect(expect: Any, *, last: bool) -> None:
             raise ScenarioError(f"expect.{key} must be true or false")
     if "proposal" in expect:
         _check_proposal(expect["proposal"])
+    if "proposal_status_of_turn" in expect:
+        _check_status_of_turn(expect["proposal_status_of_turn"])
     if "decisions" in expect:
         if not last:
             raise ScenarioError("decisions belong on the last turn of the case")
@@ -302,6 +312,45 @@ def _check_proposal(card: Any) -> None:
         raise ScenarioError(f"expect.proposal.status must be one of {sorted(_DECISION_STATUSES)}")
 
 
+def _turn_number(where: str, value: Any) -> int:
+    """A 1-based turn number; whether the case has that turn is checked once all turns are loaded."""
+    if not isinstance(value, int) or isinstance(value, bool) or value < 1:
+        raise ScenarioError(f"{where} must be a turn number, a whole number from 1")
+    return value
+
+
+def _check_status_of_turn(check: Any) -> None:
+    where = "expect.proposal_status_of_turn"
+    if not isinstance(check, dict):
+        raise ScenarioError(f"{where} must be an object with 'turn' and 'status'")
+    extra = sorted(set(check) - {"turn", "status"})
+    if extra:
+        raise ScenarioError(f"{where} has unknown key {extra}")
+    _turn_number(f"{where}.turn", check.get("turn"))
+    if check.get("status") not in _DECISION_STATUSES:
+        raise ScenarioError(f"{where}.status must be one of {sorted(_DECISION_STATUSES)}")
+
+
+def _check_turn_references(turns: tuple[CaseTurn, ...]) -> None:
+    """`of_turn` and `proposal_status_of_turn` name this turn or an earlier one that expects a proposal."""
+    for number, turn in enumerate(turns, 1):
+        named = [("proposal_status_of_turn", turn.expect.get("proposal_status_of_turn", {}))]
+        named += [
+            ("of_turn", step) for step in turn.expect.get("decisions", ()) if "of_turn" in step
+        ]
+        for key, holder in named:
+            target = holder.get("turn" if key == "proposal_status_of_turn" else key)
+            if target is None:
+                continue
+            where = f"turn {number}: {key}"
+            if target > number:
+                raise ScenarioError(f"{where} names turn {target}, which comes later")
+            if target > len(turns) or "proposal" not in turns[target - 1].expect:
+                raise ScenarioError(
+                    f"{where} names turn {target}, which does not expect a proposal"
+                )
+
+
 def _check_decisions(steps: Any) -> None:
     if not isinstance(steps, list) or not steps:
         raise ScenarioError("expect.decisions must be a non-empty list of steps")
@@ -309,7 +358,7 @@ def _check_decisions(steps: Any) -> None:
         where = f"expect.decisions step {number}"
         if not isinstance(step, dict):
             raise ScenarioError(f"{where} must be an object")
-        extra = sorted(set(step) - {"do", "user", "expect"})
+        extra = sorted(set(step) - {"do", "user", "expect", "of_turn"})
         if extra:
             raise ScenarioError(f"{where} has unknown key {extra}")
         if step.get("do") not in _DECISIONS:
@@ -321,6 +370,8 @@ def _check_decisions(steps: Any) -> None:
                 )
         elif "user" in step:
             raise ScenarioError(f"{where}: 'user' only goes with approve_as")
+        if "of_turn" in step:
+            _turn_number(f"{where}: of_turn", step["of_turn"])
         _check_decision_expect(where, step.get("expect", {}))
 
 

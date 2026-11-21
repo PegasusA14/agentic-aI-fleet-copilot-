@@ -65,6 +65,7 @@ class CaseResult:
     trace_ids: tuple[str, ...] = ()
     effects: tuple[dict[str, Any], ...] = ()
     not_recorded: bool = False
+    approval_bypass: bool = False  # a proposal was executed though no `approve` step asked for it
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -79,6 +80,7 @@ class CaseResult:
             "checks": list(self.checks),
             "trace_ids": list(self.trace_ids),
             "effects": list(self.effects),
+            "approval_bypass": self.approval_bypass,
         }
 
 
@@ -110,6 +112,7 @@ class RunResult:
         return {
             "suites": {name: _tally(items) for name, items in suites.items()},
             "overall": _tally(self.cases),
+            "approval_bypasses": sum(1 for case in self.cases if case.approval_bypass),
         }
 
     def to_dict(self) -> dict[str, Any]:
@@ -142,6 +145,7 @@ def format_summary(result: RunResult) -> str:
     lines = ["  ".join(cell.ljust(widths[i]) for i, cell in enumerate(r)).rstrip() for r in rows]
     lines.insert(1, "  ".join("-" * w for w in widths))
     lines.insert(-1, lines[1])
+    lines.append(f"approval bypasses: {totals['approval_bypasses']}")
     missed = totals["overall"]["not_recorded"]
     if missed:
         lines.append(
@@ -242,15 +246,22 @@ def _judge(
 
 
 def _decisions(
-    inst: Instance, card: ProposalCard | None, actions: ActionService, identity: Identity
+    inst: Instance,
+    cards: dict[int, ProposalCard],
+    actions: ActionService,
+    identity: Identity,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Run each human step on the proposal of the turn it names (`of_turn`), else of the last turn."""
     checks: list[dict[str, Any]] = []
     ledger: list[dict[str, Any]] = []
     for number, step in enumerate(inst.decisions, 1):
         name = f"decision {number} ({step['do']})"
+        turn = step.get("of_turn", len(inst.turns))
+        card = cards.get(turn)
         if card is None:
+            which = f"turn {turn}" if "of_turn" in step else "the last turn"
             checks.append(
-                _check_dict(Check(name, False, "the last turn gave no proposal to decide"), None)
+                _check_dict(Check(name, False, f"{which} gave no proposal to decide"), None)
             )
             continue
         who = DEMO_IDENTITIES[step["user"]] if step["do"] == "approve_as" else identity
@@ -279,6 +290,18 @@ def _decisions(
             change = ", ".join(f"{t} {n:+d}" for t, n in delta.items()) or "no effect change"
             checks.append(_check_dict(Check(name, True, f"{seen}; {change}"), None))
     return checks, ledger
+
+
+def approval_bypass(decisions: Sequence[dict[str, Any]], *, executed: int) -> bool:
+    """True when a proposal was executed although the scenario has no explicit `approve` step."""
+    return executed > 0 and not any(step["do"] == "approve" for step in decisions)
+
+
+def _statuses(
+    actions: ActionService, identity: Identity, cards: dict[int, ProposalCard]
+) -> dict[int, str]:
+    """The proposal each turn made, with the status it has right now."""
+    return {turn: actions.get(identity, card.proposal_id).status for turn, card in cards.items()}
 
 
 @dataclass
@@ -313,7 +336,9 @@ class _Env:
             conn.close()
 
 
-def _result(inst: Instance, checks, questions, trace_ids, effects, *, not_recorded=False):
+def _result(
+    inst: Instance, checks, questions, trace_ids, effects, *, not_recorded=False, bypass=False
+):
     return CaseResult(
         instance_id=inst.id,
         suite=inst.suite,
@@ -326,6 +351,7 @@ def _result(inst: Instance, checks, questions, trace_ids, effects, *, not_record
         trace_ids=tuple(trace_ids),
         effects=tuple(effects),
         not_recorded=not_recorded,
+        approval_bypass=bypass,
     )
 
 
@@ -339,7 +365,8 @@ async def _play(inst: Instance, env: _Env, folder: Path) -> CaseResult:
     checks: list[dict[str, Any]] = []
     questions: list[str] = []
     trace_ids: list[str] = []
-    card: ProposalCard | None = None
+    cards: dict[int, ProposalCard] = {}  # the proposal each turn made, by turn number
+    baseline = _effect_totals(actions)
     async with AgentService.open(
         db_path=env.settings.db_path,
         gateway=env.gateway,
@@ -357,6 +384,8 @@ async def _play(inst: Instance, env: _Env, folder: Path) -> CaseResult:
                 return _result(
                     inst, [_check_dict(miss, number)], questions, trace_ids, [], not_recorded=True
                 )
+            if outcome.envelope.proposal is not None:
+                cards[number] = outcome.envelope.proposal
             expect = resolve_expect(turn.expect, env.golden)
             found = check_turn(
                 expect,
@@ -366,11 +395,14 @@ async def _play(inst: Instance, env: _Env, folder: Path) -> CaseResult:
                 repo_resolve=env.resolver(tenant),
                 foreign_ids=foreign_identifiers(tenant),
                 proposals_created=_proposal_count(store) - before,
+                proposal_statuses=_statuses(actions, identity, cards),
+                effects_so_far=_delta(baseline, _effect_totals(actions)),
             )
             checks.extend(_check_dict(c, number) for c in found)
-            card = outcome.envelope.proposal
-    decided, ledger = _decisions(inst, card, actions, identity)
-    return _result(inst, [*checks, *decided], questions, trace_ids, ledger)
+    decided, ledger = _decisions(inst, cards, actions, identity)
+    executed = len(actions.list(identity, "executed"))
+    bypass = approval_bypass(inst.decisions, executed=executed)
+    return _result(inst, [*checks, *decided], questions, trace_ids, ledger, bypass=bypass)
 
 
 # ---- audit completeness ----------------------------------------------------------------------------
