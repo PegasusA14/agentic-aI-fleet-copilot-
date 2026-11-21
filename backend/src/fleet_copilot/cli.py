@@ -75,6 +75,7 @@ async def _ask(args: argparse.Namespace) -> int:
         gateway=build_gateway(models),
         checkpoint_path=state / "cli-checkpoints.db",
         recorder=store.record,
+        actions_db_path=state / "cli-actions.db",
     ) as service:
         try:
             result = await service.run_turn(

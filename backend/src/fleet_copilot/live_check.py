@@ -230,6 +230,7 @@ async def _main_async(only: set[str] | None, cassette: Path | None) -> int:
         db_path=settings.db_path,
         gateway=build_gateway(models),
         checkpoint_path=settings.state_path() / "live-check-checkpoints.db",
+        actions_db_path=settings.state_path() / "live-check-actions.db",
     ) as service:
         results = await run_cases(service, only)
     for r in results:

@@ -9,10 +9,12 @@ from fastapi import FastAPI
 from fastapi.responses import JSONResponse
 from starlette.middleware.sessions import SessionMiddleware
 
+from fleet_copilot.actions.service import ActionService
+from fleet_copilot.actions.store import ActionStore
 from fleet_copilot.agent.gateways import build_gateway
 from fleet_copilot.agent.llm import LLMGateway
 from fleet_copilot.agent.service import AgentService, DatasetUnavailable, InvalidQuestion
-from fleet_copilot.api import routes_chat, routes_data, routes_session
+from fleet_copilot.api import routes_actions, routes_chat, routes_data, routes_session
 from fleet_copilot.config import ApiSettings, ModelSettings, Settings, load_env
 from fleet_copilot.observability.store import TraceStore
 
@@ -57,8 +59,12 @@ def create_app(
             gateway=gateway if gateway is not None else build_gateway(models),
             checkpoint_path=state / "checkpoints.db",
             recorder=store.record,
+            actions_db_path=state / "actions.db",
         ) as service:
             app.state.service = service
+            app.state.actions = ActionService(
+                fleet_db=settings.db_path, store=ActionStore(state / "actions.db")
+            )
             app.state.store = store
             yield
 
@@ -91,6 +97,7 @@ def create_app(
     app.include_router(routes_session.router)
     app.include_router(routes_chat.router)
     app.include_router(routes_data.router)
+    app.include_router(routes_actions.router)
     return app
 
 
