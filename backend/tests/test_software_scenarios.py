@@ -160,7 +160,7 @@ async def test_an_app_that_only_another_company_has_is_an_input_error_the_model_
 
 
 async def test_model_prose_that_names_apps_and_versions_from_the_facts_is_kept(real_db_path):
-    text = "uTorrent 3.6 first appeared on 1LYSSFD074BB and CleanMyMac X 4.15 on 7VP16KHV88LM."
+    text = "uTorrent 3.6 first appeared on acme-macbook-2 and CleanMyMac X 4.15 on acme-macbook-1."
     llm = ScriptedLLM(
         plans=[answer_plan()],
         acts=one_call(*NEW),

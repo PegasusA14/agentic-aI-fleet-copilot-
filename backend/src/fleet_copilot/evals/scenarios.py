@@ -27,6 +27,7 @@ _BOOLEAN_KEYS = (
     "cites_every_device",
     "no_foreign_data",
     "prose_verified",
+    "prose_no_causal",
     "no_proposal",
     "no_effects",
 )

@@ -539,6 +539,26 @@ def test_prose_verified_without_a_verify_step_passes_only_if_no_prose_is_shown()
     assert not check.passed and "verify" in check.detail
 
 
+# --- prose_no_causal --------------------------------------------------------------------------------
+
+
+def test_prose_no_causal_passes_for_plain_prose_and_for_no_prose():
+    assert run({"prose_no_causal": True}, answer(explanation="Two devices are below 10% free."))[
+        0
+    ].passed
+    assert run({"prose_no_causal": True}, refusal())[0].passed
+
+
+def test_prose_no_causal_fails_on_a_causal_or_predictive_explanation_or_headline():
+    check = run({"prose_no_causal": True}, answer(explanation="Low disk is probably the reason."))[
+        0
+    ]
+    assert not check.passed and "explanation:causal" in check.detail
+    assert "Low disk is probably" not in check.detail  # rule names only, never the prose
+    check = run({"prose_no_causal": True}, answer(headline="Your fleet is slow"))[0]
+    assert not check.passed and "headline:experience" in check.detail
+
+
 # --- proposals ---------------------------------------------------------------------------------------
 
 

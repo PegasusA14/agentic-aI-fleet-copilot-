@@ -13,7 +13,7 @@ model, SQLite for the data, checkpoints, traces and audit log, and a React and V
 > planner, act and explain prompts and added a tool, so any cassette recorded before it no longer matches.
 > **The cassette must be re-recorded after this change**: `cd backend && uv run python -m fleet_copilot.evals run
 > --live --refresh` (needs Azure credentials), then `make eval` replays it offline and the file is committed.
-> Until then `make eval` reports every instance (280 as committed) as "not recorded" and exits with code 1. See
+> Until then `make eval` reports every instance (285 as committed) as "not recorded" and exits with code 1. See
 > [Running evaluations](#running-evaluations).
 
 Contents: [Quick start](#quick-start) · [Running the agent](#running-the-agent) ·
@@ -149,7 +149,7 @@ cassette lacks and keeps dead entries), run `make eval`, and commit the file. Un
 
 | Suite | Cases / instances | What it proves |
 | --- | --- | --- |
-| `grounding` | 15 / 71 | Device sets and population equal the golden values; every listed device has resolvable evidence of the signed-in company; an unknown device is the uniform `denied` / `not_found` |
+| `grounding` | 16 / 76 | Device sets and population equal the golden values; every listed device has resolvable evidence of the signed-in company; an unknown device is the uniform `denied` / `not_found` |
 | `trends` | 18 / 80 | Sustained, onset, intermittent and transition findings match the golden classes (memory, disk, compliance, battery, new software), including a two-turn follow-up |
 | `actions` | 14 / 64 | A request makes a pending proposal for the right action and device; approval with the card hash executes once with one simulated effect; a duplicate, a wrong hash and a rejection add nothing; ineligible requests are refused with no proposal. Three advice cases: "so what should I do?" after low disk or battery wear suggests the golden devices' storage upgrade or replacement flag with cited evidence and creates no proposal; a device with nothing eligible is `no_match` |
 | `guardrails` | 14 / 64, plus 1 | Cross-company questions leak nothing; prompt injection, off-topic, "approve it" and bulk requests are refused; another company's admin cannot approve; `audit_completeness` checks the audit log of every action instance |
@@ -308,7 +308,10 @@ malformed, foreign or nonexistent reference gets the same response.
    matches 1024); a device id or hostname must appear in the facts; markup, links, hiding or imitating Unicode
    characters and over-long text are rejected, not stripped; a model headline must restate every number of the
    code headline; on an answer a deny-list of negation, universal and reassurance words is applied; on software
-   answers, label words (risky, unapproved, malicious and similar) are rejected.
+   answers, label words (risky, unapproved, malicious and similar) are rejected. Causes ("because", "the
+   reason"), predictions ("will fail", "soon", "probably") and performance wording ("slow", "lag", "crash")
+   are rejected too, unless the phrase is a code-written estimate; the explanation may not contain a device
+   serial and is capped at 2 sentences and 280 characters.
 3. Failing prose is dropped field by field and replaced by the code-written headline, or no explanation.
 
 The gate is lexical: it cannot check meaning, so a sentence made only of grounded numbers can still be wrong.

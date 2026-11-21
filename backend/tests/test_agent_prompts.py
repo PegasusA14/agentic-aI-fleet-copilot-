@@ -200,7 +200,9 @@ def test_the_act_prompt_leaves_recommendations_to_the_system():
 
 def test_the_explain_prompt_asks_for_a_natural_short_reply_to_the_admin():
     explain = _flat(prompts.EXPLAIN_SYSTEM)
-    assert "two to four sentences" in explain
+    assert "one or two short sentences" in explain and "two to four sentences" not in explain
+    assert "hostname, never by its serial" in explain
+    assert "no causes and no predictions" in explain
     assert "addressed to the administrator" in explain
     assert "headline" in explain and "at most 140 characters" in explain
     assert "at most three short sentences" not in explain

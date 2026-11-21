@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
+from collections.abc import Collection, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
@@ -109,6 +110,78 @@ _JUDGMENT_WORD = re.compile(
     r"|(?:isn|wasn|aren|weren)['\u2019]?t\s+(?:approved|authori[sz]ed|allowed|permitted))\b",
     re.IGNORECASE,
 )
+
+# The telemetry records readings, not causes, futures or how a machine feels to use. Prose that says why
+# something happens, what will happen, or that a machine is slow or crashing is asserting something no
+# number can check, so it is rejected whatever the outcome. Matched on word boundaries over the folded
+# text; flexible whitespace so "will  fail" does not slip through. A phrase equal to a code-written
+# estimate (see `_without_estimates`) is exempt. Lexical backstop, not a reading of meaning.
+CAUSAL_PHRASES = (
+    "because", "due to", "caused by", "the reason", "reason why", "leads to", "results in",
+    "is why", "explains",
+)  # fmt: skip
+PREDICTIVE_PHRASES = (
+    "will fail", "will run out", "is going to", "likely to", "expected to", "soon",
+    "within days", "within weeks", "probably", "may cause", "could cause",
+)  # fmt: skip
+EXPERIENCE_WORDS = (
+    "slow", "slowness", "sluggish", "lag", "laggy", "crash", "crashing", "performance",
+)  # fmt: skip
+
+
+def _phrase_pattern(phrases: tuple[str, ...], suffix: str = "") -> re.Pattern[str]:
+    body = "|".join(r"\s+".join(re.escape(w) for w in p.split()) for p in phrases)
+    return re.compile(rf"\b(?:{body}){suffix}\b", re.IGNORECASE)
+
+
+_CAUSAL = _phrase_pattern(CAUSAL_PHRASES)
+_PREDICTIVE = _phrase_pattern(PREDICTIVE_PHRASES)
+# Inflections of the experience words ("slower", "crashes", "lagging") are the same claim.
+_EXPERIENCE = re.compile(
+    r"\b(?:slow(?:ness|er|est|ly|ing|ed|s)?|sluggish\w*|lag(?:gy|ging|ged|s)?"
+    r"|crash(?:es|ed|ing)?|performance)\b",
+    re.IGNORECASE,
+)
+_SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
+
+
+def _without_estimates(text: str, estimates: Sequence[str]) -> str:
+    """`text` with each code-written estimate blanked out, so a duration the code computed is not a prediction."""
+    for estimate in sorted((_fold(e).strip() for e in estimates), key=len, reverse=True):
+        if estimate:
+            text = re.sub(re.escape(estimate), " ", text, flags=re.IGNORECASE)
+    return text
+
+
+def claim_problems(text: str, *, estimates: Sequence[str] = ()) -> list[str]:
+    """Which speculation rules `text` breaks: `causal`, `predictive`, `experience` (codes only, never the text).
+
+    Pure and shared with the eval evaluator. `estimates` are phrases the code wrote into the facts
+    (for example a battery estimate); they may appear in prose verbatim, nothing else future-facing may.
+    """
+    folded = _without_estimates(_fold(text), estimates)
+    found: list[str] = []
+    if _CAUSAL.search(folded):
+        found.append("causal")
+    if _PREDICTIVE.search(folded):
+        found.append("predictive")
+    if _EXPERIENCE.search(folded):
+        found.append("experience")
+    return found
+
+
+def sentence_count(text: str) -> int:
+    return len([part for part in _SENTENCE_END.split(text.strip()) if part.strip()])
+
+
+def serials_in(text: str, serials: Collection[str]) -> bool:
+    """True if any device serial appears in `text` as a whole token (case-insensitive)."""
+    folded = _fold(text)
+    return any(
+        re.search(rf"(?<![A-Za-z0-9]){re.escape(s)}(?![A-Za-z0-9])", folded, re.IGNORECASE)
+        for s in serials
+        if s
+    )
 
 
 _MARK_CATEGORIES = frozenset({"Mn", "Mc", "Me"})
@@ -260,15 +333,35 @@ def _code(problem: str) -> str:
     return problem.split(":", 1)[0]
 
 
+def shown_serials(comp: Composition) -> set[str]:
+    """Every device serial the answer lists or cites. The explanation may use hostnames, never these."""
+    serials = known_ids(comp)
+    for item in comp.evidence:
+        try:
+            serials.add(EvidenceRef.parse(item.ref).device_id)
+        except ValueError:
+            continue
+    return serials
+
+
 def verify_prose(
     comp: Composition,
     as_of: datetime,
     *,
     headline: str | None,
     explanation: str | None,
+    estimates: Sequence[str] | None = None,
 ) -> ProseVerdict:
-    """Accept the model's headline and explanation only if they ground; else use code-written text."""
+    """Accept the model's headline and explanation only if they ground; else use code-written text.
+
+    `estimates` (default: the composition's `estimates` list, if it has one) are code-written future-facing
+    phrases such as a battery estimate; prose may repeat them verbatim and their numbers count as grounded.
+    """
+    if estimates is None:
+        estimates = tuple(getattr(comp, "estimates", None) or ())
     allowed, ids, labels = allowed_numbers(comp, as_of), known_ids(comp), known_labels(comp)
+    for estimate in estimates:
+        allowed |= {_norm(m) for m in _NUMBER.findall(_fold(estimate))}
     is_answer = comp.outcome == "answer"
     judges_software = is_answer and any("#software[" in item.ref for item in comp.evidence)
     required = number_tokens(comp.fallback_headline)
@@ -282,6 +375,7 @@ def verify_prose(
             labels=labels,
             max_chars=policy.MAX_HEADLINE_CHARS,
         )
+        found += claim_problems(headline, estimates=estimates)
         if is_answer and _CLAIM_WORD.search(_fold(headline)):
             found.append("claim_word")
         if judges_software and _JUDGMENT_WORD.search(_fold(headline)):
@@ -302,6 +396,11 @@ def verify_prose(
             labels=labels,
             max_chars=policy.MAX_EXPLANATION_CHARS,
         )
+        found += claim_problems(explanation, estimates=estimates)
+        if sentence_count(explanation) > policy.MAX_EXPLANATION_SENTENCES:
+            found.append("too_many_sentences")
+        if serials_in(explanation, shown_serials(comp)):
+            found.append("serial_in_prose")
         if is_answer and _CLAIM_WORD.search(_fold(explanation)):
             found.append("claim_word")
         if judges_software and _JUDGMENT_WORD.search(_fold(explanation)):

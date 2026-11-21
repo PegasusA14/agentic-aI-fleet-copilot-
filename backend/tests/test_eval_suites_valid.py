@@ -49,6 +49,22 @@ def test_all_four_suites_load_and_nothing_else():
         assert suite.path.name == f"{suite.suite}.json"
 
 
+def test_the_slow_fleet_case_asserts_that_no_causal_claim_is_shown():
+    case = next(c for c in CASES if case_id(c) == "grounding.why_fleet_slow_acme")
+    assert case.user == "admin-acme"
+    (turn,) = case.turns
+    assert len(turn.say) == 5 and "Why is Acme's fleet slow?" in turn.say
+    assert turn.expect["prose_no_causal"] is True and turn.expect["no_foreign_data"] is True
+
+
+def test_the_code_written_refusal_texts_pass_the_speculation_deny_list():
+    from fleet_copilot.agent import texts
+    from fleet_copilot.agent.verify import claim_problems
+
+    for text in texts.MISSING_TOPIC_TEXT.values():
+        assert claim_problems(text) == [], text
+
+
 def test_no_two_instances_share_an_id():
     counts = Counter(i.id for i in INSTANCES)
     assert [i for i, n in counts.items() if n > 1] == []

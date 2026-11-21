@@ -274,8 +274,8 @@ def test_prose_that_names_apps_versions_devices_and_dates_from_the_facts_passes(
         real_conn,
         headline="2 new installs on 2 of 10 devices in the last 30 days: uTorrent 3.6 and CleanMyMac X 4.15",
         explanation=(
-            "uTorrent 3.6 first appeared on 1LYSSFD074BB on 2026-05-31, and CleanMyMac X 4.15 on "
-            "7VP16KHV88LM on 2026-05-25. Neither is in the common set of 1Password, Google Chrome, Slack, "
+            "uTorrent 3.6 first appeared on acme-macbook-2 on 2026-05-31, and CleanMyMac X 4.15 on "
+            "acme-macbook-1 on 2026-05-25. Neither is in the common set of 1Password, Google Chrome, Slack, "
             "Visual Studio Code and Zoom."
         ),
     )
@@ -371,7 +371,7 @@ def test_the_judgment_word_check_only_applies_to_answers_about_software(real_db_
         [run(real_db_path, real_conn, "low_disk_devices", {})], resolve=repo_for(real_conn).resolve
     )
     got = verdict(
-        comp, real_conn, headline=None, explanation="Low disk space puts MT7PJB7N5LRE at risk."
+        comp, real_conn, headline=None, explanation="Low disk space puts acme-macbook-4 at risk."
     )
     assert got.problems == () and got.explanation is not None
 
@@ -401,7 +401,7 @@ def test_a_mixed_answer_that_cites_software_still_gets_the_judgment_gate(real_db
         comp,
         real_conn,
         headline=None,
-        explanation="MT7PJB7N5LRE is at risk of running out of disk.",
+        explanation="acme-macbook-4 is at risk of running out of disk.",
     )
     assert "explanation:judgment_word" in got.problems and got.explanation is None
 

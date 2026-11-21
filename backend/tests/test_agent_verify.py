@@ -10,10 +10,12 @@ from fleet_copilot.agent.compose import Composition, compose
 from fleet_copilot.agent.verify import (
     allowed_numbers,
     check_prose,
+    claim_problems,
     composition_of,
     known_ids,
     known_labels,
     number_tokens,
+    sentence_count,
     verify_clarification,
     verify_evidence,
     verify_prose,
@@ -220,7 +222,7 @@ def test_a_grounded_headline_and_explanation_are_accepted(low_disk):
         comp,
         as_of,
         headline="Two devices are below the 10% free-space threshold",
-        explanation="MT7PJB7N5LRE and 8NM23J95R5I6 are the two lowest, at 2.0% and 2.6% free.",
+        explanation="acme-macbook-4 and acme-thinkpad-8 are the two lowest, at 2.0% and 2.6% free.",
     )
     assert verdict.problems == ()
     assert verdict.headline == "Two devices are below the 10% free-space threshold"
@@ -534,3 +536,155 @@ def test_a_claim_citing_a_ref_that_is_not_shown_is_caught(low_disk, real_conn):
     envelope = envelope_for(comp, as_of)
     tampered = envelope.model_copy(update={"evidence": envelope.evidence[1:]})
     assert "claim_without_evidence" in verify_evidence(tampered, repo_for(real_conn).resolve)
+
+
+# --- speculation, serials and length (T6) -------------------------------------------------------------
+
+
+def _explain(low_disk, text, **kwargs):
+    comp, as_of = low_disk
+    return verify_prose(comp, as_of, headline=None, explanation=text, **kwargs)
+
+
+@pytest.mark.parametrize(
+    ("text", "rule"),
+    [
+        ("Low disk is probably the reason your fleet feels slow.", "causal"),
+        ("These devices will fail within days.", "predictive"),
+        ("Two devices are low because they are full.", "causal"),
+        ("This is due to a full disk.", "causal"),
+        ("It was caused by the update.", "causal"),
+        ("That is the reason why.", "causal"),
+        ("Low disk leads to trouble.", "causal"),
+        ("A full disk results in errors.", "causal"),
+        ("Low disk is why.", "causal"),
+        ("That explains it.", "causal"),
+        ("They will run out of space.", "predictive"),
+        ("The disk is going to fill.", "predictive"),
+        ("They are likely to fill.", "predictive"),
+        ("Expected to fill.", "predictive"),
+        ("More will follow soon.", "predictive"),
+        ("Full within weeks.", "predictive"),
+        ("Low disk may cause problems.", "predictive"),
+        ("Low disk could cause problems.", "predictive"),
+        ("Two devices are sluggish.", "experience"),
+        ("Two devices show slowness.", "experience"),
+        ("Two devices are laggy.", "experience"),
+        ("Two devices lag.", "experience"),
+        ("Two devices crash.", "experience"),
+        ("Two devices keep crashing.", "experience"),
+        ("Performance is down on two devices.", "experience"),
+    ],
+)
+def test_speculative_prose_is_dropped_and_the_trace_names_the_rule(low_disk, text, rule):
+    verdict = _explain(low_disk, text)
+    assert verdict.explanation is None
+    assert f"explanation:{rule}" in verdict.problems
+    assert all(p.split(":")[1].isidentifier() for p in verdict.problems)  # codes, never prose
+
+
+def test_the_two_audit_sentences_are_rejected(low_disk):
+    for text in (
+        "Low disk is probably the reason your fleet feels slow.",
+        "These devices will fail within days.",
+    ):
+        assert _explain(low_disk, text).explanation is None
+
+
+def test_speculation_is_matched_case_insensitively_on_word_boundaries(low_disk):
+    assert "explanation:causal" in _explain(low_disk, "BECAUSE of it.").problems
+    assert "explanation:causal" in _explain(low_disk, "Due   to it.").problems
+    assert claim_problems("Slower and slowly are inflections of slow.") == ["experience"]
+    assert claim_problems("Soonest, laggard, sloth, performant, reasons and explained.") == []
+    assert _explain(low_disk, "Two of 10 devices are low on disk.").problems == ()
+
+
+def test_the_speculation_rules_apply_to_a_model_headline_and_to_every_outcome(low_disk):
+    comp, as_of = low_disk
+    verdict = verify_prose(
+        comp,
+        as_of,
+        headline="2 of 10 devices have under 10% disk space free, probably because of updates",
+        explanation=None,
+    )
+    assert verdict.headline == comp.fallback_headline
+    assert {"headline:causal", "headline:predictive"} <= set(verdict.problems)
+    no_match = dataclasses.replace(
+        comp, outcome="no_match", fallback_headline="No devices matched (10 evaluated)"
+    )
+    assert (
+        "explanation:causal"
+        in verify_prose(
+            no_match, as_of, headline=None, explanation="Nothing matched because of the filter."
+        ).problems
+    )
+
+
+def test_a_code_written_estimate_is_the_only_future_facing_phrase_allowed(low_disk):
+    estimate = "about 41 days left"
+    text = "acme-macbook-4 has about 41 days left."
+    assert _explain(low_disk, text).problems == ("explanation:number",)  # 41 is not grounded yet
+    ok = _explain(low_disk, text, estimates=[estimate])
+    assert ok.problems == () and ok.explanation == text
+    # A different future phrase is still rejected, and so is the estimate wrapped in a prediction.
+    assert (
+        "explanation:predictive"
+        in _explain(low_disk, "It will fail within days.", estimates=[estimate]).problems
+    )
+    soon = "empty within days"
+    assert (
+        _explain(low_disk, "acme-macbook-4 is empty within days.", estimates=[soon]).problems == ()
+    )
+    assert (
+        "explanation:predictive"
+        in _explain(
+            low_disk, "acme-macbook-4 is empty within days.", estimates=["a different phrase"]
+        ).problems
+    )
+
+
+def test_a_composition_estimates_list_is_read_when_present(low_disk):
+    comp, as_of = low_disk
+    with_estimates = dataclasses.make_dataclass("C", [], bases=(type(comp),))(**vars(comp))
+    with_estimates.estimates = ["empty within days"]
+    assert (
+        verify_prose(
+            with_estimates, as_of, headline=None, explanation="acme-macbook-4 is empty within days."
+        ).problems
+        == ()
+    )
+
+
+def test_a_device_serial_in_the_explanation_is_rejected_but_a_hostname_is_not(low_disk):
+    ok = _explain(low_disk, "acme-macbook-4 is lowest at 2.0% free.")
+    assert ok.problems == () and ok.explanation is not None
+    for text in (
+        "MT7PJB7N5LRE is lowest at 2.0% free.",
+        "mt7pjb7n5lre is lowest at 2.0% free.",
+        "acme-macbook-4 (8NM23J95R5I6) is low.",
+    ):
+        verdict = _explain(low_disk, text)
+        assert verdict.explanation is None
+        assert "explanation:serial_in_prose" in verdict.problems
+    assert all("MT7P" not in p for p in _explain(low_disk, "MT7PJB7N5LRE.").problems)
+
+
+def test_the_headline_may_still_carry_a_serial_it_is_grounded(low_disk):
+    comp, as_of = low_disk
+    wording = "2 of 10 devices have under 10% disk space free, led by MT7PJB7N5LRE"
+    assert verify_prose(comp, as_of, headline=wording, explanation=None).problems == ()
+
+
+def test_the_explanation_is_capped_at_two_sentences_and_280_characters(low_disk):
+    assert policy.MAX_EXPLANATION_SENTENCES == 2 and policy.MAX_EXPLANATION_CHARS == 280
+    assert sentence_count("One. Two!") == 2
+    assert sentence_count("Two devices are at 2.6% free. Look at acme-macbook-4?") == 2
+    assert sentence_count("A. B. C.") == 3
+    two = "acme-macbook-4 is lowest at 2.0% free. acme-thinkpad-8 follows at 2.6% free."
+    assert _explain(low_disk, two).problems == ()
+    three = two + " Both are under 10% free."
+    assert _explain(low_disk, three).problems == ("explanation:too_many_sentences",)
+    exactly = "Two of 10 devices are low. " + "x" * (policy.MAX_EXPLANATION_CHARS - 27)
+    assert len(exactly) == policy.MAX_EXPLANATION_CHARS
+    assert "explanation:too_long" not in _explain(low_disk, exactly).problems
+    assert "explanation:too_long" in _explain(low_disk, exactly + "x").problems

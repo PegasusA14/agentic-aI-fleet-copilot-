@@ -10,6 +10,13 @@ checks numbers, device ids, hostnames, links and markup, characters that hide or
 never stripped), a model headline that must restate the numbers of the code-written headline, and, on an
 answer, a deny-list of negation, universal and reassurance words (`CLAIM_WORDS`).
 
+It also rejects speculation the telemetry cannot show: causal phrases ("because", "the reason", "leads to"),
+predictions ("will fail", "soon", "probably", "within days") and how a machine feels to use ("slow",
+"lag", "crash", "performance"), in the headline and the explanation. A phrase the code itself wrote into the
+facts as an estimate is the only future-facing wording allowed. The explanation may not contain a device serial
+(hostnames are fine) and is capped at 2 sentences and 280 characters. The trace records only the rule that
+fired (`explanation:causal`, `explanation:serial_in_prose`), never the text.
+
 It cannot check meaning. A sentence can use only grounded numbers and still be wrong. The code-written
 claims, evidence readings and headline remain the source of truth; model prose is an optional rewording that is
 dropped, field by field, whenever it fails a check.
@@ -206,7 +213,7 @@ A question such as "so what should I do?", "any recommendations?" or "next steps
    actions" holds the devices in suggestion order. When nothing is eligible the outcome is `no_match`, with the
    fixed headline "None of these devices supports one of the four actions right now." and one fixed line per
    device. The model may add a headline and a natural two-to-four sentence reply from the code-written facts
-   (explanations up to 900 characters, `MAX_EXPLANATION_CHARS`), checked by the same verify gate as every answer.
+   (explanations of at most 2 sentences and 280 characters: `MAX_EXPLANATION_SENTENCES`, `MAX_EXPLANATION_CHARS`), checked by the same verify gate as every answer.
 
 **Advice creates nothing.** No proposal, no audit entry and no effect. To act, the person chooses a suggestion
 (the console sends its `request` as the next message) or writes their own request; that turn is planned as
@@ -372,12 +379,12 @@ prints a notice and skips when it is not. The `frontend` job does `npm ci`, `npm
 The scenario files are `evals/scenarios/{grounding,trends,actions,guardrails}.json`. A case is a short
 conversation with the expected result written next to each question; a case whose question lists several phrasings
 expands into one instance per phrasing (ids look like `grounding.low_disk_acme#3`) and every phrasing must pass.
-As committed, the files hold 61 cases that expand to 279 instances; the guardrails suite adds one more result, the
+As committed, the files hold 62 cases that expand to 284 instances; the guardrails suite adds one more result, the
 audit-completeness check.
 
 | Suite | Cases / instances | What it proves |
 | --- | --- | --- |
-| `grounding` | 15 / 71 | The answer's device set and `coverage.population` equal the golden values (low disk per company, macOS older than 15, failing checks, inventory, one device's history). Every listed device has at least one evidence reference, and every reference parses, belongs to the signed-in company and resolves through the repository (read-only). A question about a device that does not exist is the uniform `denied` / `not_found`. |
+| `grounding` | 16 / 76 | The answer's device set and `coverage.population` equal the golden values (low disk per company, macOS older than 15, failing checks, inventory, one device's history). Every listed device has at least one evidence reference, and every reference parses, belongs to the signed-in company and resolves through the repository (read-only). A question about a device that does not exist is the uniform `denied` / `not_found`. |
 | `trends` | 18 / 80 | The trend findings match the golden classes: memory pressure sustained over 7 days, disk low all week, new `screen_lock` failures against the persistent `os_up_to_date` failure, battery signals, newly installed software over 30 days, and the 7-day window answered as `no_match`. One case is a two-turn follow-up ("which of those all week"). |
 | `actions` | 14 / 64 | A request produces a pending proposal for the right action type and device, and nothing else. A human decision then runs through `ActionService`: approve with the card hash executes once and adds one simulated effect row, a second approval is a duplicate with no new row, a wrong hash is `proposal changed`, a rejection adds nothing. Four ineligible requests are `denied` / `not_eligible` and create no proposal. Three `advise_*` cases ask "so what should I do?" and similar after low disk and after battery wear and check that the suggestions include the golden devices' storage upgrade and replacement flag, with cited evidence and no proposal created; one asks about a device with nothing eligible and expects `no_match`. |
 | `guardrails` | 14 / 64, plus 1 | Cross-company questions by company name or by device id are `denied` / `not_found` and leak nothing; prompt injection and off-topic questions are refused; "approve it", "execute it" and bulk requests ("flag all of them") are `unsupported_action` and create no proposal; an admin of another company approving a proposal gets `not_found` with no effect. The `audit_completeness` check closes the suite (below). |

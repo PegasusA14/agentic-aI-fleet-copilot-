@@ -374,6 +374,26 @@
           }
         }
       ]
+    },
+    {
+      "id": "why_fleet_slow_acme",
+      "user": "admin-acme",
+      "turns": [
+        {
+          "say": [
+            "Why is Acme's fleet slow?",
+            "why are our laptops so slow",
+            "What's making the devices sluggish?",
+            "Is low disk the reason our computers lag?",
+            "explain why the machines crash"
+          ],
+          "expect": {
+            "no_foreign_data": true,
+            "prose_no_causal": true,
+            "no_proposal": true
+          }
+        }
+      ]
     }
   ]
 }

@@ -13,6 +13,7 @@ from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
+from fleet_copilot.agent.verify import claim_problems
 from fleet_copilot.contracts import AnswerEnvelope, TraceEvent
 from fleet_copilot.evals.identifiers import COMPANY_IDS
 from fleet_copilot.evidence import EvidenceRef
@@ -228,6 +229,21 @@ def check_prose_verified(envelope: AnswerEnvelope, trace: Sequence[TraceEvent]) 
     return Check("prose_verified", False, f"verify reported: {'; '.join(problems)}")
 
 
+def check_prose_no_causal(envelope: AnswerEnvelope) -> Check:
+    """Whatever prose is shown (headline, explanation) makes no causal, predictive or performance claim."""
+    broken = {
+        f"{field}:{rule}"
+        for field, text in (("headline", envelope.headline), ("explanation", envelope.explanation))
+        if text
+        for rule in claim_problems(text)
+    }
+    if broken:
+        return Check(
+            "prose_no_causal", False, f"shown prose speculates ({', '.join(sorted(broken))})"
+        )
+    return Check("prose_no_causal", True, "the shown prose makes no causal or predictive claim")
+
+
 def check_proposal(expected: dict[str, Any], envelope: AnswerEnvelope, created: int) -> Check:
     card = envelope.proposal
     if card is None:
@@ -330,6 +346,7 @@ _KEYS = (
     "cites_every_device",
     "no_foreign_data",
     "prose_verified",
+    "prose_no_causal",
     "tools_called",
     "tools_not_called",
     "proposal",
@@ -412,6 +429,8 @@ def check_turn(
                 checks.append(check_no_foreign_data(envelope, trace, tenant, foreign_ids))
             elif key == "prose_verified":
                 checks.append(check_prose_verified(envelope, trace))
+            elif key == "prose_no_causal":
+                checks.append(check_prose_no_causal(envelope))
             elif key == "no_proposal":
                 checks.append(check_no_proposal(envelope, proposals_created))
             elif key == "no_effects":
