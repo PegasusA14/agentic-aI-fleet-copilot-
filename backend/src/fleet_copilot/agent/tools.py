@@ -274,7 +274,13 @@ def execute_recommend(args: dict[str, Any], ctx: AgentContext) -> ToolRecord:
         considered = [i for i in dict.fromkeys(requested) if i in hostnames]
         if not considered:
             return ToolRecord(tool="recommend_actions", args=recorded, error="not_found")
-        suggestions = recommender.recommend(repo, ctx.as_of, considered)
+        wanted = args.get("action_type")
+        suggestions = recommender.recommend(repo, ctx.as_of, considered, wanted)
+        fallback = None
+        if wanted and not suggestions:
+            # Nothing qualifies for the requested action: show what the evidence does support, and say so.
+            suggestions = recommender.recommend(repo, ctx.as_of, considered)
+            fallback = wanted if suggestions else None
         return ToolRecord(
             tool="recommend_actions",
             args=recorded,
@@ -285,6 +291,7 @@ def execute_recommend(args: dict[str, Any], ctx: AgentContext) -> ToolRecord:
             population=len(considered),
             as_of=ctx.as_of,
             unresolved_ids=len(set(requested) - set(considered)),
+            advice_fallback=fallback,
             suggestions=[
                 SuggestedAction(
                     action_type=s.action_type,
@@ -487,12 +494,15 @@ def propose_action(
 def recommend_actions(
     runtime: ToolRuntime[AgentContext],
     device_ids: DeviceIds = None,
+    action_type: ActionType | None = None,
 ) -> tuple[str, dict[str, Any]]:
     """Recommends the actions the evidence supports for the devices the user is asking about: a remediation
     ticket, a replacement flag, a hardware upgrade or an employee notification. The system checks eligibility
     and writes every suggestion; nothing is proposed or changed. Use only when the user asks what to do, for
     advice or for next steps, and call it once."""
-    record = execute_recommend({"device_ids": device_ids}, runtime.context)
+    record = execute_recommend(
+        {"device_ids": device_ids, "action_type": action_type}, runtime.context
+    )
     return record.llm_view(), record.model_dump(mode="json")
 
 

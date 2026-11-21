@@ -333,13 +333,18 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
                 data={"kind": reference.kind, "devices": len(resolution.device_ids)},
             )
             if plan.intent == "propose" and len(resolution.device_ids) > 1:
-                # One device per proposal: "those" and "all of them" are never turned into a bulk action.
+                # One device per proposal. A request to act on several devices is answered as advice for
+                # those devices instead: code-computed suggestions, each of which can be approved on its own.
                 emit(
                     "reference",
-                    "The action request names several devices",
+                    "The action request names several devices; answering with advice",
                     data={"devices": len(resolution.device_ids)},
                 )
-                return {"envelope": _dump(outcomes.refusal("unsupported_action", **kwargs))}
+                advised = plan.model_copy(update={"intent": "advise"})
+                return {
+                    "focus_ids": list(resolution.device_ids),
+                    "plan": advised.model_dump(mode="json"),
+                }
             return {"focus_ids": list(resolution.device_ids)}
         if isinstance(resolution, NeedsClarification):
             emit("reference", "The follow-up needs clarification", data={"resolved": False})
@@ -359,9 +364,12 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
             # Advice never depends on the model's choice of tool: code makes the one call, then stops.
             if any(r.get("tool") == "recommend_actions" for r in state.get("records") or []):
                 return {"pending_calls": False}
+            args: dict[str, Any] = {"device_ids": list(state.get("focus_ids") or [])}
+            if plan.action_type:
+                args["action_type"] = plan.action_type
             call = {
                 "name": "recommend_actions",
-                "args": {"device_ids": list(state.get("focus_ids") or [])},
+                "args": args,
                 "id": f"advise-{uuid.uuid4().hex[:12]}",
                 "type": "tool_call",
             }

@@ -10,8 +10,8 @@ NOT_FOUND = "I can't find that in your fleet."
 TOOL_FAILED = "A data lookup failed, so I can't answer reliably. No changes were made."
 OFF_TOPIC = "I can only answer questions about this company's managed devices."
 UNSUPPORTED_ACTION = (
-    "I can propose one device at a time: a remediation ticket, a replacement flag, a memory or "
-    "storage upgrade, or an employee notification. Approvals happen in the review screen."
+    "I can't do that, but I can recommend actions for devices you're looking at "
+    "(ask 'what should I do?'), or propose one action for one device."
 )
 ACTION_NOT_ELIGIBLE = (
     "That action is not supported by the current evidence, so no proposal was made."
@@ -50,6 +50,20 @@ ADVISE_RULE = (
     "An action is suggested only where the eligibility rules for a remediation ticket, a replacement "
     "flag, a hardware upgrade or an employee notification are met by current readings"
 )
+
+
+_ACTION_NOUNS = {
+    "remediation_ticket": "a remediation ticket",
+    "replacement_flag": "a replacement flag",
+    "upgrade_order": "a hardware upgrade",
+    "employee_notification": "an employee notification",
+}
+
+
+def no_qualifying_note(action_type: str) -> str:
+    """Why advice shows other actions than the one asked for: nothing qualifies for that one."""
+    noun = _ACTION_NOUNS[action_type]
+    return f"None of these devices qualifies for {noun}; here is what the evidence supports."
 
 
 def entry_out_of_range(n: int) -> str:

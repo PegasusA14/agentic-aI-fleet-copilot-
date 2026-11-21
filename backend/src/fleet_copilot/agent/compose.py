@@ -680,6 +680,8 @@ def _advice(record: ToolRecord, resolve: Resolver) -> Composition:
     notes: list[str] = []
     if record.unresolved_ids:
         notes.append(texts.unresolved_note(record.unresolved_ids))
+    if record.advice_fallback in texts.ACTION_LABELS:
+        notes.append(texts.no_qualifying_note(record.advice_fallback))
     coverage = Coverage(population=record.population)
     if not suggestions:
         # Fixed headline, plus one code-written line per device saying why nothing was suggested.

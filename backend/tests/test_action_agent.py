@@ -79,12 +79,14 @@ def screen_lock_list_script():
     )
 
 
-async def list_then(real_db_path, actions_db, plan, act_messages, extra_plans=()):
+async def list_then(
+    real_db_path, actions_db, plan, act_messages, extra_plans=(), later_explains=()
+):
     first = screen_lock_list_script()
     llm = ScriptedLLM(
         plans=[*first["plans"], plan, *extra_plans],
         acts=[*first["acts"], *act_messages],
-        explains=first["explains"],
+        explains=[*first["explains"], *later_explains],
     )
     service = make_service(real_db_path, llm, actions_db_path=actions_db)
     listed = await ask(service, SCREEN_LOCK_QUESTION)
@@ -175,16 +177,27 @@ async def test_asking_again_returns_the_same_proposal(real_db_path, actions_db):
 # ---- refusals ------------------------------------------------------------------------------------
 
 
-async def test_a_bulk_follow_up_is_unsupported_and_creates_nothing(real_db_path, actions_db):
+async def test_a_bulk_follow_up_becomes_per_device_advice_and_creates_nothing(
+    real_db_path, actions_db
+):
     plan = propose_plan(
         "flag them for replacement", reference=Reference(kind="all", list_hint="those")
     )
-    service, llm, listed = await list_then(real_db_path, actions_db, plan, [])
+    service, llm, listed = await list_then(
+        real_db_path,
+        actions_db,
+        plan,
+        [],
+        later_explains=[explanation(headline="Suggested next steps")],
+    )
     assert len(listed_ids(listed.envelope)) >= 3
     result = await ask(service, "Flag all of them for replacement")
-    assert result.envelope.outcome == "unsupported"
-    assert result.envelope.reason_code == "unsupported_action"
-    assert result.envelope.headline == texts.UNSUPPORTED_ACTION
+    assert result.envelope.outcome in ("answer", "no_match")
+    assert result.envelope.reason_code != "unsupported_action"
+    assert result.envelope.proposal is None
+    assert {s.device_id for s in result.envelope.suggested_actions} <= set(
+        listed_ids(listed.envelope)
+    )
     proposals, effects, _ = state_of(actions_db)
     assert proposals == [] and effect_total(effects) == 0
     assert llm.remaining["act"] == 0 and len(llm.calls_of("act")) == 2

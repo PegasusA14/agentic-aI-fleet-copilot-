@@ -10,6 +10,7 @@ from langchain_core.messages import AIMessage, BaseMessage
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 from fleet_copilot import policy
+from fleet_copilot.contracts import ActionType
 
 RefusalReason = Literal["cross_tenant", "prompt_injection", "off_topic", "unsupported_action"]
 ShortText = Annotated[str, Field(max_length=80)]
@@ -47,6 +48,9 @@ class Plan(BaseModel):
     summary: str = Field(max_length=300)
     window_days: int | None = Field(default=None, ge=1, le=policy.MAX_WINDOW_DAYS)
     reference: Reference | None = None
+    # The action the user asked for, when they named one (propose and advise plans). Advice for several
+    # devices is filtered to it; it never creates a proposal.
+    action_type: ActionType | None = None
     clarification_question: str | None = Field(default=None, max_length=300)
     clarification_options: list[ShortText] = Field(default_factory=list, max_length=6)
     refusal_reason: RefusalReason | None = None

@@ -43,11 +43,19 @@ def test_action_texts_and_labels():
     }
 
 
-def test_unsupported_action_names_what_is_supported():
-    text = texts.UNSUPPORTED_ACTION
-    for phrase in ("one device at a time", "ticket", "replacement", "upgrade", "notification"):
-        assert phrase in text
-    assert "review screen" in text and "isn't available yet" not in text
+def test_unsupported_action_says_what_to_ask_instead_and_has_no_review_screen():
+    assert texts.UNSUPPORTED_ACTION == (
+        "I can't do that, but I can recommend actions for devices you're looking at "
+        "(ask 'what should I do?'), or propose one action for one device."
+    )
+    assert "review screen" not in texts.UNSUPPORTED_ACTION.lower()
+
+
+def test_the_no_qualifying_action_note_names_the_requested_action():
+    assert texts.no_qualifying_note("remediation_ticket") == (
+        "None of these devices qualifies for a remediation ticket; here is what the evidence supports."
+    )
+    assert "a hardware upgrade" in texts.no_qualifying_note("upgrade_order")
 
 
 def test_advise_texts_are_exact():

@@ -152,9 +152,14 @@ def _for_device(
 
 
 def recommend(
-    repo: FleetRepository, as_of: datetime, device_ids: list[str] | tuple[str, ...]
+    repo: FleetRepository,
+    as_of: datetime,
+    device_ids: list[str] | tuple[str, ...],
+    action_type: ActionType | None = None,
 ) -> list[Suggestion]:
     """Eligible suggestions for the given devices, best first, at most `max_suggestions()`.
+
+    With `action_type`, only suggestions of that type are kept (before the cap is applied).
 
     Unknown and out-of-tenant ids are skipped without a trace. Order is by rank, then by the order
     the devices were given (duplicates ignored), then by action within a device, so the same input
@@ -163,6 +168,8 @@ def recommend(
     ranked: list[tuple[tuple[int, int, int, int], Suggestion]] = []
     for position, device_id in enumerate(dict.fromkeys(device_ids)):
         for index, ((rank, sub), suggestion) in enumerate(_for_device(repo, as_of, device_id)):
+            if action_type is not None and suggestion.action_type != action_type:
+                continue
             ranked.append(((rank, sub if rank == _CHECK else 0, position, index), suggestion))
     ranked.sort(key=lambda item: item[0])
     return [s for _, s in ranked[: max_suggestions()]]

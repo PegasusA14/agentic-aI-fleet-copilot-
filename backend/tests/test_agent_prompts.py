@@ -182,6 +182,16 @@ def test_the_planner_routes_advice_and_next_steps_to_advise_not_unsupported():
     assert "last answer" in plan
 
 
+def test_the_planner_sends_act_on_these_requests_after_a_list_to_advice_not_unsupported():
+    plan = _flat(prompts.PLAN_SYSTEM)
+    for phrase in ("raise a ticket for these", "shall we do something", "fix them"):
+        assert phrase in plan
+    assert "never unsupported" in plan
+    # a propose that covers several devices is no longer described as unsupported
+    assert "covers several devices" not in plan
+    assert "action_type" in plan
+
+
 def test_the_act_prompt_leaves_recommendations_to_the_system():
     act = _flat(prompts.ACT_SYSTEM)
     assert "never call `recommend_actions`" in act

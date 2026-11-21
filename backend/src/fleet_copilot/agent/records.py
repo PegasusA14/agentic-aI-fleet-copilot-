@@ -57,6 +57,8 @@ class ToolRecord(BaseModel):
     # `recommend_actions` only: the code-written suggestions (empty when nothing is eligible). `findings`
     # then lists the devices that were considered, so the composer has their hostnames.
     suggestions: list[dict[str, Any]] | None = None
+    # The requested action type that no device qualified for, when advice fell back to every eligible action.
+    advice_fallback: str | None = None
 
     @classmethod
     def from_query(cls, tool: str, args: dict[str, Any], result: QueryResult) -> ToolRecord:

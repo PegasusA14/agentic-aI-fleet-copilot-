@@ -167,7 +167,8 @@ def test_tools_expose_enumerated_bounded_inputs_and_no_tenant_arguments():
     ]
     assert propose["required"] == ["action_type", "device_id"]
     recommend = by_name["recommend_actions"].tool_call_schema.model_json_schema()
-    assert set(recommend["properties"]) == {"device_ids"} and "required" not in recommend
+    assert set(recommend["properties"]) == {"device_ids", "action_type"}
+    assert "required" not in recommend
     checks = by_name["compliance_failures_now"].tool_call_schema.model_json_schema()["properties"][
         "check_id"
     ]

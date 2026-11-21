@@ -291,6 +291,159 @@ def test_a_second_recommendation_in_a_turn_is_blocked_by_the_gate():
     assert _recommend_blocked("low_disk_devices", advise) is None
 
 
+# ---- a request to act on several devices is advice, not a refusal --------------------------------
+
+NO_TICKET_NOTE = (
+    "None of these devices qualifies for a remediation ticket; here is what the evidence supports."
+)
+
+
+def several_propose(**kw) -> Plan:
+    return Plan(
+        intent="propose",
+        summary="raise a ticket for these",
+        reference=Reference(kind="all", list_hint="those"),
+        **kw,
+    )
+
+
+async def test_a_propose_for_several_devices_after_a_list_is_advice_for_those_devices(
+    real_db_path, actions_db
+):
+    service, llm, listed = await low_disk_then(
+        real_db_path,
+        several_propose(),
+        [],
+        [explanation(headline="Suggested next steps")],
+        actions_db_path=actions_db,
+    )
+    listed_devices = listed_ids(listed.envelope)
+    assert len(listed_devices) >= 2
+    result = await ask(service, "So shall we raise the ticket or something?")
+    envelope = result.envelope
+
+    assert envelope.outcome == "answer" and envelope.reason_code is None
+    assert envelope.suggested_actions
+    assert {s.device_id for s in envelope.suggested_actions} <= set(listed_devices)
+    assert envelope.proposal is None
+    proposals, audit = ticket_state(actions_db)
+    assert proposals == [] and audit == []
+    # code made the one recommendation call; the model was not asked to act on this turn
+    assert len(llm.calls_of("act")) == 2
+    assert [e.tool for e in result.trace if e.kind == "tool_call"] == ["recommend_actions"]
+    assert_clean(result, llm)
+
+
+async def test_a_ticket_request_for_devices_with_no_failing_check_falls_back_with_a_note(
+    tmp_path,
+):
+    db = tmp_path / "fleet.sqlite"
+    data = tmp_path / "data.ndjson"
+    worn = {
+        "battery_present": True,
+        "condition": "Service Recommended",
+        "cycle_count": 1200,
+        "full_charge_capacity": 3000,
+        "percentage": 80,
+    }
+    data.write_text(
+        "\n".join(json.dumps(make_row(device=d, battery=worn)) for d in ("WORN1", "WORN2")) + "\n",
+        encoding="utf-8",
+    )
+    load_dataset(data, db)
+    llm = ScriptedLLM(
+        plans=[answer_plan(), several_propose(action_type="remediation_ticket")],
+        acts=[tool_calls_message(("find_devices", {})), final_message()],
+        explains=[
+            explanation(headline="Two devices"),
+            explanation(headline="Suggested next steps"),
+        ],
+    )
+    actions_db = tmp_path / "state" / "actions.db"
+    service = make_service(db, llm, actions_db_path=actions_db)
+    await ask(service, "list my devices")
+    result = await ask(service, "raise a ticket for those")
+    envelope = result.envelope
+
+    assert envelope.outcome == "answer"
+    assert envelope.suggested_actions  # the fallback: everything the evidence supports
+    assert not any(s.action_type == "remediation_ticket" for s in envelope.suggested_actions)
+    assert NO_TICKET_NOTE in envelope.notes
+    assert envelope.proposal is None
+    proposals, audit = ticket_state(actions_db)
+    assert proposals == [] and audit == []
+    assert_clean(result, llm)
+
+
+async def test_a_request_for_one_action_type_keeps_only_that_type_and_adds_no_note(
+    real_db_path, actions_db
+):
+    service, llm, listed = await low_disk_then(
+        real_db_path,
+        several_propose(action_type="upgrade_order"),
+        [],
+        [explanation(headline="Suggested next steps")],
+        actions_db_path=actions_db,
+    )
+    result = await ask(service, "order upgrades for those")
+    envelope = result.envelope
+    assert envelope.outcome == "answer" and envelope.suggested_actions
+    assert {s.action_type for s in envelope.suggested_actions} == {"upgrade_order"}
+    assert not any("qualifies for" in n for n in envelope.notes)
+    assert envelope.proposal is None
+    assert_clean(result, llm)
+
+
+async def test_a_propose_resolving_to_one_device_still_proposes(real_db_path, actions_db):
+    plan = Plan(
+        intent="propose",
+        summary="open a remediation ticket",
+        reference=Reference(kind="named", device_ref="MT7PJB7N5LRE"),
+    )
+    llm = ScriptedLLM(
+        plans=[plan],
+        acts=[
+            tool_calls_message(
+                (
+                    "propose_action",
+                    {
+                        "action_type": "upgrade_order",
+                        "device_id": "MT7PJB7N5LRE",
+                        "component": "storage",
+                    },
+                )
+            ),
+            final_message(),
+        ],
+        explains=[explanation(headline="Proposed an upgrade")],
+    )
+    result = await ask(
+        make_service(real_db_path, llm, actions_db_path=actions_db),
+        "order a storage upgrade for MT7PJB7N5LRE",
+    )
+    assert result.envelope.outcome == "proposal" and result.envelope.proposal is not None
+    assert result.envelope.suggested_actions == []
+
+
+def test_the_tool_filters_to_an_action_type_and_flags_the_fallback(real_db_path, real_conn):
+    ctx = context_for(real_db_path, real_conn, ACME)
+    ids = ["MT7PJB7N5LRE", "8NM23J95R5I6"]
+    upgrades = execute_recommend({"device_ids": ids, "action_type": "upgrade_order"}, ctx)
+    assert upgrades.suggestions and {s["action_type"] for s in upgrades.suggestions} == {
+        "upgrade_order"
+    }
+    assert upgrades.advice_fallback is None
+    # MT7PJB7N5LRE has no battery finding: a replacement flag falls back to what else is eligible
+    fallback = execute_recommend(
+        {"device_ids": ["MT7PJB7N5LRE"], "action_type": "replacement_flag"}, ctx
+    )
+    assert fallback.suggestions
+    assert not any(s["action_type"] == "replacement_flag" for s in fallback.suggestions)
+    assert fallback.advice_fallback == "replacement_flag"
+    plain = execute_recommend({"device_ids": ids}, ctx)
+    assert plain.advice_fallback is None
+
+
 # ---- plan leniency end to end --------------------------------------------------------------------
 
 
