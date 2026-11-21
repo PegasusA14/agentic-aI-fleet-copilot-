@@ -168,7 +168,7 @@ The agent loop inside the graph:
 
 ```mermaid
 flowchart TD
-    START((start)) --> scope --> plan
+    BEGIN(("start")) --> scope --> plan
     plan -- "clarify, refuse, unsupported<br/>(fixed or checked text)" --> respond
     plan -- "follow-up reference" --> reference
     plan -- otherwise --> act
@@ -182,7 +182,7 @@ flowchart TD
     compose -- "denied, tool_error" --> respond
     compose -- otherwise --> explain
     explain --> verify --> respond
-    respond --> END((end))
+    respond --> DONE(("end"))
 ```
 
 `tools` is a ToolNode over the 9 tools, wrapped by the retry and device-id injection layer.
