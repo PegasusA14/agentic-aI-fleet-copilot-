@@ -2,6 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { beforeEach, describe, expect, it } from "vitest";
 import App from "./App";
+import { fixtureTransport } from "./lib/transport";
 import { AnswerSheet } from "./components/AnswerSheet";
 import { OUTCOMES } from "./lib/outcomes";
 import { fixturesFor, getFixture } from "./lib/fixtures";
@@ -10,8 +11,8 @@ const noop = () => {};
 
 async function signInAs(name: string) {
   const user = userEvent.setup();
-  render(<App stepMs={0} />);
-  await user.click(screen.getByRole("button", { name: new RegExp(name) }));
+  render(<App transport={fixtureTransport(0)} />);
+  await user.click(await screen.findByRole("button", { name: new RegExp(name) }));
   return user;
 }
 
@@ -23,9 +24,9 @@ beforeEach(() => window.sessionStorage.clear());
 
 describe("sign-in and company boundary", () => {
   it("offers the three demo companies and shows the chosen one as a read-only badge", async () => {
-    render(<App stepMs={0} />);
+    render(<App transport={fixtureTransport(0)} />);
     for (const name of ["Acme", "Globex", "Initech"]) {
-      expect(screen.getByRole("button", { name: new RegExp(name) })).toBeInTheDocument();
+      expect(await screen.findByRole("button", { name: new RegExp(name) })).toBeInTheDocument();
     }
     await userEvent.click(screen.getByRole("button", { name: /Globex/ }));
     expect(screen.getByLabelText("Company: Globex")).toBeInTheDocument();
@@ -42,7 +43,7 @@ describe("sign-in and company boundary", () => {
   it("returns to the sign-in screen when switching company", async () => {
     const user = await signInAs("Acme");
     await user.click(screen.getByRole("button", { name: /switch company/i }));
-    expect(screen.getByRole("button", { name: /Initech/ })).toBeInTheDocument();
+    expect(await screen.findByRole("button", { name: /Initech/ })).toBeInTheDocument();
   });
 });
 
@@ -110,8 +111,8 @@ describe("the working thread", () => {
 describe("the composer", () => {
   it("cannot send an empty question, sends on Enter, and keeps Shift+Enter for new lines", async () => {
     const user = userEvent.setup();
-    render(<App stepMs={0} />);
-    await user.click(screen.getByRole("button", { name: /Acme/ }));
+    render(<App transport={fixtureTransport(0)} />);
+    await user.click(await screen.findByRole("button", { name: /Acme/ }));
     const send = screen.getByRole("button", { name: "Send question" });
     expect(send).toBeDisabled();
     const box = screen.getByLabelText(/ask a question about your fleet/i);

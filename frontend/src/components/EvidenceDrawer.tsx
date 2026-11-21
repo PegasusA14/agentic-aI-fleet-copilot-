@@ -1,7 +1,9 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
+import { ApiError } from "../lib/api";
 import { OUTCOMES } from "../lib/outcomes";
+import type { EvidenceValue, TraceView } from "../lib/transport";
 import type { AnswerEnvelope, TraceEvent } from "../lib/types";
 
 export type DrawerTab = "evidence" | "trace";
@@ -14,7 +16,15 @@ interface EvidenceDrawerProps {
   trace: TraceEvent[];
   onTab: (tab: DrawerTab) => void;
   onClose: () => void;
+  /** When set, each cited reading's raw value is fetched once, the first time the Evidence tab opens. */
+  loadEvidence?: (ref: string) => Promise<EvidenceValue>;
+  /** Fetches a stored trace for an answer whose streamed steps are not at hand. */
+  loadTrace?: (traceId: string) => Promise<TraceView>;
+  /** Called when a request finds the session gone. */
+  onSessionEnded?: () => void;
 }
+
+type Raw = { state: "loading" } | { state: "failed" } | { state: "ready"; value: unknown };
 
 const KIND_WORD: Record<TraceEvent["kind"], string> = {
   scope: "Scope",
@@ -35,8 +45,79 @@ function formatValue(value: unknown): string {
   return String(value);
 }
 
-export function EvidenceDrawer({ open, tab, focusRefs, envelope, trace, onTab, onClose }: EvidenceDrawerProps) {
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** The stored reading as plain text: a key/value list for an object, a line for anything else. Never markup. */
+function RawReading({ raw }: { raw: Raw }) {
+  if (raw.state === "loading") return <p className="evidence__raw evidence__raw--wait">Loading the raw reading…</p>;
+  if (raw.state === "failed") return <p className="evidence__raw evidence__raw--wait">The raw reading could not be loaded.</p>;
+  if (isRecord(raw.value)) {
+    return (
+      <dl className="evidence__raw" aria-label="Raw reading">
+        {Object.entries(raw.value).map(([key, value]) => (
+          <div key={key} style={{ display: "contents" }}>
+            <dt>{key}</dt>
+            <dd>{formatValue(value)}</dd>
+          </div>
+        ))}
+      </dl>
+    );
+  }
+  return <p className="evidence__raw evidence__raw--text mono">{formatValue(raw.value)}</p>;
+}
+
+export function EvidenceDrawer({
+  open,
+  tab,
+  focusRefs,
+  envelope,
+  trace,
+  onTab,
+  onClose,
+  loadEvidence,
+  loadTrace,
+  onSessionEnded,
+}: EvidenceDrawerProps) {
   const firstFocused = useRef<HTMLLIElement | null>(null);
+  const [raw, setRaw] = useState<Record<string, Raw>>({});
+  const requested = useRef(new Set<string>());
+  const [stored, setStored] = useState<Record<string, TraceEvent[]>>({});
+  const traceRequested = useRef(new Set<string>());
+
+  function fail(error: unknown) {
+    if (error instanceof ApiError && error.status === 401) onSessionEnded?.();
+  }
+
+  useEffect(() => {
+    if (!open || tab !== "evidence" || !loadEvidence || !envelope) return;
+    for (const { ref } of envelope.evidence) {
+      if (requested.current.has(ref)) continue;
+      requested.current.add(ref);
+      setRaw((prev) => ({ ...prev, [ref]: { state: "loading" } }));
+      loadEvidence(ref).then(
+        (reading) => setRaw((prev) => ({ ...prev, [ref]: { state: "ready", value: reading.value } })),
+        (error) => {
+          setRaw((prev) => ({ ...prev, [ref]: { state: "failed" } }));
+          fail(error);
+        },
+      );
+    }
+  }, [open, tab, envelope, loadEvidence]);
+
+  const traceId = envelope?.trace_id;
+  useEffect(() => {
+    if (!open || tab !== "trace" || !loadTrace || !traceId || trace.length > 0) return;
+    if (traceRequested.current.has(traceId)) return;
+    traceRequested.current.add(traceId);
+    loadTrace(traceId).then(
+      (view) => setStored((prev) => ({ ...prev, [traceId]: view.events })),
+      fail,
+    );
+  }, [open, tab, traceId, trace, loadTrace]);
+
+  const steps = trace.length > 0 ? trace : ((traceId && stored[traceId]) || []);
 
   useEffect(() => {
     if (open && tab === "evidence") firstFocused.current?.scrollIntoView?.({ block: "nearest" });
@@ -74,7 +155,7 @@ export function EvidenceDrawer({ open, tab, focusRefs, envelope, trace, onTab, o
                 aria-controls={`panel-${name}`}
                 onClick={() => onTab(name)}
               >
-                {name === "evidence" ? `Evidence (${evidence.length})` : `Trace (${trace.length})`}
+                {name === "evidence" ? `Evidence (${evidence.length})` : `Trace (${steps.length})`}
               </button>
             ))}
           </div>
@@ -99,6 +180,7 @@ export function EvidenceDrawer({ open, tab, focusRefs, envelope, trace, onTab, o
                         <div className="evidence__label">{item.label}</div>
                         <div className="evidence__value">{item.value}</div>
                         <code className="evidence__ref mono">{item.ref}</code>
+                        {raw[item.ref] ? <RawReading raw={raw[item.ref]} /> : null}
                       </li>
                     );
                   })}
@@ -106,7 +188,7 @@ export function EvidenceDrawer({ open, tab, focusRefs, envelope, trace, onTab, o
               )
             ) : (
               <ol className="trace-list" aria-label="Steps taken">
-                {trace.map((event) => (
+                {steps.map((event) => (
                   <li key={event.seq} className="trace">
                     <span className="trace__seq">{event.seq}</span>
                     <div>

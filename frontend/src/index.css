@@ -237,6 +237,11 @@ button.pill:hover {
   background: #fff;
 }
 
+button.pill:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
 .stage {
   grid-column: 1 / -1;
   min-height: 0;
@@ -275,7 +280,9 @@ button.pill:hover {
 .stage__composer {
   width: 100%;
   display: flex;
-  justify-content: center;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
 }
 
 /* ---------------------------------------------------------------- home hero */
@@ -1104,6 +1111,37 @@ button.pill:hover {
   word-break: break-all;
 }
 
+.evidence__raw {
+  margin: 10px 0 0;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px 12px;
+  font-size: 0.8125rem;
+}
+
+.evidence__raw dt {
+  color: var(--ink-2);
+}
+
+.evidence__raw dd {
+  margin: 0;
+  font-family: var(--mono);
+  font-variant-numeric: tabular-nums;
+  word-break: break-all;
+}
+
+p.evidence__raw {
+  display: block;
+  color: var(--ink-2);
+}
+
+.evidence__raw--text {
+  color: var(--ink);
+  word-break: break-all;
+}
+
 .empty {
   color: var(--ink-2);
 }
@@ -1163,6 +1201,82 @@ button.pill:hover {
   margin: 20px 0 0;
   font-size: 0.875rem;
   color: var(--ink-2);
+}
+
+.signin__notice {
+  margin: 0 0 4px;
+  padding: 8px 16px;
+  border-radius: 999px;
+  background: var(--attention-wash);
+  color: var(--attention);
+  font-weight: 600;
+}
+
+.company:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.signin__operator {
+  margin-top: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  font-weight: 600;
+}
+
+.signin__row {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 10px;
+}
+
+.signin__input {
+  width: 240px;
+  height: 44px;
+  padding: 0 18px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: var(--paper);
+  font-size: 1rem;
+}
+
+.signin__input:focus-visible {
+  border-color: var(--focus);
+}
+
+.btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+/* Inline errors are plain sentences in the server's words; the words carry the state, not the colour. */
+.form-error {
+  margin: 10px 0 0;
+  max-width: 760px;
+  color: var(--alert);
+  font-weight: 600;
+  font-size: 0.9375rem;
+}
+
+.stage__composer .form-error {
+  width: min(760px, 100%);
+  margin: 0;
+  padding: 0 22px;
+  text-align: left;
+}
+
+.banner {
+  width: min(760px, 100%);
+  margin: 0;
+  padding: 10px 18px;
+  border-radius: var(--r-card);
+  background: var(--attention-wash);
+  color: var(--attention);
+  font-weight: 600;
+  font-size: 0.9375rem;
 }
 
 /* ---------------------------------------------------------------- small screens */
