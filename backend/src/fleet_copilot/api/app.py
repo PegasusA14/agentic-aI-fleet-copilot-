@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from collections.abc import AsyncIterator
+import logging
+from collections.abc import AsyncIterator, Callable
 from contextlib import asynccontextmanager
 from pathlib import Path
 
@@ -15,13 +16,20 @@ from fleet_copilot.actions.service import ActionService
 from fleet_copilot.actions.store import ActionStore
 from fleet_copilot.agent.gateways import build_gateway
 from fleet_copilot.agent.llm import LLMGateway
-from fleet_copilot.agent.service import AgentService, DatasetUnavailable, InvalidQuestion
+from fleet_copilot.agent.service import (
+    AgentService,
+    DatasetUnavailable,
+    InvalidQuestion,
+    TurnRecord,
+)
 from fleet_copilot.api import routes_actions, routes_chat, routes_data, routes_session
 from fleet_copilot.config import ApiSettings, ModelSettings, Settings, load_env
 from fleet_copilot.evals.store import EvalStore
+from fleet_copilot.observability.conversations import ConversationStore
 from fleet_copilot.observability.store import TraceStore
 
 _UNSAFE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
+log = logging.getLogger(__name__)
 SESSION_COOKIE = "fleet_session"
 SESSION_MAX_AGE_S = 8 * 3600
 
@@ -42,6 +50,20 @@ class OriginGuard:
                 )
                 return
         await self.app(scope, receive, send)
+
+
+def fan_out(*sinks: Callable[[TurnRecord], None]) -> Callable[[TurnRecord], None]:
+    """One recorder that feeds every store. Each store is called on its own, so one that fails (a full disk,
+    a locked file) never stops the others and never reaches the turn."""
+
+    def record(turn: TurnRecord) -> None:
+        for sink in sinks:
+            try:
+                sink(turn)
+            except Exception as exc:  # observability must never break an answer
+                log.warning("could not record a turn: %s", type(exc).__name__)
+
+    return record
 
 
 def _mount_frontend(app: FastAPI, dist: Path) -> None:
@@ -74,11 +96,12 @@ def create_app(
         store = TraceStore(
             state / "traces.db", model_mode="scripted" if gateway is not None else models.mode
         )
+        conversations = ConversationStore(state / "conversations.db")
         async with AgentService.open(
             db_path=settings.db_path,
             gateway=gateway if gateway is not None else build_gateway(models),
             checkpoint_path=state / "checkpoints.db",
-            recorder=store.record,
+            recorder=fan_out(store.record, conversations.record),
             actions_db_path=state / "actions.db",
         ) as service:
             app.state.service = service
@@ -86,6 +109,7 @@ def create_app(
                 fleet_db=settings.db_path, store=ActionStore(state / "actions.db")
             )
             app.state.store = store
+            app.state.conversations = conversations
             app.state.evals = EvalStore(state / "evals.db")  # where `make eval` writes
             yield
 

@@ -54,6 +54,7 @@ class TurnRecord:
 
     identity: Identity
     conversation_id: str
+    question: str  # the cleaned question the admin asked; only the conversation store keeps it
     trace_id: str
     events: tuple[TraceEvent, ...]
     envelope: AnswerEnvelope | None  # None when the reader left before the answer
@@ -160,6 +161,7 @@ class AgentService:
         self,
         identity: Identity,
         conversation_id: str,
+        question: str,
         trace_id: str,
         events: list[TraceEvent],
         envelope: AnswerEnvelope | None,
@@ -172,6 +174,7 @@ class AgentService:
                 TurnRecord(
                     identity=identity,
                     conversation_id=conversation_id,
+                    question=question,
                     trace_id=trace_id,
                     events=tuple(events),
                     envelope=envelope,
@@ -255,7 +258,7 @@ class AgentService:
                     await stream.aclose()
             yield envelope
         finally:
-            self._record(identity, conversation_id, trace_id, events, envelope, started)
+            self._record(identity, conversation_id, text, trace_id, events, envelope, started)
 
     async def run_turn(self, identity: Identity, conversation_id: str, question: str) -> TurnResult:
         events: list[TraceEvent] = []

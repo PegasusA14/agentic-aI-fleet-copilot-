@@ -2,9 +2,9 @@ from __future__ import annotations
 
 import contextlib
 from collections.abc import AsyncIterator
-from typing import Annotated
+from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, HTTPException, Request, Response
+from fastapi import APIRouter, Depends, HTTPException, Query, Request, Response
 from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, ConfigDict, Field
 from starlette.types import Send
@@ -47,12 +47,36 @@ def create_conversation(request: Request) -> dict[str, str]:
     return {"conversation_id": new_conversation_id()}
 
 
+@router.get("/conversations")
+def list_conversations(
+    request: Request,
+    identity: Annotated[Identity, Depends(require_admin)],
+    limit: Annotated[int, Query(ge=1, le=200)] = 50,
+) -> list[dict[str, Any]]:
+    return request.app.state.conversations.list(identity.company_id, identity.actor_id, limit)
+
+
+@router.get("/conversations/{conversation_id}")
+def get_conversation(
+    conversation_id: str, request: Request, identity: Annotated[Identity, Depends(require_admin)]
+) -> dict[str, Any]:
+    stored = None
+    if valid_conversation_id(conversation_id):
+        stored = request.app.state.conversations.get(
+            identity.company_id, identity.actor_id, conversation_id
+        )
+    if stored is None:  # unknown, malformed, another tenant's and another admin's all look the same
+        raise HTTPException(404, "not found")
+    return stored
+
+
 @router.delete("/conversations/{conversation_id}", status_code=204)
 async def delete_conversation(conversation_id: str, request: Request) -> Response:
     identity = require_admin(request)
     if not valid_conversation_id(conversation_id):
         raise HTTPException(404, "not found")
     await request.app.state.service.delete_conversation(identity, conversation_id)
+    request.app.state.conversations.delete(identity.company_id, identity.actor_id, conversation_id)
     return Response(status_code=204)
 
 
