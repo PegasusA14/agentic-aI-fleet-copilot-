@@ -551,7 +551,10 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
             ):
                 composition.notes.append(texts.INCOMPLETE_NOTE)
             draft = composition.to_envelope(
-                company_id=ctx.company_id, as_of=ctx.as_of, trace_id=ctx.trace_id
+                company_id=ctx.company_id,
+                as_of=ctx.as_of,
+                trace_id=ctx.trace_id,
+                company_name=ctx.company_name,
             )
         except Exception as exc:  # a composer or contract bug must not become a wrong answer
             emit("error", "Composing the answer failed", data={"error": type(exc).__name__})

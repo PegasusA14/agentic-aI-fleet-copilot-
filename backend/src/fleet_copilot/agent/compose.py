@@ -6,20 +6,32 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 from fleet_copilot import policy
+from fleet_copilot.actions.eligibility import display_hostname
 from fleet_copilot.agent import texts
 from fleet_copilot.agent.format import fmt_bytes, fmt_day, fmt_pct, fmt_signed_pct, fmt_ts, noun
+from fleet_copilot.agent.present import (
+    GENERIC_EXCLUDED_TEXT,
+    ScopeParts,
+    present,
+    representative,
+)
 from fleet_copilot.agent.records import FindingRecord, ToolRecord
 from fleet_copilot.contracts import (
+    MAX_EXCLUDED_DEVICES,
+    Alternative,
     AnswerEnvelope,
+    AnswerTable,
     Claim,
     Coverage,
     EntityList,
     EntityRef,
     EvidenceItem,
+    ExcludedDevice,
     OutcomeType,
     ProposalCard,
     ReasonCode,
     ScopeInfo,
+    ScopeLine,
     SuggestedAction,
 )
 from fleet_copilot.domain.metrics import free_pct, used_pct
@@ -58,17 +70,6 @@ _PATH_TITLES = {
 }
 
 
-def representative(refs: Sequence[str], limit: int = policy.MAX_REFS_PER_FINDING) -> list[str]:
-    """At most `limit` refs, keeping the first and last and spreading the rest evenly."""
-    unique = list(dict.fromkeys(refs))
-    if len(unique) <= limit:
-        return unique
-    if limit < 2:
-        return unique[-1:]
-    step = (len(unique) - 1) / (limit - 1)
-    return [unique[i] for i in sorted({round(k * step) for k in range(limit)})]
-
-
 def max_refs_per_device(claims: Sequence[Claim]) -> int:
     """The most distinct readings the claims cite for any one device (what the scope text states)."""
     per_device: dict[str, set[str]] = {}
@@ -91,6 +92,11 @@ class Composition:
     rules: list[str] = field(default_factory=list)
     proposal: ProposalCard | None = None
     suggested_actions: list[SuggestedAction] = field(default_factory=list)
+    # Presentation for the UI. None of it is a fact the model reads.
+    table: AnswerTable | None = None
+    summary: str = ""
+    scope_parts: ScopeParts | None = None
+    follow_ups: list[Alternative] = field(default_factory=list)
 
     def facts(self) -> dict:
         """Everything the model may read when asked to explain: code-written text only."""
@@ -112,6 +118,7 @@ class Composition:
         trace_id: str,
         headline: str | None = None,
         explanation: str | None = None,
+        company_name: str = "",
     ) -> AnswerEnvelope:
         distinct = len({device_id for c in self.claims for device_id in c.device_ids})
         cited = max_refs_per_device(self.claims)
@@ -127,6 +134,21 @@ class Composition:
                 if self.claims
                 else None
             ),
+        )
+        parts = self.scope_parts
+        scope_line = (
+            ScopeLine(
+                checked=parts.checked,
+                matched=parts.matched,
+                ok=parts.ok,
+                ok_label=parts.ok_label,
+                not_checked=parts.not_checked,
+                company_name=company_name,
+                basis=parts.basis,
+                as_of=as_of,
+            )
+            if parts is not None
+            else None
         )
         return AnswerEnvelope(
             outcome=self.outcome,
@@ -148,6 +170,10 @@ class Composition:
             if self.outcome not in ("denied", "unsupported", "tool_error")
             else None,
             notes=self.notes,
+            table=self.table,
+            summary=self.summary,
+            scope_line=scope_line,
+            follow_ups=self.follow_ups,
         )
 
 
@@ -202,6 +228,7 @@ class _Builder:
         self.stale: set[str] = set()
         self.missing: set[str] = set()
         self.excluded: dict[str, set[str]] = {}
+        self.excluded_text: dict[tuple[str, str], tuple[str, str]] = {}
 
     def coverage(self, rec: ToolRecord) -> None:
         for f in rec.findings:
@@ -213,6 +240,9 @@ class _Builder:
         self.missing.update(rec.missing_latest)
         for reason, ids in rec.excluded.items():
             self.excluded.setdefault(reason, set()).update(ids)
+        for reason, found in rec.excluded_detail.items():
+            for device_id, info in found.items():
+                self.excluded_text[(reason, device_id)] = (info.hostname, info.text)
 
     def set_headline(self, text: str) -> None:
         if text not in self.headlines:
@@ -237,7 +267,7 @@ class _Builder:
             refs.extend(refs_by_device[f.device_id] if refs_by_device else representative(f.refs))
         refs = list(dict.fromkeys(refs))
         for ref in refs:
-            self._add_evidence(ref)
+            self.add_evidence(ref)
         ids = [f.device_id for f in findings]
         self.claims.append(Claim(text=text, refs=refs, count=len(ids), device_ids=ids))
 
@@ -252,10 +282,10 @@ class _Builder:
         """Evidence items for the refs a proposal cites, labelled with the target's hostname."""
         self._hosts[card.target_device_id] = card.target_label
         for ref in card.evidence_refs:
-            self._add_evidence(ref)
+            self.add_evidence(ref)
         return list(self.evidence.values())
 
-    def _add_evidence(self, ref: str) -> None:
+    def add_evidence(self, ref: str) -> None:
         if ref in self.evidence:
             return
         parsed = EvidenceRef.parse(ref)
@@ -267,6 +297,26 @@ class _Builder:
             label=f"{_path_title(parsed.path)} · {host} · {fmt_ts(parsed.collected_at)}",
             value=evidence_text(kind, resolved.value),
         )
+
+    def excluded_devices(self) -> list[ExcludedDevice]:
+        """Each excluded device once per reason, with its hostname and a code-written reason."""
+        out = []
+        for reason, ids in self.excluded.items():
+            for device_id in ids:
+                hostname, text = self.excluded_text.get(
+                    (reason, device_id),
+                    (device_id, GENERIC_EXCLUDED_TEXT.get(reason, "Not checked")),
+                )
+                out.append(
+                    ExcludedDevice(
+                        device_id=device_id,
+                        label=display_hostname(hostname, device_id),
+                        reason=reason,  # type: ignore[arg-type]
+                        reason_text=text,
+                    )
+                )
+        out.sort(key=lambda e: (e.reason, e.label, e.device_id))
+        return out[:MAX_EXCLUDED_DEVICES]
 
     def disclosure_notes(self) -> None:
         if len({n for _, n in self.populations}) > 1:
@@ -813,8 +863,23 @@ def compose(records: Sequence[ToolRecord], *, resolve: Resolver) -> Composition:
         stale=sorted(builder.stale),
         missing_latest=sorted(builder.missing),
         excluded={reason: sorted(ids) for reason, ids in sorted(builder.excluded.items())},
+        excluded_devices=builder.excluded_devices(),
     )
+    # One list tool in the turn gets a table, a sentence, scope counts and next questions.
+    shown_presentation = present(shown[0]) if len(shown) == 1 else None
+    ui: dict = {}
+    if shown_presentation is not None:
+        ui = {
+            "scope_parts": shown_presentation.scope,
+            "follow_ups": shown_presentation.follow_ups,
+        }
     if builder.claims:
+        if shown_presentation is not None and shown_presentation.table is not None:
+            for row in shown_presentation.table.rows:
+                for ref in row.refs:
+                    builder.add_evidence(ref)
+            ui["table"] = shown_presentation.table
+            ui["summary"] = shown_presentation.summary
         return Composition(
             "answer",
             None,
@@ -825,6 +890,7 @@ def compose(records: Sequence[ToolRecord], *, resolve: Resolver) -> Composition:
             builder.notes,
             "; ".join(builder.headlines) or builder.claims[0].text.split(":")[0],
             builder.rules,
+            **ui,
         )
     thin = [r for r in usable if r.excluded.get("insufficient_history")]
     if (
@@ -839,6 +905,7 @@ def compose(records: Sequence[ToolRecord], *, resolve: Resolver) -> Composition:
             notes=builder.notes,
             fallback_headline=texts.INSUFFICIENT_HISTORY,
             rules=builder.rules,
+            **ui,
         )
     return Composition(
         "no_match",
@@ -847,4 +914,5 @@ def compose(records: Sequence[ToolRecord], *, resolve: Resolver) -> Composition:
         notes=builder.notes,
         fallback_headline=texts.no_match(population),
         rules=builder.rules,
+        **ui,
     )

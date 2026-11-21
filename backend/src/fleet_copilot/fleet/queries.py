@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import re
 from collections.abc import Callable, Collection
 from dataclasses import dataclass, field
 from datetime import datetime
@@ -32,6 +33,31 @@ class QueryResult:
     excluded: dict[str, tuple[str, ...]] = field(default_factory=dict)  # reason -> device ids
     stale: tuple[str, ...] = ()  # device ids whose reading is older than the stale limit
     missing_latest: tuple[str, ...] = ()  # device ids whose latest snapshot lacks the block
+    # reason -> device id -> (hostname, why this device was not covered, in words). Same devices as
+    # `excluded`; presentation only, so it never reaches the model.
+    excluded_detail: dict[str, dict[str, tuple[str, str]]] = field(default_factory=dict)
+
+
+def _snapshot_count(n: int) -> str:
+    """Why a trend skipped a device: how little history it had."""
+    if n == 0:
+        return "No snapshots in the window"
+    return f"Only {n} {'snapshot' if n == 1 else 'snapshots'} in the window"
+
+
+def _not_a_mac(os_name: str, os_version: str) -> str:
+    """`Windows 11, not a Mac`: the device's own OS name and its leading version token."""
+    token = os_version.split()[0] if os_version.split() else ""
+    label = f"{os_name} {token}".strip()
+    return f"{label}, not a Mac" if os_name else "Not a Mac"
+
+
+_SAFE_VERSION = re.compile(r"[A-Za-z0-9._ -]{1,20}")
+
+
+def _unrecognised(os_version: str) -> str:
+    safe = os_version if _SAFE_VERSION.fullmatch(os_version) else ""
+    return f"macOS version {safe!r} not recognised" if safe else "macOS version not recognised"
 
 
 def _latest_pairs(repo: FleetRepository, devices: list[Device]) -> list[tuple[Device, Snapshot]]:
@@ -98,14 +124,23 @@ def macos_below(
 ) -> QueryResult:
     pairs = _latest_pairs(repo, _devices(repo, only_devices))
     findings, out_of_scope, unknown, in_scope = [], [], [], 0
+    detail: dict[str, dict[str, tuple[str, str]]] = {}
     for device, snap in pairs:
         verdict = macos_older_than(snap.os_name, snap.os_version, target)
         if verdict == "out_of_scope":
             out_of_scope.append(device.device_id)
+            detail.setdefault("out_of_scope", {})[device.device_id] = (
+                device.hostname,
+                _not_a_mac(snap.os_name, snap.os_version),
+            )
             continue
         in_scope += 1
         if verdict == "unknown":
             unknown.append(device.device_id)
+            detail.setdefault("unknown_version", {})[device.device_id] = (
+                device.hostname,
+                _unrecognised(snap.os_version),
+            )
         elif verdict == "older":
             findings.append(
                 Finding(
@@ -128,6 +163,7 @@ def macos_below(
         f"macOS devices with version < {target}",
         excluded=excluded,
         stale=_stale(pairs, as_of),
+        excluded_detail=detail,
     )
 
 
@@ -194,6 +230,7 @@ def _breach_trend(
 ) -> QueryResult:
     since = window_start(as_of, window_days)
     findings, insufficient, stale = [], [], []
+    detail: dict[str, tuple[str, str]] = {}
     for device in devices:
         snaps = repo.snapshots(device.device_id, since=since)
         if snaps and is_stale(snaps[-1].collected_at, as_of):
@@ -202,6 +239,7 @@ def _breach_trend(
         trend = classify_breach_trend(flags)
         if trend == "insufficient":
             insufficient.append(device.device_id)
+            detail[device.device_id] = (device.hostname, _snapshot_count(len(snaps)))
         elif trend != "none":
             findings.append(
                 Finding(
@@ -226,7 +264,13 @@ def _breach_trend(
     findings.sort(key=lambda f: f.device_id)
     excluded = {"insufficient_history": tuple(sorted(insufficient))} if insufficient else {}
     return QueryResult(
-        tuple(findings), len(devices), as_of, rule, excluded=excluded, stale=tuple(sorted(stale))
+        tuple(findings),
+        len(devices),
+        as_of,
+        rule,
+        excluded=excluded,
+        stale=tuple(sorted(stale)),
+        excluded_detail={"insufficient_history": detail} if detail else {},
     )
 
 
@@ -285,6 +329,7 @@ def compliance_trend(
     since = window_start(as_of, window_days)
     devices = _devices(repo, only_devices)
     findings, insufficient, stale = [], [], []
+    detail: dict[str, tuple[str, str]] = {}
     for device in devices:
         snaps = [
             s for s in repo.snapshots(device.device_id, since=since) if check_id in s.compliance
@@ -294,6 +339,7 @@ def compliance_trend(
         trend = classify_compliance([s.compliance[check_id].status for s in snaps])
         if trend.kind == "insufficient":
             insufficient.append(device.device_id)
+            detail[device.device_id] = (device.hostname, _snapshot_count(len(snaps)))
             continue
         if trend.kind == "passing":
             continue
@@ -325,6 +371,7 @@ def compliance_trend(
         f"{check_id} over the last {window_days} days",
         excluded=excluded,
         stale=tuple(sorted(stale)),
+        excluded_detail={"insufficient_history": detail} if detail else {},
     )
 
 
@@ -337,6 +384,7 @@ def battery_overview(
     since = window_start(as_of, window_days)
     laptops = [d for d in _devices(repo, only_devices) if d.form_factor == "laptop"]
     findings, no_reading, missing_latest, stale = [], [], [], []
+    detail: dict[str, tuple[str, str]] = {}
     for device in laptops:
         newest = repo.latest(device.device_id)
         if newest is not None and newest.battery is None:
@@ -348,6 +396,7 @@ def battery_overview(
         ]
         if not snaps:
             no_reading.append(device.device_id)
+            detail[device.device_id] = (device.hostname, "No battery reading")
             continue
         if is_stale(snaps[-1].collected_at, as_of):
             stale.append(device.device_id)
@@ -402,6 +451,7 @@ def battery_overview(
         excluded=excluded,
         stale=tuple(sorted(stale)),
         missing_latest=tuple(sorted(missing_latest)),
+        excluded_detail={"no_reading": detail} if detail else {},
     )
 
 
@@ -492,6 +542,7 @@ def software_installed(
     pairs = _latest_pairs(repo, _devices(repo, only_devices))
     findings: list[Finding] = []
     excluded: dict[str, tuple[str, ...]] = {}
+    detail: dict[str, tuple[str, str]] = {}
     if name is not None:
         wanted = name.strip().lower()
         for device, snap in pairs:
@@ -524,6 +575,7 @@ def software_installed(
         for device, snap in pairs:
             if not snap.software:
                 empty.append(device.device_id)
+                detail[device.device_id] = (device.hostname, "No installed software reported")
                 continue
             extra = [i for i in snap.software if (i.name, i.version) not in shared]
             cited = extra or list(snap.software[:1])
@@ -548,7 +600,13 @@ def software_installed(
         )
     findings.sort(key=lambda f: f.device_id)
     return QueryResult(
-        tuple(findings), len(pairs), as_of, rule, excluded=excluded, stale=_stale(pairs, as_of)
+        tuple(findings),
+        len(pairs),
+        as_of,
+        rule,
+        excluded=excluded,
+        stale=_stale(pairs, as_of),
+        excluded_detail={"no_readings": detail} if detail else {},
     )
 
 
@@ -624,4 +682,11 @@ def new_software(
         rule,
         excluded={"no_readings": tuple(missing)} if missing else {},
         stale=tuple(stale),
+        excluded_detail={
+            "no_readings": {
+                d: (hostnames[d], "No snapshots in the window") for d in missing if d in hostnames
+            }
+        }
+        if missing
+        else {},
     )

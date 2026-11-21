@@ -34,6 +34,15 @@ class FindingRecord(BaseModel):
     refs: list[str]
 
 
+class ExcludedInfo(BaseModel):
+    """Why one device was left out of a check, in words. Presentation only: the model never reads it."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    hostname: str
+    text: str
+
+
 class ToolRecord(BaseModel):
     """A typed, JSON-safe copy of one tool call's result. The composer reads this, not prose."""
 
@@ -47,6 +56,8 @@ class ToolRecord(BaseModel):
     as_of: datetime | None = None
     rule: str = ""
     excluded: dict[str, list[str]] = Field(default_factory=dict)
+    # reason -> device id -> hostname and reason text, for the devices in `excluded`.
+    excluded_detail: dict[str, dict[str, ExcludedInfo]] = Field(default_factory=dict)
     stale: list[str] = Field(default_factory=list)
     missing_latest: list[str] = Field(default_factory=list)
     # Requested `device_ids` that are not this tenant's devices. Foreign and nonexistent ids count alike.
@@ -78,6 +89,13 @@ class ToolRecord(BaseModel):
             as_of=result.as_of,
             rule=result.rule,
             excluded={reason: list(ids) for reason, ids in result.excluded.items()},
+            excluded_detail={
+                reason: {
+                    device_id: ExcludedInfo(hostname=hostname, text=text)
+                    for device_id, (hostname, text) in found.items()
+                }
+                for reason, found in result.excluded_detail.items()
+            },
             stale=list(result.stale),
             missing_latest=list(result.missing_latest),
         )
