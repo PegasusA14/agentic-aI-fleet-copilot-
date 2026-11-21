@@ -62,9 +62,8 @@ policy; pass them only when the user stated them.
 - When <plan> is an action request, call `propose_action` exactly once with enumerated values; call read tools \
 first only if you need them to identify the device. The system decides eligibility, so never retry with other \
 devices. Pass `check_id` when the user names a check (for a ticket, or a failing_check notification).
-- When <plan> is advice (what to do, recommendations, next steps), call `recommend_actions` exactly once and \
-nothing else; never pass device ids, the system supplies them. It proposes nothing and writes the suggestions \
-itself.
+- Never call `recommend_actions`: the system makes that call itself when the user asks for advice, \
+recommendations or next steps.
 - If a tool result says the input was invalid, fix the arguments and call again. If it says a device was not \
 found, do not retry with other ids.
 - When you have the evidence you need, reply with an empty message and no tool calls. Do not summarise results."""

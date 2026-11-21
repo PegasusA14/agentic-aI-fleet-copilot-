@@ -12,6 +12,7 @@ Nodes are small and take what they need from state; `llm` is the only model depe
 from __future__ import annotations
 
 import time
+import uuid
 from collections.abc import Awaitable, Callable
 from contextlib import contextmanager
 from typing import Any
@@ -354,6 +355,20 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
     async def act_node(state: TurnState, runtime: Runtime[AgentContext]) -> dict[str, Any]:
         ctx = runtime.context
         plan = Plan.model_validate(state["plan"])
+        if plan.intent == "advise":
+            # Advice never depends on the model's choice of tool: code makes the one call, then stops.
+            if any(r.get("tool") == "recommend_actions" for r in state.get("records") or []):
+                return {"pending_calls": False}
+            call = {
+                "name": "recommend_actions",
+                "args": {"device_ids": list(state.get("focus_ids") or [])},
+                "id": f"advise-{uuid.uuid4().hex[:12]}",
+                "type": "tool_call",
+            }
+            return {
+                "turn_messages": [AIMessage(content="", tool_calls=[call])],
+                "pending_calls": True,
+            }
         started = time.perf_counter()
         try:
             message = await llm.act(
@@ -389,15 +404,6 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
             # One proposal per turn: only the first request is kept.
             emit("tool_call", "Dropped extra proposal calls", data={"dropped": len(proposals) - 1})
             extra = set(proposals[1:])
-            calls = [call for i, call in enumerate(calls) if i not in extra]
-            dropped_any = True
-        advice = [i for i, call in enumerate(calls) if call["name"] == "recommend_actions"]
-        if len(advice) > 1:
-            # One recommendation per turn: only the first request is kept.
-            emit(
-                "tool_call", "Dropped extra recommendation calls", data={"dropped": len(advice) - 1}
-            )
-            extra = set(advice[1:])
             calls = [call for i, call in enumerate(calls) if i not in extra]
             dropped_any = True
         if len(calls) > policy.MAX_CALLS_PER_ROUND:

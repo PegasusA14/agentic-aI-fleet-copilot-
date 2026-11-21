@@ -182,11 +182,10 @@ def test_the_planner_routes_advice_and_next_steps_to_advise_not_unsupported():
     assert "last answer" in plan
 
 
-def test_the_act_prompt_calls_recommend_actions_once_on_an_advise_plan():
+def test_the_act_prompt_leaves_recommendations_to_the_system():
     act = _flat(prompts.ACT_SYSTEM)
-    assert "<plan> is advice" in act
-    assert "`recommend_actions` exactly once" in act
-    assert "never pass device ids" in act
+    assert "never call `recommend_actions`" in act
+    assert "the system makes that call itself" in act
 
 
 def test_the_explain_prompt_asks_for_a_natural_short_reply_to_the_admin():

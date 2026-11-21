@@ -18,6 +18,7 @@ from graph_support import (
 from fleet_copilot import policy
 from fleet_copilot.actions.store import ActionStore
 from fleet_copilot.agent import texts
+from fleet_copilot.agent.graph import ONE_RECOMMENDATION_PER_TURN, _recommend_blocked
 from fleet_copilot.agent.llm import (
     Plan,
     Reference,
@@ -84,7 +85,7 @@ async def test_advise_after_a_low_disk_answer_recommends_for_the_listed_devices(
     service, llm, listed = await low_disk_then(
         real_db_path,
         advise_plan(),
-        [tool_calls_message(ADVISE), final_message()],
+        [],
         [explanation(headline="Suggested next steps", text=None)],
         actions_db_path=actions_db,
     )
@@ -95,7 +96,7 @@ async def test_advise_after_a_low_disk_answer_recommends_for_the_listed_devices(
     assert envelope.outcome == "answer" and envelope.reason_code is None
     assert envelope.suggested_actions
     suggested = {s.device_id for s in envelope.suggested_actions}
-    assert suggested <= set(listed_devices)  # the injected focus, not the model's WRONGDEVICE1
+    assert suggested <= set(listed_devices)  # the resolved focus
     assert any(
         s.action_type == "upgrade_order" and s.label.startswith("Order a storage upgrade")
         for s in envelope.suggested_actions
@@ -121,36 +122,42 @@ async def test_advise_after_a_low_disk_answer_recommends_for_the_listed_devices(
     assert len(llm.calls_of("explain")) == 2
     assert "explain" in kinds(result)
     assert_clean(result, llm)
+    # code made the one call itself: the model was asked to act only on the first (read) turn
+    assert len(llm.calls_of("act")) == 2
     call = next(e for e in result.trace if e.kind == "tool_call" and e.tool == "recommend_actions")
     assert call.data["args"] == {"device_ids": len(listed_devices)}
-    assert "WRONGDEVICE1" not in repr(result.trace)
-
-
-async def test_the_model_sees_counts_and_action_types_only(real_db_path):
-    service, llm, _ = await low_disk_then(
-        real_db_path,
-        advise_plan(),
-        [tool_calls_message(ADVISE), final_message()],
-        [explanation(headline="Suggested next steps")],
+    done = next(
+        e for e in result.trace if e.kind == "tool_result" and e.tool == "recommend_actions"
     )
+    assert done.data["status"] == "recommended"
+    assert done.data["matches"] == len(envelope.suggested_actions)
+    assert done.data["population"] == len(listed_devices)
+    assert kinds(result).index("reference") < kinds(result).index("tool_call")
+
+
+async def test_an_advise_turn_makes_no_act_call_on_the_model(real_db_path):
+    service, llm, _ = await low_disk_then(
+        real_db_path, advise_plan(), [], [explanation(headline="Suggested next steps")]
+    )
+    before = len(llm.calls_of("act"))
     result = await ask(service, "what should I do about these?")
-    reply = llm.calls_of("act")[-1].messages[-1]
-    body = json.loads(reply.content)
-    assert set(body) == {"tool", "status", "device_count", "suggestion_count", "action_types"}
-    assert body["tool"] == "recommend_actions" and body["status"] == "recommended"
-    assert body["suggestion_count"] == len(result.envelope.suggested_actions)
-    assert body["action_types"]
-    text = reply.content
-    for suggestion in result.envelope.suggested_actions:
-        assert suggestion.reason not in text and suggestion.target_label not in text
-        assert not any(ref in text for ref in suggestion.refs)
-    assert "employee" not in text.lower() and "emp-" not in text
+    assert (
+        len(llm.calls_of("act")) == before == 2
+    )  # the low-disk turn's two rounds, none for advice
+    assert result.envelope.outcome == "answer" and result.envelope.suggested_actions
+    assert [e.tool for e in result.trace if e.kind == "tool_call"] == ["recommend_actions"]
+    assert [e.tool for e in result.trace if e.kind == "tool_result"] == ["recommend_actions"]
+
+
+async def test_an_advise_turn_alone_never_calls_the_act_model(real_db_path):
+    llm = ScriptedLLM(plans=[named_advise("MT7PJB7N5LRE")], explains=[explanation()])
+    result = await ask(make_service(real_db_path, llm), "how do I fix MT7PJB7N5LRE?")
+    assert llm.calls_of("act") == [] and result.envelope.outcome == "answer"
 
 
 async def test_a_named_device_advise_recommends_for_that_device_only(real_db_path):
     llm = ScriptedLLM(
         plans=[named_advise("MT7PJB7N5LRE")],
-        acts=[tool_calls_message(ADVISE), final_message()],
         explains=[explanation(headline="Suggested next steps")],
     )
     result = await ask(make_service(real_db_path, llm), "how do I fix MT7PJB7N5LRE?")
@@ -165,7 +172,7 @@ async def test_advise_with_no_reference_uses_every_device_of_the_last_answer(rea
     service, _, listed = await low_disk_then(
         real_db_path,
         advise_plan(),  # no reference, no named device
-        [tool_calls_message(ADVISE), final_message()],
+        [],
         [explanation(headline="Suggested next steps")],
     )
     result = await ask(service, "any recommendations?")
@@ -183,12 +190,7 @@ async def test_advise_follows_advise_using_the_suggested_devices(real_db_path):
     service, llm, _ = await low_disk_then(
         real_db_path,
         advise_plan(),
-        [
-            tool_calls_message(ADVISE),
-            final_message(),
-            tool_calls_message(ADVISE),
-            final_message(),
-        ],
+        [],
         [
             explanation(headline="Suggested next steps"),
             explanation(headline="Suggested next steps"),
@@ -220,8 +222,6 @@ async def test_nothing_eligible_is_no_match_with_a_note_per_device(tmp_path):
         acts=[
             tool_calls_message(("find_devices", {})),
             final_message(),
-            tool_calls_message(ADVISE),
-            final_message(),
         ],
         explains=[explanation(headline="Two devices")],
     )
@@ -239,6 +239,7 @@ async def test_nothing_eligible_is_no_match_with_a_note_per_device(tmp_path):
     ]
     assert len(llm.calls_of("explain")) == 1  # only the first (answer) turn explained
     assert "explain" not in kinds(result)
+    assert len(llm.calls_of("act")) == 2  # the model acted for the listing only
 
 
 # ---- clarification, gates ------------------------------------------------------------------------
@@ -283,30 +284,11 @@ async def test_recommend_actions_on_an_answer_plan_is_an_input_error(real_db_pat
     assert any("recommend_actions is only for advice requests" in str(m.content) for m in reply)
 
 
-async def test_a_second_recommendation_in_a_turn_is_an_input_error(real_db_path):
-    service, llm, _ = await low_disk_then(
-        real_db_path,
-        advise_plan(),
-        [tool_calls_message(ADVISE), tool_calls_message(ADVISE), final_message()],
-        [explanation(headline="Suggested next steps")],
-    )
-    result = await ask(service, "what should I do?")
-    assert result.envelope.outcome == "answer" and result.envelope.suggested_actions
-    assert "one recommendation per turn" in str(llm.calls_of("act")[-1].messages[-1].content)
-    calls = [e for e in result.trace if e.kind == "tool_call" and e.tool == "recommend_actions"]
-    assert len(calls) == 1
-
-
-async def test_two_recommendation_calls_in_one_message_run_once(real_db_path):
-    service, _, _ = await low_disk_then(
-        real_db_path,
-        advise_plan(),
-        [tool_calls_message(ADVISE, ADVISE), final_message()],
-        [explanation(headline="Suggested next steps")],
-    )
-    result = await ask(service, "what should I do?")
-    calls = [e for e in result.trace if e.kind == "tool_call" and e.tool == "recommend_actions"]
-    assert len(calls) == 1 and result.envelope.outcome == "answer"
+def test_a_second_recommendation_in_a_turn_is_blocked_by_the_gate():
+    advise = {"plan": {"intent": "advise"}, "records": [{"tool": "recommend_actions"}]}
+    assert _recommend_blocked("recommend_actions", advise) == ONE_RECOMMENDATION_PER_TURN
+    assert _recommend_blocked("recommend_actions", {**advise, "records": []}) is None
+    assert _recommend_blocked("low_disk_devices", advise) is None
 
 
 # ---- plan leniency end to end --------------------------------------------------------------------
@@ -356,3 +338,18 @@ def test_the_tool_treats_unknown_and_foreign_devices_alike(real_db_path, real_co
 def test_the_tool_without_devices_is_a_tool_error(real_db_path, real_conn):
     ctx = context_for(real_db_path, real_conn, ACME)
     assert execute_recommend({"device_ids": None}, ctx).error == "tool_error"
+
+
+def test_the_model_view_of_a_real_recommendation_is_counts_and_action_types_only(
+    real_db_path, real_conn
+):
+    ctx = context_for(real_db_path, real_conn, ACME)
+    record = execute_recommend({"device_ids": ["MT7PJB7N5LRE", "8NM23J95R5I6"]}, ctx)
+    text = record.llm_view()
+    body = json.loads(text)
+    assert set(body) == {"tool", "status", "device_count", "suggestion_count", "action_types"}
+    assert body["suggestion_count"] == len(record.suggestions) and body["action_types"]
+    for s in record.suggestions:
+        assert s["reason"] not in text and s["target_label"] not in text
+        assert not any(ref in text for ref in s["refs"])
+    assert "emp-" not in text and "MT7PJB7N5LRE" not in text
