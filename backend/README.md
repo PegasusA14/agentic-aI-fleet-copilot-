@@ -49,7 +49,10 @@ disk space?"` asks one question from the terminal and prints the trace.
 | `GET /api/health` | liveness |
 | `GET /api/demo-users` | the demo sign-in keys |
 | `POST`, `GET`, `DELETE /api/session` | sign in, current user, sign out |
-| `POST /api/conversations`, `DELETE /api/conversations/{id}` | create and delete a conversation |
+| `POST /api/conversations` | create a conversation id |
+| `GET /api/conversations?limit=` | your saved conversations, newest first (see "Advice and conversation history") |
+| `GET /api/conversations/{id}` | one saved conversation with its turns; `404` if unknown, malformed or not yours |
+| `DELETE /api/conversations/{id}` | delete a conversation: its saved state and its stored turns |
 | `POST /api/chat` | ask a question; the answer streams as server-sent events |
 | `GET /api/evidence?ref=` | resolve one evidence reference |
 | `GET /api/traces/{trace_id}` | the steps of one of your own turns |
@@ -74,7 +77,8 @@ re-test the live model. Delete the file to record again.
 
 ### Where state lives
 
-Traces are in `var/traces.db` and the API's conversation checkpoints in `var/checkpoints.db`. The terminal
+Traces are in `var/traces.db`, the API's conversation checkpoints in `var/checkpoints.db` and the saved chat
+history (questions and answers, for the sidebar) in `var/conversations.db`; only the API writes the last one. The terminal
 `ask` command keeps its own checkpoints in `cli-checkpoints.db` and `make live-check` in
 `live-check-checkpoints.db`, in the same folder. Action proposals, their simulated effects and the audit log are in
 `actions.db` (`cli-actions.db` for `ask`, `live-check-actions.db` for `make live-check`). Set `FLEET_STATE_DIR` to
@@ -175,6 +179,71 @@ Auth is checked before the body is validated, a foreign `Origin` is refused on e
 `make live-check` includes a `remediation_ticket` case that asks for a proposal and checks it is pending for the
 right device; it never approves anything.
 
+## Advice and conversation history
+
+### Advice
+
+A question such as "so what should I do?", "any recommendations?" or "next steps for these" is planned as
+`advise`. It is never `unsupported`, and the model does not choose the tools for it:
+
+1. **Which devices.** The `reference` node resolves them in code. A named device is looked up like any follow-up
+   (a foreign or unknown one reads as not found); otherwise advice covers every device of the last answer that
+   listed devices. With nothing shown yet, the reply is the fixed question "Which devices do you want
+   recommendations for?".
+2. **The call.** The `act` node makes one `recommend_actions(device_ids)` call itself, with the resolved ids, and
+   goes straight on to `compose`. The model is told never to call the tool, and a model call to it on any other
+   plan, or a second one in a turn, is rejected as an input error.
+3. **What is recommended** (`actions/recommend.py`). For each device it asks `eligibility.check` about every action
+   that could apply (a remediation ticket per currently failing compliance check, a replacement flag, a storage and
+   a memory upgrade, and one employee notification for the strongest current finding) and keeps the eligible
+   ones. The result is ordered by rank: failing high-severity check, battery service, sustained storage then
+   memory, other failing checks (by severity), notifications; ties go by the order the devices were given. The
+   cap is `policy.MAX_SUGGESTIONS = 6`. Unknown and foreign ids are skipped without a trace. Every number and
+   word comes from the repository and eligibility; the model writes none of it.
+4. **The answer.** Outcome `answer` with one claim per suggestion (its reason, with the cited readings) and a
+   `suggested_actions` list in the envelope: `action_type`, `device_id`, `target_label`, `label`, `reason`,
+   `request` (the message the console sends if the suggestion is chosen) and `refs`. The entity list "Suggested
+   actions" holds the devices in suggestion order. When nothing is eligible the outcome is `no_match`, with the
+   fixed headline "None of these devices supports one of the four actions right now." and one fixed line per
+   device. The model may add a headline and a natural two-to-four sentence reply from the code-written facts
+   (explanations up to 900 characters, `MAX_EXPLANATION_CHARS`), checked by the same verify gate as every answer.
+
+**Advice creates nothing.** No proposal, no audit entry and no effect. To act, the person chooses a suggestion
+(the console sends its `request` as the next message) or writes their own request; that turn is planned as
+`propose` and ends in a pending proposal that needs approval exactly as in "Actions, approval and audit".
+
+**A plan a model gets slightly wrong is repaired, not failed.** An `unsupported` plan with no reason becomes
+`unsupported_action`, a `refuse` plan with no reason becomes `prompt_injection`, and a `clarify` plan with no
+question asks the default clarification. Only a plan that cannot be repaired is a tool error.
+
+**A lookup that only narrows is not an answer.** When the model calls `find_devices` just to pick the devices for
+a later call (that call's `device_ids` all came from the lookup), the composer leaves the lookup out: it adds no
+claim, list or evidence. A lookup nothing was filtered by is composed as usual.
+
+### Conversation history
+
+`observability/conversations.py` keeps one row per conversation and one per answered turn in `conversations.db`
+(the state folder). Unlike traces, it keeps what the administrator typed and the full answer envelope, because
+they have to be able to read their own conversation again.
+
+- **Written** once per turn by the same recorder that writes the trace. The title is the first question on one
+  line, cut to 60 characters at a word boundary. A turn that produced no answer (the reader left) is not stored. A
+  failing history or trace store never blocks the other or the answer. The terminal `ask` command and evaluations do not write history.
+- **Scoped** by company and administrator from the signed session, never from the request: every read and delete
+  filters on both. Another company's admin, another admin of the same company, an unknown id and a malformed id are
+  indistinguishable: `GET /api/conversations/{id}` is `404 {"detail": "not found"}` for all of them. The routes
+  need an admin session (`401` without one, `403` for the operator).
+- **Routes.** `GET /api/conversations?limit=` (1 to 200, default 50; anything else is `422`) returns
+  `[{conversation_id, title, updated_at, turns}]`, most recently active first.
+  `GET /api/conversations/{id}` returns `{conversation_id, title, turns: [{seq, question, envelope, trace_id,
+  created_at}]}`. `DELETE /api/conversations/{id}` is `204`: it removes the conversation's saved agent state and its
+  stored turns, and for an id that is not yours it removes nothing and still answers `204`; only a malformed id
+  is `404`.
+- **Reopening continues the conversation.** The console reopens a conversation by reading it, then keeps using its
+  id, so the next question resolves "those" and "the first one" against that conversation's own saved lists.
+- **A stored answer is the answer as given.** A proposal card in a reopened conversation shows the state it had when
+  the answer was stored; its current state is in Approvals and Audit.
+
 ## Installed software
 
 Each telemetry row's `installed_software` (name, version, publisher) is loaded into the `software` table, one
@@ -237,15 +306,15 @@ run could not start (for example the dataset database is missing: run `make load
 The scenario files are `evals/scenarios/{grounding,trends,actions,guardrails}.json`. A case is a short
 conversation with the expected result written next to each question; a case whose question lists several phrasings
 expands into one instance per phrasing (ids look like `grounding.low_disk_acme#3`) and every phrasing must pass.
-As committed, the files hold 57 cases that expand to 260 instances; the guardrails suite adds one more result, the
+As committed, the files hold 61 cases that expand to 279 instances; the guardrails suite adds one more result, the
 audit-completeness check.
 
 | Suite | Cases / instances | What it proves |
 | --- | --- | --- |
 | `grounding` | 15 / 71 | The answer's device set and `coverage.population` equal the golden values (low disk per company, macOS older than 15, failing checks, inventory, one device's history). Every listed device has at least one evidence reference, and every reference parses, belongs to the signed-in company and resolves through the repository (read-only). A question about a device that does not exist is the uniform `denied` / `not_found`. |
 | `trends` | 18 / 80 | The trend findings match the golden classes: memory pressure sustained over 7 days, disk low all week, new `screen_lock` failures against the persistent `os_up_to_date` failure, battery signals, newly installed software over 30 days, and the 7-day window answered as `no_match`. One case is a two-turn follow-up ("which of those all week"). |
-| `actions` | 11 / 49 | A request produces a pending proposal for the right action type and device, and nothing else. A human decision then runs through `ActionService`: approve with the card hash executes once and adds one simulated effect row, a second approval is a duplicate with no new row, a wrong hash is `proposal changed`, a rejection adds nothing. Four ineligible requests are `denied` / `not_eligible` and create no proposal. |
-| `guardrails` | 13 / 60, plus 1 | Cross-company questions by company name or by device id are `denied` / `not_found` and leak nothing; prompt injection and off-topic questions are refused; "approve it", "execute it" and bulk requests ("flag all of them") are `unsupported_action` and create no proposal; an admin of another company approving a proposal gets `not_found` with no effect. The `audit_completeness` check closes the suite (below). |
+| `actions` | 14 / 64 | A request produces a pending proposal for the right action type and device, and nothing else. A human decision then runs through `ActionService`: approve with the card hash executes once and adds one simulated effect row, a second approval is a duplicate with no new row, a wrong hash is `proposal changed`, a rejection adds nothing. Four ineligible requests are `denied` / `not_eligible` and create no proposal. Three `advise_*` cases ask "so what should I do?" and similar after low disk and after battery wear and check that the suggestions include the golden devices' storage upgrade and replacement flag, with cited evidence and no proposal created; one asks about a device with nothing eligible and expects `no_match`. |
+| `guardrails` | 14 / 64, plus 1 | Cross-company questions by company name or by device id are `denied` / `not_found` and leak nothing; prompt injection and off-topic questions are refused; "approve it", "execute it" and bulk requests ("flag all of them") are `unsupported_action` and create no proposal; an admin of another company approving a proposal gets `not_found` with no effect. The `audit_completeness` check closes the suite (below). |
 
 What each result means for the SOP pre-submission checklist (§8.3):
 
