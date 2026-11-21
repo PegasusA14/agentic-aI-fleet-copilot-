@@ -1,6 +1,8 @@
 import { useEffect, useRef } from "react";
 import type { AnswerEnvelope, ProposalCard, TraceEvent } from "../lib/types";
-import { AnswerSheet } from "./AnswerSheet";
+import { AssistantMessage } from "./chat/AssistantMessage";
+import { UserMessage } from "./chat/UserMessage";
+import { WorkingLine } from "./chat/WorkingLine";
 import type { Decide } from "./ProposalView";
 import { StateMark } from "./StateMark";
 
@@ -11,14 +13,16 @@ export interface TurnData {
   events: TraceEvent[];
   status: "working" | "done" | "failed";
   envelope?: AnswerEnvelope;
-  /** Present on replayed stand-in answers; shown under the sheet. */
+  /** Present on replayed stand-in answers; shown under Details. */
   note?: string;
-  /** Present when the turn failed before an answer: the words shown on the sheet. */
+  /** Present when the turn failed before an answer: the words shown in the reply. */
   failure?: string;
 }
 
 interface TurnViewProps {
   turn: TurnData;
+  /** A turn is running somewhere in the thread; chips in every reply wait. */
+  busy: boolean;
   onOpenEvidence: (turn: TurnData, refs?: string[]) => void;
   onOpenTrace: (turn: TurnData) => void;
   onAsk: (question: string) => void;
@@ -27,18 +31,15 @@ interface TurnViewProps {
   onSessionEnded?: () => void;
 }
 
-function FailureSheet({ turn, onAsk }: { turn: TurnData; onAsk: (question: string) => void }) {
-  const headingId = `h-failed-${turn.id}`;
+function FailureMessage({ turn, onAsk }: { turn: TurnData; onAsk: (question: string) => void }) {
   return (
-    <article className="sheet" data-outcome="tool_error" aria-labelledby={headingId}>
-      <div className="sheet__head">
+    <article className="msg msg--assistant" data-outcome="tool_error" aria-label="Copilot reply">
+      <div className="msg__state">
         <StateMark outcome="tool_error" />
       </div>
-      <h2 className="sheet__headline" id={headingId}>
-        {turn.failure}
-      </h2>
-      <p className="sheet__explanation">No answer was produced. Check the connection, then ask again.</p>
-      <div className="sheet__foot">
+      <p className="msg__lead">{turn.failure}</p>
+      <p className="msg__muted">No answer was produced. Check the connection, then ask again.</p>
+      <div className="details__actions">
         <button type="button" className="link-btn" onClick={() => onAsk(turn.question)}>
           Ask again
         </button>
@@ -47,8 +48,7 @@ function FailureSheet({ turn, onAsk }: { turn: TurnData; onAsk: (question: strin
   );
 }
 
-function TurnView({ turn, onOpenEvidence, onOpenTrace, onAsk, decide, onDecided, onSessionEnded }: TurnViewProps) {
-  const steps = turn.events.filter((event) => event.kind !== "respond");
+function TurnView({ turn, busy, onOpenEvidence, onOpenTrace, onAsk, decide, onDecided, onSessionEnded }: TurnViewProps) {
   const root = useRef<HTMLElement>(null);
 
   useEffect(() => {
@@ -58,11 +58,12 @@ function TurnView({ turn, onOpenEvidence, onOpenTrace, onAsk, decide, onDecided,
 
   return (
     <section className="turn" id={`turn-${turn.id}`} ref={root} aria-label={`Question: ${turn.question}`}>
-      <h2 className="turn__ask">{turn.question}</h2>
+      <UserMessage text={turn.question} />
       {turn.status === "done" && turn.envelope ? (
-        <AnswerSheet
+        <AssistantMessage
           envelope={turn.envelope}
           note={turn.note}
+          busy={busy}
           onOpenEvidence={(refs) => onOpenEvidence(turn, refs)}
           onOpenTrace={() => onOpenTrace(turn)}
           onAsk={onAsk}
@@ -71,36 +72,24 @@ function TurnView({ turn, onOpenEvidence, onOpenTrace, onAsk, decide, onDecided,
           onSessionEnded={onSessionEnded}
         />
       ) : turn.status === "failed" ? (
-        <FailureSheet turn={turn} onAsk={onAsk} />
+        <FailureMessage turn={turn} onAsk={onAsk} />
       ) : (
-        <ul className="working" aria-live="polite" aria-label="Working">
-          {steps.map((event, index) => (
-            <li key={event.seq}>
-              <span className={index === steps.length - 1 ? "spinner" : "tick"} aria-hidden="true" />
-              <span>{event.summary}</span>
-            </li>
-          ))}
-          {steps.length === 0 ? (
-            <li>
-              <span className="spinner" aria-hidden="true" />
-              <span>Reading your question…</span>
-            </li>
-          ) : null}
-        </ul>
+        <WorkingLine events={turn.events} />
       )}
     </section>
   );
 }
 
-interface ThreadProps extends Omit<TurnViewProps, "turn"> {
+interface ThreadProps extends Omit<TurnViewProps, "turn" | "busy"> {
   turns: TurnData[];
 }
 
 export function Thread({ turns, ...rest }: ThreadProps) {
+  const busy = turns.some((turn) => turn.status === "working");
   return (
     <div className="thread">
       {turns.map((turn) => (
-        <TurnView key={turn.id} turn={turn} {...rest} />
+        <TurnView key={turn.id} turn={turn} busy={busy} {...rest} />
       ))}
     </div>
   );

@@ -12,6 +12,7 @@ import { SignIn } from "./components/SignIn";
 import { TopBar } from "./components/TopBar";
 import { Thread, type TurnData } from "./components/Thread";
 import { ApiError, UNREACHABLE } from "./lib/api";
+import { adviseFixtures } from "./lib/fixtureAdvise";
 import { datasetAsOf, fixturesFor, tenantName } from "./lib/fixtures";
 import { chooseTransport, type ConversationSummary, type Session, type StoredConversation, type Transport } from "./lib/transport";
 import { useMediaQuery } from "./lib/useMediaQuery";
@@ -49,7 +50,8 @@ interface AppProps {
 
 /** Replayed stand-in answers carry a note in their fixture; the envelope alone does not. */
 function fixtureNote(envelope: AnswerEnvelope): string | undefined {
-  const match = fixturesFor(envelope.scope.company_id).find((f) => f.envelope.trace_id === envelope.trace_id);
+  const company = envelope.scope.company_id;
+  const match = [...fixturesFor(company), ...adviseFixtures(company)].find((f) => f.envelope.trace_id === envelope.trace_id);
   return match?.meta.synthetic ? match.meta.note : undefined;
 }
 
@@ -391,7 +393,7 @@ export default function App({ transport: given }: AppProps) {
   if (booting) {
     return (
       <MotionConfig reducedMotion="user">
-        <Aurora docked={false} streaming={false} />
+        <Aurora docked={false} />
         <div className="app" aria-busy="true">
           <TopBar asOf={asOf} replay={transport.mode === "fixtures"} />
           <main className="stage" data-view="home" />
@@ -403,7 +405,7 @@ export default function App({ transport: given }: AppProps) {
   if (!session) {
     return (
       <MotionConfig reducedMotion="user">
-        <Aurora docked={false} streaming={false} />
+        <Aurora docked={false} />
         <div className="app">
           <TopBar asOf={asOf} replay={transport.mode === "fixtures"} />
           <main className="stage" data-view="home">
@@ -424,7 +426,7 @@ export default function App({ transport: given }: AppProps) {
   if (session.role === "operator") {
     return (
       <MotionConfig reducedMotion="user">
-        <Aurora docked streaming={false} />
+        <Aurora docked />
         <div className="app">
           <TopBar operator asOf={asOf} replay={transport.mode === "fixtures"} onSignOut={signOut} />
           <main className="stage" data-view="observe">
@@ -437,7 +439,7 @@ export default function App({ transport: given }: AppProps) {
 
   return (
     <MotionConfig reducedMotion="user">
-      <Aurora docked={docked || onSubview} streaming={running} />
+      <Aurora docked={docked || onSubview} />
       <div className="app" data-sidebar="true">
         <TopBar
           companyName={tenantName(session.company_id)}

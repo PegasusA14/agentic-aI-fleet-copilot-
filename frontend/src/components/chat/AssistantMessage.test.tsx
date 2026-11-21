@@ -1,0 +1,280 @@
+import { render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
+import { describe, expect, it, vi } from "vitest";
+import { getFixture } from "../../lib/fixtures";
+import type { ApprovalResult } from "../../lib/transport";
+import type { AnswerEnvelope, ProposalCard } from "../../lib/types";
+import type { Decide } from "../ProposalView";
+import { AssistantMessage } from "./AssistantMessage";
+
+const envelopeOf = (scenario: string): AnswerEnvelope => getFixture("acme-001", scenario).envelope;
+const LOW_DISK = envelopeOf("low_disk");
+const PROPOSAL = envelopeOf("proposal");
+const CARD = PROPOSAL.proposal as ProposalCard;
+
+function setup(envelope: AnswerEnvelope, extra: Partial<React.ComponentProps<typeof AssistantMessage>> = {}) {
+  const handlers = { onOpenEvidence: vi.fn(), onOpenTrace: vi.fn(), onAsk: vi.fn() };
+  const user = userEvent.setup();
+  const view = render(<AssistantMessage envelope={envelope} busy={false} {...handlers} {...extra} />);
+  return { user, ...handlers, ...view };
+}
+
+describe("an answer", () => {
+  it("leads with the reply text and carries no state word", () => {
+    setup(LOW_DISK);
+    expect(screen.getByText(LOW_DISK.headline)).toBeInTheDocument();
+    expect(screen.getByText(LOW_DISK.claims[0].text)).toBeInTheDocument();
+    expect(screen.queryByText("Answer")).not.toBeInTheDocument();
+    expect(document.querySelector(".mark")).toBeNull();
+    expect(screen.queryByRole("heading")).not.toBeInTheDocument();
+  });
+
+  it("lists the devices as ordered chips with hostname and id", () => {
+    setup(LOW_DISK);
+    const list = screen.getByRole("list", { name: /low disk/i });
+    const chips = within(list).getAllByRole("listitem");
+    expect(chips).toHaveLength(2);
+    expect(chips[0]).toHaveTextContent("acme-macbook-4");
+    expect(chips[0]).toHaveTextContent("MT7PJB7N5LRE");
+    expect(chips[1]).toHaveTextContent("acme-thinkpad-8");
+  });
+
+  it("shows the verified explanation instead of the headline and claims, which move into Details", async () => {
+    const explained = { ...LOW_DISK, explanation: "Two laptops are nearly out of disk space and need attention." };
+    const { user } = setup(explained);
+    expect(screen.getByText(explained.explanation as string)).toBeInTheDocument();
+    expect(screen.queryByText(LOW_DISK.headline)).not.toBeInTheDocument();
+    expect(screen.queryByText(LOW_DISK.claims[0].text)).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Details" }));
+    expect(screen.getByText(LOW_DISK.claims[0].text)).toBeInTheDocument();
+  });
+
+  it("keeps rule, coverage, evidence and trace behind a collapsed Details disclosure", async () => {
+    const { user, onOpenEvidence, onOpenTrace } = setup(LOW_DISK);
+    const toggle = screen.getByRole("button", { name: "Details" });
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText(/Evaluated/)).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /Show work/ })).not.toBeInTheDocument();
+
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByText(LOW_DISK.scope.rule as string)).toBeInTheDocument();
+    expect(screen.getByText("Evaluated")).toBeInTheDocument();
+    expect(screen.getByText("Stale readings")).toBeInTheDocument();
+    expect(screen.getByText("No latest reading")).toBeInTheDocument();
+    expect(screen.getByText("Excluded")).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Evidence (2)" }));
+    expect(onOpenEvidence).toHaveBeenCalledWith();
+    await user.click(screen.getByRole("button", { name: "Show work" }));
+    expect(onOpenTrace).toHaveBeenCalledTimes(1);
+
+    await user.click(toggle);
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByText(/Evaluated/)).not.toBeInTheDocument();
+  });
+
+  it("opens and closes Details from the keyboard", async () => {
+    const { user } = setup(LOW_DISK);
+    await user.tab();
+    const toggle = screen.getByRole("button", { name: "Details" });
+    expect(toggle).toHaveFocus();
+    await user.keyboard("{Enter}");
+    expect(toggle).toHaveAttribute("aria-expanded", "true");
+    await user.keyboard(" ");
+    expect(toggle).toHaveAttribute("aria-expanded", "false");
+  });
+
+  it("says a replayed answer is simulated", async () => {
+    const { user } = setup(LOW_DISK, { note: "Built from a fixture." });
+    await user.click(screen.getByRole("button", { name: "Details" }));
+    expect(screen.getByText(/Simulated example\. Built from a fixture\./)).toBeInTheDocument();
+  });
+
+  it("renders model text as plain text, never as markup", () => {
+    setup({ ...LOW_DISK, explanation: "<b>bold</b> <img src=x onerror=alert(1)>" });
+    expect(document.querySelector("b, img")).toBeNull();
+    expect(screen.getByText(/<b>bold<\/b>/)).toBeInTheDocument();
+  });
+});
+
+describe("outcomes that are not an answer", () => {
+  const CASES: Array<[string, string, string]> = [
+    ["compliance_high_no_match", "No match", "No devices matched (10 evaluated)"],
+    ["insufficient_trend", "Not enough data", "There are not enough snapshots in that window to report a trend."],
+    ["device_not_found", "Not found", "I can't find that in your fleet."],
+    ["unsupported", "Out of scope", "I can only answer questions about this company's managed devices."],
+    ["tool_error", "Lookup failed", "A data lookup failed, so I can't answer reliably. No changes were made."],
+  ];
+
+  it.each(CASES)("%s shows a mark, the word %s and the reply", (scenario, word, reply) => {
+    setup(envelopeOf(scenario));
+    const mark = document.querySelector(".msg__state .mark") as HTMLElement;
+    expect(mark).toHaveTextContent(word);
+    expect(mark.querySelector("svg")).not.toBeNull();
+    expect(screen.getByText(reply)).toBeInTheDocument();
+  });
+
+  it("keeps a coverage note readable in the reply", () => {
+    setup(envelopeOf("insufficient_trend"));
+    expect(screen.getByText(/10 devices have fewer than 3 snapshots/)).toBeInTheDocument();
+  });
+
+  it("asks a clarification and offers its options as chips that send the option text", async () => {
+    const envelope = envelopeOf("clarification");
+    const { user, onAsk } = setup(envelope);
+    expect(document.querySelector(".msg__state .mark")).toHaveTextContent("One detail needed");
+    expect(screen.getByText(envelope.clarification!.question)).toBeInTheDocument();
+    const group = screen.getByRole("group", { name: "Choose one" });
+    const options = within(group).getAllByRole("button");
+    expect(options.map((o) => o.textContent)).toEqual(envelope.clarification!.options);
+    await user.click(screen.getByRole("button", { name: "Outdated macOS" }));
+    expect(onAsk).toHaveBeenCalledWith("Outdated macOS");
+  });
+
+  it("disables clarification options while a turn runs", () => {
+    setup(envelopeOf("clarification"), { busy: true });
+    for (const option of within(screen.getByRole("group", { name: "Choose one" })).getAllByRole("button")) {
+      expect(option).toBeDisabled();
+    }
+  });
+});
+
+describe("suggested actions", () => {
+  const ADVISE: AnswerEnvelope = {
+    ...LOW_DISK,
+    headline: "2 actions are supported by the evidence",
+    suggested_actions: [
+      {
+        action_type: "upgrade_order",
+        device_id: "MT7PJB7N5LRE",
+        target_label: "acme-macbook-4",
+        label: "Order a storage upgrade (512 GiB to 1 TiB)",
+        reason: "2.0% free of 512.0 GiB.",
+        request: "Order a storage upgrade for acme-macbook-4",
+        refs: [LOW_DISK.evidence[0].ref],
+      },
+      {
+        action_type: "upgrade_order",
+        device_id: "8NM23J95R5I6",
+        target_label: "acme-thinkpad-8",
+        label: "Order a storage upgrade (1 TiB to 2 TiB)",
+        reason: "2.6% free of 1.0 TiB.",
+        request: "Order a storage upgrade for acme-thinkpad-8",
+        refs: [LOW_DISK.evidence[1].ref],
+      },
+    ],
+  };
+
+  it("shows each suggestion's label and device, and sends its request when chosen", async () => {
+    const { user, onAsk } = setup(ADVISE);
+    const group = screen.getByRole("group", { name: "Suggested actions" });
+    const chips = within(group).getAllByRole("button");
+    expect(chips).toHaveLength(2);
+    expect(chips[0]).toHaveTextContent("Order a storage upgrade (512 GiB to 1 TiB)");
+    expect(chips[0]).toHaveTextContent("acme-macbook-4");
+    await user.click(chips[1]);
+    expect(onAsk).toHaveBeenCalledWith("Order a storage upgrade for acme-thinkpad-8");
+  });
+
+  it("is reachable and activated by keyboard", async () => {
+    const { user, onAsk } = setup(ADVISE);
+    const chips = within(screen.getByRole("group", { name: "Suggested actions" })).getAllByRole("button");
+    chips[0].focus();
+    await user.keyboard("{Enter}");
+    expect(onAsk).toHaveBeenLastCalledWith("Order a storage upgrade for acme-macbook-4");
+    await user.tab();
+    expect(chips[1]).toHaveFocus();
+    await user.keyboard(" ");
+    expect(onAsk).toHaveBeenLastCalledWith("Order a storage upgrade for acme-thinkpad-8");
+  });
+
+  it("disables every chip while a turn runs", async () => {
+    const { user, onAsk } = setup(ADVISE, { busy: true });
+    const chips = within(screen.getByRole("group", { name: "Suggested actions" })).getAllByRole("button");
+    for (const chip of chips) expect(chip).toBeDisabled();
+    await user.click(chips[0]);
+    expect(onAsk).not.toHaveBeenCalled();
+  });
+
+  it("does not list the same devices twice as device chips", () => {
+    setup({ ...ADVISE, entity_lists: [{ list_id: "x", title: "Suggested actions", items: [{ device_id: "MT7PJB7N5LRE", label: "acme-macbook-4", rank: 1 }] }] });
+    expect(screen.queryByRole("list", { name: "Suggested actions" })).not.toBeInTheDocument();
+  });
+
+  it("shows no group when there are no suggestions, even for an older stored envelope", () => {
+    const old = { ...LOW_DISK } as Partial<AnswerEnvelope>;
+    delete old.suggested_actions;
+    setup(old as AnswerEnvelope);
+    expect(screen.queryByRole("group", { name: "Suggested actions" })).not.toBeInTheDocument();
+  });
+});
+
+describe("a proposal in the thread", () => {
+  function proposal(status: ProposalCard["status"], via: "approve" | "reject" = "approve") {
+    const decide = {
+      approve: vi.fn(
+        async (): Promise<ApprovalResult> => ({
+          proposal: { ...CARD, status },
+          effect: status === "executed" ? { effect_id: 3, simulated: true } : null,
+          duplicate: false,
+        }),
+      ),
+      reject: vi.fn(async () => ({ proposal: { ...CARD, status } })),
+    } as unknown as Decide;
+    const view = setup(PROPOSAL, { decide });
+    async function decideNow() {
+      if (via === "reject") {
+        await view.user.click(screen.getByRole("button", { name: "Reject" }));
+        return;
+      }
+      await view.user.click(screen.getByRole("button", { name: "Approve" }));
+      await view.user.click(
+        within(await screen.findByRole("dialog")).getByRole("button", { name: "Approve and execute (simulated)" }),
+      );
+    }
+    return { ...view, decideNow };
+  }
+  const mark = () => document.querySelector(".msg__state .mark") as HTMLElement;
+
+  it("reads as waiting while nobody has decided", () => {
+    proposal("executed");
+    expect(mark()).toHaveTextContent("Proposal for your decision");
+    expect(screen.getByText(/waits for your approval/)).toBeInTheDocument();
+    expect(screen.getByRole("region", { name: "Proposed action" })).toBeInTheDocument();
+  });
+
+  it("says it was executed, in code-written words, once approved", async () => {
+    const { decideNow } = proposal("executed");
+    await decideNow();
+    expect(await screen.findByText("Executed (simulated): Remediation ticket for acme-macbook-2.")).toBeInTheDocument();
+    expect(mark()).toHaveTextContent("Executed (simulated)");
+    expect(mark()).toHaveAttribute("data-tone", "pass");
+    expect(mark().querySelector("svg")).not.toBeNull();
+    expect(document.body.textContent).not.toMatch(/waits for your approval|Proposal for your decision/);
+    expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Reject" })).not.toBeInTheDocument();
+  });
+
+  it("says nothing was done once rejected", async () => {
+    const { decideNow } = proposal("rejected", "reject");
+    await decideNow();
+    expect(await screen.findByText("Rejected: no action was taken.")).toBeInTheDocument();
+    expect(mark()).toHaveTextContent("Rejected");
+    expect(document.body.textContent).not.toMatch(/waits for your approval/);
+  });
+
+  it("says the evidence no longer supports an invalidated proposal", async () => {
+    const { decideNow } = proposal("invalidated");
+    await decideNow();
+    expect(await screen.findByText("Not executed: the evidence no longer supports it.")).toBeInTheDocument();
+    expect(mark()).toHaveTextContent("Not executed");
+  });
+
+  it("says the simulated action failed", async () => {
+    const { decideNow } = proposal("failed");
+    await decideNow();
+    expect(await screen.findByText("Not executed: the simulated action failed.")).toBeInTheDocument();
+    expect(mark()).toHaveAttribute("data-tone", "alert");
+  });
+});

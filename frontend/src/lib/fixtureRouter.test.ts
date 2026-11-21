@@ -52,3 +52,45 @@ describe("routeQuestion", () => {
     }
   });
 });
+
+describe("advice in replay mode", () => {
+  it("answers 'what should I do?' with a labelled stand-in built from the real low-disk devices", () => {
+    const fixture = routeQuestion("acme-001", "So what should I do?");
+    expect(fixture.meta.scenario).toBe("advise");
+    expect(fixture.meta.synthetic).toBe(true);
+    expect(fixture.meta.note).toMatch(/offline/i);
+    const actions = fixture.envelope.suggested_actions;
+    expect(actions.map((a) => a.device_id)).toEqual(["MT7PJB7N5LRE", "8NM23J95R5I6"]);
+    expect(actions[0].label).toBe("Order a storage upgrade (512 GiB → 1 TiB)");
+    expect(actions[1].label).toBe("Order a storage upgrade (1 TiB → 2 TiB)");
+    expect(actions[0].request).toBe("Order a storage upgrade for acme-macbook-4");
+    for (const action of actions) expect(fixture.envelope.evidence.map((e) => e.ref)).toContain(action.refs[0]);
+    expect(fixture.envelope.proposal).toBeNull();
+    expect(fixture.trace.at(-1)?.kind).toBe("respond");
+  });
+
+  it("answers every company's advice from its own devices", () => {
+    for (const tenant of TENANTS) {
+      const fixture = routeQuestion(tenant.id, "any recommendations?");
+      expect(fixture.meta.scenario).toBe("advise");
+      expect(fixture.envelope.scope.company_id).toBe(tenant.id);
+      expect(fixture.envelope.suggested_actions.length).toBeGreaterThan(0);
+    }
+  });
+
+  it("turns a suggestion's request into a labelled storage-upgrade proposal for that device", () => {
+    const fixture = routeQuestion("acme-001", "Order a storage upgrade for acme-thinkpad-8");
+    expect(fixture.envelope.outcome).toBe("proposal");
+    expect(fixture.envelope.proposal).toMatchObject({
+      action_type: "upgrade_order",
+      target_device_id: "8NM23J95R5I6",
+      status: "pending",
+      scope: { component: "storage", current: "1 TiB", target: "2 TiB" },
+    });
+    expect(fixture.meta.synthetic).toBe(true);
+  });
+
+  it("does not take another company's device name", () => {
+    expect(routeQuestion("acme-001", "Order a storage upgrade for globex-thinkpad-8").meta.scenario).not.toBe("upgrade");
+  });
+});

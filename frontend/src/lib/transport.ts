@@ -4,6 +4,7 @@
  * app runs offline and under test. Nothing here knows about React.
  */
 import { ApiError, del, getJson, postJson, send } from "./api";
+import { adviseFixtures } from "./fixtureAdvise";
 import { routeQuestion } from "./fixtureRouter";
 import { EXAMPLE_EVAL_RUN, exampleEvalTrace } from "./evalExample";
 import { datasetAsOf, fixturesFor, TENANTS } from "./fixtures";
@@ -573,7 +574,7 @@ export function fixtureTransport(stepMs = 380): Transport {
     },
     async evidence(ref) {
       const { session } = who("admin");
-      for (const fixture of fixturesFor(session.company_id)) {
+      for (const fixture of [...fixturesFor(session.company_id), ...adviseFixtures(session.company_id)]) {
         const item = fixture.envelope.evidence.find((e) => e.ref === ref);
         if (item) {
           return { ref, collected_at: /@([^#]+)#/.exec(ref)?.[1] ?? "", value: item.value };
@@ -583,7 +584,7 @@ export function fixtureTransport(stepMs = 380): Transport {
     },
     async trace(traceId) {
       const { session } = who("admin");
-      for (const fixture of fixturesFor(session.company_id)) {
+      for (const fixture of [...fixturesFor(session.company_id), ...adviseFixtures(session.company_id)]) {
         if (fixture.envelope.trace_id === traceId) {
           return { trace_id: traceId, events: fixture.trace };
         }

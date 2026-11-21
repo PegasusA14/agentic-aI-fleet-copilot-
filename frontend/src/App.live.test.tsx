@@ -127,7 +127,7 @@ describe("live sign-in", () => {
 });
 
 describe("streamed chat", () => {
-  it("shows each step as it arrives, then the answer sheet", async () => {
+  it("shows each step as it arrives, then the reply", async () => {
     const gate = deferred<typeof ENVELOPE>();
     const transport = fake({
       ask: vi.fn(async (_id, _q, onTrace) => {
@@ -137,12 +137,42 @@ describe("streamed chat", () => {
     });
     const user = await signedInApp(transport);
     await ask(user, "Which devices are low on disk space?");
-    const working = await screen.findByRole("list", { name: "Working" });
-    expect(within(working).getByText(STEPS[0].summary)).toBeInTheDocument();
+    const working = await screen.findByRole("status", { name: "Working" });
+    expect(working).toHaveTextContent(STEPS[0].summary);
     expect(screen.queryByRole("article")).not.toBeInTheDocument();
     gate.resolve(ENVELOPE);
-    expect(await screen.findByRole("heading", { name: ENVELOPE.headline })).toBeInTheDocument();
-    expect(screen.queryByRole("list", { name: "Working" })).not.toBeInTheDocument();
+    expect(await screen.findByText(ENVELOPE.headline)).toBeInTheDocument();
+    expect(screen.queryByRole("status", { name: "Working" })).not.toBeInTheDocument();
+  });
+
+  it("keeps suggestion chips from earlier replies disabled while the next turn runs", async () => {
+    const advice = {
+      ...ENVELOPE,
+      suggested_actions: [
+        {
+          action_type: "upgrade_order",
+          device_id: "MT7PJB7N5LRE",
+          target_label: "acme-macbook-4",
+          label: "Order a storage upgrade (512 GiB → 1 TiB)",
+          reason: "2.0% free of 512.0 GiB.",
+          request: "Order a storage upgrade for acme-macbook-4",
+          refs: [REFS[0]],
+        },
+      ],
+    };
+    const gate = deferred<typeof ENVELOPE>();
+    const ask1 = vi.fn().mockResolvedValueOnce(advice).mockImplementationOnce(() => gate.promise);
+    const transport = fake({ ask: ask1 });
+    const user = await signedInApp(transport);
+    await ask(user, "What should I do?");
+    const chip = await screen.findByRole("button", { name: /Order a storage upgrade/ });
+    expect(chip).toBeEnabled();
+    await user.click(chip);
+    expect(ask1).toHaveBeenLastCalledWith("conv-1", "Order a storage upgrade for acme-macbook-4", expect.any(Function));
+    expect(await screen.findByRole("status", { name: "Working" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Order a storage upgrade/ })).toBeDisabled();
+    gate.resolve(ENVELOPE);
+    await waitFor(() => expect(screen.getByRole("button", { name: /Order a storage upgrade/ })).toBeEnabled());
   });
 
   it("keeps one conversation per session and starts a fresh one from New chat", async () => {
@@ -153,7 +183,7 @@ describe("streamed chat", () => {
     const transport = fake({ newConversation });
     const user = await signedInApp(transport);
     await ask(user, "Which devices are low on disk space?");
-    await screen.findByRole("heading", { name: ENVELOPE.headline });
+    await screen.findByText(ENVELOPE.headline);
     await ask(user, "And which have old macOS?");
     await waitFor(() => expect(screen.getAllByRole("article")).toHaveLength(2));
     expect(newConversation).toHaveBeenCalledTimes(1);
@@ -163,7 +193,7 @@ describe("streamed chat", () => {
     expect(screen.queryByRole("article")).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Ask your fleet anything." })).toBeInTheDocument();
     await ask(user, "Which devices are low on disk space?");
-    await screen.findByRole("heading", { name: ENVELOPE.headline });
+    await screen.findByText(ENVELOPE.headline);
     expect(newConversation).toHaveBeenCalledTimes(2);
     expect(transport.ask).toHaveBeenLastCalledWith("conv-2", expect.any(String), expect.any(Function));
   });
@@ -201,7 +231,7 @@ describe("streamed chat", () => {
     const nav = screen.getByRole("navigation", { name: "Conversation history" });
     await user.click(await within(nav).findByRole("button", { name: stored.title }));
     expect(conversation).toHaveBeenCalledWith("old-7");
-    expect(await screen.findByRole("heading", { name: ENVELOPE.headline })).toBeInTheDocument();
+    expect(await screen.findByText(ENVELOPE.headline)).toBeInTheDocument();
     expect(transport.newConversation).not.toHaveBeenCalled();
     await ask(user, "And which have old macOS?");
     await waitFor(() => expect(screen.getAllByRole("article")).toHaveLength(2));
@@ -255,7 +285,7 @@ describe("streamed chat", () => {
     await ask(user, "tell me everything");
     expect(await screen.findByRole("alert")).toHaveTextContent("question is too long");
     expect(screen.queryByRole("article")).not.toBeInTheDocument();
-    expect(screen.queryByRole("list", { name: "Working" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("status", { name: "Working" })).not.toBeInTheDocument();
     expect(screen.getByLabelText(/ask a question about your fleet/i)).toHaveValue("tell me everything");
   });
 
@@ -280,7 +310,7 @@ describe("streamed chat", () => {
     await user.click(screen.getByLabelText(/ask a question about your fleet/i));
     await user.paste("y".repeat(2000));
     await user.keyboard("{Enter}");
-    await screen.findByRole("heading", { name: ENVELOPE.headline });
+    await screen.findByText(ENVELOPE.headline);
     expect(transport.ask).toHaveBeenCalledTimes(1);
   });
 
@@ -301,13 +331,12 @@ describe("streamed chat", () => {
     expect(screen.queryByLabelText("Company: Acme")).not.toBeInTheDocument();
   });
 
-  it("answers a network failure with a lookup-failed sheet, not a raw error", async () => {
+  it("answers a network failure with a lookup-failed reply, not a raw error", async () => {
     const user = await signedInApp(fake({ ask: vi.fn().mockRejectedValue(new ApiError(0, "The copilot could not be reached.")) }));
     await ask(user, "Which devices are low on disk space?");
-    const headline = await screen.findByRole("heading", { name: "The copilot could not be reached." });
-    const sheet = headline.closest("article") as HTMLElement;
-    expect(within(sheet).getByText("Lookup failed")).toBeInTheDocument();
-    expect(sheet.querySelector("svg")).not.toBeNull();
+    const reply = (await screen.findByText("The copilot could not be reached.")).closest("article") as HTMLElement;
+    expect(within(reply).getByText("Lookup failed")).toBeInTheDocument();
+    expect(reply.querySelector("svg")).not.toBeNull();
   });
 });
 
@@ -316,7 +345,8 @@ describe("evidence from the API", () => {
     const transport = fake();
     const user = await signedInApp(transport);
     await ask(user, "Which devices are low on disk space?");
-    await user.click(await screen.findByRole("button", { name: /all evidence/i }));
+    await user.click(await screen.findByRole("button", { name: "Details" }));
+    await user.click(await screen.findByRole("button", { name: /^evidence \(/i }));
     const dialog = await screen.findByRole("dialog");
     await waitFor(() => expect(transport.evidence).toHaveBeenCalledTimes(REFS.length));
     for (const ref of REFS) expect(transport.evidence).toHaveBeenCalledWith(ref);
@@ -335,7 +365,8 @@ describe("evidence from the API", () => {
     });
     const user = await signedInApp(transport);
     await ask(user, "Which devices are low on disk space?");
-    await user.click(await screen.findByRole("button", { name: /all evidence/i }));
+    await user.click(await screen.findByRole("button", { name: "Details" }));
+    await user.click(await screen.findByRole("button", { name: /^evidence \(/i }));
     const dialog = await screen.findByRole("dialog");
     expect((await within(dialog).findAllByText("<img src=x onerror=alert(1)>")).length).toBeGreaterThan(0);
     expect(dialog.querySelector("img")).toBeNull();
@@ -345,7 +376,8 @@ describe("evidence from the API", () => {
     const transport = fake();
     const user = await signedInApp(transport);
     await ask(user, "Which devices are low on disk space?");
-    await user.click(await screen.findByRole("button", { name: /show work/i }));
+    await user.click(await screen.findByRole("button", { name: "Details" }));
+    await user.click(await screen.findByRole("button", { name: "Show work" }));
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByRole("list", { name: "Steps taken" })).toBeInTheDocument();
     expect(within(dialog).getByText("Calling low_disk_devices")).toBeInTheDocument();
