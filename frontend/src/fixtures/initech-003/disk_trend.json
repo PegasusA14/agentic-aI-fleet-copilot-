@@ -111,6 +111,16 @@
         "label": "Disk · initech-mac-4 · 2026-06-12 08:50Z",
         "ref": "initech-003/RLD7WV7J82SH@2026-06-12T08:50:00Z#disk",
         "value": "5.1 GiB free of 256.0 GiB (2.0% free)"
+      },
+      {
+        "label": "Disk · initech-macbook-6 · 2026-06-09 09:36Z",
+        "ref": "initech-003/DARFCP0BQM2G@2026-06-09T09:36:00Z#disk",
+        "value": "29.6 GiB free of 1.0 TiB (2.9% free)"
+      },
+      {
+        "label": "Disk · initech-mac-4 · 2026-06-09 11:30Z",
+        "ref": "initech-003/RLD7WV7J82SH@2026-06-09T11:30:00Z#disk",
+        "value": "5.1 GiB free of 256.0 GiB (2.0% free)"
       }
     ],
     "explanation": null,
@@ -143,7 +153,62 @@
       "ok": 5,
       "ok_label": "healthy"
     },
-    "suggested_actions": [],
+    "suggested_actions": [
+      {
+        "action_type": "upgrade_order",
+        "device_id": "DARFCP0BQM2G",
+        "label": "Order a storage upgrade (1 TiB → 2 TiB)",
+        "reason": "initech-macbook-6: Free space below 10% on 7 of 7 readings in the last 7 days; the latest reading is 2.0% free. Current storage size is 1 TiB.",
+        "refs": [
+          "initech-003/DARFCP0BQM2G@2026-06-06T09:37:00Z#disk",
+          "initech-003/DARFCP0BQM2G@2026-06-08T10:08:00Z#disk",
+          "initech-003/DARFCP0BQM2G@2026-06-09T09:36:00Z#disk",
+          "initech-003/DARFCP0BQM2G@2026-06-10T08:38:00Z#disk",
+          "initech-003/DARFCP0BQM2G@2026-06-11T09:41:00Z#disk",
+          "initech-003/DARFCP0BQM2G@2026-06-12T10:31:00Z#disk"
+        ],
+        "request": "Order a storage upgrade for initech-macbook-6",
+        "target_label": "initech-macbook-6"
+      },
+      {
+        "action_type": "upgrade_order",
+        "device_id": "RLD7WV7J82SH",
+        "label": "Order a storage upgrade (256 GiB → 512 GiB)",
+        "reason": "initech-mac-4: Free space below 10% on 7 of 7 readings in the last 7 days; the latest reading is 2.0% free. Current storage size is 256 GiB.",
+        "refs": [
+          "initech-003/RLD7WV7J82SH@2026-06-06T10:09:00Z#disk",
+          "initech-003/RLD7WV7J82SH@2026-06-08T09:58:00Z#disk",
+          "initech-003/RLD7WV7J82SH@2026-06-09T11:30:00Z#disk",
+          "initech-003/RLD7WV7J82SH@2026-06-10T08:42:00Z#disk",
+          "initech-003/RLD7WV7J82SH@2026-06-11T10:42:00Z#disk",
+          "initech-003/RLD7WV7J82SH@2026-06-12T08:50:00Z#disk"
+        ],
+        "request": "Order a storage upgrade for initech-mac-4",
+        "target_label": "initech-mac-4"
+      },
+      {
+        "action_type": "employee_notification",
+        "device_id": "DARFCP0BQM2G",
+        "label": "Notify the employee (low disk space)",
+        "reason": "initech-macbook-6: Free space on the primary volume is 2.0% at the latest reading (2026-06-12); the rule is below 10%.",
+        "refs": [
+          "initech-003/DARFCP0BQM2G@2026-06-12T10:31:00Z#disk"
+        ],
+        "request": "Send the employee of initech-macbook-6 a notification about low disk space",
+        "target_label": "initech-macbook-6"
+      },
+      {
+        "action_type": "employee_notification",
+        "device_id": "RLD7WV7J82SH",
+        "label": "Notify the employee (low disk space)",
+        "reason": "initech-mac-4: Free space on the primary volume is 2.0% at the latest reading (2026-06-12); the rule is below 10%.",
+        "refs": [
+          "initech-003/RLD7WV7J82SH@2026-06-12T08:50:00Z#disk"
+        ],
+        "request": "Send the employee of initech-mac-4 a notification about low disk space",
+        "target_label": "initech-mac-4"
+      }
+    ],
     "summary": "Two are sustained.",
     "table": {
       "columns": [
@@ -355,7 +420,7 @@
     {
       "data": {
         "claims": 1,
-        "evidence": 18,
+        "evidence": 14,
         "outcome": "answer",
         "reason_code": null
       },

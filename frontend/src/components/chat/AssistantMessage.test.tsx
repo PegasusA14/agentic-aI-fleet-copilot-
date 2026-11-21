@@ -89,7 +89,8 @@ describe("an answer", () => {
     expect(screen.getByText("No latest reading")).toBeInTheDocument();
     expect(screen.getByText("Excluded")).toBeInTheDocument();
 
-    await user.click(screen.getByRole("button", { name: "Evidence (2)" }));
+    // The answer cites its two readings and the readings its suggested actions rest on.
+    await user.click(screen.getByRole("button", { name: `Evidence (${LOW_DISK.evidence.length})` }));
     expect(onOpenEvidence).toHaveBeenCalledWith();
     await user.click(screen.getByRole("button", { name: "Show work" }));
     expect(onOpenTrace).toHaveBeenCalledTimes(1);
@@ -119,6 +120,10 @@ describe("an answer", () => {
 
   it("opens and closes Details from the keyboard", async () => {
     const { user } = setup(LOW_DISK);
+    // The suggested actions come first in the tab order; Details follows the last of them.
+    expect(LOW_DISK.suggested_actions.length).toBeGreaterThan(0);
+    for (let i = 0; i < LOW_DISK.suggested_actions.length; i += 1) await user.tab();
+    expect(document.activeElement).toHaveClass("chip--action");
     await user.tab();
     const toggle = screen.getByRole("button", { name: "Details" });
     expect(toggle).toHaveFocus();

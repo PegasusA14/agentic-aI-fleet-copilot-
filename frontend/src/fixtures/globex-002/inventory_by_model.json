@@ -33,18 +33,18 @@
       {
         "items": [
           {
-            "device_id": "4SEFDLPTKXAM",
-            "label": "globex-macbook-3",
-            "rank": 1
-          },
-          {
             "device_id": "DXUCJ272DCYX",
             "label": "globex-macbook-1",
-            "rank": 2
+            "rank": 1
           },
           {
             "device_id": "IZ6K51CBZR8F",
             "label": "globex-macbook-2",
+            "rank": 2
+          },
+          {
+            "device_id": "4SEFDLPTKXAM",
+            "label": "globex-macbook-3",
             "rank": 3
           },
           {

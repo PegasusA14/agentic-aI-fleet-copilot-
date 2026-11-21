@@ -56,13 +56,13 @@
       {
         "items": [
           {
-            "device_id": "1LYSSFD074BB",
-            "label": "acme-macbook-2",
+            "device_id": "7VP16KHV88LM",
+            "label": "acme-macbook-1",
             "rank": 1
           },
           {
-            "device_id": "7VP16KHV88LM",
-            "label": "acme-macbook-1",
+            "device_id": "1LYSSFD074BB",
+            "label": "acme-macbook-2",
             "rank": 2
           },
           {
@@ -100,6 +100,46 @@
         "label": "OS version · acme-macbook-6 · 2026-06-12 09:52Z",
         "ref": "acme-001/XSU9UUDGU6AC@2026-06-12T09:52:00Z#os",
         "value": "macOS 14.5"
+      },
+      {
+        "label": "Compliance · acme-macbook-1 · 2026-06-12 10:41Z",
+        "ref": "acme-001/7VP16KHV88LM@2026-06-12T10:41:00Z#compliance[os_up_to_date]",
+        "value": "os_up_to_date: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · acme-macbook-1 · 2026-05-14 11:09Z",
+        "ref": "acme-001/7VP16KHV88LM@2026-05-14T11:09:00Z#compliance[os_up_to_date]",
+        "value": "os_up_to_date: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · acme-macbook-2 · 2026-06-12 09:47Z",
+        "ref": "acme-001/1LYSSFD074BB@2026-06-12T09:47:00Z#compliance[os_up_to_date]",
+        "value": "os_up_to_date: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · acme-macbook-2 · 2026-05-14 09:54Z",
+        "ref": "acme-001/1LYSSFD074BB@2026-05-14T09:54:00Z#compliance[os_up_to_date]",
+        "value": "os_up_to_date: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · acme-macbook-4 · 2026-06-12 08:39Z",
+        "ref": "acme-001/MT7PJB7N5LRE@2026-06-12T08:39:00Z#compliance[os_up_to_date]",
+        "value": "os_up_to_date: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · acme-macbook-4 · 2026-05-14 11:14Z",
+        "ref": "acme-001/MT7PJB7N5LRE@2026-05-14T11:14:00Z#compliance[os_up_to_date]",
+        "value": "os_up_to_date: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · acme-macbook-6 · 2026-06-12 09:52Z",
+        "ref": "acme-001/XSU9UUDGU6AC@2026-06-12T09:52:00Z#compliance[os_up_to_date]",
+        "value": "os_up_to_date: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · acme-macbook-6 · 2026-05-14 09:11Z",
+        "ref": "acme-001/XSU9UUDGU6AC@2026-05-14T09:11:00Z#compliance[os_up_to_date]",
+        "value": "os_up_to_date: fail (medium severity)"
       }
     ],
     "explanation": null,
@@ -138,7 +178,56 @@
       "ok": 3,
       "ok_label": "up to date"
     },
-    "suggested_actions": [],
+    "suggested_actions": [
+      {
+        "action_type": "remediation_ticket",
+        "device_id": "7VP16KHV88LM",
+        "label": "Open a remediation ticket (os_up_to_date)",
+        "reason": "acme-macbook-1: os_up_to_date reports fail with medium severity at the latest reading (2026-06-12); the first failing reading in the last 30 days is 2026-05-14.",
+        "refs": [
+          "acme-001/7VP16KHV88LM@2026-06-12T10:41:00Z#compliance[os_up_to_date]",
+          "acme-001/7VP16KHV88LM@2026-05-14T11:09:00Z#compliance[os_up_to_date]"
+        ],
+        "request": "Open a remediation ticket for os_up_to_date on acme-macbook-1",
+        "target_label": "acme-macbook-1"
+      },
+      {
+        "action_type": "remediation_ticket",
+        "device_id": "1LYSSFD074BB",
+        "label": "Open a remediation ticket (os_up_to_date)",
+        "reason": "acme-macbook-2: os_up_to_date reports fail with medium severity at the latest reading (2026-06-12); the first failing reading in the last 30 days is 2026-05-14.",
+        "refs": [
+          "acme-001/1LYSSFD074BB@2026-06-12T09:47:00Z#compliance[os_up_to_date]",
+          "acme-001/1LYSSFD074BB@2026-05-14T09:54:00Z#compliance[os_up_to_date]"
+        ],
+        "request": "Open a remediation ticket for os_up_to_date on acme-macbook-2",
+        "target_label": "acme-macbook-2"
+      },
+      {
+        "action_type": "remediation_ticket",
+        "device_id": "MT7PJB7N5LRE",
+        "label": "Open a remediation ticket (os_up_to_date)",
+        "reason": "acme-macbook-4: os_up_to_date reports fail with medium severity at the latest reading (2026-06-12); the first failing reading in the last 30 days is 2026-05-14.",
+        "refs": [
+          "acme-001/MT7PJB7N5LRE@2026-06-12T08:39:00Z#compliance[os_up_to_date]",
+          "acme-001/MT7PJB7N5LRE@2026-05-14T11:14:00Z#compliance[os_up_to_date]"
+        ],
+        "request": "Open a remediation ticket for os_up_to_date on acme-macbook-4",
+        "target_label": "acme-macbook-4"
+      },
+      {
+        "action_type": "remediation_ticket",
+        "device_id": "XSU9UUDGU6AC",
+        "label": "Open a remediation ticket (os_up_to_date)",
+        "reason": "acme-macbook-6: os_up_to_date reports fail with medium severity at the latest reading (2026-06-12); the first failing reading in the last 30 days is 2026-05-14.",
+        "refs": [
+          "acme-001/XSU9UUDGU6AC@2026-06-12T09:52:00Z#compliance[os_up_to_date]",
+          "acme-001/XSU9UUDGU6AC@2026-05-14T09:11:00Z#compliance[os_up_to_date]"
+        ],
+        "request": "Open a remediation ticket for os_up_to_date on acme-macbook-6",
+        "target_label": "acme-macbook-6"
+      }
+    ],
     "summary": "One is on 13.6 and three on 14.5.",
     "table": {
       "columns": [
@@ -372,7 +461,7 @@
     {
       "data": {
         "claims": 1,
-        "evidence": 24,
+        "evidence": 12,
         "outcome": "answer",
         "reason_code": null
       },

@@ -39,6 +39,31 @@
         "label": "Memory · initech-mac-3 · 2026-06-12 10:57Z",
         "ref": "initech-003/I3JLKILKQTAC@2026-06-12T10:57:00Z#memory",
         "value": "89.0% used (7.1 GiB of 8.0 GiB)"
+      },
+      {
+        "label": "Memory · initech-mac-3 · 2026-06-06 08:38Z",
+        "ref": "initech-003/I3JLKILKQTAC@2026-06-06T08:38:00Z#memory",
+        "value": "92.2% used (7.4 GiB of 8.0 GiB)"
+      },
+      {
+        "label": "Memory · initech-mac-3 · 2026-06-08 09:22Z",
+        "ref": "initech-003/I3JLKILKQTAC@2026-06-08T09:22:00Z#memory",
+        "value": "94.7% used (7.6 GiB of 8.0 GiB)"
+      },
+      {
+        "label": "Memory · initech-mac-3 · 2026-06-09 10:56Z",
+        "ref": "initech-003/I3JLKILKQTAC@2026-06-09T10:56:00Z#memory",
+        "value": "93.5% used (7.5 GiB of 8.0 GiB)"
+      },
+      {
+        "label": "Memory · initech-mac-3 · 2026-06-10 09:58Z",
+        "ref": "initech-003/I3JLKILKQTAC@2026-06-10T09:58:00Z#memory",
+        "value": "93.3% used (7.5 GiB of 8.0 GiB)"
+      },
+      {
+        "label": "Memory · initech-mac-3 · 2026-06-11 09:06Z",
+        "ref": "initech-003/I3JLKILKQTAC@2026-06-11T09:06:00Z#memory",
+        "value": "98.4% used (7.9 GiB of 8.0 GiB)"
       }
     ],
     "explanation": null,
@@ -75,7 +100,24 @@
       "ok": 6,
       "ok_label": "healthy"
     },
-    "suggested_actions": [],
+    "suggested_actions": [
+      {
+        "action_type": "upgrade_order",
+        "device_id": "I3JLKILKQTAC",
+        "label": "Order a memory upgrade (8 GiB → 16 GiB)",
+        "reason": "initech-mac-3: Memory use at or above 85% on 7 of 7 readings in the last 7 days; the latest reading is 89.0% used. Current memory size is 8 GiB.",
+        "refs": [
+          "initech-003/I3JLKILKQTAC@2026-06-06T08:38:00Z#memory",
+          "initech-003/I3JLKILKQTAC@2026-06-08T09:22:00Z#memory",
+          "initech-003/I3JLKILKQTAC@2026-06-09T10:56:00Z#memory",
+          "initech-003/I3JLKILKQTAC@2026-06-10T09:58:00Z#memory",
+          "initech-003/I3JLKILKQTAC@2026-06-11T09:06:00Z#memory",
+          "initech-003/I3JLKILKQTAC@2026-06-12T10:57:00Z#memory"
+        ],
+        "request": "Order a memory upgrade for initech-mac-3",
+        "target_label": "initech-mac-3"
+      }
+    ],
     "summary": "It is at 89.0% used.",
     "table": {
       "columns": [
@@ -234,7 +276,7 @@
     {
       "data": {
         "claims": 1,
-        "evidence": 8,
+        "evidence": 6,
         "outcome": "answer",
         "reason_code": null
       },

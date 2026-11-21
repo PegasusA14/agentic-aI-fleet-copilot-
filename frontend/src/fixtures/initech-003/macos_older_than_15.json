@@ -49,23 +49,23 @@
       {
         "items": [
           {
-            "device_id": "DARFCP0BQM2G",
-            "label": "initech-macbook-6",
-            "rank": 1
-          },
-          {
-            "device_id": "RLD7WV7J82SH",
-            "label": "initech-mac-4",
-            "rank": 2
-          },
-          {
             "device_id": "SPKRRDF0L786",
             "label": "initech-macbook-2",
-            "rank": 3
+            "rank": 1
           },
           {
             "device_id": "XZYK11QTPWEC",
             "label": "initech-macbook-7",
+            "rank": 2
+          },
+          {
+            "device_id": "DARFCP0BQM2G",
+            "label": "initech-macbook-6",
+            "rank": 3
+          },
+          {
+            "device_id": "RLD7WV7J82SH",
+            "label": "initech-mac-4",
             "rank": 4
           }
         ],
@@ -93,6 +93,46 @@
         "label": "OS version · initech-macbook-7 · 2026-06-12 10:36Z",
         "ref": "initech-003/XZYK11QTPWEC@2026-06-12T10:36:00Z#os",
         "value": "macOS 13.6"
+      },
+      {
+        "label": "Compliance · initech-macbook-2 · 2026-06-12 10:13Z",
+        "ref": "initech-003/SPKRRDF0L786@2026-06-12T10:13:00Z#compliance[os_up_to_date]",
+        "value": "os_up_to_date: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · initech-macbook-2 · 2026-05-14 10:23Z",
+        "ref": "initech-003/SPKRRDF0L786@2026-05-14T10:23:00Z#compliance[os_up_to_date]",
+        "value": "os_up_to_date: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · initech-macbook-7 · 2026-06-12 10:36Z",
+        "ref": "initech-003/XZYK11QTPWEC@2026-06-12T10:36:00Z#compliance[os_up_to_date]",
+        "value": "os_up_to_date: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · initech-macbook-7 · 2026-05-14 09:40Z",
+        "ref": "initech-003/XZYK11QTPWEC@2026-05-14T09:40:00Z#compliance[os_up_to_date]",
+        "value": "os_up_to_date: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · initech-macbook-6 · 2026-06-12 10:31Z",
+        "ref": "initech-003/DARFCP0BQM2G@2026-06-12T10:31:00Z#compliance[os_up_to_date]",
+        "value": "os_up_to_date: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · initech-macbook-6 · 2026-05-14 09:53Z",
+        "ref": "initech-003/DARFCP0BQM2G@2026-05-14T09:53:00Z#compliance[os_up_to_date]",
+        "value": "os_up_to_date: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · initech-mac-4 · 2026-06-12 08:50Z",
+        "ref": "initech-003/RLD7WV7J82SH@2026-06-12T08:50:00Z#compliance[os_up_to_date]",
+        "value": "os_up_to_date: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · initech-mac-4 · 2026-05-14 09:33Z",
+        "ref": "initech-003/RLD7WV7J82SH@2026-05-14T09:33:00Z#compliance[os_up_to_date]",
+        "value": "os_up_to_date: fail (medium severity)"
       }
     ],
     "explanation": null,
@@ -131,7 +171,56 @@
       "ok": 1,
       "ok_label": "up to date"
     },
-    "suggested_actions": [],
+    "suggested_actions": [
+      {
+        "action_type": "remediation_ticket",
+        "device_id": "SPKRRDF0L786",
+        "label": "Open a remediation ticket (os_up_to_date)",
+        "reason": "initech-macbook-2: os_up_to_date reports fail with medium severity at the latest reading (2026-06-12); the first failing reading in the last 30 days is 2026-05-14.",
+        "refs": [
+          "initech-003/SPKRRDF0L786@2026-06-12T10:13:00Z#compliance[os_up_to_date]",
+          "initech-003/SPKRRDF0L786@2026-05-14T10:23:00Z#compliance[os_up_to_date]"
+        ],
+        "request": "Open a remediation ticket for os_up_to_date on initech-macbook-2",
+        "target_label": "initech-macbook-2"
+      },
+      {
+        "action_type": "remediation_ticket",
+        "device_id": "XZYK11QTPWEC",
+        "label": "Open a remediation ticket (os_up_to_date)",
+        "reason": "initech-macbook-7: os_up_to_date reports fail with medium severity at the latest reading (2026-06-12); the first failing reading in the last 30 days is 2026-05-14.",
+        "refs": [
+          "initech-003/XZYK11QTPWEC@2026-06-12T10:36:00Z#compliance[os_up_to_date]",
+          "initech-003/XZYK11QTPWEC@2026-05-14T09:40:00Z#compliance[os_up_to_date]"
+        ],
+        "request": "Open a remediation ticket for os_up_to_date on initech-macbook-7",
+        "target_label": "initech-macbook-7"
+      },
+      {
+        "action_type": "remediation_ticket",
+        "device_id": "DARFCP0BQM2G",
+        "label": "Open a remediation ticket (os_up_to_date)",
+        "reason": "initech-macbook-6: os_up_to_date reports fail with medium severity at the latest reading (2026-06-12); the first failing reading in the last 30 days is 2026-05-14.",
+        "refs": [
+          "initech-003/DARFCP0BQM2G@2026-06-12T10:31:00Z#compliance[os_up_to_date]",
+          "initech-003/DARFCP0BQM2G@2026-05-14T09:53:00Z#compliance[os_up_to_date]"
+        ],
+        "request": "Open a remediation ticket for os_up_to_date on initech-macbook-6",
+        "target_label": "initech-macbook-6"
+      },
+      {
+        "action_type": "remediation_ticket",
+        "device_id": "RLD7WV7J82SH",
+        "label": "Open a remediation ticket (os_up_to_date)",
+        "reason": "initech-mac-4: os_up_to_date reports fail with medium severity at the latest reading (2026-06-12); the first failing reading in the last 30 days is 2026-05-14.",
+        "refs": [
+          "initech-003/RLD7WV7J82SH@2026-06-12T08:50:00Z#compliance[os_up_to_date]",
+          "initech-003/RLD7WV7J82SH@2026-05-14T09:33:00Z#compliance[os_up_to_date]"
+        ],
+        "request": "Open a remediation ticket for os_up_to_date on initech-mac-4",
+        "target_label": "initech-mac-4"
+      }
+    ],
     "summary": "Two are on 13.6 and two on 14.5.",
     "table": {
       "columns": [
@@ -365,7 +454,7 @@
     {
       "data": {
         "claims": 1,
-        "evidence": 24,
+        "evidence": 12,
         "outcome": "answer",
         "reason_code": null
       },

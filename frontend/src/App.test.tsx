@@ -80,10 +80,13 @@ describe("the working thread", () => {
     const user = await signInAs("Acme");
     await ask(user, "Which devices are low on disk space?");
     await user.click(await screen.findByRole("button", { name: "Details" }));
-    await user.click(await screen.findByRole("button", { name: "Evidence (2)" }));
+    // The claim cites two readings; the suggested actions add the readings they rest on.
+    const cited = getFixture("acme-001", "low_disk").envelope.evidence.length;
+    expect(cited).toBeGreaterThan(2);
+    await user.click(await screen.findByRole("button", { name: `Evidence (${cited})` }));
     const dialog = await screen.findByRole("dialog");
     const readings = within(dialog).getByRole("list", { name: "Cited readings" });
-    expect(within(readings).getAllByRole("listitem")).toHaveLength(2);
+    expect(within(readings).getAllByRole("listitem")).toHaveLength(cited);
     expect(within(readings).getByText("acme-001/MT7PJB7N5LRE@2026-06-12T08:39:00Z#disk")).toBeInTheDocument();
     await user.click(within(dialog).getByRole("tab", { name: /trace/i }));
     expect(within(dialog).getByRole("list", { name: "Steps taken" })).toBeInTheDocument();

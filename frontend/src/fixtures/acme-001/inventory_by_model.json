@@ -37,8 +37,8 @@
       {
         "items": [
           {
-            "device_id": "1LYSSFD074BB",
-            "label": "acme-macbook-2",
+            "device_id": "DLT35MHGTH2D",
+            "label": "acme-mac-5",
             "rank": 1
           },
           {
@@ -47,8 +47,8 @@
             "rank": 2
           },
           {
-            "device_id": "DLT35MHGTH2D",
-            "label": "acme-mac-5",
+            "device_id": "1LYSSFD074BB",
+            "label": "acme-macbook-2",
             "rank": 3
           },
           {
@@ -62,13 +62,13 @@
             "rank": 5
           },
           {
-            "device_id": "Q3VUITEGQ400",
-            "label": "acme-macbook-7",
+            "device_id": "XSU9UUDGU6AC",
+            "label": "acme-macbook-6",
             "rank": 6
           },
           {
-            "device_id": "XSU9UUDGU6AC",
-            "label": "acme-macbook-6",
+            "device_id": "Q3VUITEGQ400",
+            "label": "acme-macbook-7",
             "rank": 7
           }
         ],

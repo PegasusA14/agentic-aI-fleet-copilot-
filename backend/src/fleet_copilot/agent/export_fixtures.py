@@ -2,8 +2,8 @@
 
 Each fixture is the output of the real tool layer and the deterministic composer, run as one tenant
 over the real dataset: `execute()` -> `compose()` -> `Composition.to_envelope()`. Nothing is hand-written
-data. A live list answer also carries code-only `suggested_actions`, which the graph adds after the prose is
-verified; the fixtures leave them out. The trace of every real (`tools`) scenario is the trace of a real scripted `AgentService` turn, and the
+data. A live list answer also carries code-only `suggested_actions` (the next steps on its subject), which
+the graph adds after the prose is verified; the fixtures get them from the same code. The trace of every real (`tools`) scenario is the trace of a real scripted `AgentService` turn, and the
 `proposal` fixture is the whole envelope and trace of one: a scripted propose plan and `propose_action` call
 against a temporary actions database (the eligibility, parameters, evidence and wording are the real code's).
 A few outcomes cannot occur without a live model or an outage, so those are built from the same parts and
@@ -27,6 +27,7 @@ from langgraph.checkpoint.memory import InMemorySaver
 from fleet_copilot.agent import outcomes
 from fleet_copilot.agent.compose import compose
 from fleet_copilot.agent.context import AgentContext
+from fleet_copilot.agent.graph import _list_suggestions, _with_extras
 from fleet_copilot.agent.identity import DEMO_IDENTITIES, Identity
 from fleet_copilot.agent.llm import (
     Explanation,
@@ -407,6 +408,15 @@ def _build(
         trace_id=trace_id,
         company_name=ctx.company_name,
     )
+    # A live list answer carries code-only next steps on its subject, added by the graph after the prose is
+    # verified. The fixture gets them from the same code, with the same evidence.
+    extras = (
+        _list_suggestions(ctx, composition, records, repo.resolve)
+        if composition.outcome == "answer"
+        else None
+    )
+    if extras is not None:
+        envelope = _with_extras(envelope, extras) or envelope
     return envelope, records
 
 

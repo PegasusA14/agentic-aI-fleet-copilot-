@@ -37,18 +37,18 @@
       {
         "items": [
           {
-            "device_id": "7VP16KHV88LM",
-            "label": "acme-macbook-1",
-            "rank": 1
-          },
-          {
             "device_id": "8NM23J95R5I6",
             "label": "acme-thinkpad-8",
-            "rank": 2
+            "rank": 1
           },
           {
             "device_id": "M4XVHUV1MEPZ",
             "label": "acme-dell-9",
+            "rank": 2
+          },
+          {
+            "device_id": "7VP16KHV88LM",
+            "label": "acme-macbook-1",
             "rank": 3
           }
         ],
@@ -101,6 +101,66 @@
         "label": "Battery · acme-dell-9 · 2026-05-24 10:05Z",
         "ref": "acme-001/M4XVHUV1MEPZ@2026-05-24T10:05:00Z#battery",
         "value": "condition Service Recommended; 935 cycles; full-charge capacity 3357 (unit not reported)"
+      },
+      {
+        "label": "Battery · acme-thinkpad-8 · 2026-06-08 11:06Z",
+        "ref": "acme-001/8NM23J95R5I6@2026-06-08T11:06:00Z#battery",
+        "value": "condition Service Recommended; 1153 cycles; full-charge capacity 3896 (unit not reported)"
+      },
+      {
+        "label": "Battery · acme-thinkpad-8 · 2026-06-09 08:35Z",
+        "ref": "acme-001/8NM23J95R5I6@2026-06-09T08:35:00Z#battery",
+        "value": "condition Service Recommended; 1149 cycles; full-charge capacity 3890 (unit not reported)"
+      },
+      {
+        "label": "Battery · acme-thinkpad-8 · 2026-06-10 08:39Z",
+        "ref": "acme-001/8NM23J95R5I6@2026-06-10T08:39:00Z#battery",
+        "value": "condition Service Recommended; 1157 cycles; full-charge capacity 3884 (unit not reported)"
+      },
+      {
+        "label": "Battery · acme-thinkpad-8 · 2026-06-11 08:32Z",
+        "ref": "acme-001/8NM23J95R5I6@2026-06-11T08:32:00Z#battery",
+        "value": "condition Service Recommended; 1150 cycles; full-charge capacity 3878 (unit not reported)"
+      },
+      {
+        "label": "Battery · acme-dell-9 · 2026-06-08 10:51Z",
+        "ref": "acme-001/M4XVHUV1MEPZ@2026-06-08T10:51:00Z#battery",
+        "value": "condition Service Recommended; 946 cycles; full-charge capacity 3282 (unit not reported)"
+      },
+      {
+        "label": "Battery · acme-dell-9 · 2026-06-09 10:59Z",
+        "ref": "acme-001/M4XVHUV1MEPZ@2026-06-09T10:59:00Z#battery",
+        "value": "condition Service Recommended; 953 cycles; full-charge capacity 3277 (unit not reported)"
+      },
+      {
+        "label": "Battery · acme-dell-9 · 2026-06-10 10:18Z",
+        "ref": "acme-001/M4XVHUV1MEPZ@2026-06-10T10:18:00Z#battery",
+        "value": "condition Service Recommended; 959 cycles; full-charge capacity 3272 (unit not reported)"
+      },
+      {
+        "label": "Battery · acme-dell-9 · 2026-06-11 11:30Z",
+        "ref": "acme-001/M4XVHUV1MEPZ@2026-06-11T11:30:00Z#battery",
+        "value": "condition Service Recommended; 955 cycles; full-charge capacity 3267 (unit not reported)"
+      },
+      {
+        "label": "Battery · acme-macbook-1 · 2026-06-08 10:04Z",
+        "ref": "acme-001/7VP16KHV88LM@2026-06-08T10:04:00Z#battery",
+        "value": "condition Service Recommended; 1032 cycles; full-charge capacity 4191 (unit not reported)"
+      },
+      {
+        "label": "Battery · acme-macbook-1 · 2026-06-09 11:05Z",
+        "ref": "acme-001/7VP16KHV88LM@2026-06-09T11:05:00Z#battery",
+        "value": "condition Service Recommended; 1041 cycles; full-charge capacity 4185 (unit not reported)"
+      },
+      {
+        "label": "Battery · acme-macbook-1 · 2026-06-10 11:17Z",
+        "ref": "acme-001/7VP16KHV88LM@2026-06-10T11:17:00Z#battery",
+        "value": "condition Service Recommended; 1040 cycles; full-charge capacity 4179 (unit not reported)"
+      },
+      {
+        "label": "Battery · acme-macbook-1 · 2026-06-11 10:28Z",
+        "ref": "acme-001/7VP16KHV88LM@2026-06-11T10:28:00Z#battery",
+        "value": "condition Service Recommended; 1042 cycles; full-charge capacity 4172 (unit not reported)"
       }
     ],
     "explanation": null,
@@ -136,7 +196,89 @@
       "ok": 6,
       "ok_label": "with no wear signal"
     },
-    "suggested_actions": [],
+    "suggested_actions": [
+      {
+        "action_type": "replacement_flag",
+        "device_id": "8NM23J95R5I6",
+        "label": "Flag for replacement (battery service recommended)",
+        "reason": "acme-thinkpad-8: The last 21 battery readings, from 2026-05-23 to 2026-06-12, report the condition Service Recommended.",
+        "refs": [
+          "acme-001/8NM23J95R5I6@2026-05-23T09:01:00Z#battery",
+          "acme-001/8NM23J95R5I6@2026-06-08T11:06:00Z#battery",
+          "acme-001/8NM23J95R5I6@2026-06-09T08:35:00Z#battery",
+          "acme-001/8NM23J95R5I6@2026-06-10T08:39:00Z#battery",
+          "acme-001/8NM23J95R5I6@2026-06-11T08:32:00Z#battery",
+          "acme-001/8NM23J95R5I6@2026-06-12T09:02:00Z#battery"
+        ],
+        "request": "Flag acme-thinkpad-8 for replacement",
+        "target_label": "acme-thinkpad-8"
+      },
+      {
+        "action_type": "replacement_flag",
+        "device_id": "M4XVHUV1MEPZ",
+        "label": "Flag for replacement (battery service recommended)",
+        "reason": "acme-dell-9: The last 20 battery readings, from 2026-05-24 to 2026-06-12, report the condition Service Recommended.",
+        "refs": [
+          "acme-001/M4XVHUV1MEPZ@2026-05-24T10:05:00Z#battery",
+          "acme-001/M4XVHUV1MEPZ@2026-06-08T10:51:00Z#battery",
+          "acme-001/M4XVHUV1MEPZ@2026-06-09T10:59:00Z#battery",
+          "acme-001/M4XVHUV1MEPZ@2026-06-10T10:18:00Z#battery",
+          "acme-001/M4XVHUV1MEPZ@2026-06-11T11:30:00Z#battery",
+          "acme-001/M4XVHUV1MEPZ@2026-06-12T11:00:00Z#battery"
+        ],
+        "request": "Flag acme-dell-9 for replacement",
+        "target_label": "acme-dell-9"
+      },
+      {
+        "action_type": "replacement_flag",
+        "device_id": "7VP16KHV88LM",
+        "label": "Flag for replacement (battery service recommended)",
+        "reason": "acme-macbook-1: The last 14 battery readings, from 2026-05-30 to 2026-06-12, report the condition Service Recommended.",
+        "refs": [
+          "acme-001/7VP16KHV88LM@2026-05-30T09:16:00Z#battery",
+          "acme-001/7VP16KHV88LM@2026-06-08T10:04:00Z#battery",
+          "acme-001/7VP16KHV88LM@2026-06-09T11:05:00Z#battery",
+          "acme-001/7VP16KHV88LM@2026-06-10T11:17:00Z#battery",
+          "acme-001/7VP16KHV88LM@2026-06-11T10:28:00Z#battery",
+          "acme-001/7VP16KHV88LM@2026-06-12T10:41:00Z#battery"
+        ],
+        "request": "Flag acme-macbook-1 for replacement",
+        "target_label": "acme-macbook-1"
+      },
+      {
+        "action_type": "employee_notification",
+        "device_id": "8NM23J95R5I6",
+        "label": "Notify the employee (its battery service recommendation)",
+        "reason": "acme-thinkpad-8: The latest battery reading (2026-06-12) reports the condition Service Recommended.",
+        "refs": [
+          "acme-001/8NM23J95R5I6@2026-06-12T09:02:00Z#battery"
+        ],
+        "request": "Send the employee of acme-thinkpad-8 a notification about its battery service recommendation",
+        "target_label": "acme-thinkpad-8"
+      },
+      {
+        "action_type": "employee_notification",
+        "device_id": "M4XVHUV1MEPZ",
+        "label": "Notify the employee (its battery service recommendation)",
+        "reason": "acme-dell-9: The latest battery reading (2026-06-12) reports the condition Service Recommended.",
+        "refs": [
+          "acme-001/M4XVHUV1MEPZ@2026-06-12T11:00:00Z#battery"
+        ],
+        "request": "Send the employee of acme-dell-9 a notification about its battery service recommendation",
+        "target_label": "acme-dell-9"
+      },
+      {
+        "action_type": "employee_notification",
+        "device_id": "7VP16KHV88LM",
+        "label": "Notify the employee (its battery service recommendation)",
+        "reason": "acme-macbook-1: The latest battery reading (2026-06-12) reports the condition Service Recommended.",
+        "refs": [
+          "acme-001/7VP16KHV88LM@2026-06-12T10:41:00Z#battery"
+        ],
+        "request": "Send the employee of acme-macbook-1 a notification about its battery service recommendation",
+        "target_label": "acme-macbook-1"
+      }
+    ],
     "summary": "Three are down more than 1% in capacity and three have a Service Recommended flag.",
     "table": {
       "columns": [
@@ -372,7 +514,7 @@
     {
       "data": {
         "claims": 1,
-        "evidence": 35,
+        "evidence": 21,
         "outcome": "answer",
         "reason_code": null
       },

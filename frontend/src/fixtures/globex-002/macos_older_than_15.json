@@ -76,6 +76,26 @@
         "label": "OS version · globex-macbook-5 · 2026-06-12 10:04Z",
         "ref": "globex-002/QPZSXKINA7GP@2026-06-12T10:04:00Z#os",
         "value": "macOS 14.5"
+      },
+      {
+        "label": "Compliance · globex-macbook-3 · 2026-06-12 08:34Z",
+        "ref": "globex-002/4SEFDLPTKXAM@2026-06-12T08:34:00Z#compliance[os_up_to_date]",
+        "value": "os_up_to_date: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · globex-macbook-3 · 2026-05-14 11:00Z",
+        "ref": "globex-002/4SEFDLPTKXAM@2026-05-14T11:00:00Z#compliance[os_up_to_date]",
+        "value": "os_up_to_date: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · globex-macbook-5 · 2026-06-12 10:04Z",
+        "ref": "globex-002/QPZSXKINA7GP@2026-06-12T10:04:00Z#compliance[os_up_to_date]",
+        "value": "os_up_to_date: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · globex-macbook-5 · 2026-05-14 10:46Z",
+        "ref": "globex-002/QPZSXKINA7GP@2026-05-14T10:46:00Z#compliance[os_up_to_date]",
+        "value": "os_up_to_date: fail (medium severity)"
       }
     ],
     "explanation": null,
@@ -114,7 +134,32 @@
       "ok": 3,
       "ok_label": "up to date"
     },
-    "suggested_actions": [],
+    "suggested_actions": [
+      {
+        "action_type": "remediation_ticket",
+        "device_id": "4SEFDLPTKXAM",
+        "label": "Open a remediation ticket (os_up_to_date)",
+        "reason": "globex-macbook-3: os_up_to_date reports fail with medium severity at the latest reading (2026-06-12); the first failing reading in the last 30 days is 2026-05-14.",
+        "refs": [
+          "globex-002/4SEFDLPTKXAM@2026-06-12T08:34:00Z#compliance[os_up_to_date]",
+          "globex-002/4SEFDLPTKXAM@2026-05-14T11:00:00Z#compliance[os_up_to_date]"
+        ],
+        "request": "Open a remediation ticket for os_up_to_date on globex-macbook-3",
+        "target_label": "globex-macbook-3"
+      },
+      {
+        "action_type": "remediation_ticket",
+        "device_id": "QPZSXKINA7GP",
+        "label": "Open a remediation ticket (os_up_to_date)",
+        "reason": "globex-macbook-5: os_up_to_date reports fail with medium severity at the latest reading (2026-06-12); the first failing reading in the last 30 days is 2026-05-14.",
+        "refs": [
+          "globex-002/QPZSXKINA7GP@2026-06-12T10:04:00Z#compliance[os_up_to_date]",
+          "globex-002/QPZSXKINA7GP@2026-05-14T10:46:00Z#compliance[os_up_to_date]"
+        ],
+        "request": "Open a remediation ticket for os_up_to_date on globex-macbook-5",
+        "target_label": "globex-macbook-5"
+      }
+    ],
     "summary": "One is on 13.6 and one on 14.5.",
     "table": {
       "columns": [

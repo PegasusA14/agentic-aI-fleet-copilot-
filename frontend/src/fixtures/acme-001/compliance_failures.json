@@ -209,6 +209,36 @@
         "label": "Compliance · acme-macbook-4 · 2026-06-12 08:39Z",
         "ref": "acme-001/MT7PJB7N5LRE@2026-06-12T08:39:00Z#compliance[screen_lock]",
         "value": "screen_lock: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · acme-macbook-2 · 2026-05-14 09:54Z",
+        "ref": "acme-001/1LYSSFD074BB@2026-05-14T09:54:00Z#compliance[os_up_to_date]",
+        "value": "os_up_to_date: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · acme-macbook-2 · 2026-05-22 09:41Z",
+        "ref": "acme-001/1LYSSFD074BB@2026-05-22T09:41:00Z#compliance[screen_lock]",
+        "value": "screen_lock: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · acme-macbook-1 · 2026-05-14 11:09Z",
+        "ref": "acme-001/7VP16KHV88LM@2026-05-14T11:09:00Z#compliance[os_up_to_date]",
+        "value": "os_up_to_date: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · acme-thinkpad-8 · 2026-05-14 10:10Z",
+        "ref": "acme-001/8NM23J95R5I6@2026-05-14T10:10:00Z#compliance[os_up_to_date]",
+        "value": "os_up_to_date: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · acme-thinkpad-8 · 2026-05-30 08:38Z",
+        "ref": "acme-001/8NM23J95R5I6@2026-05-30T08:38:00Z#compliance[screen_lock]",
+        "value": "screen_lock: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · acme-thinkpad-10 · 2026-05-14 08:59Z",
+        "ref": "acme-001/9MXJVZ1I0DKA@2026-05-14T08:59:00Z#compliance[os_up_to_date]",
+        "value": "os_up_to_date: fail (medium severity)"
       }
     ],
     "explanation": null,
@@ -241,7 +271,80 @@
       "ok": 0,
       "ok_label": "passing"
     },
-    "suggested_actions": [],
+    "suggested_actions": [
+      {
+        "action_type": "remediation_ticket",
+        "device_id": "1LYSSFD074BB",
+        "label": "Open a remediation ticket (os_up_to_date)",
+        "reason": "acme-macbook-2: os_up_to_date reports fail with medium severity at the latest reading (2026-06-12); the first failing reading in the last 30 days is 2026-05-14.",
+        "refs": [
+          "acme-001/1LYSSFD074BB@2026-06-12T09:47:00Z#compliance[os_up_to_date]",
+          "acme-001/1LYSSFD074BB@2026-05-14T09:54:00Z#compliance[os_up_to_date]"
+        ],
+        "request": "Open a remediation ticket for os_up_to_date on acme-macbook-2",
+        "target_label": "acme-macbook-2"
+      },
+      {
+        "action_type": "remediation_ticket",
+        "device_id": "1LYSSFD074BB",
+        "label": "Open a remediation ticket (screen_lock)",
+        "reason": "acme-macbook-2: screen_lock reports fail with medium severity at the latest reading (2026-06-12); the first failing reading in the last 30 days is 2026-05-22.",
+        "refs": [
+          "acme-001/1LYSSFD074BB@2026-06-12T09:47:00Z#compliance[screen_lock]",
+          "acme-001/1LYSSFD074BB@2026-05-22T09:41:00Z#compliance[screen_lock]"
+        ],
+        "request": "Open a remediation ticket for screen_lock on acme-macbook-2",
+        "target_label": "acme-macbook-2"
+      },
+      {
+        "action_type": "remediation_ticket",
+        "device_id": "7VP16KHV88LM",
+        "label": "Open a remediation ticket (os_up_to_date)",
+        "reason": "acme-macbook-1: os_up_to_date reports fail with medium severity at the latest reading (2026-06-12); the first failing reading in the last 30 days is 2026-05-14.",
+        "refs": [
+          "acme-001/7VP16KHV88LM@2026-06-12T10:41:00Z#compliance[os_up_to_date]",
+          "acme-001/7VP16KHV88LM@2026-05-14T11:09:00Z#compliance[os_up_to_date]"
+        ],
+        "request": "Open a remediation ticket for os_up_to_date on acme-macbook-1",
+        "target_label": "acme-macbook-1"
+      },
+      {
+        "action_type": "remediation_ticket",
+        "device_id": "8NM23J95R5I6",
+        "label": "Open a remediation ticket (os_up_to_date)",
+        "reason": "acme-thinkpad-8: os_up_to_date reports fail with medium severity at the latest reading (2026-06-12); the first failing reading in the last 30 days is 2026-05-14.",
+        "refs": [
+          "acme-001/8NM23J95R5I6@2026-06-12T09:02:00Z#compliance[os_up_to_date]",
+          "acme-001/8NM23J95R5I6@2026-05-14T10:10:00Z#compliance[os_up_to_date]"
+        ],
+        "request": "Open a remediation ticket for os_up_to_date on acme-thinkpad-8",
+        "target_label": "acme-thinkpad-8"
+      },
+      {
+        "action_type": "remediation_ticket",
+        "device_id": "8NM23J95R5I6",
+        "label": "Open a remediation ticket (screen_lock)",
+        "reason": "acme-thinkpad-8: screen_lock reports fail with medium severity at the latest reading (2026-06-12); the first failing reading in the last 30 days is 2026-05-30.",
+        "refs": [
+          "acme-001/8NM23J95R5I6@2026-06-12T09:02:00Z#compliance[screen_lock]",
+          "acme-001/8NM23J95R5I6@2026-05-30T08:38:00Z#compliance[screen_lock]"
+        ],
+        "request": "Open a remediation ticket for screen_lock on acme-thinkpad-8",
+        "target_label": "acme-thinkpad-8"
+      },
+      {
+        "action_type": "remediation_ticket",
+        "device_id": "9MXJVZ1I0DKA",
+        "label": "Open a remediation ticket (os_up_to_date)",
+        "reason": "acme-thinkpad-10: os_up_to_date reports fail with medium severity at the latest reading (2026-06-12); the first failing reading in the last 30 days is 2026-05-14.",
+        "refs": [
+          "acme-001/9MXJVZ1I0DKA@2026-06-12T09:13:00Z#compliance[os_up_to_date]",
+          "acme-001/9MXJVZ1I0DKA@2026-05-14T08:59:00Z#compliance[os_up_to_date]"
+        ],
+        "request": "Open a remediation ticket for os_up_to_date on acme-thinkpad-10",
+        "target_label": "acme-thinkpad-10"
+      }
+    ],
     "summary": "Nine fail os_up_to_date and five fail screen_lock.",
     "table": {
       "columns": [
@@ -790,7 +893,7 @@
     {
       "data": {
         "claims": 2,
-        "evidence": 50,
+        "evidence": 20,
         "outcome": "answer",
         "reason_code": null
       },

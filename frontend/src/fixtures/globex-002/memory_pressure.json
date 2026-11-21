@@ -51,6 +51,31 @@
         "label": "Memory · globex-thinkpad-6 · 2026-06-12 10:47Z",
         "ref": "globex-002/CUXW0BQSV1B7@2026-06-12T10:47:00Z#memory",
         "value": "87.7% used (14.0 GiB of 16.0 GiB)"
+      },
+      {
+        "label": "Memory · globex-thinkpad-8 · 2026-06-05 11:03Z",
+        "ref": "globex-002/JRZSGXVMKE6M@2026-06-05T11:03:00Z#memory",
+        "value": "85.3% used (13.6 GiB of 16.0 GiB)"
+      },
+      {
+        "label": "Memory · globex-thinkpad-8 · 2026-06-08 10:52Z",
+        "ref": "globex-002/JRZSGXVMKE6M@2026-06-08T10:52:00Z#memory",
+        "value": "89.8% used (14.4 GiB of 16.0 GiB)"
+      },
+      {
+        "label": "Memory · globex-thinkpad-8 · 2026-06-09 11:19Z",
+        "ref": "globex-002/JRZSGXVMKE6M@2026-06-09T11:19:00Z#memory",
+        "value": "93.4% used (14.9 GiB of 16.0 GiB)"
+      },
+      {
+        "label": "Memory · globex-thinkpad-8 · 2026-06-10 09:36Z",
+        "ref": "globex-002/JRZSGXVMKE6M@2026-06-10T09:36:00Z#memory",
+        "value": "93.1% used (14.9 GiB of 16.0 GiB)"
+      },
+      {
+        "label": "Memory · globex-thinkpad-8 · 2026-06-11 10:26Z",
+        "ref": "globex-002/JRZSGXVMKE6M@2026-06-11T10:26:00Z#memory",
+        "value": "93.0% used (14.9 GiB of 16.0 GiB)"
       }
     ],
     "explanation": null,
@@ -87,7 +112,24 @@
       "ok": 6,
       "ok_label": "healthy"
     },
-    "suggested_actions": [],
+    "suggested_actions": [
+      {
+        "action_type": "upgrade_order",
+        "device_id": "JRZSGXVMKE6M",
+        "label": "Order a memory upgrade (16 GiB → 32 GiB)",
+        "reason": "globex-thinkpad-8: Memory use at or above 85% on 8 of 8 readings in the last 7 days; the latest reading is 88.8% used. Current memory size is 16 GiB.",
+        "refs": [
+          "globex-002/JRZSGXVMKE6M@2026-06-05T11:03:00Z#memory",
+          "globex-002/JRZSGXVMKE6M@2026-06-08T10:52:00Z#memory",
+          "globex-002/JRZSGXVMKE6M@2026-06-09T11:19:00Z#memory",
+          "globex-002/JRZSGXVMKE6M@2026-06-10T09:36:00Z#memory",
+          "globex-002/JRZSGXVMKE6M@2026-06-11T10:26:00Z#memory",
+          "globex-002/JRZSGXVMKE6M@2026-06-12T10:46:00Z#memory"
+        ],
+        "request": "Order a memory upgrade for globex-thinkpad-8",
+        "target_label": "globex-thinkpad-8"
+      }
+    ],
     "summary": "Both are at or above 85% used, the highest at 88.8%.",
     "table": {
       "columns": [
@@ -270,7 +312,7 @@
     {
       "data": {
         "claims": 1,
-        "evidence": 19,
+        "evidence": 7,
         "outcome": "answer",
         "reason_code": null
       },

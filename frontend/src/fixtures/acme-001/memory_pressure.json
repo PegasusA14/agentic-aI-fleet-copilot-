@@ -39,6 +39,31 @@
         "label": "Memory · acme-dell-9 · 2026-06-12 11:00Z",
         "ref": "acme-001/M4XVHUV1MEPZ@2026-06-12T11:00:00Z#memory",
         "value": "99.0% used (15.8 GiB of 16.0 GiB)"
+      },
+      {
+        "label": "Memory · acme-dell-9 · 2026-06-06 09:19Z",
+        "ref": "acme-001/M4XVHUV1MEPZ@2026-06-06T09:19:00Z#memory",
+        "value": "96.8% used (15.5 GiB of 16.0 GiB)"
+      },
+      {
+        "label": "Memory · acme-dell-9 · 2026-06-08 10:51Z",
+        "ref": "acme-001/M4XVHUV1MEPZ@2026-06-08T10:51:00Z#memory",
+        "value": "92.2% used (14.8 GiB of 16.0 GiB)"
+      },
+      {
+        "label": "Memory · acme-dell-9 · 2026-06-09 10:59Z",
+        "ref": "acme-001/M4XVHUV1MEPZ@2026-06-09T10:59:00Z#memory",
+        "value": "90.0% used (14.4 GiB of 16.0 GiB)"
+      },
+      {
+        "label": "Memory · acme-dell-9 · 2026-06-10 10:18Z",
+        "ref": "acme-001/M4XVHUV1MEPZ@2026-06-10T10:18:00Z#memory",
+        "value": "98.2% used (15.7 GiB of 16.0 GiB)"
+      },
+      {
+        "label": "Memory · acme-dell-9 · 2026-06-11 11:30Z",
+        "ref": "acme-001/M4XVHUV1MEPZ@2026-06-11T11:30:00Z#memory",
+        "value": "95.3% used (15.2 GiB of 16.0 GiB)"
       }
     ],
     "explanation": null,
@@ -75,7 +100,24 @@
       "ok": 9,
       "ok_label": "healthy"
     },
-    "suggested_actions": [],
+    "suggested_actions": [
+      {
+        "action_type": "upgrade_order",
+        "device_id": "M4XVHUV1MEPZ",
+        "label": "Order a memory upgrade (16 GiB → 32 GiB)",
+        "reason": "acme-dell-9: Memory use at or above 85% on 7 of 7 readings in the last 7 days; the latest reading is 99.0% used. Current memory size is 16 GiB.",
+        "refs": [
+          "acme-001/M4XVHUV1MEPZ@2026-06-06T09:19:00Z#memory",
+          "acme-001/M4XVHUV1MEPZ@2026-06-08T10:51:00Z#memory",
+          "acme-001/M4XVHUV1MEPZ@2026-06-09T10:59:00Z#memory",
+          "acme-001/M4XVHUV1MEPZ@2026-06-10T10:18:00Z#memory",
+          "acme-001/M4XVHUV1MEPZ@2026-06-11T11:30:00Z#memory",
+          "acme-001/M4XVHUV1MEPZ@2026-06-12T11:00:00Z#memory"
+        ],
+        "request": "Order a memory upgrade for acme-dell-9",
+        "target_label": "acme-dell-9"
+      }
+    ],
     "summary": "It is at 99.0% used.",
     "table": {
       "columns": [
@@ -234,7 +276,7 @@
     {
       "data": {
         "claims": 1,
-        "evidence": 14,
+        "evidence": 6,
         "outcome": "answer",
         "reason_code": null
       },

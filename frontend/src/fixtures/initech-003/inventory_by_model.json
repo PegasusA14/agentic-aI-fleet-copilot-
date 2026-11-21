@@ -33,23 +33,23 @@
       {
         "items": [
           {
-            "device_id": "DARFCP0BQM2G",
-            "label": "initech-macbook-6",
-            "rank": 1
-          },
-          {
             "device_id": "I3JLKILKQTAC",
             "label": "initech-mac-3",
-            "rank": 2
+            "rank": 1
           },
           {
             "device_id": "RLD7WV7J82SH",
             "label": "initech-mac-4",
-            "rank": 3
+            "rank": 2
           },
           {
             "device_id": "SPKRRDF0L786",
             "label": "initech-macbook-2",
+            "rank": 3
+          },
+          {
+            "device_id": "DARFCP0BQM2G",
+            "label": "initech-macbook-6",
             "rank": 4
           },
           {

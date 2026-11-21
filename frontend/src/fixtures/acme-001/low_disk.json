@@ -51,6 +51,56 @@
         "label": "Disk · acme-thinkpad-8 · 2026-06-12 09:02Z",
         "ref": "acme-001/8NM23J95R5I6@2026-06-12T09:02:00Z#disk",
         "value": "26.5 GiB free of 1.0 TiB (2.6% free)"
+      },
+      {
+        "label": "Disk · acme-macbook-4 · 2026-06-06 08:53Z",
+        "ref": "acme-001/MT7PJB7N5LRE@2026-06-06T08:53:00Z#disk",
+        "value": "12.0 GiB free of 512.0 GiB (2.3% free)"
+      },
+      {
+        "label": "Disk · acme-macbook-4 · 2026-06-08 10:42Z",
+        "ref": "acme-001/MT7PJB7N5LRE@2026-06-08T10:42:00Z#disk",
+        "value": "10.2 GiB free of 512.0 GiB (2.0% free)"
+      },
+      {
+        "label": "Disk · acme-macbook-4 · 2026-06-09 08:30Z",
+        "ref": "acme-001/MT7PJB7N5LRE@2026-06-09T08:30:00Z#disk",
+        "value": "10.2 GiB free of 512.0 GiB (2.0% free)"
+      },
+      {
+        "label": "Disk · acme-macbook-4 · 2026-06-10 09:13Z",
+        "ref": "acme-001/MT7PJB7N5LRE@2026-06-10T09:13:00Z#disk",
+        "value": "10.2 GiB free of 512.0 GiB (2.0% free)"
+      },
+      {
+        "label": "Disk · acme-macbook-4 · 2026-06-11 09:58Z",
+        "ref": "acme-001/MT7PJB7N5LRE@2026-06-11T09:58:00Z#disk",
+        "value": "10.2 GiB free of 512.0 GiB (2.0% free)"
+      },
+      {
+        "label": "Disk · acme-thinkpad-8 · 2026-06-06 08:49Z",
+        "ref": "acme-001/8NM23J95R5I6@2026-06-06T08:49:00Z#disk",
+        "value": "57.6 GiB free of 1.0 TiB (5.6% free)"
+      },
+      {
+        "label": "Disk · acme-thinkpad-8 · 2026-06-08 11:06Z",
+        "ref": "acme-001/8NM23J95R5I6@2026-06-08T11:06:00Z#disk",
+        "value": "47.2 GiB free of 1.0 TiB (4.6% free)"
+      },
+      {
+        "label": "Disk · acme-thinkpad-8 · 2026-06-09 08:35Z",
+        "ref": "acme-001/8NM23J95R5I6@2026-06-09T08:35:00Z#disk",
+        "value": "42.1 GiB free of 1.0 TiB (4.1% free)"
+      },
+      {
+        "label": "Disk · acme-thinkpad-8 · 2026-06-10 08:39Z",
+        "ref": "acme-001/8NM23J95R5I6@2026-06-10T08:39:00Z#disk",
+        "value": "36.9 GiB free of 1.0 TiB (3.6% free)"
+      },
+      {
+        "label": "Disk · acme-thinkpad-8 · 2026-06-11 08:32Z",
+        "ref": "acme-001/8NM23J95R5I6@2026-06-11T08:32:00Z#disk",
+        "value": "31.7 GiB free of 1.0 TiB (3.1% free)"
       }
     ],
     "explanation": null,
@@ -87,7 +137,62 @@
       "ok": 8,
       "ok_label": "healthy"
     },
-    "suggested_actions": [],
+    "suggested_actions": [
+      {
+        "action_type": "upgrade_order",
+        "device_id": "MT7PJB7N5LRE",
+        "label": "Order a storage upgrade (512 GiB → 1 TiB)",
+        "reason": "acme-macbook-4: Free space below 10% on 7 of 7 readings in the last 7 days; the latest reading is 2.0% free. Current storage size is 512 GiB.",
+        "refs": [
+          "acme-001/MT7PJB7N5LRE@2026-06-06T08:53:00Z#disk",
+          "acme-001/MT7PJB7N5LRE@2026-06-08T10:42:00Z#disk",
+          "acme-001/MT7PJB7N5LRE@2026-06-09T08:30:00Z#disk",
+          "acme-001/MT7PJB7N5LRE@2026-06-10T09:13:00Z#disk",
+          "acme-001/MT7PJB7N5LRE@2026-06-11T09:58:00Z#disk",
+          "acme-001/MT7PJB7N5LRE@2026-06-12T08:39:00Z#disk"
+        ],
+        "request": "Order a storage upgrade for acme-macbook-4",
+        "target_label": "acme-macbook-4"
+      },
+      {
+        "action_type": "upgrade_order",
+        "device_id": "8NM23J95R5I6",
+        "label": "Order a storage upgrade (1 TiB → 2 TiB)",
+        "reason": "acme-thinkpad-8: Free space below 10% on 7 of 7 readings in the last 7 days; the latest reading is 2.6% free. Current storage size is 1 TiB.",
+        "refs": [
+          "acme-001/8NM23J95R5I6@2026-06-06T08:49:00Z#disk",
+          "acme-001/8NM23J95R5I6@2026-06-08T11:06:00Z#disk",
+          "acme-001/8NM23J95R5I6@2026-06-09T08:35:00Z#disk",
+          "acme-001/8NM23J95R5I6@2026-06-10T08:39:00Z#disk",
+          "acme-001/8NM23J95R5I6@2026-06-11T08:32:00Z#disk",
+          "acme-001/8NM23J95R5I6@2026-06-12T09:02:00Z#disk"
+        ],
+        "request": "Order a storage upgrade for acme-thinkpad-8",
+        "target_label": "acme-thinkpad-8"
+      },
+      {
+        "action_type": "employee_notification",
+        "device_id": "MT7PJB7N5LRE",
+        "label": "Notify the employee (low disk space)",
+        "reason": "acme-macbook-4: Free space on the primary volume is 2.0% at the latest reading (2026-06-12); the rule is below 10%.",
+        "refs": [
+          "acme-001/MT7PJB7N5LRE@2026-06-12T08:39:00Z#disk"
+        ],
+        "request": "Send the employee of acme-macbook-4 a notification about low disk space",
+        "target_label": "acme-macbook-4"
+      },
+      {
+        "action_type": "employee_notification",
+        "device_id": "8NM23J95R5I6",
+        "label": "Notify the employee (low disk space)",
+        "reason": "acme-thinkpad-8: Free space on the primary volume is 2.6% at the latest reading (2026-06-12); the rule is below 10%.",
+        "refs": [
+          "acme-001/8NM23J95R5I6@2026-06-12T09:02:00Z#disk"
+        ],
+        "request": "Send the employee of acme-thinkpad-8 a notification about low disk space",
+        "target_label": "acme-thinkpad-8"
+      }
+    ],
     "summary": "Both are under 10% free, the lowest at 2.0%.",
     "table": {
       "columns": [
@@ -272,7 +377,7 @@
     {
       "data": {
         "claims": 1,
-        "evidence": 24,
+        "evidence": 12,
         "outcome": "answer",
         "reason_code": null
       },

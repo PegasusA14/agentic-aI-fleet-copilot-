@@ -235,3 +235,64 @@ def test_the_missing_data_fixture_is_the_fixed_refusal_with_alternatives(exporte
         assert envelope["notes"] and 3 <= len(envelope["alternatives"]) <= 4
         off_topic = load(exported, tenant, "unsupported")["envelope"]
         assert off_topic["reason_code"] == "off_topic" and off_topic["alternatives"]
+
+
+# ---- next steps on list answers ---------------------------------------------------------------------
+
+
+def _storage_step(s):
+    return (s["action_type"] == "upgrade_order" and "storage upgrade" in s["label"]) or (
+        s["action_type"] == "employee_notification" and "low disk space" in s["label"]
+    )
+
+
+_SUBJECT_STEPS = {
+    "low_disk": _storage_step,
+    "disk_trend": _storage_step,
+    "memory_pressure": lambda s: (
+        s["action_type"] == "upgrade_order" and "memory upgrade" in s["label"]
+    ),
+    "macos_older_than_15": lambda s: (
+        s["action_type"] == "remediation_ticket" and "(os_up_to_date)" in s["label"]
+    ),
+    "compliance_failures": lambda s: s["action_type"] == "remediation_ticket",
+    "battery_wear": lambda s: (
+        s["action_type"] == "replacement_flag"
+        or (s["action_type"] == "employee_notification" and "battery" in s["label"])
+    ),
+}
+
+
+@pytest.mark.parametrize("tenant", TENANTS)
+@pytest.mark.parametrize("name", sorted(_SUBJECT_STEPS))
+def test_a_list_fixture_carries_only_next_steps_on_its_subject(exported, tenant, name):
+    envelope = load(exported, tenant, name)["envelope"]
+    steps = envelope["suggested_actions"]
+    assert all(_SUBJECT_STEPS[name](s) for s in steps), [s["label"] for s in steps]
+    assert len(steps) <= 6
+    shown = {e["ref"] for e in envelope["evidence"]}
+    assert all(set(s["refs"]) <= shown for s in steps)
+    AnswerEnvelope.model_validate(envelope)
+
+
+def test_the_initech_macos_fixture_offers_os_up_to_date_tickets(exported):
+    steps = load(exported, "initech-003", "macos_older_than_15")["envelope"]["suggested_actions"]
+    assert {s["device_id"] for s in steps} == {
+        "DARFCP0BQM2G",
+        "RLD7WV7J82SH",
+        "SPKRRDF0L786",
+        "XZYK11QTPWEC",
+    }
+
+
+def test_the_acme_low_disk_fixture_offers_storage_upgrades_for_its_two_devices(exported):
+    steps = load(exported, "acme-001", "low_disk")["envelope"]["suggested_actions"]
+    assert {s["device_id"] for s in steps if s["action_type"] == "upgrade_order"} == {
+        "MT7PJB7N5LRE",
+        "8NM23J95R5I6",
+    }
+
+
+@pytest.mark.parametrize("name", ["inventory_by_model", "new_software"])
+def test_inventory_fixtures_carry_no_next_steps(exported, name):
+    assert load(exported, "acme-001", name)["envelope"]["suggested_actions"] == []

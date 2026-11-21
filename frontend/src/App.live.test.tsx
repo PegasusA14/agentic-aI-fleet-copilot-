@@ -174,7 +174,11 @@ describe("streamed chat", () => {
     expect(await screen.findByText("Reading your question…")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Order a storage upgrade/ })).toBeDisabled();
     gate.resolve(ENVELOPE);
-    await waitFor(() => expect(screen.getByRole("button", { name: /Order a storage upgrade/ })).toBeEnabled());
+    // The low-disk answer now brings its own storage upgrades; every chip, old and new, is usable again.
+    const upgrades = ENVELOPE.suggested_actions.filter((s) => s.action_type === "upgrade_order").length;
+    expect(upgrades).toBeGreaterThan(0);
+    await waitFor(() => expect(screen.getAllByRole("button", { name: /Order a storage upgrade/ })).toHaveLength(1 + upgrades));
+    for (const button of screen.getAllByRole("button", { name: /Order a storage upgrade/ })) expect(button).toBeEnabled();
   });
 
   it("keeps one conversation per session and starts a fresh one from New chat", async () => {
