@@ -150,34 +150,42 @@ Details, exit codes, the cassette key, "not recorded" semantics and re-recording
 
 ## Agent architecture
 
-```
- Browser (React console)
-    |  POST /api/chat  (session cookie; server-sent events back)
-    v
- FastAPI app  -- origin guard, session -> Identity (company, actor, role), tenant-scoped routes
-    |
-    v
- AgentService  -- one turn at a time per conversation, 120 s turn timeout, trace recorder,
-    |             checkpoint thread key = company : actor : conversation
-    v
- LangGraph (explicit StateGraph, SQLite checkpointer)
+Request path:
 
-   START -> scope -> plan
-   plan      -> respond     when the plan is clarify, refuse or unsupported (fixed text)
-             -> reference   when the plan carries a follow-up reference
-             -> act         otherwise
-   reference -> respond     when unresolved or ambiguous (or a bulk action); else -> act
-   act       -> tools       when the model asked for calls (at most 4 per round)
-             -> compose     when it asked for none, or the round limit is reached
-             -> respond     on a model failure or a provider refusal
-   tools -> collect -> act  (the loop, at most 6 rounds)
-   compose   -> respond     for denied and tool_error outcomes; else -> explain
-   explain -> verify -> respond -> END
-
-   tools = ToolNode over the 9 tools, wrapped by the retry and injection layer
-   Model gateway (plan, act, explain) -> Azure OpenAI, or cassette replay
-   Data: read-only, tenant-scoped repository. Actions: ActionService -> actions.db
+```mermaid
+flowchart LR
+    UI["Browser<br/>React console"] -- "POST /api/chat<br/>session cookie, SSE back" --> API["FastAPI<br/>origin guard, session to Identity,<br/>tenant-scoped routes"]
+    API --> SVC["AgentService<br/>one turn per conversation at a time,<br/>120 s turn timeout, trace recorder"]
+    SVC --> G["LangGraph StateGraph<br/>SQLite checkpoints keyed<br/>company : actor : conversation"]
+    G -- "plan, act, explain" --> LLM["Model gateway<br/>Azure OpenAI or cassette replay"]
+    G -- "read tools" --> REPO[("Fleet DB<br/>read-only, tenant-scoped")]
+    G -- "propose_action" --> ACT[("actions.db<br/>pending proposals")]
+    UI -- "POST /api/proposals/{id}/approve" --> API
+    API -- "human approval only" --> ACT
 ```
+
+The agent loop inside the graph:
+
+```mermaid
+flowchart TD
+    START((start)) --> scope --> plan
+    plan -- "clarify, refuse, unsupported<br/>(fixed or checked text)" --> respond
+    plan -- "follow-up reference" --> reference
+    plan -- otherwise --> act
+    reference -- "unresolved, ambiguous<br/>or a bulk action" --> respond
+    reference -- resolved --> act
+    act -- "tool calls<br/>(at most 4 per round)" --> tools
+    tools --> collect
+    collect -- "next round<br/>(at most 6)" --> act
+    act -- "no calls, or round limit" --> compose
+    act -- "model failure or<br/>provider refusal" --> respond
+    compose -- "denied, tool_error" --> respond
+    compose -- otherwise --> explain
+    explain --> verify --> respond
+    respond --> END((end))
+```
+
+`tools` is a ToolNode over the 9 tools, wrapped by the retry and device-id injection layer.
 
 Source: `backend/src/fleet_copilot/agent/graph.py`. A test (`backend/tests/test_agent_topology.py`) pins the exact
 set of nodes and edges.
