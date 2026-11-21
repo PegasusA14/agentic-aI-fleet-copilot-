@@ -129,6 +129,10 @@ def test_suites_load_in_a_stable_order_and_other_files_are_ignored(tmp_path):
             "keys",
         ),
         (lambda c: c["turns"][0].update(expect={"devices": {"devices": ["A"]}}), "source"),
+        (lambda c: c["turns"][0].update(expect={"alternatives_min": 0}), "alternatives_min"),
+        (lambda c: c["turns"][0].update(expect={"alternatives_min": 5}), "alternatives_min"),
+        (lambda c: c["turns"][0].update(expect={"alternatives_min": "2"}), "alternatives_min"),
+        (lambda c: c["turns"][0].update(expect={"alternatives_min": True}), "alternatives_min"),
         (lambda c: c["turns"][0].update(expect={"suggestions_include": []}), "suggestions_include"),
         (
             lambda c: c["turns"][0].update(expect={"suggestions_include": "A"}),
@@ -477,3 +481,10 @@ def test_a_proposal_target_reference_must_resolve_to_exactly_one_device():
     }
     with pytest.raises(GoldenRefError, match="one"):
         resolve_expect(expect, GOLDEN)
+
+
+def test_alternatives_min_is_a_valid_expect_key(tmp_path):
+    ok = case(turns=[{"say": "q", "expect": {"outcome": "unsupported", "alternatives_min": 3}}])
+    write_suite(tmp_path, cases=[ok])
+    (scenario,) = load_suites(tmp_path)
+    assert scenario.cases[0].turns[0].expect["alternatives_min"] == 3

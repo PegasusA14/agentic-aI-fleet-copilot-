@@ -122,6 +122,14 @@ def check_suggestions_include(expected: Any, envelope: AnswerEnvelope) -> Check:
     )
 
 
+def check_alternatives_min(expected: Any, envelope: AnswerEnvelope) -> Check:
+    """A refusal must offer at least this many code-written alternatives."""
+    got = len(envelope.alternatives)
+    if got >= expected:
+        return Check("alternatives_min", True, f"{got} alternatives offered (at least {expected})")
+    return Check("alternatives_min", False, f"expected at least {expected} alternatives, got {got}")
+
+
 def check_population(expected: Any, envelope: AnswerEnvelope) -> Check:
     if envelope.coverage is None:
         return Check(
@@ -278,6 +286,7 @@ _KEYS = (
     "devices_include",
     "devices_exclude",
     "suggestions_include",
+    "alternatives_min",
     "population",
     "cites_every_device",
     "no_foreign_data",
@@ -343,6 +352,8 @@ def check_turn(
             checks.append(check_devices_exclude(value, envelope))
         elif key == "suggestions_include":
             checks.append(check_suggestions_include(value, envelope))
+        elif key == "alternatives_min":
+            checks.append(check_alternatives_min(value, envelope))
         elif key == "population":
             checks.append(check_population(value, envelope))
         elif key == "proposal":

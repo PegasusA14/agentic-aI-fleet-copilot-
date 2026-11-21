@@ -170,6 +170,30 @@
             "outcome": "unsupported",
             "reason_code": "off_topic",
             "no_proposal": true,
+            "no_foreign_data": true,
+            "alternatives_min": 3
+          }
+        }
+      ]
+    },
+    {
+      "id": "missing_field_wifi",
+      "user": "admin-acme",
+      "turns": [
+        {
+          "say": [
+            "Which devices have a weak Wi-Fi signal?",
+            "show me the laptops with bad wifi",
+            "what's the network bandwidth on our machines?",
+            "Which computers keep dropping their wireless connection?",
+            "list devices by IP address and signal strength"
+          ],
+          "expect": {
+            "outcome": "unsupported",
+            "reason_code": "data_unavailable",
+            "alternatives_min": 3,
+            "devices": [],
+            "no_proposal": true,
             "no_foreign_data": true
           }
         }

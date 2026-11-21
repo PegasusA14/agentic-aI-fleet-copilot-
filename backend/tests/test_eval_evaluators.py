@@ -530,3 +530,27 @@ def test_no_effects_passes_on_an_empty_ledger_and_names_what_was_executed():
 def test_no_effects_needs_the_ledger_from_the_runner():
     with pytest.raises(ValueError, match="no_effects"):
         run({"no_effects": True}, refusal())
+
+
+# --- alternatives ------------------------------------------------------------------------------------
+
+
+def with_alternatives(count):
+    return refusal(
+        "unsupported",
+        "data_unavailable",
+        alternatives=[{"label": f"L{i}", "request": f"Ask {i}?"} for i in range(count)],
+    )
+
+
+def test_alternatives_min_passes_when_enough_alternatives_are_offered():
+    check = run({"alternatives_min": 3}, with_alternatives(3))[0]
+    assert check.name == "alternatives_min" and check.passed
+    assert "3 alternatives" in check.detail
+
+
+def test_alternatives_min_fails_readably_when_too_few_are_offered():
+    check = run({"alternatives_min": 3}, with_alternatives(1))[0]
+    assert not check.passed
+    assert "expected at least 3" in check.detail and "got 1" in check.detail
+    assert not run({"alternatives_min": 1}, refusal("unsupported", "off_topic"))[0].passed

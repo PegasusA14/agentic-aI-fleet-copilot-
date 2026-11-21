@@ -38,6 +38,7 @@ _EXPECT_KEYS = frozenset(
         "proposal_status_of_turn",
         "decisions",
         "suggestions_include",
+        "alternatives_min",
         *_BOOLEAN_KEYS,
         *_DEVICE_SET_KEYS,
     }
@@ -255,6 +256,10 @@ def _check_expect(expect: Any, *, last: bool) -> None:
             raise ScenarioError("expect.population must be a whole number or a golden reference")
     if "suggestions_include" in expect:
         _check_suggestions(expect["suggestions_include"])
+    if "alternatives_min" in expect:
+        count = expect["alternatives_min"]
+        if not isinstance(count, int) or isinstance(count, bool) or not 1 <= count <= 4:
+            raise ScenarioError("expect.alternatives_min must be a whole number from 1 to 4")
     for key in _BOOLEAN_KEYS:
         if key in expect and not isinstance(expect[key], bool):
             raise ScenarioError(f"expect.{key} must be true or false")
