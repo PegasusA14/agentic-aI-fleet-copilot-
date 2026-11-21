@@ -4,6 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { ApiError } from "../lib/api";
 import { OUTCOMES } from "../lib/outcomes";
 import type { EvidenceValue, TraceView } from "../lib/transport";
+import { formatValue, KIND_WORD } from "../lib/trace";
 import type { AnswerEnvelope, EvidenceItem, TraceEvent } from "../lib/types";
 
 export type DrawerTab = "evidence" | "trace";
@@ -29,25 +30,6 @@ interface EvidenceDrawerProps {
 }
 
 type Raw = { state: "loading" } | { state: "failed" } | { state: "ready"; value: unknown };
-
-const KIND_WORD: Record<TraceEvent["kind"], string> = {
-  scope: "Scope",
-  plan: "Plan",
-  reference: "Reference",
-  tool_call: "Tool call",
-  tool_result: "Tool result",
-  retry: "Retry",
-  compose: "Compose",
-  explain: "Explain",
-  verify: "Check",
-  respond: "Response",
-  error: "Error",
-};
-
-function formatValue(value: unknown): string {
-  if (value !== null && typeof value === "object") return JSON.stringify(value);
-  return String(value);
-}
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);

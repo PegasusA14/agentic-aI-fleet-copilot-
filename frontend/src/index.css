@@ -1106,6 +1106,155 @@ a.rail__new .pill__count {
   margin-left: auto;
 }
 
+/* The audit trail: one list, on the tenant's Audit view and in the operator console */
+
+.audit-view {
+  width: min(960px, 100%);
+  padding: 8px 0 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.filters {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 12px 14px;
+}
+
+.filters__field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  color: var(--ink-2);
+}
+
+.filters__input {
+  width: 200px;
+  height: 38px;
+  padding: 0 14px;
+  border-radius: 999px;
+  border: 1px solid var(--line-strong);
+  background: var(--paper);
+  font-size: 0.9375rem;
+  color: var(--ink);
+}
+
+.filters__input:focus-visible {
+  border-color: var(--focus);
+}
+
+.filters__actions {
+  display: flex;
+  gap: 8px;
+}
+
+.link-btn:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+.audit {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  border: 1px solid var(--line);
+  border-radius: var(--r-card);
+  background: var(--paper);
+  box-shadow: var(--shadow-sheet);
+}
+
+.audit__row {
+  display: grid;
+  grid-template-columns: 11.5rem minmax(0, 1.3fr) minmax(0, 1fr) minmax(0, 1.1fr);
+  align-items: center;
+  gap: 8px 16px;
+  padding: 14px 18px;
+}
+
+.audit__row + .audit__row {
+  border-top: 1px solid var(--line);
+}
+
+.audit__time {
+  color: var(--ink-2);
+  font-variant-numeric: tabular-nums;
+}
+
+.audit__what {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px 10px;
+}
+
+.audit__reason {
+  font-size: 0.875rem;
+  color: var(--ink-2);
+}
+
+.audit__subject,
+.audit__who {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font-size: 0.9375rem;
+}
+
+.audit__action {
+  font-weight: 600;
+}
+
+.audit__links {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px 10px;
+}
+
+.audit__none {
+  font-size: 0.8125rem;
+  color: var(--ink-2);
+}
+
+.audit__id {
+  height: 28px;
+  padding: 0 10px;
+  border-radius: 8px;
+  border: 1px solid var(--line);
+  background: var(--ground);
+  max-width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  transition: background 160ms var(--ease-out), border-color 160ms var(--ease-out);
+}
+
+.audit__id:hover {
+  background: var(--paper);
+  border-color: var(--line-strong);
+}
+
+.audit__refs {
+  height: 30px;
+}
+
+@media (max-width: 760px) {
+  .audit__row {
+    grid-template-columns: minmax(0, 1fr);
+  }
+  .audit__links {
+    justify-content: flex-start;
+  }
+}
+
 /* ---------------------------------------------------------------- drawer */
 
 .overlay {

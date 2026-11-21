@@ -1,4 +1,4 @@
-import { ClipboardCheck, SquarePen } from "lucide-react";
+import { ClipboardCheck, ScrollText, SquarePen } from "lucide-react";
 
 interface RailProps {
   turns: { id: string; question: string }[];
@@ -23,6 +23,10 @@ export function Rail({ turns, onNew, pending = null }: RailProps) {
             <span className="sr-only"> pending</span>
           </span>
         ) : null}
+      </a>
+      <a className="rail__new" href="#/audit">
+        <ScrollText size={16} aria-hidden="true" />
+        Audit
       </a>
       <p className="rail__label">This session</p>
       <ol className="rail__list">

@@ -1,6 +1,7 @@
 import { MotionConfig, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ApprovalsView } from "./components/ApprovalsView";
+import { AuditView } from "./components/AuditView";
 import { Aurora } from "./components/Aurora";
 import { Composer } from "./components/Composer";
 import { EvidenceDrawer, type DrawerTab } from "./components/EvidenceDrawer";
@@ -18,6 +19,7 @@ import { parseRef } from "./lib/format";
 const DOCK = { duration: 0.9, ease: [0.16, 1, 0.3, 1] as const };
 const OBSERVE_HASH = "#/observe";
 const APPROVALS_HASH = "#/approvals";
+const AUDIT_HASH = "#/audit";
 const SESSION_ENDED = "Your session ended. Sign in again.";
 const DATASET_UNAVAILABLE = "The dataset is not available. Run make load-data, then try again.";
 
@@ -42,7 +44,7 @@ function fixtureNote(envelope: AnswerEnvelope): string | undefined {
 
 /** Signing out leaves no view behind: a route hash from this session must not carry to the next one. */
 function clearRouteHash() {
-  if (window.location.hash === OBSERVE_HASH || window.location.hash === APPROVALS_HASH) {
+  if ([OBSERVE_HASH, APPROVALS_HASH, AUDIT_HASH].includes(window.location.hash)) {
     window.history.replaceState(null, "", window.location.pathname + window.location.search);
   }
 }
@@ -248,6 +250,8 @@ export default function App({ transport: given }: AppProps) {
     return drawer.refs.map((ref) => readingFor(ref, known));
   }, [turns, drawer]);
   const onApprovals = hash === APPROVALS_HASH;
+  const onAudit = hash === AUDIT_HASH;
+  const onSubview = onApprovals || onAudit;
   const openProposalEvidence = useCallback(
     (refs: string[], subject: string) => setDrawer({ turnId: "", tab: "evidence", refs, proposal: { subject } }),
     [],
@@ -305,7 +309,7 @@ export default function App({ transport: given }: AppProps) {
   return (
     <MotionConfig reducedMotion="user">
       <Aurora docked={docked} streaming={running} />
-      <div className="app" data-rail={docked && !onApprovals}>
+      <div className="app" data-rail={docked && !onSubview}>
         <TopBar
           companyName={tenantName(session.company_id)}
           asOf={asOf}
@@ -314,8 +318,9 @@ export default function App({ transport: given }: AppProps) {
           onNewConversation={resetConversation}
           newConversationDisabled={!docked}
           approvals={{ pending, active: onApprovals }}
+          audit={{ active: onAudit }}
         />
-        {docked && !onApprovals ? <Rail turns={turns} onNew={resetConversation} pending={pending} /> : null}
+        {docked && !onSubview ? <Rail turns={turns} onNew={resetConversation} pending={pending} /> : null}
         {onApprovals ? (
           <main className="stage" data-view="approvals">
             <ApprovalsView
@@ -324,6 +329,10 @@ export default function App({ transport: given }: AppProps) {
               onDecided={refreshPending}
               onSessionEnded={sessionEnded}
             />
+          </main>
+        ) : onAudit ? (
+          <main className="stage" data-view="approvals">
+            <AuditView transport={transport} onOpenEvidence={openProposalEvidence} onSessionEnded={sessionEnded} />
           </main>
         ) : (
         <main className="stage" data-view={docked ? "thread" : "home"}>

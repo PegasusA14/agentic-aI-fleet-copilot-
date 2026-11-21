@@ -1,4 +1,4 @@
-import { Building2, ClipboardCheck, Eye, LogOut, SquarePen } from "lucide-react";
+import { Building2, ClipboardCheck, Eye, LogOut, ScrollText, SquarePen } from "lucide-react";
 import { formatAsOf } from "../lib/format";
 
 interface TopBarProps {
@@ -14,6 +14,8 @@ interface TopBarProps {
   newConversationDisabled?: boolean;
   /** An admin's entry to the approvals view: `pending` is null until the count is known. */
   approvals?: { pending: number | null; active: boolean };
+  /** An admin's entry to the audit trail. */
+  audit?: { active: boolean };
 }
 
 export function TopBar({
@@ -25,6 +27,7 @@ export function TopBar({
   onNewConversation,
   newConversationDisabled = false,
   approvals,
+  audit,
 }: TopBarProps) {
   return (
     <header className="topbar">
@@ -83,6 +86,14 @@ export function TopBar({
                 {approvals.pending}
               </span>
             ) : null}
+          </a>
+        ) : null}
+        {audit ? (
+          <a className="pill" href="#/audit" aria-current={audit.active ? "page" : undefined} aria-label="Audit">
+            <ScrollText size={16} aria-hidden="true" />
+            <span className="pill--hide-sm" aria-hidden="true">
+              Audit
+            </span>
           </a>
         ) : null}
         {onNewConversation ? (
