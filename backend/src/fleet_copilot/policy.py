@@ -36,7 +36,8 @@ MODEL_BACKOFF_S = (1.0, 3.0)  # pause before the 2nd and 3rd attempt
 MAX_QUESTION_CHARS = 2000  # longest question a turn accepts
 MAX_HISTORY_TURNS = 6  # earlier turns the planner may see
 MAX_HEADLINE_CHARS = 160  # longest model-written headline that passes verification
-MAX_EXPLANATION_CHARS = 600  # longest model-written explanation that passes verification
+MAX_EXPLANATION_CHARS = 900  # longest model-written explanation that passes verification
+MAX_SUGGESTIONS = 6  # suggested actions one advise reply offers
 
 
 def disclosure() -> dict[str, float | int]:

@@ -152,6 +152,21 @@ class ProposalCard(_Model):
     payload_hash: str
 
 
+class SuggestedAction(_Model):
+    """One action the agent recommends. It is advice only: acting is a separate, approved proposal.
+
+    `request` is the natural-language message the UI sends when the user picks the suggestion.
+    """
+
+    action_type: ActionType
+    device_id: str = Field(min_length=1)
+    target_label: str = Field(min_length=1)
+    label: str = Field(min_length=1)
+    reason: str = Field(min_length=1)
+    request: str = Field(min_length=1)
+    refs: list[str] = Field(min_length=1)
+
+
 class AnswerEnvelope(_Model):
     """The only shape the agent returns. The UI maps it to fixed components; the LLM never emits markup."""
 
@@ -166,6 +181,7 @@ class AnswerEnvelope(_Model):
     notes: list[str] = Field(default_factory=list)
     coverage: Coverage | None = None
     entity_lists: list[EntityList] = Field(default_factory=list)
+    suggested_actions: list[SuggestedAction] = Field(default_factory=list)
     reason_code: ReasonCode | None = None
     explanation: str | None = None
 
@@ -180,7 +196,7 @@ class AnswerEnvelope(_Model):
         if self.outcome != "proposal" and self.proposal is not None:
             raise ValueError("only a proposal outcome may carry a proposal")
         if self.outcome in ("denied", "unsupported", "tool_error") and (
-            self.claims or self.evidence
+            self.claims or self.evidence or self.suggested_actions
         ):
             raise ValueError(f"{self.outcome} outcome must not carry claims or evidence")
         if self.outcome == "answer" and not self.claims:
@@ -195,11 +211,18 @@ class AnswerEnvelope(_Model):
         if self.proposal is not None:
             for ref in self.proposal.evidence_refs:
                 self._check_ref(ref)
+        for suggestion in self.suggested_actions:
+            for ref in suggestion.refs:
+                self._check_ref(ref)
         known = {item.ref for item in self.evidence}
         for claim in self.claims:
             missing = [r for r in claim.refs if r not in known]
             if missing:
                 raise ValueError(f"claim cites refs without evidence: {missing}")
+        for suggestion in self.suggested_actions:
+            missing = [r for r in suggestion.refs if r not in known]
+            if missing:
+                raise ValueError(f"suggested action cites refs without evidence: {missing}")
         if self.proposal is not None:
             if self.proposal.company_id != self.scope.company_id:
                 raise ValueError("proposal company_id must match scope company_id")

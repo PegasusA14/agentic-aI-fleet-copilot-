@@ -64,6 +64,17 @@ export type Calculation = string | null;
 export type CompanyId1 = string;
 export type Population1 = number | null;
 export type Rule = string | null;
+export type ActionType1 = "remediation_ticket" | "replacement_flag" | "upgrade_order" | "employee_notification";
+export type DeviceId1 = string;
+export type Label2 = string;
+export type Reason = string;
+/**
+ * @minItems 1
+ */
+export type Refs1 = [string, ...string[]];
+export type Request = string;
+export type TargetLabel1 = string;
+export type SuggestedActions = SuggestedAction[];
 export type TraceId = string;
 
 /**
@@ -82,6 +93,7 @@ export interface AnswerEnvelope {
   proposal: ProposalCard | null;
   reason_code: ReasonCode;
   scope: ScopeInfo;
+  suggested_actions: SuggestedActions;
   trace_id: TraceId;
 }
 export interface Claim {
@@ -146,4 +158,18 @@ export interface ScopeInfo {
   company_id: CompanyId1;
   population: Population1;
   rule: Rule;
+}
+/**
+ * One action the agent recommends. It is advice only: acting is a separate, approved proposal.
+ *
+ * `request` is the natural-language message the UI sends when the user picks the suggestion.
+ */
+export interface SuggestedAction {
+  action_type: ActionType1;
+  device_id: DeviceId1;
+  label: Label2;
+  reason: Reason;
+  refs: Refs1;
+  request: Request;
+  target_label: TargetLabel1;
 }

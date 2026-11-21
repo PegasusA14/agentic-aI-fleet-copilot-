@@ -19,6 +19,7 @@ from fleet_copilot.contracts import (
     ExcludedReason,
     ProposalCard,
     ScopeInfo,
+    SuggestedAction,
     TraceEvent,
     TraceKind,
 )
@@ -456,6 +457,7 @@ def test_schema_files_are_per_model_required_complete_and_committed():
         "evidence",
         "notes",
         "entity_lists",
+        "suggested_actions",
         "coverage",
         "reason_code",
         "explanation",
@@ -550,3 +552,84 @@ def test_action_refusal_reasons_are_valid_only_on_denied(reason):
     assert denied.reason_code == reason and denied.notes == ["why"]
     with pytest.raises(ValidationError, match="must not carry a reason_code"):
         envelope(reason_code=reason)
+
+
+# ---- Plan 7: suggested actions ----------------------------------------------------------------------
+
+
+def suggestion(**overrides):
+    base = {
+        "action_type": "upgrade_order",
+        "device_id": "MT7PJB7N5LRE",
+        "target_label": "acme-thinkpad-8",
+        "label": "Order a storage upgrade (512 GiB -> 1 TiB)",
+        "reason": "Free disk stayed below 10% for 7 days",
+        "request": "Order a storage upgrade for acme-thinkpad-8",
+        "refs": [REF],
+    }
+    return SuggestedAction(**{**base, **overrides})
+
+
+def test_suggested_actions_default_to_none():
+    assert envelope().suggested_actions == []
+
+
+def test_a_grounded_suggested_action_validates():
+    ok = envelope(suggested_actions=[suggestion()])
+    assert ok.suggested_actions[0].request == "Order a storage upgrade for acme-thinkpad-8"
+    assert ok.model_dump()["suggested_actions"][0]["refs"] == [REF]
+
+
+def test_a_suggestion_must_cite_at_least_one_ref():
+    with pytest.raises(ValidationError, match="at least 1 item"):
+        suggestion(refs=[])
+
+
+def test_a_suggestion_citing_unlisted_evidence_is_rejected():
+    other = "acme-001/MT7PJB7N5LRE@2026-06-11T08:39:00Z#disk"
+    with pytest.raises(ValidationError, match="suggested action cites refs without evidence"):
+        envelope(suggested_actions=[suggestion(refs=[REF, other])])
+    with pytest.raises(ValidationError, match="suggested action cites refs without evidence"):
+        envelope(
+            evidence=[],
+            claims=[],
+            outcome="no_match",
+            reason_code="no_matching_records",
+            suggested_actions=[suggestion()],
+        )
+
+
+def test_a_suggestion_citing_another_companys_ref_is_rejected():
+    both = [EvidenceItem(ref=r, label="disk", value="v") for r in (REF, FOREIGN_REF)]
+    with pytest.raises(ValidationError, match="belongs to another company"):
+        envelope(evidence=both, suggested_actions=[suggestion(refs=[FOREIGN_REF])])
+    # not listed as evidence: the tenant is what is refused, not just the missing evidence
+    with pytest.raises(ValidationError, match="belongs to another company"):
+        envelope(suggested_actions=[suggestion(refs=[FOREIGN_REF])])
+
+
+def test_a_malformed_suggestion_ref_is_rejected():
+    with pytest.raises(ValidationError, match=re.escape("evidence ref 'junk' is malformed")):
+        envelope(suggested_actions=[suggestion(refs=["junk"])])
+
+
+def test_a_suggestion_names_one_of_the_four_actions_and_forbids_unknown_fields():
+    with pytest.raises(ValidationError):
+        suggestion(action_type="reboot_device")
+    with pytest.raises(ValidationError):
+        SuggestedAction(**{**suggestion().model_dump(), "surprise": 1})
+    for action in get_args(ActionType):
+        assert suggestion(action_type=action).action_type == action
+
+
+@pytest.mark.parametrize("outcome", ["denied", "unsupported", "tool_error"])
+def test_refusal_outcomes_carry_no_suggestions(outcome):
+    reason = {"denied": "not_found", "unsupported": "off_topic", "tool_error": "tool_failure"}
+    with pytest.raises(ValidationError, match="must not carry claims or evidence"):
+        envelope(
+            outcome=outcome,
+            claims=[],
+            evidence=[],
+            reason_code=reason[outcome],
+            suggested_actions=[suggestion()],
+        )

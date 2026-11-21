@@ -345,6 +345,66 @@
       ],
       "title": "ScopeInfo",
       "type": "object"
+    },
+    "SuggestedAction": {
+      "additionalProperties": false,
+      "description": "One action the agent recommends. It is advice only: acting is a separate, approved proposal.\n\n`request` is the natural-language message the UI sends when the user picks the suggestion.",
+      "properties": {
+        "action_type": {
+          "enum": [
+            "remediation_ticket",
+            "replacement_flag",
+            "upgrade_order",
+            "employee_notification"
+          ],
+          "title": "Action Type",
+          "type": "string"
+        },
+        "device_id": {
+          "minLength": 1,
+          "title": "Device Id",
+          "type": "string"
+        },
+        "label": {
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "reason": {
+          "minLength": 1,
+          "title": "Reason",
+          "type": "string"
+        },
+        "refs": {
+          "items": {
+            "type": "string"
+          },
+          "minItems": 1,
+          "title": "Refs",
+          "type": "array"
+        },
+        "request": {
+          "minLength": 1,
+          "title": "Request",
+          "type": "string"
+        },
+        "target_label": {
+          "minLength": 1,
+          "title": "Target Label",
+          "type": "string"
+        }
+      },
+      "required": [
+        "action_type",
+        "device_id",
+        "target_label",
+        "label",
+        "reason",
+        "request",
+        "refs"
+      ],
+      "title": "SuggestedAction",
+      "type": "object"
     }
   },
   "additionalProperties": false,
@@ -468,6 +528,13 @@
     "scope": {
       "$ref": "#/$defs/ScopeInfo"
     },
+    "suggested_actions": {
+      "items": {
+        "$ref": "#/$defs/SuggestedAction"
+      },
+      "title": "Suggested Actions",
+      "type": "array"
+    },
     "trace_id": {
       "minLength": 1,
       "title": "Trace Id",
@@ -486,6 +553,7 @@
     "notes",
     "coverage",
     "entity_lists",
+    "suggested_actions",
     "reason_code",
     "explanation"
   ],

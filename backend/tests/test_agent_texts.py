@@ -13,6 +13,8 @@ def test_fixed_texts_exist_and_are_plain():
         "WHICH_LIST",
         "DEFAULT_CLARIFICATION",
         "CLARIFICATION_HEADLINE",
+        "NO_SUGGESTIONS",
+        "ADVISE_NEEDS_DEVICES",
     ):
         value = getattr(texts, name)
         assert value.strip() and "<" not in value and ">" not in value
@@ -46,3 +48,10 @@ def test_unsupported_action_names_what_is_supported():
     for phrase in ("one device at a time", "ticket", "replacement", "upgrade", "notification"):
         assert phrase in text
     assert "review screen" in text and "isn't available yet" not in text
+
+
+def test_advise_texts_are_exact():
+    assert (
+        texts.NO_SUGGESTIONS == "None of these devices supports one of the four actions right now."
+    )
+    assert texts.ADVISE_NEEDS_DEVICES == "Which devices do you want recommendations for?"

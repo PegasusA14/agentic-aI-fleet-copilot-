@@ -43,13 +43,38 @@ class Plan(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    intent: Literal["answer", "clarify", "refuse", "unsupported", "propose"]
+    intent: Literal["answer", "clarify", "refuse", "unsupported", "propose", "advise"]
     summary: str = Field(max_length=300)
     window_days: int | None = Field(default=None, ge=1, le=policy.MAX_WINDOW_DAYS)
     reference: Reference | None = None
     clarification_question: str | None = Field(default=None, max_length=300)
     clarification_options: list[ShortText] = Field(default_factory=list, max_length=6)
     refusal_reason: RefusalReason | None = None
+
+    @model_validator(mode="before")
+    @classmethod
+    def _repair_recoverable_shapes(cls, data: object) -> object:
+        """Repair plan shapes a model gets slightly wrong so they are not a tool_error.
+
+        A refusal that names no reason gets the safe default for its intent; a clarify plan
+        with a blank question keeps its intent and the question stays unset (the graph then
+        asks the default clarification). Anything else is left for normal validation.
+        """
+        if not isinstance(data, dict):
+            return data
+        repaired = dict(data)
+        intent = repaired.get("intent")
+        reason = repaired.get("refusal_reason")
+        if isinstance(reason, str) and not reason.strip():
+            reason = None
+        if intent == "unsupported" and reason is None:
+            repaired["refusal_reason"] = "unsupported_action"
+        elif intent == "refuse" and reason is None:
+            repaired["refusal_reason"] = "prompt_injection"
+        question = repaired.get("clarification_question")
+        if intent == "clarify" and (question is None or not str(question).strip()):
+            repaired["clarification_question"] = None
+        return repaired
 
     @field_validator("clarification_options", mode="before")
     @classmethod
@@ -59,8 +84,6 @@ class Plan(BaseModel):
 
     @model_validator(mode="after")
     def _consistent(self) -> Plan:
-        if self.intent == "clarify" and not self.clarification_question:
-            raise ValueError("a clarify plan needs a clarification_question")
         if self.intent == "refuse" and self.refusal_reason not in (
             "cross_tenant",
             "prompt_injection",
@@ -73,7 +96,10 @@ class Plan(BaseModel):
             raise ValueError(
                 "an unsupported plan needs refusal_reason off_topic or unsupported_action"
             )
-        if self.intent in ("answer", "clarify", "propose") and self.refusal_reason is not None:
+        if (
+            self.intent in ("answer", "clarify", "propose", "advise")
+            and self.refusal_reason is not None
+        ):
             raise ValueError("refusal_reason is only valid for refuse or unsupported plans")
         return self
 

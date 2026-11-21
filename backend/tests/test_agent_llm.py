@@ -23,10 +23,8 @@ def test_a_plain_answer_plan_is_valid():
 @pytest.mark.parametrize(
     ("kwargs", "message"),
     [
-        ({"intent": "clarify"}, "needs a clarification_question"),
-        ({"intent": "refuse"}, "cross_tenant or prompt_injection"),
         ({"intent": "refuse", "refusal_reason": "off_topic"}, "cross_tenant or prompt_injection"),
-        ({"intent": "unsupported"}, "off_topic or unsupported_action"),
+        ({"intent": "advise", "refusal_reason": "off_topic"}, "refusal_reason is only valid"),
         ({"intent": "propose", "refusal_reason": "off_topic"}, "refusal_reason is only valid"),
         (
             {"intent": "unsupported", "refusal_reason": "cross_tenant"},
@@ -49,6 +47,58 @@ def test_a_plain_answer_plan_is_valid():
 def test_plans_with_inconsistent_intent_and_reason_are_rejected(kwargs, message):
     with pytest.raises(ValidationError, match=message):
         Plan(summary="s", **kwargs)
+
+
+def test_an_advise_plan_is_valid_and_carries_references_like_an_answer():
+    plan = Plan(intent="advise", summary="Recommend next steps for the listed devices")
+    assert plan.intent == "advise" and plan.refusal_reason is None
+    named = Plan(
+        intent="advise",
+        summary="s",
+        reference=Reference(kind="named", device_ref="acme-thinkpad-8"),
+    )
+    assert named.reference is not None and named.reference.kind == "named"
+
+
+def test_a_plan_missing_its_refusal_reason_is_repaired_not_rejected():
+    assert Plan(intent="unsupported", summary="s").refusal_reason == "unsupported_action"
+    assert Plan(intent="refuse", summary="s").refusal_reason == "prompt_injection"
+    assert Plan(intent="unsupported", summary="s", refusal_reason=None).refusal_reason == (
+        "unsupported_action"
+    )
+
+
+def test_a_blank_refusal_reason_is_read_as_missing():
+    assert Plan(intent="unsupported", summary="s", refusal_reason="").refusal_reason == (
+        "unsupported_action"
+    )
+    assert Plan(intent="refuse", summary="s", refusal_reason="  ").refusal_reason == (
+        "prompt_injection"
+    )
+
+
+def test_a_clarify_plan_without_a_question_keeps_its_intent_and_leaves_the_question_unset():
+    for question in (None, "", "   "):
+        plan = Plan(intent="clarify", summary="s", clarification_question=question)
+        assert plan.intent == "clarify" and plan.clarification_question is None
+    assert Plan(intent="clarify", summary="s").clarification_question is None
+
+
+def test_repair_leaves_a_valid_plan_untouched():
+    plan = Plan(
+        intent="refuse", summary="s", refusal_reason="cross_tenant", clarification_question="Q?"
+    )
+    assert plan.refusal_reason == "cross_tenant" and plan.clarification_question == "Q?"
+
+
+def test_repair_does_not_invent_a_refusal_for_a_non_refusal_intent():
+    for intent in ("answer", "propose", "advise"):
+        assert Plan(intent=intent, summary="s").refusal_reason is None
+
+
+def test_non_mapping_plan_input_is_still_rejected():
+    with pytest.raises(ValidationError):
+        Plan.model_validate("not a plan")
 
 
 def test_every_valid_refusal_pairing_is_accepted():

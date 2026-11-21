@@ -43,6 +43,8 @@ NEED_REFERENCE = "I don't have a previous list to refer to. Which devices do you
 WHICH_LIST = "Which list do you mean?"
 DEFAULT_CLARIFICATION = "I need one more detail to answer that. What would you like me to look at?"
 CLARIFICATION_HEADLINE = "I need one detail to answer that"
+NO_SUGGESTIONS = "None of these devices supports one of the four actions right now."
+ADVISE_NEEDS_DEVICES = "Which devices do you want recommendations for?"
 
 
 def entry_out_of_range(n: int) -> str:
