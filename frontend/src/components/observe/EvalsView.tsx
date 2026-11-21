@@ -23,20 +23,25 @@ interface EvalsViewProps {
   onSessionEnded: () => void;
 }
 
+/** The state's own shape: tick, alert octagon, hollow ring. Shape differs per state, so it never relies on colour. */
+function EvalIcon({ state }: { state: EvalState }) {
+  if (state === "passed") return <Check size={16} strokeWidth={2.6} aria-hidden="true" />;
+  if (state === "failed") {
+    return <OctagonAlert size={16} strokeWidth={2.4} fill="currentColor" fillOpacity={0.16} aria-hidden="true" />;
+  }
+  return (
+    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
+      <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="2" />
+    </svg>
+  );
+}
+
 /** Mark plus word. "Not recorded" has a hollow mark of its own so it never reads as a failure. */
 function EvalMark({ state, word }: { state: EvalState; word?: string }) {
   const style = EVAL_STATE[state];
   return (
     <span className="mark" data-tone={style.tone} data-state={state}>
-      {state === "passed" ? (
-        <Check size={16} strokeWidth={2.6} aria-hidden="true" />
-      ) : state === "failed" ? (
-        <OctagonAlert size={16} strokeWidth={2.4} fill="currentColor" fillOpacity={0.16} aria-hidden="true" />
-      ) : (
-        <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-          <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="2" />
-        </svg>
-      )}
+      <EvalIcon state={state} />
       <span>{word ?? style.word}</span>
     </span>
   );
@@ -48,6 +53,26 @@ function TallyCell({ tally }: { tally: EvalTally | undefined }) {
     <td>
       <span className="evals__tally">
         <EvalMark state={tallyState(tally)} />
+        <span className="evals__count">
+          {tally.passed}/{tally.total}
+        </span>
+      </span>
+    </td>
+  );
+}
+
+/** A suite's result in the narrow runs table: the state mark and passed/total, spelled out in the name and title. */
+function SuiteCell({ suite, tally }: { suite: string; tally: EvalTally | undefined }) {
+  if (!tally) return <td>—</td>;
+  const state = tallyState(tally);
+  const style = EVAL_STATE[state];
+  const name = `${suiteLabel(suite)}: ${style.word.toLowerCase()}, ${tally.passed} of ${tally.total}`;
+  return (
+    <td>
+      <span className="evals__tally" role="img" aria-label={name} title={name}>
+        <span className="mark evals__glyph" data-tone={style.tone} data-state={state}>
+          <EvalIcon state={state} />
+        </span>
         <span className="evals__count">
           {tally.passed}/{tally.total}
         </span>
@@ -72,7 +97,7 @@ function CaseRow({ c, open, onTrace }: { c: EvalCase; open: string | null; onTra
   return (
     <tr>
       <td>{suiteLabel(c.suite)}</td>
-      <td className="obs__wrap">
+      <td className="obs__wrap evals__case">
         <span className="mono">{c.case_id}</span>
         {c.questions.map((question) => (
           <span key={question} className="evals__question">
@@ -138,6 +163,7 @@ function RunCases({
 }) {
   const { load, retry } = useLoad(() => transport.observeEval(runId), [transport, runId, nonce], onSessionEnded);
   const [trace, setTrace] = useState<string | null>(null);
+  const [failingOnly, setFailingOnly] = useState(false);
 
   if (load.state === "loading") {
     return (
@@ -161,33 +187,49 @@ function RunCases({
   if (load.data.cases.length === 0) {
     return <p className="approvals__empty">This run stored no cases.</p>;
   }
+  const all = load.data.cases;
+  // A case that was not recorded is not a pass, so it stays when only failures are wanted.
+  const shown = failingOnly ? all.filter((c) => !c.passed) : all;
   return (
     <>
-      <div className="obs__scroll">
-        <table className="obs__table" aria-label={`Cases in run ${runId}`}>
-          <thead>
-            <tr>
-              <th scope="col">Suite</th>
-              <th scope="col">Case</th>
-              <th scope="col" className="obs__num">
-                Phrasing
-              </th>
-              <th scope="col">Company</th>
-              <th scope="col">Result</th>
-              <th scope="col">Details</th>
-              <th scope="col">Effects</th>
-              <th scope="col">
-                <span className="sr-only">Trace</span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {load.data.cases.map((c) => (
-              <CaseRow key={c.instance_id} c={c} open={trace} onTrace={(id) => setTrace(trace === id ? null : id)} />
-            ))}
-          </tbody>
-        </table>
+      <div className="evals__filter">
+        <label className="evals__toggle">
+          <input type="checkbox" checked={failingOnly} onChange={(event) => setFailingOnly(event.target.checked)} />
+          <span>Failing only</span>
+        </label>
+        <p className="evals__shown" role="status">
+          Showing {shown.length} of {all.length} {all.length === 1 ? "case" : "cases"}
+        </p>
       </div>
+      {shown.length === 0 ? (
+        <p className="approvals__empty">No failing cases in this run.</p>
+      ) : (
+        <div className="obs__scroll" role="region" aria-label={`Cases in run ${runId}, scrollable`} tabIndex={0}>
+          <table className="obs__table evals__table" aria-label={`Cases in run ${runId}`}>
+            <thead>
+              <tr>
+                <th scope="col">Suite</th>
+                <th scope="col">Case</th>
+                <th scope="col" className="obs__num">
+                  Phrasing
+                </th>
+                <th scope="col">Company</th>
+                <th scope="col">Result</th>
+                <th scope="col">Details</th>
+                <th scope="col">Effects</th>
+                <th scope="col">
+                  <span className="sr-only">Trace</span>
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {shown.map((c) => (
+                <CaseRow key={c.instance_id} c={c} open={trace} onTrace={(id) => setTrace(trace === id ? null : id)} />
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
       {trace ? <TraceTimeline transport={transport} traceId={trace} onSessionEnded={onSessionEnded} /> : null}
     </>
   );
@@ -230,8 +272,8 @@ export function EvalsView({ transport, nonce, onSessionEnded }: EvalsViewProps) 
           This is an example run for the offline replay, not a stored evaluation. Run make eval for real results.
         </p>
       ) : null}
-      <div className="obs__scroll">
-        <table className="obs__table" aria-label="Evaluation runs">
+      <div className="obs__scroll" role="region" aria-label="Evaluation runs, scrollable" tabIndex={0}>
+        <table className="obs__table evals__table" aria-label="Evaluation runs">
           <thead>
             <tr>
               <th scope="col">Started</th>
@@ -268,7 +310,7 @@ export function EvalsView({ transport, nonce, onSessionEnded }: EvalsViewProps) 
                   </td>
                   <td className="mono">{formatAsOf(run.as_of)}</td>
                   {suites.map((name) => (
-                    <TallyCell key={name} tally={run.totals.suites?.[name]} />
+                    <SuiteCell key={name} suite={name} tally={run.totals.suites?.[name]} />
                   ))}
                   {overall ? (
                     <TallyCell tally={overall} />

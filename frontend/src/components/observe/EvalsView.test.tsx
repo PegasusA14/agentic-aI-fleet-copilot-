@@ -75,8 +75,28 @@ const CASES: EvalCase[] = [
     checks: [{ name: "proposal", passed: true, detail: "ok", turn: 1 }],
     trace_ids: ["trace-action"],
     effects: [
-      { step: 1, do: "approve", user: null, status: "executed", duplicate: false, error: null, before: { tickets: 0 }, after: { tickets: 1 }, delta: { tickets: 1 } },
-      { step: 2, do: "approve_again", user: null, status: "executed", duplicate: true, error: null, before: { tickets: 1 }, after: { tickets: 1 }, delta: {} },
+      {
+        step: 1,
+        do: "approve",
+        user: null,
+        status: "executed",
+        duplicate: false,
+        error: null,
+        before: { tickets: 0 },
+        after: { tickets: 1 },
+        delta: { tickets: 1 },
+      },
+      {
+        step: 2,
+        do: "approve_again",
+        user: null,
+        status: "executed",
+        duplicate: true,
+        error: null,
+        before: { tickets: 1 },
+        after: { tickets: 1 },
+        delta: {},
+      },
     ],
   },
   {
@@ -118,7 +138,9 @@ describe("the Evaluations tab", () => {
   it("lists runs with mode, short dataset sha, as-of and per-suite results as mark plus word", async () => {
     renderView(fake());
     const table = await screen.findByRole("table", { name: "Evaluation runs" });
-    const headers = within(table).getAllByRole("columnheader").map((h) => h.textContent);
+    const headers = within(table)
+      .getAllByRole("columnheader")
+      .map((h) => h.textContent);
     expect(headers).toEqual(["Started", "Mode", "Dataset", "As of", "Grounding", "Actions", "Guardrails", "Overall"]);
     const [first, second] = within(table).getAllByRole("row").slice(1);
 
@@ -126,12 +148,12 @@ describe("the Evaluations tab", () => {
     expect(within(first).getByText("abcdef012345")).toHaveClass("mono");
     expect(within(first).getByText("2026-06-12 11:00 UTC")).toBeInTheDocument();
     const cells = within(first).getAllByRole("cell");
-    expect(cells[4]).toHaveTextContent("Passed");
+    // Suite cells are compact: a state mark plus passed/total, the full meaning in the accessible name.
     expect(cells[4]).toHaveTextContent("12/12");
-    expect(cells[5]).toHaveTextContent("Failed");
     expect(cells[5]).toHaveTextContent("3/5");
-    expect(cells[6]).toHaveTextContent("Not recorded");
     expect(cells[6]).toHaveTextContent("0/2");
+    expect(cells[4]).not.toHaveTextContent("Passed");
+    // The Overall cell keeps mark plus word.
     expect(cells[7]).toHaveTextContent("Failed");
     expect(cells[7]).toHaveTextContent("15/19");
 
@@ -141,16 +163,34 @@ describe("the Evaluations tab", () => {
     expect(unfinished[7]).toHaveTextContent("Not finished");
   });
 
+  it("names each suite cell in full for assistive tech and on hover", async () => {
+    renderView(fake());
+    const table = await screen.findByRole("table", { name: "Evaluation runs" });
+    for (const name of ["Grounding: passed, 12 of 12", "Actions: failed, 3 of 5", "Guardrails: not recorded, 0 of 2"]) {
+      const mark = within(table).getByRole("img", { name });
+      expect(mark).toHaveAttribute("title", name);
+    }
+    // Status is not colour alone: the three states draw three different icons.
+    const shapes = ["Grounding: passed, 12 of 12", "Actions: failed, 3 of 5", "Guardrails: not recorded, 0 of 2"].map(
+      (name) => within(table).getByRole("img", { name }).querySelector("svg")?.innerHTML,
+    );
+    expect(new Set(shapes).size).toBe(3);
+  });
+
+  it("lets the runs table scroll inside its own labelled, focusable region", async () => {
+    renderView(fake());
+    const region = await screen.findByRole("region", { name: "Evaluation runs, scrollable" });
+    expect(region).toHaveAttribute("tabindex", "0");
+    expect(within(region).getByRole("table", { name: "Evaluation runs" })).toBeInTheDocument();
+  });
+
   it("says plainly when there are no runs, and when the list cannot be loaded", async () => {
     const empty = renderView(fake({ observeEvals: vi.fn(async () => []) }));
     expect(await screen.findByText("No evaluation runs yet. Run make eval.")).toBeInTheDocument();
     empty.unmount();
 
     const user = userEvent.setup();
-    const observeEvals = vi
-      .fn()
-      .mockRejectedValueOnce(new ApiError(500, "boom"))
-      .mockResolvedValue(RUNS);
+    const observeEvals = vi.fn().mockRejectedValueOnce(new ApiError(500, "boom")).mockResolvedValue(RUNS);
     renderView(fake({ observeEvals }));
     expect(await screen.findByRole("alert")).toHaveTextContent("The evaluation runs could not be loaded.");
     await user.click(screen.getByRole("button", { name: "Try again" }));
@@ -172,16 +212,11 @@ describe("the Evaluations tab", () => {
     expect(transport.observeEval).toHaveBeenCalledWith("run-b");
 
     const table = await screen.findByRole("table", { name: "Cases in run run-b" });
-    expect(within(table).getAllByRole("columnheader").map((h) => h.textContent)).toEqual([
-      "Suite",
-      "Case",
-      "Phrasing",
-      "Company",
-      "Result",
-      "Details",
-      "Effects",
-      "Trace",
-    ]);
+    expect(
+      within(table)
+        .getAllByRole("columnheader")
+        .map((h) => h.textContent),
+    ).toEqual(["Suite", "Case", "Phrasing", "Company", "Result", "Details", "Effects", "Trace"]);
     const rows = within(table).getAllByRole("row").slice(1);
     expect(rows).toHaveLength(4);
 
@@ -201,7 +236,9 @@ describe("the Evaluations tab", () => {
     const user = userEvent.setup();
     renderView(fake());
     await user.click(await screen.findByRole("button", { name: /2026-06-12 11:30 UTC/ }));
-    const rows = within(await screen.findByRole("table", { name: "Cases in run run-b" })).getAllByRole("row").slice(1);
+    const rows = within(await screen.findByRole("table", { name: "Cases in run run-b" }))
+      .getAllByRole("row")
+      .slice(1);
     const missed = rows[3];
     expect(within(missed).getByText("Not recorded")).toBeInTheDocument();
     expect(within(missed).queryByText("Failed")).not.toBeInTheDocument();
@@ -216,7 +253,9 @@ describe("the Evaluations tab", () => {
     const user = userEvent.setup();
     renderView(fake());
     await user.click(await screen.findByRole("button", { name: /2026-06-12 11:30 UTC/ }));
-    const rows = within(await screen.findByRole("table", { name: "Cases in run run-b" })).getAllByRole("row").slice(1);
+    const rows = within(await screen.findByRole("table", { name: "Cases in run run-b" }))
+      .getAllByRole("row")
+      .slice(1);
     expect(within(rows[2]).getByText("Tickets +1 (simulated)")).toBeInTheDocument();
     expect(within(rows[2]).getByText("No effect change")).toBeInTheDocument();
     expect(within(rows[2]).getByText("Globex")).toBeInTheDocument();
@@ -228,7 +267,9 @@ describe("the Evaluations tab", () => {
     const transport = fake();
     renderView(transport);
     await user.click(await screen.findByRole("button", { name: /2026-06-12 11:30 UTC/ }));
-    const rows = within(await screen.findByRole("table", { name: "Cases in run run-b" })).getAllByRole("row").slice(1);
+    const rows = within(await screen.findByRole("table", { name: "Cases in run run-b" }))
+      .getAllByRole("row")
+      .slice(1);
     expect(transport.observeTrace).not.toHaveBeenCalled();
     await user.click(within(rows[1]).getByRole("button", { name: /^Trace/ }));
     expect(transport.observeTrace).toHaveBeenCalledWith("trace-fail");
@@ -257,5 +298,57 @@ describe("the Evaluations tab", () => {
     renderView(fake({ observeEval: vi.fn().mockRejectedValue(new ApiError(404, "not found")) }));
     await user.click(await screen.findByRole("button", { name: /2026-06-12 11:30 UTC/ }));
     expect(await screen.findByRole("alert")).toHaveTextContent("The cases of this run could not be loaded.");
+  });
+
+  describe("the case list", () => {
+    async function openCases(user: ReturnType<typeof userEvent.setup>) {
+      await user.click(await screen.findByRole("button", { name: /2026-06-12 11:30 UTC/ }));
+      return screen.findByRole("table", { name: "Cases in run run-b" });
+    }
+
+    it("offers an unchecked 'Failing only' checkbox and counts the cases it shows", async () => {
+      const user = userEvent.setup();
+      renderView(fake());
+      const table = await openCases(user);
+      const box = screen.getByRole("checkbox", { name: "Failing only" });
+      expect(box).not.toBeChecked();
+      expect(screen.getByText("Showing 4 of 4 cases")).toBeInTheDocument();
+      expect(within(table).getAllByRole("row")).toHaveLength(5);
+    });
+
+    it("hides passed cases when on, and keeps failed and not-recorded ones", async () => {
+      const user = userEvent.setup();
+      renderView(fake());
+      await openCases(user);
+      await user.click(screen.getByRole("checkbox", { name: "Failing only" }));
+      const rows = within(screen.getByRole("table", { name: "Cases in run run-b" }))
+        .getAllByRole("row")
+        .slice(1);
+      expect(rows).toHaveLength(2);
+      expect(within(rows[0]).getByText("Failed")).toBeInTheDocument();
+      expect(within(rows[1]).getByText("Not recorded")).toBeInTheDocument();
+      expect(screen.getByText("Showing 2 of 4 cases")).toBeInTheDocument();
+
+      await user.click(screen.getByRole("checkbox", { name: "Failing only" }));
+      expect(screen.getByText("Showing 4 of 4 cases")).toBeInTheDocument();
+    });
+
+    it("says so when nothing failed", async () => {
+      const user = userEvent.setup();
+      const allPassed = CASES.filter((c) => c.passed);
+      renderView(fake({ observeEval: vi.fn(async () => ({ ...DETAIL, cases: allPassed })) }));
+      await openCases(user);
+      await user.click(screen.getByRole("checkbox", { name: "Failing only" }));
+      expect(screen.getByText("Showing 0 of 2 cases")).toBeInTheDocument();
+      expect(screen.getByText("No failing cases in this run.")).toBeInTheDocument();
+    });
+
+    it("scrolls the cases table inside its own labelled, focusable region", async () => {
+      const user = userEvent.setup();
+      renderView(fake());
+      await openCases(user);
+      const region = screen.getByRole("region", { name: "Cases in run run-b, scrollable" });
+      expect(region).toHaveAttribute("tabindex", "0");
+    });
   });
 });
