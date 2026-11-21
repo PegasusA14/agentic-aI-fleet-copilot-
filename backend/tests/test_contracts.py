@@ -9,6 +9,7 @@ from pydantic import ValidationError
 from fleet_copilot.config import REPO_ROOT
 from fleet_copilot.contracts import (
     ActionType,
+    Alternative,
     AnswerEnvelope,
     Claim,
     Clarification,
@@ -367,7 +368,7 @@ def test_an_entity_device_may_be_mentioned_by_any_one_of_several_claims():
 
 ALLOWED_PAIRS = {
     "denied": ["not_found", "prompt_injection", "not_eligible", "insufficient_evidence"],
-    "unsupported": ["off_topic", "unsupported_action"],
+    "unsupported": ["off_topic", "unsupported_action", "data_unavailable"],
     "tool_error": ["tool_failure"],
     "insufficient_data": ["insufficient_history", "step_limit"],
     "no_match": ["no_matching_records"],
@@ -383,6 +384,7 @@ ALL_REASONS = [
     "step_limit",
     "not_eligible",
     "insufficient_evidence",
+    "data_unavailable",
 ]
 
 
@@ -633,3 +635,47 @@ def test_refusal_outcomes_carry_no_suggestions(outcome):
             reason_code=reason[outcome],
             suggested_actions=[suggestion()],
         )
+
+
+def unsupported(**overrides):
+    base = {
+        "outcome": "unsupported",
+        "trace_id": "t-1",
+        "headline": "Not recorded.",
+        "scope": SCOPE,
+        "reason_code": "data_unavailable",
+    }
+    return AnswerEnvelope(**{**base, **overrides})
+
+
+def test_alternatives_default_to_empty_and_accept_up_to_four():
+    assert unsupported().alternatives == []
+    four = [Alternative(label=f"L{i}", request=f"Request {i}?") for i in range(4)]
+    assert len(unsupported(alternatives=four).alternatives) == 4
+
+
+def test_a_fifth_alternative_is_rejected():
+    five = [Alternative(label=f"L{i}", request=f"Request {i}?") for i in range(5)]
+    with pytest.raises(ValidationError):
+        unsupported(alternatives=five)
+
+
+@pytest.mark.parametrize(
+    "kwargs",
+    [
+        {"label": "", "request": "Ask?"},
+        {"label": "Fine", "request": ""},
+        {"label": "x" * 61, "request": "Ask?"},
+        {"label": "Fine", "request": "x" * 161},
+        {"label": "Fine", "request": "Ask?", "extra": 1},
+    ],
+)
+def test_an_alternative_needs_a_short_label_and_a_short_request(kwargs):
+    with pytest.raises(ValidationError):
+        Alternative(**kwargs)
+
+
+def test_data_unavailable_is_valid_for_unsupported_only():
+    assert unsupported().reason_code == "data_unavailable"
+    with pytest.raises(ValidationError, match="not valid"):
+        envelope(outcome="denied", claims=[], evidence=[], reason_code="data_unavailable")

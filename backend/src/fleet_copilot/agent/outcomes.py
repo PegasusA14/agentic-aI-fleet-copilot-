@@ -10,8 +10,14 @@ from datetime import datetime
 from typing import Literal
 
 from fleet_copilot.agent import texts
-from fleet_copilot.agent.llm import RefusalReason
-from fleet_copilot.contracts import AnswerEnvelope, Clarification, ReasonCode, ScopeInfo
+from fleet_copilot.agent.llm import MissingTopic, RefusalReason
+from fleet_copilot.contracts import (
+    Alternative,
+    AnswerEnvelope,
+    Clarification,
+    ReasonCode,
+    ScopeInfo,
+)
 
 _REFUSALS: dict[RefusalReason, tuple[str, ReasonCode, str]] = {
     # cross_tenant reads exactly like a nonexistent record: the answer must not confirm another company exists.
@@ -19,6 +25,7 @@ _REFUSALS: dict[RefusalReason, tuple[str, ReasonCode, str]] = {
     "prompt_injection": ("denied", "prompt_injection", texts.PROMPT_INJECTION),
     "off_topic": ("unsupported", "off_topic", texts.OFF_TOPIC),
     "unsupported_action": ("unsupported", "unsupported_action", texts.UNSUPPORTED_ACTION),
+    "data_unavailable": ("unsupported", "data_unavailable", texts.MISSING_TOPIC_TEXT["other"]),
 }
 
 
@@ -27,15 +34,33 @@ def _scope(company_id: str, as_of: datetime) -> ScopeInfo:
 
 
 def refusal(
-    reason: RefusalReason, *, company_id: str, as_of: datetime, trace_id: str
+    reason: RefusalReason,
+    *,
+    company_id: str,
+    as_of: datetime,
+    trace_id: str,
+    missing_topic: MissingTopic | None = None,
 ) -> AnswerEnvelope:
+    """A refusal in fixed words. Off-topic and missing-data refusals also say what can be answered and offer
+    code-written alternatives; `missing_topic` picks the wording for data the telemetry does not hold."""
     outcome, reason_code, headline = _REFUSALS[reason]
+    notes: list[str] = []
+    alternatives: list[dict[str, str]] = []
+    if reason == "data_unavailable":
+        headline = texts.MISSING_TOPIC_TEXT[missing_topic or "other"]
+    if reason in ("off_topic", "data_unavailable"):
+        notes = [texts.CAPABILITY_NOTE]
+        alternatives = texts.alternatives_for(
+            missing_topic if reason == "data_unavailable" else None
+        )
     return AnswerEnvelope(
         outcome=outcome,  # type: ignore[arg-type]
         trace_id=trace_id,
         headline=headline,
         scope=_scope(company_id, as_of),
         reason_code=reason_code,
+        notes=notes,
+        alternatives=[Alternative(**a) for a in alternatives],
     )
 
 

@@ -15,7 +15,7 @@ from langchain_core.messages import AIMessage, BaseMessage
 from langchain_openai import AzureChatOpenAI
 
 from fleet_copilot import policy
-from fleet_copilot.agent.llm import ContentFiltered, Explanation, Plan
+from fleet_copilot.agent.llm import ContentFiltered, Explanation, Plan, PlanRejected
 from fleet_copilot.agent.tools import TOOLS
 from fleet_copilot.config import AzureSettings
 
@@ -107,7 +107,7 @@ class ChatGateway:
     async def plan(self, messages: list[BaseMessage]) -> Plan:
         result = await self._call(self._plan, messages)
         if not isinstance(result, Plan):
-            raise ModelUnavailable("bad_structured_output")
+            raise PlanRejected("no structured plan")
         return result
 
     async def act(self, messages: list[BaseMessage]) -> AIMessage:

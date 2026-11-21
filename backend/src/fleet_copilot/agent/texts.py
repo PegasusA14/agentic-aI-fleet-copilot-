@@ -9,6 +9,26 @@ from __future__ import annotations
 NOT_FOUND = "I can't find that in your fleet."
 TOOL_FAILED = "A data lookup failed, so I can't answer reliably. No changes were made."
 OFF_TOPIC = "I can only answer questions about this company's managed devices."
+CAPABILITY_NOTE = (
+    "I can answer from hardware, OS, memory, disk, battery, installed software and compliance data."
+)
+_NOT_RECORDED = "aren't something the fleet data records."
+# Fixed wording for a question about data the telemetry does not contain, by the planner's `missing_topic`.
+MISSING_TOPIC_TEXT = {
+    "network": f"Wi-Fi and network quality {_NOT_RECORDED}",
+    "location": f"Where a device is or has been {_NOT_RECORDED}",
+    "performance": f"CPU load, speed and temperature {_NOT_RECORDED}",
+    "user_activity": f"Logins, usage and browsing activity {_NOT_RECORDED}",
+    "peripherals": f"Monitors, printers and other peripherals {_NOT_RECORDED}",
+    "other": "That isn't something the fleet data records.",
+}
+# What to offer instead of a refusal: (label, the message sent when it is chosen). Never model-written.
+_ALTERNATIVES = (
+    ("Fleet health summary", "Give me a fleet health summary"),
+    ("Failing compliance checks", "Which devices are failing compliance checks?"),
+    ("Devices low on disk", "Which devices are low on disk space?"),
+)
+_PERFORMANCE_ALTERNATIVE = ("Memory pressure", "Which devices are consistently RAM-constrained?")
 UNSUPPORTED_ACTION = (
     "I can't do that, but I can recommend actions for devices you're looking at "
     "(ask 'what should I do?'), or propose one action for one device."
@@ -64,6 +84,14 @@ _ACTION_NOUNS = {
     "upgrade_order": "a hardware upgrade",
     "employee_notification": "an employee notification",
 }
+
+
+def alternatives_for(missing_topic: str | None = None) -> list[dict[str, str]]:
+    """The fixed alternatives shown under an off-topic or missing-data refusal, at most four."""
+    chosen = list(_ALTERNATIVES)
+    if missing_topic == "performance":
+        chosen.append(_PERFORMANCE_ALTERNATIVE)
+    return [{"label": label, "request": request} for label, request in chosen]
 
 
 def no_qualifying_note(action_type: str) -> str:

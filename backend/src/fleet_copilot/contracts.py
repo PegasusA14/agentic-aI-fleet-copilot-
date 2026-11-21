@@ -48,6 +48,7 @@ ReasonCode = Literal[
     "insufficient_evidence",
     "already_done",
     "too_many_pending",
+    "data_unavailable",
 ]
 # The only keys a query may put in `excluded` (and so the only keys `Coverage.excluded` accepts).
 ExcludedReason = Literal[
@@ -69,7 +70,7 @@ _VALID_REASONS: dict[str, frozenset[str]] = {
             "too_many_pending",
         }
     ),
-    "unsupported": frozenset({"off_topic", "unsupported_action"}),
+    "unsupported": frozenset({"off_topic", "unsupported_action", "data_unavailable"}),
     "tool_error": frozenset({"tool_failure"}),
     "insufficient_data": frozenset({"insufficient_history", "step_limit"}),
     "no_match": frozenset({"no_matching_records"}),
@@ -178,6 +179,13 @@ class SuggestedAction(_Model):
     refs: list[str] = Field(min_length=1)
 
 
+class Alternative(_Model):
+    """A question the copilot can answer, offered after a refusal. Code-written; `request` is sent as the next message."""
+
+    label: str = Field(min_length=1, max_length=60)
+    request: str = Field(min_length=1, max_length=160)
+
+
 class AnswerEnvelope(_Model):
     """The only shape the agent returns. The UI maps it to fixed components; the LLM never emits markup."""
 
@@ -195,6 +203,7 @@ class AnswerEnvelope(_Model):
     suggested_actions: list[SuggestedAction] = Field(default_factory=list)
     reason_code: ReasonCode | None = None
     explanation: str | None = None
+    alternatives: list[Alternative] = Field(default_factory=list, max_length=4)
 
     @model_validator(mode="after")
     def _outcome_payloads(self) -> AnswerEnvelope:

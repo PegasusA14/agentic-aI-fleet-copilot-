@@ -5,10 +5,12 @@ from pydantic import ValidationError
 from fleet_copilot.agent.llm import (
     Explanation,
     Plan,
+    PlanRejected,
     Reference,
     ScriptedLLM,
     ScriptExhausted,
     final_message,
+    plan_problems,
     tool_calls_message,
 )
 
@@ -21,32 +23,108 @@ def test_a_plain_answer_plan_is_valid():
 
 
 @pytest.mark.parametrize(
-    ("kwargs", "message"),
-    [
-        ({"intent": "refuse", "refusal_reason": "off_topic"}, "cross_tenant or prompt_injection"),
-        ({"intent": "advise", "refusal_reason": "off_topic"}, "refusal_reason is only valid"),
-        ({"intent": "propose", "refusal_reason": "off_topic"}, "refusal_reason is only valid"),
-        (
-            {"intent": "unsupported", "refusal_reason": "cross_tenant"},
-            "off_topic or unsupported_action",
-        ),
-        (
-            {"intent": "answer", "refusal_reason": "off_topic"},
-            "only valid for refuse or unsupported",
-        ),
-        (
-            {
-                "intent": "clarify",
-                "clarification_question": "Which?",
-                "refusal_reason": "off_topic",
-            },
-            "only valid",
-        ),
-    ],
+    "intent", ["answer", "clarify", "refuse", "propose", "advise", "unsupported"]
 )
-def test_plans_with_inconsistent_intent_and_reason_are_rejected(kwargs, message):
-    with pytest.raises(ValidationError, match=message):
-        Plan(summary="s", **kwargs)
+def test_any_plan_whose_reason_is_off_topic_becomes_unsupported_off_topic(intent):
+    plan = Plan(intent=intent, summary="s", refusal_reason="off_topic")
+    assert (plan.intent, plan.refusal_reason, plan.missing_topic) == (
+        "unsupported",
+        "off_topic",
+        None,
+    )
+
+
+@pytest.mark.parametrize("intent", ["answer", "clarify", "propose", "advise", "unsupported"])
+@pytest.mark.parametrize("reason", ["cross_tenant", "prompt_injection"])
+def test_a_plan_naming_a_security_reason_is_always_a_refusal(intent, reason):
+    plan = Plan(intent=intent, summary="s", refusal_reason=reason)
+    assert (plan.intent, plan.refusal_reason) == ("refuse", reason)
+
+
+@pytest.mark.parametrize("intent", ["answer", "propose", "advise", "refuse"])
+def test_a_plan_naming_an_unsupported_action_is_never_an_answer(intent):
+    plan = Plan(intent=intent, summary="s", refusal_reason="unsupported_action")
+    assert (plan.intent, plan.refusal_reason) == ("unsupported", "unsupported_action")
+
+
+@pytest.mark.parametrize("intent", ["off_topic", "Off-Topic", " OFF_TOPIC "])
+def test_an_intent_that_names_the_reason_reads_as_off_topic(intent):
+    plan = Plan.model_validate({"intent": intent, "summary": "s"})
+    assert (plan.intent, plan.refusal_reason) == ("unsupported", "off_topic")
+
+
+def test_an_unknown_intent_with_no_reason_is_still_rejected():
+    with pytest.raises(ValidationError):
+        Plan.model_validate({"intent": "decline", "summary": "s"})
+
+
+def test_a_missing_topic_makes_the_plan_a_data_unavailable_refusal():
+    for intent, reason in (
+        ("unsupported", None),
+        ("unsupported", "unsupported_action"),
+        ("answer", None),
+        ("refuse", None),
+        ("unsupported", "data_unavailable"),
+    ):
+        plan = Plan.model_validate(
+            {"intent": intent, "summary": "s", "refusal_reason": reason, "missing_topic": "network"}
+        )
+        assert (plan.intent, plan.refusal_reason, plan.missing_topic) == (
+            "unsupported",
+            "data_unavailable",
+            "network",
+        )
+
+
+def test_data_unavailable_without_a_topic_defaults_to_other():
+    plan = Plan(intent="unsupported", summary="s", refusal_reason="data_unavailable")
+    assert plan.missing_topic == "other"
+
+
+def test_an_unknown_missing_topic_reads_as_other():
+    plan = Plan.model_validate({"intent": "unsupported", "summary": "s", "missing_topic": "wifi"})
+    assert (plan.refusal_reason, plan.missing_topic) == ("data_unavailable", "other")
+
+
+@pytest.mark.parametrize("reason", ["off_topic", "cross_tenant", "prompt_injection"])
+def test_a_stronger_reason_beats_a_missing_topic(reason):
+    plan = Plan.model_validate(
+        {
+            "intent": "unsupported",
+            "summary": "s",
+            "refusal_reason": reason,
+            "missing_topic": "network",
+        }
+    )
+    assert plan.refusal_reason == reason and plan.missing_topic is None
+
+
+def test_a_blank_missing_topic_is_read_as_unset():
+    plan = Plan.model_validate({"intent": "answer", "summary": "s", "missing_topic": " "})
+    assert (plan.intent, plan.missing_topic) == ("answer", None)
+
+
+def test_unknown_fields_are_ignored_not_rejected():
+    plan = Plan.model_validate(
+        {"intent": "answer", "summary": "s", "confidence": 0.9, "reasoning": "because"}
+    )
+    assert plan.intent == "answer"
+    ref = Reference.model_validate({"kind": "last", "note": "x"})
+    assert ref.kind == "last"
+
+
+def test_null_and_oversized_fields_are_normalised():
+    plan = Plan.model_validate(
+        {
+            "intent": "clarify",
+            "summary": None,
+            "clarification_question": "Which?",
+            "clarification_options": ["a", "b" * 200, "", None, "c", "d", "e", "f", "g", "h"],
+        }
+    )
+    assert plan.summary == ""
+    assert plan.clarification_options == ["a", "c", "d", "e", "f", "g"]
+    assert len(Plan.model_validate({"intent": "answer", "summary": "x" * 400}).summary) == 300
 
 
 def test_an_advise_plan_is_valid_and_carries_references_like_an_answer():
@@ -111,22 +189,15 @@ def test_every_valid_refusal_pairing_is_accepted():
         assert Plan(intent=intent, summary="s", refusal_reason=reason).refusal_reason == reason
 
 
-def test_plan_limits_and_unknown_fields_are_enforced():
+def test_plan_limits_are_enforced():
     with pytest.raises(ValidationError):
         Plan(intent="answer", summary="s", window_days=0)
     with pytest.raises(ValidationError):
         Plan(intent="answer", summary="s", window_days=61)
     with pytest.raises(ValidationError):
-        Plan(
-            intent="clarify",
-            summary="s",
-            clarification_question="Which?",
-            clarification_options=["a"] * 7,
-        )
+        Plan(intent="answer", summary="s", refusal_reason="made_up")
     with pytest.raises(ValidationError):
-        Plan(intent="answer", summary="s", surprise=True)
-    with pytest.raises(ValidationError):
-        Plan(intent="answer", summary="x" * 301)
+        Plan(intent="answer", summary="s", missing_topic="network", window_days=0)
 
 
 @pytest.mark.parametrize(
@@ -238,3 +309,31 @@ def test_options_must_still_be_a_list_when_given():
 def test_a_propose_plan_is_valid_without_a_refusal_reason():
     plan = Plan(intent="propose", summary="Open a ticket for one device")
     assert plan.intent == "propose" and plan.refusal_reason is None
+
+
+def _validation_error() -> ValidationError:
+    try:
+        Plan.model_validate(
+            {
+                "intent": "bogus",
+                "summary": "tell me about secret-user@example.com",
+                "window_days": 0,
+            }
+        )
+    except ValidationError as exc:
+        return exc
+    raise AssertionError("expected a validation error")
+
+
+def test_plan_problems_name_fields_and_error_types_only():
+    problems = plan_problems(_validation_error())
+    assert problems is not None
+    assert any(p.startswith("intent: ") for p in problems)
+    assert any(p.startswith("window_days: ") for p in problems)
+    assert "secret-user" not in " ".join(problems) and "bogus" not in " ".join(problems)
+
+
+def test_plan_problems_recognise_a_rejected_plan_and_ignore_other_errors():
+    assert plan_problems(PlanRejected("no plan")) == ["plan: not a structured plan"]
+    assert plan_problems(RuntimeError("down")) is None
+    assert plan_problems(TimeoutError()) is None

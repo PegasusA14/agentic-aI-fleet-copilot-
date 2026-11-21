@@ -1,5 +1,29 @@
 {
   "$defs": {
+    "Alternative": {
+      "additionalProperties": false,
+      "description": "A question the copilot can answer, offered after a refusal. Code-written; `request` is sent as the next message.",
+      "properties": {
+        "label": {
+          "maxLength": 60,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "request": {
+          "maxLength": 160,
+          "minLength": 1,
+          "title": "Request",
+          "type": "string"
+        }
+      },
+      "required": [
+        "label",
+        "request"
+      ],
+      "title": "Alternative",
+      "type": "object"
+    },
     "Claim": {
       "additionalProperties": false,
       "properties": {
@@ -410,6 +434,14 @@
   "additionalProperties": false,
   "description": "The only shape the agent returns. The UI maps it to fixed components; the LLM never emits markup.",
   "properties": {
+    "alternatives": {
+      "items": {
+        "$ref": "#/$defs/Alternative"
+      },
+      "maxItems": 4,
+      "title": "Alternatives",
+      "type": "array"
+    },
     "claims": {
       "items": {
         "$ref": "#/$defs/Claim"
@@ -516,7 +548,8 @@
             "not_eligible",
             "insufficient_evidence",
             "already_done",
-            "too_many_pending"
+            "too_many_pending",
+            "data_unavailable"
           ],
           "type": "string"
         },
@@ -557,7 +590,8 @@
     "entity_lists",
     "suggested_actions",
     "reason_code",
-    "explanation"
+    "explanation",
+    "alternatives"
   ],
   "title": "AnswerEnvelope",
   "type": "object"

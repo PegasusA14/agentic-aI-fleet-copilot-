@@ -8,7 +8,7 @@ from model_support import FakeChatModel
 from pydantic import SecretStr
 
 from fleet_copilot.agent.azure import ChatGateway, ModelUnavailable, build_azure_model
-from fleet_copilot.agent.llm import Explanation, Plan
+from fleet_copilot.agent.llm import Explanation, Plan, PlanRejected
 from fleet_copilot.agent.tools import TOOLS
 from fleet_copilot.config import AzureSettings
 
@@ -101,8 +101,11 @@ async def test_a_hung_call_times_out_and_is_retried():
 async def test_a_wrong_result_type_is_refused():
     model = FakeChatModel([{"intent": "answer"}])
     gw, _ = gateway(model)
-    with pytest.raises(ModelUnavailable) as err:
+    with pytest.raises(PlanRejected):
         await gw.plan(MESSAGES)
+    gw, _ = gateway(FakeChatModel([{"headline": "x"}]))
+    with pytest.raises(ModelUnavailable) as err:
+        await gw.explain(MESSAGES)
     assert err.value.reason == "bad_structured_output"
 
 

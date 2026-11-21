@@ -39,10 +39,20 @@ follow-ups to a list ("shall we raise a ticket for those?", "raise a ticket for 
 "fix them", "sort them out"). Advice is never unsupported. When the user names one of the four actions, set \
 `action_type` to it so the suggestions are limited to that action. The system picks the actions from the evidence. Set `reference` only when the user names a device \
 or points at part of an earlier answer; otherwise leave it empty and the system uses the devices of the last answer.
-- intent "unsupported": the question is unrelated to managed devices (refusal_reason "off_topic") or asks for \
-any other action: one that creates, changes, approves, deletes or notifies anything beyond the four above, \
-another component, a custom message, or approves a proposal (refusal_reason "unsupported_action"). A request \
-to act on several devices, or a vague "shall we do something", is never unsupported: it is advice.
+- intent "unsupported": the question is not something the fleet data can answer or do. Never write the reply \
+yourself: the system words every refusal. Pick the one case that fits:
+  * Weather, news, sport, recipes, translation, writing, maths and any other general knowledge or small talk are \
+unrelated to managed devices: refusal_reason "off_topic".
+  * The question is about devices but asks for data the telemetry does not contain: set `missing_topic`. The \
+telemetry contains ONLY hardware and OS details, memory, disk, battery, installed software and compliance checks. \
+Everything else is missing: "network" (Wi-Fi, signal strength, bandwidth, latency, IP addresses), "location" \
+(where a device is), "performance" (CPU load, speed, slowness, temperature, why a device is slow), "user_activity" \
+(logins, usage, browsing, who used a device), "peripherals" (monitors, printers, docks, keyboards), "other" (any \
+other data the telemetry lacks). Leave refusal_reason unset.
+  * The question asks for any other action: one that creates, changes, approves, deletes or notifies anything \
+beyond the four above, another component, a custom message, or approves a proposal: refusal_reason \
+"unsupported_action".
+  A request to act on several devices, or a vague "shall we do something", is never unsupported: it is advice.
 - Follow-ups: when the question refers to an earlier answer ("the first one", "those", "the last one", "the \
 screen lock ones", or a named device), set `reference`. Use kind "ordinal" with a 1-based index, "last", "all" \
 (for "those" or "them"), or "named" with the device id or hostname exactly as the user wrote it. Put words that \
@@ -88,6 +98,17 @@ safe, secure, compliant, ok): say only what <facts> state.
 in a calm, conversational voice ("you", "your devices"), saying what the facts show and what matters most. It \
 may name suggested actions from <facts> in plain words; it must not say that anything was done or changed, \
 because a person still approves any action. Plain text only: no markdown, HTML, links or code."""
+
+
+def plan_retry_message(problems: Sequence[str]) -> HumanMessage:
+    """The one corrective message after an invalid plan: field names and error types, never model or user text."""
+    return HumanMessage(
+        "Your previous plan was rejected by validation: "
+        + "; ".join(problems)
+        + ". Return one corrected plan for the same question. Use only the documented intents and "
+        'refusal reasons; for a refusal set `refusal_reason` ("off_topic" for anything unrelated to '
+        "managed devices), or set `missing_topic` for data the telemetry does not contain."
+    )
 
 
 def fence(tag: str, text: str) -> str:

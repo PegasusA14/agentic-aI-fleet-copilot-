@@ -35,8 +35,19 @@ from fleet_copilot.agent.focus import (
     focus_summary,
     resolve_reference,
 )
-from fleet_copilot.agent.llm import ContentFiltered, LLMGateway, Plan, Reference
-from fleet_copilot.agent.prompts import act_messages, explain_messages, plan_messages
+from fleet_copilot.agent.llm import (
+    ContentFiltered,
+    LLMGateway,
+    Plan,
+    Reference,
+    plan_problems,
+)
+from fleet_copilot.agent.prompts import (
+    act_messages,
+    explain_messages,
+    plan_messages,
+    plan_retry_message,
+)
 from fleet_copilot.agent.records import ToolRecord, record_from_message, redact_tool_calls
 from fleet_copilot.agent.state import TurnState, next_focus, next_history
 from fleet_copilot.agent.tools import (
@@ -105,6 +116,25 @@ def _provider_refused(ctx: AgentContext, exc: ContentFiltered, stage: str) -> di
                 reason, company_id=ctx.company_id, as_of=ctx.as_of, trace_id=ctx.trace_id
             )
         )
+    }
+
+
+def _plan_fallback(ctx: AgentContext, problems: list[str], started: float) -> dict[str, Any]:
+    """The planner stayed invalid after its one retry: decline as off topic, in fixed words, never a tool error."""
+    emit(
+        "plan",
+        "The plan stayed invalid after one retry; declined as off topic",
+        data={"intent": "unsupported", "fallback": "off_topic", "problems": problems},
+        latency_ms=_ms(started),
+    )
+    plan = Plan(intent="unsupported", summary="", refusal_reason="off_topic")
+    return {
+        "plan": plan.model_dump(mode="json"),
+        "envelope": _dump(
+            outcomes.refusal(
+                "off_topic", company_id=ctx.company_id, as_of=ctx.as_of, trace_id=ctx.trace_id
+            )
+        ),
     }
 
 
@@ -268,16 +298,35 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
         ctx = runtime.context
         focus = [EntityList.model_validate(item) for item in state.get("focus") or []]
         started = time.perf_counter()
+        messages = plan_messages(
+            question=state["question"],
+            as_of=ctx.as_of,
+            history=state.get("history") or [],
+            focus_lines=focus_summary(focus),
+            company_name=ctx.company_name,
+        )
+        repaired = False
         try:
-            plan = await llm.plan(
-                plan_messages(
-                    question=state["question"],
-                    as_of=ctx.as_of,
-                    history=state.get("history") or [],
-                    focus_lines=focus_summary(focus),
-                    company_name=ctx.company_name,
+            try:
+                plan = await llm.plan(messages)
+            except Exception as exc:
+                problems = plan_problems(exc)
+                if problems is None:
+                    raise
+                # The model's plan did not validate: ask once more, naming only the fields and error types.
+                emit(
+                    "retry",
+                    "The plan was invalid; asking the planner once more",
+                    data={"problems": problems},
                 )
-            )
+                try:
+                    plan = await llm.plan([*messages, plan_retry_message(problems)])
+                    repaired = True
+                except Exception as second:
+                    second_problems = plan_problems(second)
+                    if second_problems is None:
+                        raise
+                    return _plan_fallback(ctx, second_problems, started)
         except ContentFiltered as exc:
             return _provider_refused(ctx, exc, "plan")
         except Exception as exc:  # model outage or unusable structured output
@@ -291,6 +340,8 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
                 "window_days": plan.window_days,
                 "has_reference": plan.reference is not None,
                 "reference_kind": plan.reference.kind if plan.reference else None,
+                **({"repaired": True} if repaired else {}),
+                **({"missing_topic": plan.missing_topic} if plan.missing_topic else {}),
             },
             latency_ms=_ms(started),
         )
@@ -303,7 +354,9 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
             question, options = checked if checked else (None, [])
             update["envelope"] = _dump(outcomes.clarification(question, options, **kwargs))
         elif plan.intent in ("refuse", "unsupported") and plan.refusal_reason:
-            update["envelope"] = _dump(outcomes.refusal(plan.refusal_reason, **kwargs))
+            update["envelope"] = _dump(
+                outcomes.refusal(plan.refusal_reason, missing_topic=plan.missing_topic, **kwargs)
+            )
         return update
 
     async def reference_node(state: TurnState, runtime: Runtime[AgentContext]) -> dict[str, Any]:

@@ -1,25 +1,46 @@
 from __future__ import annotations
 
 import itertools
+import re
 from collections import deque
 from collections.abc import Sequence
 from dataclasses import dataclass
-from typing import Annotated, Any, Literal, Protocol
+from typing import Annotated, Any, Literal, Protocol, get_args
 
+from langchain_core.exceptions import OutputParserException
 from langchain_core.messages import AIMessage, BaseMessage
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
+from pydantic import (
+    BaseModel,
+    ConfigDict,
+    Field,
+    ValidationError,
+    field_validator,
+    model_validator,
+)
 
 from fleet_copilot import policy
 from fleet_copilot.contracts import ActionType
 
-RefusalReason = Literal["cross_tenant", "prompt_injection", "off_topic", "unsupported_action"]
+RefusalReason = Literal[
+    "cross_tenant", "prompt_injection", "off_topic", "unsupported_action", "data_unavailable"
+]
+# Data the telemetry does not hold, so a question about it is answered with a fixed sentence (texts.py).
+MissingTopic = Literal[
+    "network", "location", "performance", "user_activity", "peripherals", "other"
+]
 ShortText = Annotated[str, Field(max_length=80)]
+
+_INTENTS = ("answer", "clarify", "refuse", "unsupported", "propose", "advise")
+_MAX_SUMMARY = 300
+_MAX_OPTIONS = 6
+_MAX_OPTION_LENGTH = 80
+_SECURITY_REASONS = ("cross_tenant", "prompt_injection")
 
 
 class Reference(BaseModel):
     """How a question points back at an earlier answer ("the first one", "those", "MT7PJB7N5LRE")."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
 
     kind: Literal["ordinal", "last", "all", "named"]
     index: int | None = Field(default=None, ge=1, le=100)  # 1-based, ordinal only
@@ -39,42 +60,87 @@ class Reference(BaseModel):
         return self
 
 
+def _word(value: object) -> str | None:
+    """A model-written enum word, trimmed and lower-cased; blank or non-text reads as unset."""
+    if not isinstance(value, str):
+        return None
+    text = value.strip().lower().replace("-", "_")
+    return text or None
+
+
 class Plan(BaseModel):
     """What the planner decided. It never contains an answer, only what to do next."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
 
     intent: Literal["answer", "clarify", "refuse", "unsupported", "propose", "advise"]
-    summary: str = Field(max_length=300)
+    summary: str = Field(default="", max_length=_MAX_SUMMARY)
     window_days: int | None = Field(default=None, ge=1, le=policy.MAX_WINDOW_DAYS)
     reference: Reference | None = None
     # The action the user asked for, when they named one (propose and advise plans). Advice for several
     # devices is filtered to it; it never creates a proposal.
     action_type: ActionType | None = None
     clarification_question: str | None = Field(default=None, max_length=300)
-    clarification_options: list[ShortText] = Field(default_factory=list, max_length=6)
+    clarification_options: list[ShortText] = Field(default_factory=list, max_length=_MAX_OPTIONS)
     refusal_reason: RefusalReason | None = None
+    # Set for a question about data the telemetry does not contain; code writes the reply for it.
+    missing_topic: MissingTopic | None = None
 
     @model_validator(mode="before")
     @classmethod
-    def _repair_recoverable_shapes(cls, data: object) -> object:
-        """Repair plan shapes a model gets slightly wrong so they are not a tool_error.
+    def _normalise(cls, data: object) -> object:
+        """Make an inconsistent but meaningful plan one consistent plan, the same way every time.
 
-        A refusal that names no reason gets the safe default for its intent; a clarify plan
-        with a blank question keeps its intent and the question stays unset (the graph then
-        asks the default clarification). Anything else is left for normal validation.
+        A refusal reason decides the intent, never the other way round, so a plan that names a reason is
+        never read as an answer: security reasons are a `refuse`, `off_topic` is `unsupported` and a
+        missing data topic is `unsupported` with reason `data_unavailable`. A refusal that names no reason
+        gets the safe default for its intent; a clarify plan with a blank question keeps its intent and
+        the question stays unset. Text that is too long is cut, null lists are empty lists. Anything
+        else is left for normal validation.
         """
         if not isinstance(data, dict):
             return data
         repaired = dict(data)
-        intent = repaired.get("intent")
-        reason = repaired.get("refusal_reason")
-        if isinstance(reason, str) and not reason.strip():
-            reason = None
-        if intent == "unsupported" and reason is None:
-            repaired["refusal_reason"] = "unsupported_action"
-        elif intent == "refuse" and reason is None:
-            repaired["refusal_reason"] = "prompt_injection"
+        intent = _word(repaired.get("intent"))
+        reason = _word(repaired.get("refusal_reason"))
+        topic = _word(repaired.get("missing_topic"))
+        if topic is not None and topic not in get_args(MissingTopic):
+            topic = "other"
+        if intent in ("off_topic", "offtopic"):
+            intent, reason = "unsupported", reason or "off_topic"
+        if reason in _SECURITY_REASONS:
+            intent, topic = "refuse", None
+        elif reason == "off_topic":
+            intent, topic = "unsupported", None
+        elif topic is not None and reason in (None, "unsupported_action", "data_unavailable"):
+            intent, reason = "unsupported", "data_unavailable"
+        elif reason == "data_unavailable":
+            intent, topic = "unsupported", "other"
+        elif reason == "unsupported_action":
+            intent, topic = "unsupported", None
+        elif reason is None:
+            topic = None
+            if intent == "unsupported":
+                reason = "unsupported_action"
+            elif intent == "refuse":
+                reason = "prompt_injection"
+        if intent is not None:
+            repaired["intent"] = intent
+        repaired["refusal_reason"] = reason
+        repaired["missing_topic"] = topic
+        summary = repaired.get("summary")
+        if summary is None:
+            repaired["summary"] = ""
+        elif isinstance(summary, str) and len(summary) > _MAX_SUMMARY:
+            repaired["summary"] = summary[:_MAX_SUMMARY]
+        options = repaired.get("clarification_options")
+        if isinstance(options, list):
+            kept = [
+                o
+                for o in options
+                if isinstance(o, str) and o.strip() and len(o) <= _MAX_OPTION_LENGTH
+            ]
+            repaired["clarification_options"] = kept[:_MAX_OPTIONS]
         question = repaired.get("clarification_question")
         if intent == "clarify" and (question is None or not str(question).strip()):
             repaired["clarification_question"] = None
@@ -88,24 +154,51 @@ class Plan(BaseModel):
 
     @model_validator(mode="after")
     def _consistent(self) -> Plan:
-        if self.intent == "refuse" and self.refusal_reason not in (
-            "cross_tenant",
-            "prompt_injection",
-        ):
+        if self.intent == "refuse" and self.refusal_reason not in _SECURITY_REASONS:
             raise ValueError("a refuse plan needs refusal_reason cross_tenant or prompt_injection")
         if self.intent == "unsupported" and self.refusal_reason not in (
             "off_topic",
             "unsupported_action",
+            "data_unavailable",
         ):
             raise ValueError(
-                "an unsupported plan needs refusal_reason off_topic or unsupported_action"
+                "an unsupported plan needs a refusal_reason that is not a security one"
             )
         if (
             self.intent in ("answer", "clarify", "propose", "advise")
             and self.refusal_reason is not None
         ):
             raise ValueError("refusal_reason is only valid for refuse or unsupported plans")
+        if (self.refusal_reason == "data_unavailable") != (self.missing_topic is not None):
+            raise ValueError("missing_topic goes with refusal_reason data_unavailable")
         return self
+
+
+class PlanRejected(Exception):
+    """The model returned no usable plan (for example no structured output at all). Never carries model text."""
+
+
+_SAFE_LOCATION = re.compile(r"^[a-z_][a-z0-9_]{0,40}$")
+
+
+def plan_problems(exc: BaseException) -> list[str] | None:
+    """What was wrong with a rejected plan, as field names and error types only; None for any other failure.
+
+    The result is shown to the planner on its one retry, so it must never carry model-written values.
+    """
+    if isinstance(exc, ValidationError):
+        found: list[str] = []
+        for error in exc.errors(include_input=False, include_url=False, include_context=False):
+            parts = [
+                str(p) for p in error["loc"] if _SAFE_LOCATION.match(str(p)) or isinstance(p, int)
+            ]
+            problem = f"{'.'.join(parts) or 'plan'}: {error['type']}"
+            if problem not in found:
+                found.append(problem)
+        return found[:6] or ["plan: invalid"]
+    if isinstance(exc, PlanRejected | OutputParserException):
+        return ["plan: not a structured plan"]
+    return None
 
 
 class Explanation(BaseModel):
