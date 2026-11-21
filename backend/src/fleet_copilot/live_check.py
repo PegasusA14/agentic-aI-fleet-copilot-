@@ -58,6 +58,29 @@ def _outcome_in(*allowed: str) -> Check:
     return check
 
 
+def _pending_proposal(action_type: str, device_id: str, tenant: str) -> Check:
+    """Only a pending proposal for exactly this action and device passes. The check never approves anything:
+    a proposal is the end of the turn, and approval is a separate, human, API step."""
+
+    def check(envelope: AnswerEnvelope) -> str | None:
+        if envelope.outcome != "proposal" or envelope.proposal is None:
+            return f"expected a proposal, got {envelope.outcome}"
+        card = envelope.proposal
+        if card.action_type != action_type:
+            return f"expected a {action_type} proposal, got {card.action_type}"
+        if card.target_device_id != device_id:
+            return f"proposal targets {card.target_device_id}, expected {device_id}"
+        if card.status != "pending":
+            return f"proposal is {card.status}, expected pending"
+        if card.company_id != tenant or any(
+            not ref.startswith(f"{tenant}/") for ref in card.evidence_refs
+        ):
+            return "the proposal points outside the company"
+        return None
+
+    return check
+
+
 DATASET = REPO_ROOT / "data" / "device-telemetry-dataset.ndjson"
 _COMPANIES = ("acme-001", "globex-002", "initech-003")
 
@@ -185,6 +208,13 @@ CASES: tuple[Case, ...] = (
         "What is the weather in Paris today?",
         _outcome_in("unsupported"),
         "offtopic",
+    ),
+    Case(
+        "remediation_ticket",
+        ACME,
+        "Open a remediation ticket for 1LYSSFD074BB's screen lock check",
+        _pending_proposal("remediation_ticket", "1LYSSFD074BB", ACME.company_id),
+        "ticket",
     ),
 )
 

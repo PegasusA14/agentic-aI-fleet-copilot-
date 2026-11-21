@@ -167,10 +167,10 @@
         "first one",
         "open a ticket"
       ],
-      "note": "No proposal backend exists yet (Plan 3); built from a real low-disk answer.",
+      "note": "",
       "question": "Open a ticket for the first one",
       "scenario": "proposal",
-      "synthetic": true,
+      "synthetic": false,
       "tenant": "acme-001"
     },
     {
@@ -354,10 +354,10 @@
         "first one",
         "open a ticket"
       ],
-      "note": "No proposal backend exists yet (Plan 3); built from a real low-disk answer.",
+      "note": "",
       "question": "Open a ticket for the first one",
       "scenario": "proposal",
-      "synthetic": true,
+      "synthetic": false,
       "tenant": "globex-002"
     },
     {
@@ -541,10 +541,10 @@
         "first one",
         "open a ticket"
       ],
-      "note": "No proposal backend exists yet (Plan 3); built from a real low-disk answer.",
+      "note": "",
       "question": "Open a ticket for the first one",
       "scenario": "proposal",
-      "synthetic": true,
+      "synthetic": false,
       "tenant": "initech-003"
     },
     {

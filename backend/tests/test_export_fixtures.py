@@ -21,6 +21,9 @@ from fleet_copilot.agent.llm import (
 )
 from fleet_copilot.config import REPO_ROOT
 from fleet_copilot.contracts import AnswerEnvelope, TraceEvent
+from fleet_copilot.data.loader import connect
+from fleet_copilot.evidence import EvidenceRef
+from fleet_copilot.repository import FleetRepository, TenantContext
 
 
 @pytest.fixture(scope="module")
@@ -69,7 +72,7 @@ def test_outcomes_cover_every_state_the_ui_renders(exported):
 
 def test_meta_marks_synthetic_fixtures_and_carries_router_keywords(exported):
     synthetic = {s.name for s in SCENARIOS if s.synthetic}
-    assert synthetic == {"clarification", "unsupported", "proposal", "tool_error"}
+    assert synthetic == {"clarification", "unsupported", "tool_error"}
     for scenario in SCENARIOS:
         meta = load(exported, "acme-001", scenario.name)["meta"]
         assert meta["synthetic"] is scenario.synthetic
@@ -166,3 +169,56 @@ async def test_fixture_traces_have_the_shape_of_a_live_scripted_turn(exported, r
             where = (tenant, scenario.name)
             assert fixture["trace"][0]["seq"] == 0, where
             assert _shape(fixture["trace"]) == _shape(live_trace), where
+
+
+def golden_screen_lock_target(tenant):
+    golden = json.loads(
+        (REPO_ROOT / "evals" / "golden" / "golden.json").read_text(encoding="utf-8")
+    )
+    return golden["tenants"][tenant]["failing_latest"]["all"]["screen_lock"][0]
+
+
+def test_the_proposal_is_a_real_pending_remediation_ticket_in_every_tenant(exported, real_db_path):
+    for tenant in TENANTS:
+        fixture = load(exported, tenant, "proposal")
+        assert fixture["meta"]["synthetic"] is False and fixture["meta"]["note"] == ""
+        envelope = AnswerEnvelope.model_validate(fixture["envelope"])
+        card = envelope.proposal
+        assert envelope.outcome == "proposal" and card is not None
+        assert card.status == "pending" and card.action_type == "remediation_ticket"
+        assert card.company_id == tenant
+        assert card.target_device_id == golden_screen_lock_target(tenant)
+        assert (
+            card.scope["check_id"] == "screen_lock"
+            and card.scope["device"] == card.target_device_id
+        )
+        assert len(card.payload_hash) == 64 and int(card.payload_hash, 16) >= 0
+        assert card.proposal_id == f"prop-replay-{tenant}-proposal"
+        assert "(simulated)" in card.expected_effect
+        assert card.evidence_refs and {e.ref for e in envelope.evidence} == set(card.evidence_refs)
+        conn = connect(real_db_path, read_only=True)
+        try:
+            repo = FleetRepository(conn, TenantContext(tenant, "test"))
+            for ref in card.evidence_refs:
+                assert repo.resolve(EvidenceRef.parse(ref)).ref == ref
+        finally:
+            conn.close()
+        assert envelope.claims == [] and envelope.entity_lists == []
+
+
+def test_the_proposal_trace_is_a_real_turn_that_proposes_without_explaining(exported):
+    for tenant in TENANTS:
+        trace = load(exported, tenant, "proposal")["trace"]
+        kinds = [e["kind"] for e in trace]
+        assert "explain" not in kinds and "plan" in kinds and kinds[-1] == "respond"
+        calls = [e for e in trace if e["kind"] == "tool_call" and e["tool"] == "propose_action"]
+        assert len(calls) == 1
+        assert calls[0]["data"]["args"]["action_type"] == "remediation_ticket"
+        assert all(e["latency_ms"] is None for e in trace)
+        assert all(e["trace_id"] == f"replay-{tenant}-proposal" for e in trace)
+
+
+def test_the_proposal_fixture_holds_no_random_ids(exported):
+    for tenant in TENANTS:
+        text = (exported / tenant / "proposal.json").read_text(encoding="utf-8")
+        assert text.count("prp_") == 0

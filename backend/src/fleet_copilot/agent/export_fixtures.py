@@ -2,8 +2,11 @@
 
 Each fixture is the output of the real tool layer and the deterministic composer, run as one tenant
 over the real dataset: `execute()` -> `compose()` -> `Composition.to_envelope()`. Nothing is hand-written
-data. The trace of every real (`tools`) scenario is the trace of a real scripted `AgentService` turn. A few outcomes cannot occur yet (there is no model, no proposal backend and no outage to observe),
-so those are built from the same parts and flagged `synthetic` with a note saying why.
+data. The trace of every real (`tools`) scenario is the trace of a real scripted `AgentService` turn, and the
+`proposal` fixture is the whole envelope and trace of one: a scripted propose plan and `propose_action` call
+against a temporary actions database (the eligibility, parameters, evidence and wording are the real code's).
+A few outcomes cannot occur without a live model or an outage, so those are built from the same parts and
+flagged `synthetic` with a note saying why.
 
 Run: `python -m fleet_copilot.agent.export_fixtures [out_dir]` (default `frontend/src/fixtures`).
 """
@@ -11,7 +14,6 @@ Run: `python -m fleet_copilot.agent.export_fixtures [out_dir]` (default `fronten
 from __future__ import annotations
 
 import asyncio
-import hashlib
 import json
 import sys
 import tempfile
@@ -21,7 +23,6 @@ from typing import Any
 
 from langgraph.checkpoint.memory import InMemorySaver
 
-from fleet_copilot import policy
 from fleet_copilot.agent import texts
 from fleet_copilot.agent.compose import Composition, compose
 from fleet_copilot.agent.context import AgentContext
@@ -40,15 +41,14 @@ from fleet_copilot.config import EXPECTED_DATASET_SHA256, REPO_ROOT, Settings
 from fleet_copilot.contracts import (
     AnswerEnvelope,
     Clarification,
-    ProposalCard,
     ScopeInfo,
     TraceEvent,
 )
 from fleet_copilot.data.loader import connect, load_dataset
-from fleet_copilot.evidence import EvidenceRef
 from fleet_copilot.repository import FleetRepository, TenantContext, dataset_as_of
 
 TENANTS = ("acme-001", "globex-002", "initech-003")
+GOLDEN = REPO_ROOT / "evals" / "golden" / "golden.json"
 DEFAULT_OUT = REPO_ROOT / "frontend" / "src" / "fixtures"
 # A device that belongs to another tenant: every tenant is refused it in the same words.
 _FOREIGN_DEVICE = {"acme-001": "4SEFDLPTKXAM", "globex-002": "1LYSSFD074BB"}
@@ -181,10 +181,17 @@ SCENARIOS: tuple[Scenario, ...] = (
         "Open a ticket for the first one",
         ("ticket", "first one", "open a ticket"),
         "proposal",
-        "Resolve 'the first one' against the last list, then propose a remediation ticket.",
-        (("low_disk_devices", {}),),
-        synthetic=True,
-        note="No proposal backend exists yet (Plan 3); built from a real low-disk answer.",
+        "Propose a remediation ticket for one device whose screen lock check is failing.",
+        (
+            (
+                "propose_action",
+                {
+                    "action_type": "remediation_ticket",
+                    "device_id": "{target}",
+                    "check_id": "screen_lock",
+                },
+            ),
+        ),
     ),
     Scenario(
         "tool_error",
@@ -199,11 +206,11 @@ SCENARIOS: tuple[Scenario, ...] = (
 )
 
 
-def _fill(value: Any, foreign_id: str) -> Any:
+def _fill(value: Any, replacement: str, placeholder: str = "{foreign_id}") -> Any:
     if isinstance(value, str):
-        return value.replace("{foreign_id}", foreign_id)
+        return value.replace(placeholder, replacement)
     if isinstance(value, dict):
-        return {k: _fill(v, foreign_id) for k, v in value.items()}
+        return {k: _fill(v, replacement, placeholder) for k, v in value.items()}
     return value
 
 
@@ -285,44 +292,57 @@ async def live_trace(
     ]
 
 
-def _proposal_from(envelope: AnswerEnvelope, tenant: str) -> AnswerEnvelope:
-    """Turn a real low-disk answer into a proposal for the first listed device."""
-    first = envelope.entity_lists[0].items[0]
-    refs = [
-        e.ref for e in envelope.evidence if EvidenceRef.parse(e.ref).device_id == first.device_id
+def _golden_screen_lock_target(tenant: str) -> str:
+    """The first device the independent golden file lists as failing screen_lock for this tenant."""
+    golden = json.loads(GOLDEN.read_text(encoding="utf-8"))
+    failing = golden["tenants"][tenant]["failing_latest"]["all"]["screen_lock"]
+    if not failing:
+        raise RuntimeError(f"{tenant} has no device with a failing screen_lock check")
+    return failing[0]
+
+
+async def live_proposal(
+    scenario: Scenario, tenant: str, db_path: Path, actions_db: Path
+) -> tuple[AnswerEnvelope, list[dict]]:
+    """The envelope and trace of one real, scripted turn that proposes a remediation ticket.
+
+    The scripted model plans `propose` and calls `propose_action`; the action service decides eligibility
+    and writes the card, the evidence and the headline. Two things are normalised so the fixture is
+    byte-identical between runs: the trace id is fixed through the service's `trace_id_factory`, and the
+    proposal id (random per run) is replaced by `prop-<trace id>`. The payload hash is a pure function of the
+    tenant, action, device and parameters, and the card carries no timestamp, so neither needs a fixed clock.
+    """
+    target = _golden_screen_lock_target(tenant)
+    calls = [(tool, _fill(args, target, "{target}")) for tool, args in scenario.calls]
+    trace_id = f"replay-{tenant}-{scenario.name}"
+    llm = ScriptedLLM(
+        plans=[Plan(intent="propose", summary=scenario.plan)],
+        acts=[tool_calls_message(*calls), final_message()],
+    )
+    service = AgentService(
+        db_path=db_path,
+        gateway=llm,
+        checkpointer=InMemorySaver(),
+        trace_id_factory=lambda: trace_id,
+        actions_db_path=actions_db,
+    )
+    actor = f"admin-{tenant.split('-')[0]}"
+    identity = Identity(tenant, actor, f"{tenant} admin (replay)")
+    result = await service.run_turn(identity, "replay", scenario.question)
+    envelope = result.envelope
+    if envelope.outcome != "proposal" or envelope.proposal is None:
+        raise RuntimeError(f"{tenant}: the proposal turn ended as {envelope.outcome}")
+    random_id = envelope.proposal.proposal_id
+    fixed_id = f"prop-{trace_id}"
+
+    def normalise(value: Any) -> Any:
+        return json.loads(json.dumps(value).replace(random_id, fixed_id))
+
+    trace = [
+        normalise(event.model_copy(update={"latency_ms": None}).model_dump(mode="json"))
+        for event in result.trace
     ]
-    scope = {"company": tenant, "device": first.device_id, "rule": envelope.scope.rule or ""}
-    canonical = {
-        "action_type": "remediation_ticket",
-        "company_id": tenant,
-        "target_device_id": first.device_id,
-        "evidence_refs": refs,
-        "scope": scope,
-    }
-    card = ProposalCard(
-        proposal_id=f"prop-{envelope.trace_id}",
-        action_type="remediation_ticket",
-        company_id=tenant,
-        target_device_id=first.device_id,
-        target_label=first.label,
-        rationale=(
-            f"{first.label} has under {policy.LOW_DISK_FREE_PCT:g}% free disk space at its latest snapshot."
-        ),
-        evidence_refs=refs,
-        scope=scope,
-        expected_effect="Simulated: a remediation ticket would be opened. Nothing changes in a real system.",
-        status="pending",
-        payload_hash=hashlib.sha256(
-            json.dumps(canonical, sort_keys=True).encode("utf-8")
-        ).hexdigest(),
-    )
-    data = envelope.model_dump(mode="json")
-    data.update(
-        outcome="proposal",
-        headline=f"Proposed: open a remediation ticket for {first.label}",
-        proposal=card.model_dump(mode="json"),
-    )
-    return AnswerEnvelope.model_validate(data)
+    return AnswerEnvelope.model_validate(normalise(envelope.model_dump(mode="json"))), trace
 
 
 def _clarification(tenant: str, trace_id: str, as_of) -> AnswerEnvelope:
@@ -361,8 +381,6 @@ def _build(
     records = [execute(tool, _fill(args, foreign_id), ctx) for tool, args in scenario.calls]
     composition = compose(records, resolve=repo.resolve)
     envelope = composition.to_envelope(company_id=tenant, as_of=ctx.as_of, trace_id=trace_id)
-    if scenario.kind == "proposal":
-        envelope = _proposal_from(envelope, tenant)
     return envelope, records
 
 
@@ -411,14 +429,21 @@ def export_all(out_dir: Path) -> None:
                 repo = FleetRepository(conn, TenantContext(tenant, ctx.actor_id))
                 index[tenant] = []
                 for scenario in SCENARIOS:
-                    envelope, records = _build(scenario, tenant, ctx, repo, foreign_id)
                     meta = _meta(scenario, tenant, foreign_id)
-                    if scenario.kind == "tools":
-                        trace = asyncio.run(
-                            live_trace(scenario, tenant, db_path, foreign_id, envelope)
+                    if scenario.kind == "proposal":
+                        envelope, trace = asyncio.run(
+                            live_proposal(
+                                scenario, tenant, db_path, Path(tmp) / f"actions-{tenant}.db"
+                            )
                         )
                     else:
-                        trace = _trace(scenario, records, envelope)
+                        envelope, records = _build(scenario, tenant, ctx, repo, foreign_id)
+                        if scenario.kind == "tools":
+                            trace = asyncio.run(
+                                live_trace(scenario, tenant, db_path, foreign_id, envelope)
+                            )
+                        else:
+                            trace = _trace(scenario, records, envelope)
                     _write(
                         out_dir / tenant / f"{scenario.name}.json",
                         {

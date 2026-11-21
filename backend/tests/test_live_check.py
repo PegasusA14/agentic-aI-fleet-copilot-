@@ -2,7 +2,8 @@ import pytest
 from graph_support import answer_plan, explanation, make_service
 
 from fleet_copilot import live_check
-from fleet_copilot.agent.llm import ScriptedLLM, final_message, tool_calls_message
+from fleet_copilot.actions.store import ActionStore
+from fleet_copilot.agent.llm import Plan, ScriptedLLM, final_message, tool_calls_message
 
 
 def test_the_cases_are_named_and_cover_the_demo_story():
@@ -16,6 +17,7 @@ def test_the_cases_are_named_and_cover_the_demo_story():
         "cross_tenant",
         "injection",
         "off_topic",
+        "remediation_ticket",
     } <= set(names)
 
 
@@ -140,3 +142,82 @@ async def test_the_new_software_case_passes_on_the_golden_devices_and_fails_on_o
     )
     failed = await live_check.run_cases(make_service(real_db_path, wrong), only={"new_software"})
     assert failed[0].passed is False and "expected" in failed[0].reason
+
+
+TICKET_TARGET = "1LYSSFD074BB"
+
+
+def propose_script(device_id=TICKET_TARGET, action_type="remediation_ticket", **extra):
+    args = {"action_type": action_type, "device_id": device_id, **extra}
+    if action_type == "remediation_ticket":
+        args.setdefault("check_id", "screen_lock")
+    return ScriptedLLM(
+        plans=[Plan(intent="propose", summary="open a remediation ticket")],
+        acts=[tool_calls_message(("propose_action", args)), final_message()],
+    )
+
+
+def test_the_ticket_case_names_the_device_and_the_check():
+    case = next(c for c in live_check.CASES if c.name == "remediation_ticket")
+    assert case.identity == live_check.ACME
+    assert case.question == "Open a remediation ticket for 1LYSSFD074BB's screen lock check"
+
+
+async def test_the_ticket_case_passes_on_a_pending_proposal_and_never_approves(
+    real_db_path, tmp_path
+):
+    actions_db = tmp_path / "actions.db"
+    service = make_service(real_db_path, propose_script(), actions_db_path=actions_db)
+    results = await live_check.run_cases(service, only={"remediation_ticket"})
+    assert [r.passed for r in results] == [True], results[0].reason
+    assert results[0].outcome == "proposal"
+
+    store = ActionStore(actions_db)
+    with store.transaction() as conn:
+        proposals = store.list(conn, "acme-001")
+        effects = store.effect_counts(conn)
+        events = [row["event"] for row in store.audit(conn, None)]
+    assert [(p.status, p.action_type, p.target_device_id) for p in proposals] == [
+        ("pending", "remediation_ticket", TICKET_TARGET)
+    ]
+    assert sum(sum(rows.values()) for rows in effects.values()) == 0
+    assert events == ["proposal_created"]
+
+
+async def test_the_ticket_case_fails_on_another_action_or_device_or_outcome(real_db_path, tmp_path):
+    other_action = make_service(
+        real_db_path,
+        propose_script(
+            action_type="employee_notification", topic="failing_check", check_id="screen_lock"
+        ),
+        actions_db_path=tmp_path / "a.db",
+    )
+    failed = await live_check.run_cases(other_action, only={"remediation_ticket"})
+    assert failed[0].passed is False and "remediation_ticket" in failed[0].reason
+
+    other_device = make_service(
+        real_db_path, propose_script("8NM23J95R5I6"), actions_db_path=tmp_path / "b.db"
+    )
+    failed = await live_check.run_cases(other_device, only={"remediation_ticket"})
+    assert failed[0].passed is False and TICKET_TARGET in failed[0].reason
+
+    answered = ScriptedLLM(
+        plans=[answer_plan()],
+        acts=[tool_calls_message(("low_disk_devices", {})), final_message()],
+        explains=[explanation()],
+    )
+    failed = await live_check.run_cases(
+        make_service(real_db_path, answered, actions_db_path=tmp_path / "c.db"),
+        only={"remediation_ticket"},
+    )
+    assert failed[0].passed is False and "proposal" in failed[0].reason
+
+
+async def test_a_refusal_is_not_a_passing_ticket_case(real_db_path, tmp_path):
+    refused = make_service(
+        real_db_path,
+        propose_script(check_id="disk_encryption"),
+        actions_db_path=tmp_path / "d.db",
+    )
+    failed = await live_check.run_cases(refused, only={"remediation_ticket"})
+    assert failed[0].passed is False and failed[0].outcome == "denied"

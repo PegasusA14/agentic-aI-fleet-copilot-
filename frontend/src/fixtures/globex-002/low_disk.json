@@ -59,7 +59,7 @@
     "reason_code": null,
     "scope": {
       "as_of": "2026-06-12T11:00:00Z",
-      "calculation": "2 distinct devices across 1 claim; at most 6 supporting readings are cited per device",
+      "calculation": "2 distinct devices across 1 claim; at most 1 supporting reading is cited per device",
       "company_id": "globex-002",
       "population": 8,
       "rule": "primary volume free space < 10% at the latest snapshot"
