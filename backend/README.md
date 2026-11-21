@@ -214,3 +214,150 @@ row. `network` is still dropped at load.
 - **Limit**: the verify gate compares each number on its own, so a date written from numbers that all appear in
   the facts (for example a different day in the same month) is not caught; the code-written claims and
   evidence remain the source of truth.
+
+## Evaluation
+
+`make eval` runs four evaluation suites against the real agent and the real approval path, scores every case with
+code (no model judges anything), prints a pass rate per suite and stores the run for the operator console. It
+needs no network and no key: the model's answers are replayed from the committed cassette.
+
+```bash
+make eval        # offline replay; exit code 0 only if every case passed and none was "not recorded"
+make eval-live   # calls Azure and records every answer the cassette lacks (needs the .env model settings)
+```
+
+`python -m fleet_copilot.evals run --suite <name>` (from `backend/`, through `uv run`) runs one suite. Output is a
+table of `suite  passed/total  rate  not-recorded` plus an overall row. A JSON report goes to
+`evals/reports/<run_id>.json` (git-ignored), the run and its cases to `var/evals.db`, and each turn's trace to
+`var/traces.db`, where the console reads them. Exit codes: `0` clean, `1` a case failed or was not recorded, `2` the
+run could not start (for example the dataset database is missing: run `make load-data`).
+
+### The four suites
+
+The scenario files are `evals/scenarios/{grounding,trends,actions,guardrails}.json`. A case is a short
+conversation with the expected result written next to each question; a case whose question lists several phrasings
+expands into one instance per phrasing (ids look like `grounding.low_disk_acme#3`) and every phrasing must pass.
+As committed, the files hold 57 cases that expand to 260 instances; the guardrails suite adds one more result, the
+audit-completeness check.
+
+| Suite | Cases / instances | What it proves |
+| --- | --- | --- |
+| `grounding` | 15 / 71 | The answer's device set and `coverage.population` equal the golden values (low disk per company, macOS older than 15, failing checks, inventory, one device's history). Every listed device has at least one evidence reference, and every reference parses, belongs to the signed-in company and resolves through the repository (read-only). A question about a device that does not exist is the uniform `denied` / `not_found`. |
+| `trends` | 18 / 80 | The trend findings match the golden classes: memory pressure sustained over 7 days, disk low all week, new `screen_lock` failures against the persistent `os_up_to_date` failure, battery signals, newly installed software over 30 days, and the 7-day window answered as `no_match`. One case is a two-turn follow-up ("which of those all week"). |
+| `actions` | 11 / 49 | A request produces a pending proposal for the right action type and device, and nothing else. A human decision then runs through `ActionService`: approve with the card hash executes once and adds one simulated effect row, a second approval is a duplicate with no new row, a wrong hash is `proposal changed`, a rejection adds nothing. Four ineligible requests are `denied` / `not_eligible` and create no proposal. |
+| `guardrails` | 13 / 60, plus 1 | Cross-company questions by company name or by device id are `denied` / `not_found` and leak nothing; prompt injection and off-topic questions are refused; "approve it", "execute it" and bulk requests ("flag all of them") are `unsupported_action` and create no proposal; an admin of another company approving a proposal gets `not_found` with no effect. The `audit_completeness` check closes the suite (below). |
+
+What each result means for the SOP pre-submission checklist (§8.3):
+
+| Checklist item | Where the evaluation shows it |
+| --- | --- |
+| Every answer cites evidence | `grounding`: `cites_every_device` on every answer case; `trends` and the other suites set it wherever devices are listed. |
+| Insights have a finding, evidence and an explanation | `trends` checks the finding (the exact device set, per the golden class) and its evidence. The explanation is not scored by a suite beyond `prose_verified` on two grounding cases; that it is grounded is the verify gate's job (see "Grounding is lexical"). |
+| Actions need human approval | `actions`: the request turn only creates a `pending` proposal, and effect tables change only in a decision step. `guardrails`: approving through chat is `unsupported_action` with no proposal row. |
+| Cross-company access is blocked and tested | `guardrails`: `no_foreign_data` scans the whole envelope and the whole trace for any other company's id, device id or hostname (read from the raw dataset); `approve_as` another company is `not_found` with zero effect. Tier 1 holds the isolation matrix. |
+| The audit log records proposals, approvals and executions | `audit_completeness` (below) over every action instance of the run. |
+| Actions are refused when evidence is insufficient | `actions`: the four ineligible cases are `not_eligible` with no proposal. The stale-reading and too-few-readings paths (`insufficient_evidence`) are covered by `tests/test_action_eligibility.py`, not by a scenario. |
+| The evaluation suite runs with one command | `make eval`. |
+
+`audit_completeness` runs after the other guardrails cases when the guardrails suite is part of the run. It opens
+the `actions.db` of every instance in the run (each instance has its own, so nothing leaks between them) and
+requires `proposal_created` for every proposal row, `proposal_approved` and `proposal_executed` for every executed
+one, and `proposal_rejected` for every rejected one. If the actions suite is in the run but no proposal exists at
+all, it reports "not recorded" rather than passing on nothing. It does not check the refusal entries; those are
+tier 1.
+
+### Golden independence
+
+Expected values are never computed by the product. They come from `evals/golden/golden.json`, written by
+`evals/golden/oracle.py` (`make golden`), which reads the raw NDJSON with plain loops and imports only the Python
+standard library, nothing from `fleet_copilot`. A scenario points at a value with a small reference, for example
+`{"golden": "acme-001/low_disk_lt10/devices"}`, resolved by `evals/golden_ref.py`, which reads that file and
+takes nothing from the product but the repository root path. The few facts the golden file lacks are written as a literal
+`{"devices": [...], "source": "<why>"}`; the loader rejects a literal without its note. The other-company
+identifiers used by `no_foreign_data` are read from the dataset file with `json`, not from the repository.
+
+If the product and its own tests ever agreed on a wrong answer, the golden file would still disagree.
+
+### Paraphrase sets
+
+Every case has a paraphrased turn with at least 4 phrasings: terse ("low disk?"), verbose, misspelled ("wich
+machnes r almost out of disk space") and alternate wording or units. All of them must produce the same outcome and
+the same device set, so a case counts as passed phrasing by phrasing, and the console shows the phrasing number.
+`tests/test_eval_suites_valid.py` fails if a case has fewer than 4, if a golden reference does not resolve to a fact
+for the asking company, or if two instances share an id. At most one turn per case lists phrasings; the other turns of a case are fixed text.
+
+### Two tiers
+
+- **Tier 1, `make test`.** Domain and tools against the golden file, the isolation matrix, and the action
+  zero-effect cases (rejection, no approval, changed scope, duplicate approval, insufficient evidence, another
+  company, unsupported) asserted through database row counts and audit entries. Fast, no key, no cassette.
+- **Tier 2, `make eval`.** Whole conversations through the agent graph with a recorded model, scored by the code
+  evaluators in `evals/evaluators.py` (outcome and reason code, exact device set, population, citation support,
+  foreign data, proposal and no-proposal, and the decision steps' status and effect deltas).
+
+### Determinism and the cassette
+
+The model is called at temperature 0. In replay, answers come from `evals/cassettes/eval.jsonl`, keyed by a SHA-256
+over the call kind and the messages (types, contents, tool-call names and arguments). The key does not include the
+deployment, so a different deployment or model reuses old entries. The file is committed. A line holds the key, the
+call kind and the model's response; the question text is inside the hash only, and no credential is ever written.
+
+Each instance runs on its own state directory, `var/evals/<run_id>/<instance>/`, with its own conversation
+checkpoints and `actions.db`, so a run never touches your own conversations or proposals and no instance sees
+another's.
+
+**"Not recorded".** If a replayed turn asks the model something the cassette has no entry for, the case fails with
+the check `recorded: not recorded` (the trace shows a `CassetteMiss`); it is not a crash and not a pass. The case's
+remaining turns are skipped. The summary counts these per suite, and `make eval` exits `1` while any exist. With no
+cassette at all every case is "not recorded".
+
+- Record: `make eval-live`. It replays what the cassette already has, calls Azure for each miss and appends the
+  response. It needs `AZURE_OPENAI_*` in `.env` and spends model calls.
+- After a change to a prompt, a tool description or tool output, the old keys no longer match and the affected cases
+  become "not recorded"; `make eval-live` records the new ones and leaves the dead entries in the file.
+- To rebuild the file from scratch (after a prompt change you want a clean cassette for, or a different deployment or
+  model, which the key cannot see), run `uv run python -m fleet_copilot.evals run --live --refresh` from `backend/`.
+  `--refresh` deletes the cassette first, so every answer is new. The Makefile target has no argument pass-through.
+- Then run `make eval` and commit `evals/cassettes/eval.jsonl` with the change that required it.
+
+A live run is not reproducible: temperature 0 narrows but does not remove the variation between calls. That is why
+the committed cassette, not the live model, is what `make eval` judges.
+
+### Reading a run in `/observe`
+
+Sign in as the operator (see "Running the API and the model"), open `/#/observe` and choose the **Evaluations** tab.
+Refresh reloads it.
+
+- The runs table lists each run newest first: start time, mode (`eval-replay` or `eval-live`), the dataset's
+  sha256 (first 12 characters; hover for all), the pinned as-of, and per suite a mark with passed/total, then the
+  overall. A suite with a "not recorded" case and no real failure shows the hollow "Not recorded" mark, never
+  "Failed".
+- Select a run to list its cases: suite, case id with the exact questions asked, phrasing number, company, result,
+  and the failing checks in words (expected against actual, with missing and extra device ids spelled out).
+  **Failing only** keeps the cases that did not pass; "not recorded" cases are included, because they are not passes.
+- **Trace** opens the timeline of that turn (plan, tool calls, evidence, verify result, outcome) from the shared
+  trace store; multi-turn cases have one button per turn. The same traces appear in the Traces tab with their mode.
+- For action cases, the **Effects** column is the ledger of each decision step: the effect tables' totals before and
+  after, shown as "Tickets +1 (simulated)" or "No effect change". A step that was meant to change nothing is
+  visible as such, not just asserted.
+- When the console runs on fixtures (no backend) the tab shows a labelled example run, not a stored result.
+
+### Limits
+
+- **Lexical grounding.** The verify gate checks numbers, ids, links and a deny-list of claim words, not meaning (see
+  "Grounding is lexical"). The suites pin the device sets and outcomes, which are exact, but they do not judge
+  whether a model-written sentence is a fair reading of them.
+- **No LLM judge yet.** The design's optional, non-gating judge of explanation quality is future work. Nothing in
+  this evaluation calls a model to score another.
+- **Simulated actions.** Executors write rows with `simulated = 1`; nothing leaves the process. The suites prove the
+  approval path and its effect counts, not any real ticketing or ordering system.
+- **Pinned as-of.** "Now" is the newest snapshot in the dataset (2026-06-12T11:00:00Z), and the golden file is pinned
+  to that dataset's sha256. The suites say nothing about live fleets or a moving clock; a different dataset needs a
+  regenerated golden file (`make golden`), a reloaded database and a fresh cassette.
+- **The Globex transient memory case.** The golden file classes Globex's CUXW0BQSV1B7 as `intermittent` and
+  JRZSGXVMKE6M as `sustained` for 85% over 7 days. The case `memory_transient_vs_sustained_globex` expects the
+  answer to list exactly the devices the golden file classes (both) and to include the sustained one; it does not
+  assert that the answer keeps the transient device out. The classification itself is fixed by the golden file and
+  checked in `tests/test_eval_suites_valid.py`.
+- **Not a coverage count.** Pass rates are per instance, so a case with 5 phrasings weighs 5 times a single-turn case
+  without a list. A pass means the case's own expectations held, not that the agent is right about everything else.

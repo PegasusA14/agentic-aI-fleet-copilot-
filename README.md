@@ -4,7 +4,8 @@ A natural-language copilot that turns device telemetry into evidence-backed flee
 decisions and human-approved actions. Built for the Senior Agentic AI Engineer
 assessment.
 
-> Status: the agent, API and web console run end to end. `make eval` is not available yet.
+> Status: the agent, API, web console and evaluation suites run end to end. `make eval` replays the committed
+> cassette; until `evals/cassettes/eval.jsonl` is recorded with `make eval-live`, every case reports "not recorded".
 
 ## Quick start
 
@@ -31,7 +32,8 @@ cd frontend && VITE_FLEET_DATA=fixtures npm run dev
 ```
 
 Tests: `make test` (backend), `make frontend-test` (typecheck and unit tests), `make lint`.
-`make eval` is not available yet.
+Evaluation: `make eval` (offline replay) and `make eval-live` (Azure, records the cassette); see
+[Evaluation](backend/README.md#evaluation).
 
 ## Setup
 
@@ -43,6 +45,7 @@ make load-data   # validate data/device-telemetry-dataset.ndjson into var/fleet.
 make test        # unit, golden-agreement and tenant-isolation tests (no API key needed)
 make lint        # ruff checks on backend/src and backend/tests
 make golden      # regenerate evals/golden/golden.json from the raw data
+make eval        # run the four evaluation suites offline from the committed cassette
 make contracts   # regenerate the contracts/*.schema.json files from the Pydantic models
 ```
 
