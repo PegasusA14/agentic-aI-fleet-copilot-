@@ -18,6 +18,7 @@ from fleet_copilot.agent.llm import LLMGateway
 from fleet_copilot.agent.service import AgentService, DatasetUnavailable, InvalidQuestion
 from fleet_copilot.api import routes_actions, routes_chat, routes_data, routes_session
 from fleet_copilot.config import ApiSettings, ModelSettings, Settings, load_env
+from fleet_copilot.evals.store import EvalStore
 from fleet_copilot.observability.store import TraceStore
 
 _UNSAFE_METHODS = {"POST", "PUT", "PATCH", "DELETE"}
@@ -85,6 +86,7 @@ def create_app(
                 fleet_db=settings.db_path, store=ActionStore(state / "actions.db")
             )
             app.state.store = store
+            app.state.evals = EvalStore(state / "evals.db")  # where `make eval` writes
             yield
 
     app = FastAPI(

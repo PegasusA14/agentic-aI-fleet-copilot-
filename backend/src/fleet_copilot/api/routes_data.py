@@ -79,3 +79,17 @@ def observe_trace(trace_id: str, request: Request) -> dict:
     if events is None:
         raise _not_found()
     return {"trace_id": trace_id, "events": [e.model_dump(mode="json") for e in events]}
+
+
+@router.get("/observe/evals", dependencies=[Depends(require_operator)])
+def observe_evals(request: Request, limit: Annotated[int, Query(ge=0, le=500)] = 20) -> list[dict]:
+    """Stored evaluation runs, newest first, with their totals per suite and no cases."""
+    return request.app.state.evals.list_runs(limit=limit)
+
+
+@router.get("/observe/evals/{run_id}", dependencies=[Depends(require_operator)])
+def observe_eval(run_id: str, request: Request) -> dict:
+    run = request.app.state.evals.get_run(run_id)
+    if run is None:
+        raise _not_found()
+    return run

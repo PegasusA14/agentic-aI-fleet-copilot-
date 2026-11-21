@@ -69,6 +69,8 @@ function fake(overrides: Partial<Transport> = {}) {
     observeTurns: vi.fn(async () => TURNS),
     observeTrace: vi.fn(async (traceId: string) => ({ trace_id: traceId, events: STEPS })),
     observeAudit: vi.fn(async () => AUDIT),
+    observeEvals: vi.fn(async () => []),
+    observeEval: vi.fn(),
     observeEffects: vi.fn(async () => ({
       tickets: { "acme-001": 2, "globex-002": 1 },
       replacement_flags: { "globex-002": 3 },
@@ -84,12 +86,11 @@ function renderView(transport: Transport, onSessionEnded: () => void = () => {})
 }
 
 describe("the operator console", () => {
-  it("has three tabs and no composer", async () => {
+  it("has four tabs and no composer", async () => {
     renderView(fake());
     expect(await screen.findByRole("heading", { name: "Operator console" })).toBeInTheDocument();
     const tabs = within(screen.getByRole("tablist", { name: "Console sections" })).getAllByRole("tab");
-    expect(tabs.map((tab) => tab.textContent)).toEqual(["Traces", "Audit", "Effect ledger"]);
-    expect(screen.queryByRole("tab", { name: /evaluations/i })).not.toBeInTheDocument();
+    expect(tabs.map((tab) => tab.textContent)).toEqual(["Traces", "Audit", "Effect ledger", "Evaluations"]);
     expect(screen.queryByRole("textbox", { name: /ask/i })).not.toBeInTheDocument();
     expect(screen.getByRole("tabpanel")).toHaveAccessibleName("Traces");
   });
@@ -100,27 +101,32 @@ describe("the operator console", () => {
     const traces = await screen.findByRole("tab", { name: "Traces" });
     const audit = screen.getByRole("tab", { name: "Audit" });
     const ledger = screen.getByRole("tab", { name: "Effect ledger" });
-    expect([traces, audit, ledger].map((t) => t.getAttribute("tabindex"))).toEqual(["0", "-1", "-1"]);
+    const evals = screen.getByRole("tab", { name: "Evaluations" });
+    const all = [traces, audit, ledger, evals];
+    expect(all.map((t) => t.getAttribute("tabindex"))).toEqual(["0", "-1", "-1", "-1"]);
 
     traces.focus();
     await user.keyboard("{ArrowRight}");
     expect(audit).toHaveFocus();
     expect(audit).toHaveAttribute("aria-selected", "true");
-    expect([traces, audit, ledger].map((t) => t.getAttribute("tabindex"))).toEqual(["-1", "0", "-1"]);
+    expect(all.map((t) => t.getAttribute("tabindex"))).toEqual(["-1", "0", "-1", "-1"]);
     expect(await screen.findByRole("tabpanel")).toHaveAccessibleName("Audit");
 
     await user.keyboard("{ArrowRight}");
     expect(ledger).toHaveFocus();
     await user.keyboard("{ArrowRight}");
+    expect(evals).toHaveFocus();
+    expect(await screen.findByRole("tabpanel")).toHaveAccessibleName("Evaluations");
+    await user.keyboard("{ArrowRight}");
     expect(traces).toHaveFocus();
     expect(traces).toHaveAttribute("aria-selected", "true");
     await user.keyboard("{ArrowLeft}");
-    expect(ledger).toHaveFocus();
+    expect(evals).toHaveFocus();
     await user.keyboard("{Home}");
     expect(traces).toHaveFocus();
     await user.keyboard("{End}");
-    expect(ledger).toHaveFocus();
-    expect(screen.getByRole("tabpanel")).toHaveAccessibleName("Effect ledger");
+    expect(evals).toHaveFocus();
+    expect(screen.getByRole("tabpanel")).toHaveAccessibleName("Evaluations");
   });
 
   it("lists recent turns in words and opens a turn's trace timeline", async () => {

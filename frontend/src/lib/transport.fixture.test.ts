@@ -166,6 +166,28 @@ describe("fixtureTransport", () => {
   });
 });
 
+describe("the example evaluation run", () => {
+  it("is labelled fixtures, operator-only and every case has a readable trace", async () => {
+    const t = await signedIn();
+    expect((await rejection(t.observeEvals())).status).toBe(403);
+    await t.signIn("operator", "demo");
+    const runs = await t.observeEvals();
+    expect(runs).toHaveLength(1);
+    expect(runs[0].model_mode).toBe("fixtures");
+    expect(runs[0]).not.toHaveProperty("cases");
+    const run = await t.observeEval(runs[0].run_id);
+    expect(run.cases.map((c) => c.instance_id)).toEqual([
+      "grounding.low_disk_acme#1",
+      "actions.ticket_screen_lock_1lyssfd074bb#1",
+      "guardrails.other_company_by_name_acme_asks_globex#1",
+    ]);
+    for (const c of run.cases) {
+      expect((await t.observeTrace(c.trace_ids[0])).events.length).toBeGreaterThan(0);
+    }
+    expect((await rejection(t.observeEval("nope"))).status).toBe(404);
+  });
+});
+
 describe("chooseTransport", () => {
   it("serves fixtures only when VITE_FLEET_DATA says so", () => {
     vi.stubEnv("VITE_FLEET_DATA", "fixtures");

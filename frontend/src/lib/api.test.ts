@@ -162,6 +162,14 @@ describe("liveTransport proposals", () => {
     fetchMock.mockResolvedValueOnce(json([]));
     await liveTransport.observeAudit({ company: "acme-001" });
     expect(fetchMock.mock.calls[3][0]).toBe("/api/observe/audit?company=acme-001");
+
+    fetchMock.mockResolvedValueOnce(json([]));
+    await liveTransport.observeEvals(5);
+    expect(fetchMock.mock.calls[4][0]).toBe("/api/observe/evals?limit=5");
+
+    fetchMock.mockResolvedValueOnce(json({ run_id: "a/b", cases: [] }));
+    await liveTransport.observeEval("a/b");
+    expect(fetchMock.mock.calls[5][0]).toBe("/api/observe/evals/a%2Fb");
   });
 
   it("encodes evidence refs and ids", async () => {

@@ -5,6 +5,7 @@
  */
 import { ApiError, del, getJson, postJson, send } from "./api";
 import { routeQuestion } from "./fixtureRouter";
+import { EXAMPLE_EVAL_RUN, exampleEvalTrace } from "./evalExample";
 import { datasetAsOf, fixturesFor, TENANTS } from "./fixtures";
 import { parseSse } from "./sse";
 import type { AnswerEnvelope, ProposalCard, TraceEvent } from "./types";
@@ -110,6 +111,67 @@ export interface ObservedTurn {
 /** Rows written per effect table (`tickets`, `replacement_flags`, ...), per company. */
 export type EffectCounts = Record<string, Record<string, number>>;
 
+export interface EvalTally {
+  passed: number;
+  total: number;
+  rate: number;
+  not_recorded: number;
+}
+
+/** A run that has not finished (or crashed) stores empty totals, so both parts are optional. */
+export interface EvalTotals {
+  suites?: Record<string, EvalTally>;
+  overall?: EvalTally;
+}
+
+export interface EvalCheck {
+  name: string;
+  passed: boolean;
+  detail: string;
+  turn: number | null;
+}
+
+/** One human decision an action case made, with the effect ledger before and after it. */
+export interface EvalEffectStep {
+  step: number;
+  do: string;
+  user: string | null;
+  status: string | null;
+  duplicate: boolean;
+  error: string | null;
+  before: Record<string, number>;
+  after: Record<string, number>;
+  delta: Record<string, number>;
+}
+
+export interface EvalCase {
+  instance_id: string;
+  suite: string;
+  case_id: string;
+  phrasing_index: number;
+  /** The demo alias the case signs in as, e.g. `admin-acme`. */
+  user: string;
+  questions: string[];
+  passed: boolean;
+  checks: EvalCheck[];
+  trace_ids: string[];
+  effects: EvalEffectStep[];
+}
+
+export interface EvalRun {
+  run_id: string;
+  started_at: string;
+  model_mode: string;
+  dataset_sha256: string;
+  as_of: string;
+  policy: Record<string, unknown>;
+  totals: EvalTotals;
+}
+
+export interface EvalRunDetail extends EvalRun {
+  cases: EvalCase[];
+}
+
 export interface Transport {
   /** "live" talks to the API; "fixtures" is the offline replay with simulated decisions. */
   readonly mode: "live" | "fixtures";
@@ -137,6 +199,8 @@ export interface Transport {
   observeTrace(traceId: string): Promise<TraceView>;
   observeAudit(filters?: ObserveAuditFilters): Promise<AuditEntry[]>;
   observeEffects(): Promise<EffectCounts>;
+  observeEvals(limit?: number): Promise<EvalRun[]>;
+  observeEval(runId: string): Promise<EvalRunDetail>;
 }
 
 const enc = encodeURIComponent;
@@ -190,6 +254,8 @@ export const liveTransport: Transport = {
   observeTrace: (traceId) => getJson(`/api/observe/traces/${enc(traceId)}`),
   observeAudit: (filters = {}) => getJson("/api/observe/audit", { ...filters }),
   observeEffects: () => getJson("/api/observe/effects"),
+  observeEvals: (limit) => getJson("/api/observe/evals", { limit: limit?.toString() }),
+  observeEval: (runId) => getJson(`/api/observe/evals/${enc(runId)}`),
 };
 
 // ---- fixtures ---------------------------------------------------------------------------------
@@ -495,7 +561,7 @@ export function fixtureTransport(stepMs = 380): Transport {
     },
     async observeTrace(traceId) {
       who("operator");
-      const events = traces.get(traceId);
+      const events = traces.get(traceId) ?? exampleEvalTrace(traceId);
       if (!events) throw notFound();
       return { trace_id: traceId, events };
     },
@@ -511,6 +577,16 @@ export function fixtureTransport(stepMs = 380): Transport {
     async observeEffects() {
       who("operator");
       return structuredClone(effects);
+    },
+    async observeEvals(limit = 20) {
+      who("operator");
+      const { cases: _cases, ...run } = EXAMPLE_EVAL_RUN;
+      return [structuredClone(run)].slice(0, limit);
+    },
+    async observeEval(runId) {
+      who("operator");
+      if (runId !== EXAMPLE_EVAL_RUN.run_id) throw notFound();
+      return structuredClone(EXAMPLE_EVAL_RUN);
     },
   };
 }

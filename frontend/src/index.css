@@ -1933,3 +1933,47 @@ p.evidence__raw {
     animation: none;
   }
 }
+
+/* ---- Evaluations tab ---- */
+.obs__table td.obs__wrap {
+  white-space: normal;
+  min-width: 220px;
+  max-width: 420px;
+}
+
+.evals__tally {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.evals__count {
+  font-size: 0.875rem;
+  color: var(--ink-2);
+}
+
+.evals__question,
+.evals__why {
+  display: block;
+  color: var(--ink-2);
+  font-size: 0.875rem;
+  overflow-wrap: anywhere;
+}
+
+.evals__question {
+  margin-top: 2px;
+}
+
+.evals__why + .evals__why {
+  margin-top: 4px;
+}
+
+.evals__traces {
+  display: inline-flex;
+  gap: 6px;
+}
+
+.evals__traces .link-btn[aria-pressed="true"] {
+  background: var(--action-wash);
+  border-color: var(--action);
+}

@@ -3,11 +3,12 @@ import { type KeyboardEvent, useRef, useState } from "react";
 import type { Transport } from "../../lib/transport";
 import { AuditTable } from "./AuditTable";
 import { EffectLedger } from "./EffectLedger";
+import { EvalsView } from "./EvalsView";
 import { TurnsTable } from "./TurnsTable";
 
 type ObserveTransport = Pick<
   Transport,
-  "observeTurns" | "observeTrace" | "observeAudit" | "observeEffects"
+  "observeTurns" | "observeTrace" | "observeAudit" | "observeEffects" | "observeEvals" | "observeEval"
 >;
 
 interface ObserveViewProps {
@@ -19,15 +20,21 @@ const TABS = [
   { id: "traces", label: "Traces" },
   { id: "audit", label: "Audit" },
   { id: "effects", label: "Effect ledger" },
+  { id: "evals", label: "Evaluations" },
 ] as const;
 
 type TabId = (typeof TABS)[number]["id"];
 
-/** The operator's read-only console: turns and their traces, every company's audit trail, and the effect ledger. */
+/** The operator's read-only console: turns and their traces, every company's audit trail, the effect ledger and the evaluation runs. */
 export function ObserveView({ transport, onSessionEnded }: ObserveViewProps) {
   const [tab, setTab] = useState<TabId>("traces");
   const [nonce, setNonce] = useState(0);
-  const buttons = useRef<Record<TabId, HTMLButtonElement | null>>({ traces: null, audit: null, effects: null });
+  const buttons = useRef<Record<TabId, HTMLButtonElement | null>>({
+    traces: null,
+    audit: null,
+    effects: null,
+    evals: null,
+  });
 
   function move(event: KeyboardEvent<HTMLDivElement>) {
     const at = TABS.findIndex((t) => t.id === tab);
@@ -95,8 +102,10 @@ export function ObserveView({ transport, onSessionEnded }: ObserveViewProps) {
           <TurnsTable transport={transport} nonce={nonce} onSessionEnded={onSessionEnded} />
         ) : tab === "audit" ? (
           <AuditTable transport={transport} nonce={nonce} onSessionEnded={onSessionEnded} />
-        ) : (
+        ) : tab === "effects" ? (
           <EffectLedger transport={transport} nonce={nonce} onSessionEnded={onSessionEnded} />
+        ) : (
+          <EvalsView transport={transport} nonce={nonce} onSessionEnded={onSessionEnded} />
         )}
       </div>
     </div>
