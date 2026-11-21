@@ -1,6 +1,7 @@
 import { useEffect, useRef } from "react";
-import type { AnswerEnvelope, TraceEvent } from "../lib/types";
+import type { AnswerEnvelope, ProposalCard, TraceEvent } from "../lib/types";
 import { AnswerSheet } from "./AnswerSheet";
+import type { Decide } from "./ProposalView";
 import { StateMark } from "./StateMark";
 
 export interface TurnData {
@@ -21,6 +22,9 @@ interface TurnViewProps {
   onOpenEvidence: (turn: TurnData, refs?: string[]) => void;
   onOpenTrace: (turn: TurnData) => void;
   onAsk: (question: string) => void;
+  decide?: Decide;
+  onDecided?: (card: ProposalCard) => void;
+  onSessionEnded?: () => void;
 }
 
 function FailureSheet({ turn, onAsk }: { turn: TurnData; onAsk: (question: string) => void }) {
@@ -43,7 +47,7 @@ function FailureSheet({ turn, onAsk }: { turn: TurnData; onAsk: (question: strin
   );
 }
 
-function TurnView({ turn, onOpenEvidence, onOpenTrace, onAsk }: TurnViewProps) {
+function TurnView({ turn, onOpenEvidence, onOpenTrace, onAsk, decide, onDecided, onSessionEnded }: TurnViewProps) {
   const steps = turn.events.filter((event) => event.kind !== "respond");
   const root = useRef<HTMLElement>(null);
 
@@ -62,6 +66,9 @@ function TurnView({ turn, onOpenEvidence, onOpenTrace, onAsk }: TurnViewProps) {
           onOpenEvidence={(refs) => onOpenEvidence(turn, refs)}
           onOpenTrace={() => onOpenTrace(turn)}
           onAsk={onAsk}
+          decide={decide}
+          onDecided={onDecided}
+          onSessionEnded={onSessionEnded}
         />
       ) : turn.status === "failed" ? (
         <FailureSheet turn={turn} onAsk={onAsk} />

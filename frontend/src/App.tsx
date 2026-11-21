@@ -1,5 +1,6 @@
 import { MotionConfig, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { ApprovalsView } from "./components/ApprovalsView";
 import { Aurora } from "./components/Aurora";
 import { Composer } from "./components/Composer";
 import { EvidenceDrawer, type DrawerTab } from "./components/EvidenceDrawer";
@@ -11,10 +12,12 @@ import { Thread, type TurnData } from "./components/Thread";
 import { ApiError, UNREACHABLE } from "./lib/api";
 import { datasetAsOf, fixturesFor, tenantName } from "./lib/fixtures";
 import { chooseTransport, type Session, type Transport } from "./lib/transport";
-import type { AnswerEnvelope } from "./lib/types";
+import type { AnswerEnvelope, EvidenceItem } from "./lib/types";
+import { parseRef } from "./lib/format";
 
 const DOCK = { duration: 0.9, ease: [0.16, 1, 0.3, 1] as const };
 const OBSERVE_HASH = "#/observe";
+const APPROVALS_HASH = "#/approvals";
 const SESSION_ENDED = "Your session ended. Sign in again.";
 const DATASET_UNAVAILABLE = "The dataset is not available. Run make load-data, then try again.";
 
@@ -22,6 +25,8 @@ interface DrawerState {
   turnId: string;
   tab: DrawerTab;
   refs: string[];
+  /** Set when the drawer was opened from the approvals view, where no answer is at hand. */
+  proposal?: { subject: string };
 }
 
 interface AppProps {
@@ -35,10 +40,33 @@ function fixtureNote(envelope: AnswerEnvelope): string | undefined {
   return match?.meta.synthetic ? match.meta.note : undefined;
 }
 
-function clearObserveHash() {
-  if (window.location.hash === OBSERVE_HASH) {
+/** Signing out leaves no view behind: a route hash from this session must not carry to the next one. */
+function clearRouteHash() {
+  if (window.location.hash === OBSERVE_HASH || window.location.hash === APPROVALS_HASH) {
     window.history.replaceState(null, "", window.location.pathname + window.location.search);
   }
+}
+
+function useHash(): string {
+  const [hash, setHash] = useState(() => window.location.hash);
+  useEffect(() => {
+    const update = () => setHash(window.location.hash);
+    window.addEventListener("hashchange", update);
+    return () => window.removeEventListener("hashchange", update);
+  }, []);
+  return hash;
+}
+
+/** A reading as the drawer lists it when only its reference is known: the check or field, and when it was taken. */
+function readingFor(ref: string, known: EvidenceItem[]): EvidenceItem {
+  const found = known.find((item) => item.ref === ref);
+  if (found) return found;
+  const parts = parseRef(ref);
+  return {
+    ref,
+    label: parts ? parts.path.replaceAll("_", " ") : "Reading",
+    value: parts ? `Taken ${parts.collectedAt.slice(0, 10)} ${parts.collectedAt.slice(11, 16)} UTC` : "Stored reading",
+  };
 }
 
 export default function App({ transport: given }: AppProps) {
@@ -54,11 +82,15 @@ export default function App({ transport: given }: AppProps) {
   const [banner, setBanner] = useState<string | null>(null);
   /** Bumped whenever the conversation is thrown away, so the drawer drops what it fetched. */
   const [generation, setGeneration] = useState(0);
+  /** Proposals waiting for a decision; null until the first count arrives. */
+  const [pending, setPending] = useState<number | null>(null);
+  const hash = useHash();
 
   const epoch = useRef(0);
   const conversation = useRef<string | null>(null);
   const turnSeq = useRef(0);
   const inFlight = useRef(false);
+  const countSeq = useRef(0);
 
   useEffect(() => {
     let alive = true;
@@ -106,12 +138,32 @@ export default function App({ transport: given }: AppProps) {
   const endSession = useCallback(
     (why: string | null) => {
       resetConversation();
-      clearObserveHash();
+      clearRouteHash();
+      countSeq.current += 1;
+      setPending(null);
       setSession(null);
       setNotice(why);
     },
     [resetConversation],
   );
+
+  /** Re-reads how many proposals wait for a decision. A failed read keeps the last count; a later one replaces it. */
+  const refreshPending = useCallback(() => {
+    const mine = ++countSeq.current;
+    void (async () => {
+      try {
+        const waiting = await transport.proposals("pending");
+        if (mine === countSeq.current) setPending(waiting.length);
+      } catch (error) {
+        if (mine === countSeq.current && error instanceof ApiError && error.status === 401) endSession(SESSION_ENDED);
+      }
+    })();
+  }, [transport, endSession]);
+
+  const isAdmin = session?.role === "admin";
+  useEffect(() => {
+    if (isAdmin) refreshPending();
+  }, [isAdmin, refreshPending]);
 
   const patchTurn = useCallback((id: string, change: (turn: TurnData) => TurnData) => {
     setTurns((prev) => prev.map((turn) => (turn.id === id ? change(turn) : turn)));
@@ -148,6 +200,7 @@ export default function App({ transport: given }: AppProps) {
           if (!live()) return;
           const note = transport.mode === "fixtures" ? fixtureNote(envelope) : undefined;
           patchTurn(id, (turn) => ({ ...turn, status: "done", envelope, note }));
+          if (envelope.outcome === "proposal") refreshPending();
         } catch (error) {
           if (!live()) return;
           const status = error instanceof ApiError ? error.status : 0;
@@ -169,7 +222,7 @@ export default function App({ transport: given }: AppProps) {
         }
       })();
     },
-    [session, transport, patchTurn, endSession],
+    [session, transport, patchTurn, endSession, refreshPending],
   );
 
   async function signOut() {
@@ -189,6 +242,16 @@ export default function App({ transport: given }: AppProps) {
   const sessionEnded = useCallback(() => endSession(SESSION_ENDED), [endSession]);
 
   const drawerTurn = useMemo(() => turns.find((t) => t.id === drawer?.turnId) ?? null, [turns, drawer]);
+  const drawerReadings = useMemo(() => {
+    if (!drawer?.proposal) return undefined;
+    const known = turns.flatMap((turn) => turn.envelope?.evidence ?? []);
+    return drawer.refs.map((ref) => readingFor(ref, known));
+  }, [turns, drawer]);
+  const onApprovals = hash === APPROVALS_HASH;
+  const openProposalEvidence = useCallback(
+    (refs: string[], subject: string) => setDrawer({ turnId: "", tab: "evidence", refs, proposal: { subject } }),
+    [],
+  );
   const running = turns.some((turn) => turn.status === "working");
   const docked = turns.length > 0;
 
@@ -242,7 +305,7 @@ export default function App({ transport: given }: AppProps) {
   return (
     <MotionConfig reducedMotion="user">
       <Aurora docked={docked} streaming={running} />
-      <div className="app" data-rail={docked}>
+      <div className="app" data-rail={docked && !onApprovals}>
         <TopBar
           companyName={tenantName(session.company_id)}
           asOf={asOf}
@@ -250,14 +313,28 @@ export default function App({ transport: given }: AppProps) {
           onSignOut={signOut}
           onNewConversation={resetConversation}
           newConversationDisabled={!docked}
+          approvals={{ pending, active: onApprovals }}
         />
-        {docked ? <Rail turns={turns} onNew={resetConversation} /> : null}
+        {docked && !onApprovals ? <Rail turns={turns} onNew={resetConversation} pending={pending} /> : null}
+        {onApprovals ? (
+          <main className="stage" data-view="approvals">
+            <ApprovalsView
+              transport={transport}
+              onOpenEvidence={openProposalEvidence}
+              onDecided={refreshPending}
+              onSessionEnded={sessionEnded}
+            />
+          </main>
+        ) : (
         <main className="stage" data-view={docked ? "thread" : "home"}>
           <div className="stage__main">
             {docked ? (
               <Thread
                 turns={turns}
                 onAsk={ask}
+                decide={transport}
+                onDecided={refreshPending}
+                onSessionEnded={sessionEnded}
                 onOpenEvidence={(turn, refs) => setDrawer({ turnId: turn.id, tab: "evidence", refs: refs ?? [] })}
                 onOpenTrace={(turn) => setDrawer({ turnId: turn.id, tab: "trace", refs: [] })}
               />
@@ -282,6 +359,7 @@ export default function App({ transport: given }: AppProps) {
           </motion.div>
           {docked ? null : <Suggestions onAsk={ask} />}
         </main>
+        )}
       </div>
       <EvidenceDrawer
         key={generation}
@@ -289,6 +367,8 @@ export default function App({ transport: given }: AppProps) {
         tab={drawer?.tab ?? "evidence"}
         focusRefs={drawer?.refs ?? []}
         envelope={drawerTurn?.envelope ?? null}
+        readings={drawerReadings}
+        subject={drawer?.proposal?.subject}
         trace={drawerTurn?.events ?? []}
         onTab={(tab) => setDrawer((d) => (d ? { ...d, tab } : d))}
         onClose={() => setDrawer(null)}

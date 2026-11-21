@@ -1,8 +1,8 @@
 import { FileSearch, ListTree } from "lucide-react";
 import { EXCLUDED_TEXT, REASON_TEXT, formatAsOf, plural } from "../lib/format";
 import { tenantName } from "../lib/fixtures";
-import type { AnswerEnvelope, EntityList } from "../lib/types";
-import { ProposalView } from "./ProposalView";
+import type { AnswerEnvelope, EntityList, ProposalCard } from "../lib/types";
+import { ProposalView, type Decide } from "./ProposalView";
 import { StateMark } from "./StateMark";
 
 interface AnswerSheetProps {
@@ -11,6 +11,10 @@ interface AnswerSheetProps {
   onOpenEvidence: (refs?: string[]) => void;
   onOpenTrace: () => void;
   onAsk: (question: string) => void;
+  /** How a person decides the proposal on this answer. Without it the proposal is shown read-only. */
+  decide?: Decide;
+  onDecided?: (card: ProposalCard) => void;
+  onSessionEnded?: () => void;
 }
 
 function OrderedList({ list }: { list: EntityList }) {
@@ -88,7 +92,16 @@ function Facts({ envelope }: { envelope: AnswerEnvelope }) {
   );
 }
 
-export function AnswerSheet({ envelope, note, onOpenEvidence, onOpenTrace, onAsk }: AnswerSheetProps) {
+export function AnswerSheet({
+  envelope,
+  note,
+  onOpenEvidence,
+  onOpenTrace,
+  onAsk,
+  decide,
+  onDecided,
+  onSessionEnded,
+}: AnswerSheetProps) {
   const headingId = `h-${envelope.trace_id}`;
   const { outcome } = envelope;
   return (
@@ -118,7 +131,15 @@ export function AnswerSheet({ envelope, note, onOpenEvidence, onOpenTrace, onAsk
         </>
       ) : null}
 
-      {envelope.proposal ? <ProposalView proposal={envelope.proposal} onOpenEvidence={onOpenEvidence} /> : null}
+      {envelope.proposal ? (
+        <ProposalView
+          proposal={envelope.proposal}
+          onOpenEvidence={onOpenEvidence}
+          decide={decide}
+          onDecided={onDecided}
+          onSessionEnded={onSessionEnded}
+        />
+      ) : null}
 
       {envelope.claims.length > 0 ? (
         <ul className="claims">

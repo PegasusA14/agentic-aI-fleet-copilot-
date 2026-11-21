@@ -1,4 +1,4 @@
-import { Building2, Eye, LogOut, SquarePen } from "lucide-react";
+import { Building2, ClipboardCheck, Eye, LogOut, SquarePen } from "lucide-react";
 import { formatAsOf } from "../lib/format";
 
 interface TopBarProps {
@@ -12,6 +12,8 @@ interface TopBarProps {
   /** Resets the thread and starts a fresh conversation. */
   onNewConversation?: () => void;
   newConversationDisabled?: boolean;
+  /** An admin's entry to the approvals view: `pending` is null until the count is known. */
+  approvals?: { pending: number | null; active: boolean };
 }
 
 export function TopBar({
@@ -22,6 +24,7 @@ export function TopBar({
   onSignOut,
   onNewConversation,
   newConversationDisabled = false,
+  approvals,
 }: TopBarProps) {
   return (
     <header className="topbar">
@@ -64,6 +67,24 @@ export function TopBar({
           </span>
         ) : null}
         {asOf ? <span className="pill pill--quiet">As of {formatAsOf(asOf)}</span> : null}
+        {approvals ? (
+          <a
+            className="pill"
+            href="#/approvals"
+            aria-current={approvals.active ? "page" : undefined}
+            aria-label={approvals.pending ? `Approvals, ${approvals.pending} pending` : "Approvals"}
+          >
+            <ClipboardCheck size={16} aria-hidden="true" />
+            <span className="pill--hide-sm" aria-hidden="true">
+              Approvals
+            </span>
+            {approvals.pending ? (
+              <span className="pill__count" aria-hidden="true">
+                {approvals.pending}
+              </span>
+            ) : null}
+          </a>
+        ) : null}
         {onNewConversation ? (
           <button
             type="button"

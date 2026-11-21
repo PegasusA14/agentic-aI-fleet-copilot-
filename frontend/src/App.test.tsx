@@ -95,16 +95,67 @@ describe("the working thread", () => {
     await ask(user, "Open a ticket for the first one");
     expect(await screen.findByText("Proposal for your decision")).toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Approve" }));
+    const dialog = await screen.findByRole("dialog");
+    expect(within(dialog).getByRole("button", { name: "Cancel" })).toHaveFocus();
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
-    await user.click(screen.getByRole("button", { name: /yes, approve/i }));
-    expect(screen.getByRole("status")).toHaveTextContent(/simulated: no ticket was created/i);
+    await user.click(within(dialog).getByRole("button", { name: "Approve and execute (simulated)" }));
+    expect(await screen.findByRole("status")).toHaveTextContent(/recorded in tickets as entry 1 \(simulated\)/i);
+    expect(screen.getByText("Executed (simulated)")).toBeInTheDocument();
   });
 
   it("lets a proposal be rejected without confirmation and changes nothing", async () => {
     const user = await signInAs("Acme");
     await ask(user, "Open a ticket for the first one");
     await user.click(await screen.findByRole("button", { name: "Reject" }));
-    expect(screen.getByRole("status")).toHaveTextContent(/nothing was changed/i);
+    expect(await screen.findByRole("status")).toHaveTextContent(/rejected\. nothing was executed/i);
+  });
+});
+
+describe("approvals", () => {
+  beforeEach(() => {
+    window.location.hash = "";
+  });
+
+  it("counts pending proposals in the navigation and clears the count after a decision", async () => {
+    const user = await signInAs("Acme");
+    const bar = screen.getByRole("banner");
+    expect(within(bar).getByRole("link", { name: "Approvals" })).toBeInTheDocument();
+    await ask(user, "Open a ticket for the first one");
+    expect(await within(bar).findByRole("link", { name: "Approvals, 1 pending" })).toBeInTheDocument();
+    await user.click(await screen.findByRole("button", { name: "Reject" }));
+    expect(await within(bar).findByRole("link", { name: "Approvals" })).toBeInTheDocument();
+  });
+
+  it("opens the approvals view from the navigation and decides from there", async () => {
+    const user = await signInAs("Acme");
+    await ask(user, "Open a ticket for the first one");
+    const bar = screen.getByRole("banner");
+    await user.click(await within(bar).findByRole("link", { name: "Approvals, 1 pending" }));
+    expect(window.location.hash).toBe("#/approvals");
+    expect(await screen.findByRole("heading", { name: "Approvals" })).toBeInTheDocument();
+    expect(screen.queryByLabelText(/ask a question about your fleet/i)).not.toBeInTheDocument();
+    const card = await screen.findByRole("region", { name: "Proposed action" });
+    await user.click(within(card).getByRole("button", { name: /evidence for this proposal/i }));
+    const drawer = await screen.findByRole("dialog");
+    expect(within(drawer).getByRole("list", { name: "Cited readings" })).toBeInTheDocument();
+    expect(within(drawer).queryByRole("tab", { name: /trace/i })).not.toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    await user.click(within(card).getByRole("button", { name: "Reject" }));
+    expect(await within(card).findByRole("status")).toHaveTextContent(/rejected/i);
+    await user.click(screen.getByRole("link", { name: /back to chat/i }));
+    expect(await screen.findByLabelText(/ask a question about your fleet/i)).toBeInTheDocument();
+  });
+
+  it("goes straight to the approvals view for #/approvals, and leaves it on sign-out", async () => {
+    window.location.hash = "#/approvals";
+    const user = userEvent.setup();
+    render(<App transport={fixtureTransport(0)} />);
+    await user.click(await screen.findByRole("button", { name: /Acme/ }));
+    expect(await screen.findByRole("heading", { name: "Approvals" })).toBeInTheDocument();
+    expect(await screen.findByText(/nothing is waiting for your decision/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /switch company/i }));
+    expect(await screen.findByRole("button", { name: /Initech/ })).toBeInTheDocument();
+    expect(window.location.hash).not.toBe("#/approvals");
   });
 });
 

@@ -4,7 +4,7 @@ import { useEffect, useRef, useState } from "react";
 import { ApiError } from "../lib/api";
 import { OUTCOMES } from "../lib/outcomes";
 import type { EvidenceValue, TraceView } from "../lib/transport";
-import type { AnswerEnvelope, TraceEvent } from "../lib/types";
+import type { AnswerEnvelope, EvidenceItem, TraceEvent } from "../lib/types";
 
 export type DrawerTab = "evidence" | "trace";
 
@@ -13,6 +13,10 @@ interface EvidenceDrawerProps {
   tab: DrawerTab;
   focusRefs: string[];
   envelope: AnswerEnvelope | null;
+  /** Readings that belong to no answer (a proposal opened from the approvals view): shown instead of the envelope's, with no trace tab. */
+  readings?: EvidenceItem[];
+  /** What the readings are for, shown under the title when `readings` is given. */
+  subject?: string;
   trace: TraceEvent[];
   onTab: (tab: DrawerTab) => void;
   onClose: () => void;
@@ -73,6 +77,8 @@ export function EvidenceDrawer({
   tab,
   focusRefs,
   envelope,
+  readings,
+  subject,
   trace,
   onTab,
   onClose,
@@ -91,8 +97,9 @@ export function EvidenceDrawer({
   }
 
   useEffect(() => {
-    if (!open || tab !== "evidence" || !loadEvidence || !envelope) return;
-    for (const { ref } of envelope.evidence) {
+    const cited = readings ?? envelope?.evidence;
+    if (!open || tab !== "evidence" || !loadEvidence || !cited) return;
+    for (const { ref } of cited) {
       if (requested.current.has(ref)) continue;
       requested.current.add(ref);
       setRaw((prev) => ({ ...prev, [ref]: { state: "loading" } }));
@@ -104,7 +111,7 @@ export function EvidenceDrawer({
         },
       );
     }
-  }, [open, tab, envelope, loadEvidence]);
+  }, [open, tab, envelope, readings, loadEvidence]);
 
   const traceId = envelope?.trace_id;
   useEffect(() => {
@@ -123,7 +130,8 @@ export function EvidenceDrawer({
     if (open && tab === "evidence") firstFocused.current?.scrollIntoView?.({ block: "nearest" });
   }, [open, tab, focusRefs]);
 
-  const evidence = envelope?.evidence ?? [];
+  const evidence = readings ?? envelope?.evidence ?? [];
+  const tabs = readings ? (["evidence"] as const) : (["evidence", "trace"] as const);
   let attached = false;
 
   return (
@@ -135,7 +143,11 @@ export function EvidenceDrawer({
             <div>
               <Dialog.Title className="drawer__title">Evidence and work</Dialog.Title>
               <Dialog.Description className="drawer__desc" id="drawer-desc">
-                {envelope ? `${OUTCOMES[envelope.outcome].word} · ${envelope.trace_id}` : "Nothing selected"}
+                {readings
+                  ? (subject ?? "Cited readings")
+                  : envelope
+                    ? `${OUTCOMES[envelope.outcome].word} · ${envelope.trace_id}`
+                    : "Nothing selected"}
               </Dialog.Description>
             </div>
             <Dialog.Close className="icon-btn" aria-label="Close">
@@ -144,7 +156,7 @@ export function EvidenceDrawer({
           </div>
 
           <div className="tabs" role="tablist" aria-label="Drawer sections">
-            {(["evidence", "trace"] as const).map((name) => (
+            {tabs.map((name) => (
               <button
                 key={name}
                 id={`tab-${name}`}

@@ -924,18 +924,186 @@ button.pill:disabled {
   border-color: var(--ink);
 }
 
-.proposal__confirm {
+.proposal__head {
   display: flex;
-  flex-direction: column;
-  gap: 10px;
-  padding: 14px;
-  border-radius: 12px;
-  background: var(--ground);
 }
 
-.proposal__confirm p {
+.proposal__rationale {
   margin: 0;
+}
+
+.proposal__facts {
+  padding-top: 0;
+  border-top: 0;
+}
+
+.proposal__actions .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+}
+
+.proposal__result {
+  display: contents;
+}
+
+.proposal__result p {
+  margin: 0;
+  padding: 12px 14px;
+  border-radius: 12px;
+  background: var(--ground);
   font-weight: 600;
+  font-size: 0.9375rem;
+}
+
+.proposal__result p.form-error {
+  max-width: none;
+  background: var(--alert-wash);
+}
+
+.proposal__result p:focus-visible {
+  outline-offset: 0;
+}
+
+/* The approval dialog: the one place the product asks for a deliberate yes. */
+
+.modal {
+  position: fixed;
+  z-index: 41;
+  top: 50%;
+  left: 50%;
+  translate: -50% -50%;
+  width: min(520px, calc(100vw - 24px));
+  max-height: calc(100vh - 24px);
+  overflow-y: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  padding: 24px;
+  background: var(--paper);
+  border: 1px solid var(--line);
+  border-radius: var(--r-sheet);
+  box-shadow: var(--shadow-pop);
+  animation: modal-in 280ms var(--ease-out);
+}
+
+@keyframes modal-in {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.985);
+  }
+}
+
+.modal__title {
+  margin: 0;
+  font-size: 1.25rem;
+  letter-spacing: -0.02em;
+  text-wrap: balance;
+}
+
+.modal__desc {
+  margin: -6px 0 0;
+  color: var(--ink-2);
+  font-size: 0.9375rem;
+}
+
+.modal__actions {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: flex-end;
+  gap: 10px;
+  padding-top: 4px;
+}
+
+.modal__actions .btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+}
+
+/* The approvals view */
+
+.stage[data-view="approvals"] {
+  justify-content: flex-start;
+  overflow-y: auto;
+}
+
+.approvals {
+  width: min(760px, 100%);
+  padding: 8px 0 28px;
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+}
+
+.approvals__head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.approvals__title {
+  margin: 0;
+  font-size: 1.75rem;
+  letter-spacing: -0.03em;
+  line-height: 1.15;
+}
+
+.approvals__count,
+.approvals__empty {
+  margin: 0;
+  color: var(--ink-2);
+  font-size: 0.9375rem;
+  font-weight: 600;
+}
+
+.approvals__empty {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.approvals__list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: flex;
+  flex-direction: column;
+  gap: 18px;
+}
+
+.pill__count {
+  display: inline-grid;
+  place-items: center;
+  min-width: 22px;
+  height: 22px;
+  padding: 0 6px;
+  border-radius: 999px;
+  background: var(--action);
+  color: #fff;
+  font-size: 0.8125rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+}
+
+.pill[aria-current="page"] {
+  background: #fff;
+  border-color: var(--line-strong);
+}
+
+a.rail__new,
+a.pill,
+a.link-btn {
+  color: inherit;
+  text-decoration: none;
+}
+
+a.rail__new .pill__count {
+  margin-left: auto;
 }
 
 /* ---------------------------------------------------------------- drawer */
