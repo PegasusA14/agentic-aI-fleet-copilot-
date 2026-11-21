@@ -17,6 +17,7 @@ from fleet_copilot.contracts import (
     EntityRef,
     EvidenceItem,
     OutcomeType,
+    ProposalCard,
     ReasonCode,
     ScopeInfo,
 )
@@ -67,6 +68,15 @@ def representative(refs: Sequence[str], limit: int = policy.MAX_REFS_PER_FINDING
     return [unique[i] for i in sorted({round(k * step) for k in range(limit)})]
 
 
+def max_refs_per_device(claims: Sequence[Claim]) -> int:
+    """The most distinct readings the claims cite for any one device (what the scope text states)."""
+    per_device: dict[str, set[str]] = {}
+    for claim in claims:
+        for ref in claim.refs:
+            per_device.setdefault(EvidenceRef.parse(ref).device_id, set()).add(ref)
+    return max((len(refs) for refs in per_device.values()), default=0)
+
+
 @dataclass
 class Composition:
     outcome: OutcomeType
@@ -78,6 +88,7 @@ class Composition:
     notes: list[str] = field(default_factory=list)
     fallback_headline: str = ""
     rules: list[str] = field(default_factory=list)
+    proposal: ProposalCard | None = None
 
     def facts(self) -> dict:
         """Everything the model may read when asked to explain: code-written text only."""
@@ -98,6 +109,7 @@ class Composition:
         explanation: str | None = None,
     ) -> AnswerEnvelope:
         distinct = len({device_id for c in self.claims for device_id in c.device_ids})
+        cited = max_refs_per_device(self.claims)
         scope = ScopeInfo(
             company_id=company_id,
             as_of=as_of,
@@ -105,8 +117,8 @@ class Composition:
             population=self.coverage.population if self.coverage else None,
             calculation=(
                 f"{distinct} distinct {noun(distinct, 'device')} across {len(self.claims)} "
-                f"{noun(len(self.claims), 'claim')}; at most {policy.MAX_REFS_PER_FINDING} "
-                "supporting readings are cited per device"
+                f"{noun(len(self.claims), 'claim')}; at most {cited} "
+                f"supporting {noun(cited, 'reading')} {'is' if cited == 1 else 'are'} cited per device"
                 if self.claims
                 else None
             ),
@@ -117,6 +129,7 @@ class Composition:
             headline=headline or self.fallback_headline,
             claims=self.claims,
             evidence=self.evidence,
+            proposal=self.proposal,
             scope=scope,
             coverage=self.coverage,
             # One list id per turn: the raw ids repeat every turn, so follow-ups could not tell lists apart.
@@ -228,6 +241,13 @@ class _Builder:
             for i, f in enumerate(findings, 1)
         ]
         self.lists.append(EntityList(list_id=list_id, title=title, items=items))
+
+    def proposal_evidence(self, card: ProposalCard) -> list[EvidenceItem]:
+        """Evidence items for the refs a proposal cites, labelled with the target's hostname."""
+        self._hosts[card.target_device_id] = card.target_label
+        for ref in card.evidence_refs:
+            self._add_evidence(ref)
+        return list(self.evidence.values())
 
     def _add_evidence(self, ref: str) -> None:
         if ref in self.evidence:
@@ -649,6 +669,30 @@ def compose(records: Sequence[ToolRecord], *, resolve: Resolver) -> Composition:
     """Turn tool records into claims, evidence, coverage and entity lists. No model involved."""
     if any(r.error == "tool_error" for r in records):
         return Composition("tool_error", "tool_failure", fallback_headline=texts.TOOL_FAILED)
+    if any(r.tool == "propose_action" and r.error == "not_found" for r in records):
+        # A device that is not this tenant's reads exactly like any other missing record.
+        return Composition("denied", "not_found", fallback_headline=texts.NOT_FOUND)
+    proposed = next((r for r in records if r.proposal is not None), None)
+    if proposed is not None:
+        card = ProposalCard.model_validate(proposed.proposal)
+        return Composition(
+            "proposal",
+            None,
+            evidence=_Builder(resolve).proposal_evidence(card),
+            fallback_headline=texts.proposal_headline(
+                texts.ACTION_LABELS[card.action_type], card.target_label
+            ),
+            proposal=card,
+        )
+    refused = next((r for r in records if r.action_refusal is not None), None)
+    if refused is not None:
+        reason = refused.action_refusal["reason"]  # type: ignore[index]
+        return Composition(
+            "denied",
+            reason,  # type: ignore[arg-type]
+            notes=[refused.action_refusal["detail"]],  # type: ignore[index]
+            fallback_headline=texts.ACTION_REFUSAL_HEADLINES[reason],  # type: ignore[index]
+        )
     if records and all(r.error == "not_found" for r in records):
         return Composition("denied", "not_found", fallback_headline=texts.NOT_FOUND)
     builder = _Builder(resolve)

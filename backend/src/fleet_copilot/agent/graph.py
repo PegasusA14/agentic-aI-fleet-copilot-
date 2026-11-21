@@ -113,10 +113,10 @@ def inject_focus(name: str, args: ToolCall, focus_ids: list[str] | None) -> Tool
         return dict(args)
     if name in DEVICE_FILTER_TOOLS:
         return {**args, "device_ids": list(focus_ids)}
-    # device_history takes one device. With several resolved ids there is nothing to inject, so the
+    # device_history and propose_action take one device. With several resolved ids there is nothing to inject, so the
     # model's own `device_id` stays; it is still looked up through the tenant-scoped repository, so a
     # foreign or unknown id gets the uniform not-found.
-    if name == "device_history" and len(focus_ids) == 1:
+    if name in ("device_history", "propose_action") and len(focus_ids) == 1:
         return {**args, "device_id": focus_ids[0]}
     return dict(args)
 
@@ -135,6 +135,35 @@ def _is_transient_error(result: Any) -> bool:
     return (
         isinstance(result, ToolMessage) and result.status == "error" and not _is_input_error(result)
     )
+
+
+PROPOSE_ONLY_FOR_ACTIONS = "propose_action is only for action requests"
+ONE_PROPOSAL_PER_TURN = "one proposal per turn"
+
+
+def _propose_blocked(name: str, state: Any) -> str | None:
+    """Why this `propose_action` call must not run (fixed text for the model), or None.
+
+    Only a propose plan may create a proposal, and a turn holds at most one: a call after a proposal or
+    refusal is rejected whatever the model says.
+    """
+    if name != "propose_action":
+        return None
+    if (state.get("plan") or {}).get("intent") != "propose":
+        return PROPOSE_ONLY_FOR_ACTIONS
+    if any(r.get("tool") == "propose_action" for r in state.get("records") or []):
+        return ONE_PROPOSAL_PER_TURN
+    return None
+
+
+def _result_status(result: Any, record: ToolRecord) -> str:
+    if _is_input_error(result):
+        return "invalid_input"
+    if record.proposal is not None:
+        return "proposed"
+    if record.action_refusal is not None:
+        return "refused"
+    return record.error or "ok"
 
 
 async def _tool_wrapper(
@@ -156,6 +185,17 @@ async def _tool_wrapper(
             tool_call_id=call["id"],
             status="error",
         )
+    blocked = _propose_blocked(name, request.state)
+    if blocked:
+        emit(
+            "tool_result",
+            f"{name} was not run",
+            tool=name,
+            data={"status": "invalid_input", "matches": 0, "population": None},
+        )
+        return ToolMessage(
+            content=f"{INVALID_INPUT_PREFIX}: {blocked}", tool_call_id=call["id"], status="error"
+        )
     args = inject_focus(name, call["args"], request.state.get("focus_ids"))
     if args != call["args"]:
         request = request.override(tool_call={**call, "args": args})
@@ -174,7 +214,7 @@ async def _tool_wrapper(
         f"{name} returned",
         tool=name,
         data={
-            "status": "invalid_input" if _is_input_error(result) else record.error or "ok",
+            "status": _result_status(result, record),
             "matches": len(record.findings),
             "population": record.population,
         },
@@ -258,6 +298,14 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
                 "Resolved the follow-up",
                 data={"kind": plan.reference.kind, "devices": len(resolution.device_ids)},  # type: ignore[union-attr]
             )
+            if plan.intent == "propose" and len(resolution.device_ids) > 1:
+                # One device per proposal: "those" and "all of them" are never turned into a bulk action.
+                emit(
+                    "reference",
+                    "The action request names several devices",
+                    data={"devices": len(resolution.device_ids)},
+                )
+                return {"envelope": _dump(outcomes.refusal("unsupported_action", **kwargs))}
             return {"focus_ids": list(resolution.device_ids)}
         if isinstance(resolution, NeedsClarification):
             emit("reference", "The follow-up needs clarification", data={"resolved": False})
@@ -303,6 +351,13 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
             )
             return {"pending_calls": False, "limit_hit": True}
         dropped_any = False
+        proposals = [i for i, call in enumerate(calls) if call["name"] == "propose_action"]
+        if len(proposals) > 1:
+            # One proposal per turn: only the first request is kept.
+            emit("tool_call", "Dropped extra proposal calls", data={"dropped": len(proposals) - 1})
+            extra = set(proposals[1:])
+            calls = [call for i, call in enumerate(calls) if i not in extra]
+            dropped_any = True
         if len(calls) > policy.MAX_CALLS_PER_ROUND:
             emit(
                 "tool_call",

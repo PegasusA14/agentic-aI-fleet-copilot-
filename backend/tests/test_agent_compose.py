@@ -592,7 +592,7 @@ def test_scope_calculation_counts_distinct_devices_not_claim_counts(real_db_path
     )
     assert sum(c.count for c in comp.claims) == 3
     assert as_envelope(comp, real_conn).scope.calculation == (
-        "2 distinct devices across 2 claims; at most 6 supporting readings are cited per device"
+        "2 distinct devices across 2 claims; at most 2 supporting readings are cited per device"
     )
 
 
@@ -601,7 +601,7 @@ def test_scope_calculation_uses_singular_forms(real_db_path, real_conn):
         real_db_path, real_conn, [("low_disk_devices", {"device_ids": ["MT7PJB7N5LRE"]})]
     )
     assert as_envelope(comp, real_conn).scope.calculation == (
-        "1 distinct device across 1 claim; at most 6 supporting readings are cited per device"
+        "1 distinct device across 1 claim; at most 1 supporting reading is cited per device"
     )
 
 
@@ -669,3 +669,18 @@ def test_every_reason_key_a_query_emits_is_allowed_by_the_contract(real_db_path,
             seen |= set(run(real_db_path, real_conn, name, args, tenant).excluded)
     assert seen, "the sweep must exercise at least one exclusion"
     assert seen <= set(get_args(ExcludedReason))
+
+
+def test_scope_calculation_states_the_real_maximum_of_readings_per_device(real_db_path, real_conn):
+    comp = composed(
+        real_db_path,
+        real_conn,
+        [("compliance_failures_now", {"check_id": "screen_lock"})],
+    )
+    cited: dict[str, set[str]] = {}
+    for claim in comp.claims:
+        for ref in claim.refs:
+            cited.setdefault(EvidenceRef.parse(ref).device_id, set()).add(ref)
+    most = max(len(refs) for refs in cited.values())
+    calculation = as_envelope(comp, real_conn).scope.calculation
+    assert f"at most {most} supporting reading" in calculation

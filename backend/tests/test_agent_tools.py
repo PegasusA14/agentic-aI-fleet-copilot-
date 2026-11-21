@@ -1,3 +1,4 @@
+import dataclasses
 import json
 from typing import Annotated, TypedDict
 
@@ -8,6 +9,7 @@ from langgraph.graph import END, START, StateGraph
 from langgraph.graph.message import add_messages
 from langgraph.prebuilt import ToolNode
 
+from fleet_copilot.actions.store import ActionStore
 from fleet_copilot.agent.context import AgentContext
 from fleet_copilot.agent.records import ToolRecord
 from fleet_copilot.agent.tools import (
@@ -15,6 +17,7 @@ from fleet_copilot.agent.tools import (
     TOOLS,
     ToolInputError,
     execute,
+    execute_propose,
     tool_error_text,
 )
 
@@ -143,8 +146,9 @@ def test_tools_expose_enumerated_bounded_inputs_and_no_tenant_arguments():
         "find_devices",
         "device_history",
         "software_inventory",
+        "propose_action",
     }
-    assert set(DEVICE_FILTER_TOOLS) == set(by_name) - {"device_history"}
+    assert set(DEVICE_FILTER_TOOLS) == set(by_name) - {"device_history", "propose_action"}
     for tool in TOOLS:
         schema = tool.tool_call_schema.model_json_schema()
         text = json.dumps(schema).lower()
@@ -153,6 +157,14 @@ def test_tools_expose_enumerated_bounded_inputs_and_no_tenant_arguments():
     assert trend["metric"]["enum"] == ["memory", "disk", "compliance", "battery"]
     window = trend["window_days"]["anyOf"][0]
     assert (window["minimum"], window["maximum"]) == (1, 60)
+    propose = by_name["propose_action"].tool_call_schema.model_json_schema()
+    assert propose["properties"]["action_type"]["enum"] == [
+        "remediation_ticket",
+        "replacement_flag",
+        "upgrade_order",
+        "employee_notification",
+    ]
+    assert propose["required"] == ["action_type", "device_id"]
     checks = by_name["compliance_failures_now"].tool_call_schema.model_json_schema()["properties"][
         "check_id"
     ]
@@ -394,3 +406,86 @@ def test_an_all_valid_or_unfiltered_call_has_nothing_unresolved(real_db_path, re
     assert run(real_db_path, real_conn, "low_disk_devices").unresolved_ids == 0
     all_unknown = run(real_db_path, real_conn, "low_disk_devices", {"device_ids": ["NOPE"]})
     assert all_unknown.error == "not_found" and all_unknown.unresolved_ids == 0
+
+
+# ---- propose_action ---------------------------------------------------------------------
+
+
+def _proposing_ctx(real_db_path, real_conn, tmp_path, tenant=ACME) -> AgentContext:
+    ctx = context_for(real_db_path, real_conn, tenant)
+    return dataclasses.replace(ctx, actions_db_path=tmp_path / "actions.db", trace_id="trace1")
+
+
+def test_propose_action_reports_only_the_outcome_to_the_model(real_db_path, real_conn, tmp_path):
+    ctx = _proposing_ctx(real_db_path, real_conn, tmp_path)
+    message = _through_toolnode(
+        {
+            "name": "propose_action",
+            "args": {
+                "action_type": "employee_notification",
+                "device_id": "MT7PJB7N5LRE",
+                "topic": "low_disk",
+            },
+            "id": "c1",
+        },
+        ctx,
+    )
+    assert message.status == "success"
+    assert json.loads(message.content) == {
+        "tool": "propose_action",
+        "status": "proposed",
+        "action_type": "employee_notification",
+    }
+    record = ToolRecord.model_validate(message.artifact)
+    assert record.proposal["status"] == "pending" and record.proposal["scope"]["employee"]
+
+
+def test_propose_action_refusal_view_carries_a_reason_and_no_detail(
+    real_db_path, real_conn, tmp_path
+):
+    ctx = _proposing_ctx(real_db_path, real_conn, tmp_path)
+    message = _through_toolnode(
+        {
+            "name": "propose_action",
+            "args": {
+                "action_type": "remediation_ticket",
+                "device_id": "MT7PJB7N5LRE",
+                "check_id": "disk_encryption",
+            },
+            "id": "c1",
+        },
+        ctx,
+    )
+    body = json.loads(message.content)
+    assert body == {
+        "tool": "propose_action",
+        "status": "refused",
+        "action_type": "remediation_ticket",
+        "reason": "not_eligible",
+    }
+    record = ToolRecord.model_validate(message.artifact)
+    assert record.action_refusal["detail"] and record.proposal is None
+
+
+def test_propose_action_audits_with_the_turns_trace_id(real_db_path, real_conn, tmp_path):
+    ctx = _proposing_ctx(real_db_path, real_conn, tmp_path)
+    record = execute_propose({"action_type": "replacement_flag", "device_id": "8NM23J95R5I6"}, ctx)
+    assert record.proposal is not None
+    store = ActionStore(tmp_path / "actions.db")
+    with store.transaction() as conn:
+        (entry,) = store.audit(conn, ACME)
+    assert entry["trace_id"] == "trace1" and entry["event"] == "proposal_created"
+
+
+def test_propose_action_for_another_tenants_device_is_not_found(real_db_path, real_conn, tmp_path):
+    ctx = _proposing_ctx(real_db_path, real_conn, tmp_path)
+    record = execute_propose({"action_type": "replacement_flag", "device_id": "E4V0SB5I0MYU"}, ctx)
+    assert record.error == "not_found" and record.proposal is None
+
+
+def test_propose_action_without_a_store_is_a_tool_error(real_db_path, real_conn):
+    record = execute_propose(
+        {"action_type": "replacement_flag", "device_id": "8NM23J95R5I6"},
+        context_for(real_db_path, real_conn, ACME),
+    )
+    assert record.error == "tool_error"

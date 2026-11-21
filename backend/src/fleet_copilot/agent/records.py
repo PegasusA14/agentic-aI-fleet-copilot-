@@ -51,6 +51,9 @@ class ToolRecord(BaseModel):
     missing_latest: list[str] = Field(default_factory=list)
     # Requested `device_ids` that are not this tenant's devices. Foreign and nonexistent ids count alike.
     unresolved_ids: int = Field(default=0, ge=0)
+    # `propose_action` only: the code-written card of the proposal that was made, or why none was.
+    proposal: dict[str, Any] | None = None
+    action_refusal: dict[str, str] | None = None
 
     @classmethod
     def from_query(cls, tool: str, args: dict[str, Any], result: QueryResult) -> ToolRecord:
@@ -93,6 +96,17 @@ class ToolRecord(BaseModel):
             return json.dumps(
                 {"tool": self.tool, "error": self.error, "note": "The data lookup failed."}
             )
+        if self.proposal is not None or self.action_refusal is not None:
+            # Nothing but the outcome: no card text, no employee, no evidence refs reach the model.
+            view = {
+                "tool": self.tool,
+                "status": "proposed" if self.proposal is not None else "refused",
+                "action_type": (self.proposal or {}).get("action_type")
+                or self.args.get("action_type"),
+            }
+            if self.action_refusal is not None:
+                view["reason"] = self.action_refusal["reason"]
+            return json.dumps(view, sort_keys=True)
         view: dict[str, Any] = {
             "tool": self.tool,
             "rule": self.rule,

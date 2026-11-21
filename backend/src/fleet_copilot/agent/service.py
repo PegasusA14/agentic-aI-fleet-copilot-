@@ -82,8 +82,10 @@ class AgentService:
         checkpointer: Any,
         trace_id_factory: Callable[[], str] = _new_trace_id,
         recorder: Callable[[TurnRecord], None] | None = None,
+        actions_db_path: Path | None = None,
     ) -> None:
         self._db_path = db_path
+        self._actions_db_path = actions_db_path
         self._checkpointer = checkpointer
         self._graph = build_graph(gateway, checkpointer)
         self._new_trace_id = trace_id_factory
@@ -100,11 +102,18 @@ class AgentService:
         gateway: LLMGateway,
         checkpoint_path: Path,
         recorder: Callable[[TurnRecord], None] | None = None,
+        actions_db_path: Path | None = None,
     ) -> AsyncIterator[AgentService]:
         """A service whose conversations survive restarts (SQLite checkpoints)."""
         checkpoint_path.parent.mkdir(parents=True, exist_ok=True)
         async with AsyncSqliteSaver.from_conn_string(str(checkpoint_path)) as saver:
-            yield cls(db_path=db_path, gateway=gateway, checkpointer=saver, recorder=recorder)
+            yield cls(
+                db_path=db_path,
+                gateway=gateway,
+                checkpointer=saver,
+                recorder=recorder,
+                actions_db_path=actions_db_path,
+            )
 
     def _as_of(self):
         conn = connect(self._db_path, read_only=True)
@@ -187,6 +196,7 @@ class AgentService:
             as_of=as_of,
             trace_id=trace_id,
             company_name=identity.company_name,
+            actions_db_path=self._actions_db_path,
         )
         config: dict[str, Any] = {
             "configurable": {"thread_id": thread},

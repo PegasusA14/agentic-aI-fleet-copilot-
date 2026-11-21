@@ -79,12 +79,6 @@ def clarification(
     )
 
 
-_ACTION_REFUSALS: dict[str, str] = {
-    "not_eligible": texts.ACTION_NOT_ELIGIBLE,
-    "insufficient_evidence": texts.ACTION_INSUFFICIENT_EVIDENCE,
-}
-
-
 def action_refusal(
     reason: Literal["not_eligible", "insufficient_evidence"],
     detail: str,
@@ -97,7 +91,7 @@ def action_refusal(
     return AnswerEnvelope(
         outcome="denied",
         trace_id=trace_id,
-        headline=_ACTION_REFUSALS[reason],
+        headline=texts.ACTION_REFUSAL_HEADLINES[reason],
         scope=_scope(company_id, as_of),
         reason_code=reason,
         notes=[detail],

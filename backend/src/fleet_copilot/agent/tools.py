@@ -9,8 +9,12 @@ from langgraph.prebuilt.tool_node import ToolInvocationError
 from pydantic import Field
 
 from fleet_copilot import policy
+from fleet_copilot.actions.eligibility import Topic
+from fleet_copilot.actions.service import ActionService, Refused
+from fleet_copilot.actions.store import ActionStore
 from fleet_copilot.agent.context import AgentContext
 from fleet_copilot.agent.records import ToolRecord, redact_args
+from fleet_copilot.contracts import ActionType
 from fleet_copilot.data.loader import connect
 from fleet_copilot.data.models import SOFTWARE_NAME_PATTERN
 from fleet_copilot.fleet import inventory
@@ -21,6 +25,8 @@ from fleet_copilot.repository import FleetRepository, NotFound, TenantContext
 CheckId = Literal["disk_encryption", "screen_lock", "os_up_to_date"]
 Severity = Literal["low", "medium", "high", "critical"]
 FormFactor = Literal["laptop", "desktop"]
+Component = Literal["memory", "storage"]
+DeviceId = Annotated[str, Field(min_length=1, max_length=40)]
 OsName = Literal["macOS", "Windows"]
 Window = Annotated[int, Field(ge=1, le=policy.MAX_WINDOW_DAYS)]
 Percent = Annotated[float, Field(gt=0, le=100)]
@@ -216,6 +222,40 @@ def execute(tool_name: str, args: dict[str, Any], ctx: AgentContext) -> ToolReco
         conn.close()
 
 
+def execute_propose(args: dict[str, Any], ctx: AgentContext) -> ToolRecord:
+    """Ask the action service for ONE pending proposal as the context's tenant and actor.
+
+    Code decides eligibility, parameters, evidence and wording; the record carries the resulting card or
+    the refusal. An unknown or foreign device is the same uniform `not_found` as for every other tool.
+    """
+    recorded = redact_args(args)
+    if ctx.actions_db_path is None:
+        return ToolRecord(tool="propose_action", args=recorded, error="tool_error")
+    service = ActionService(fleet_db=ctx.db_path, store=ActionStore(ctx.actions_db_path))
+    result = service.propose(
+        company_id=ctx.company_id,
+        actor_id=ctx.actor_id,
+        action_type=args["action_type"],
+        device_id=args["device_id"],
+        check_id=args.get("check_id"),
+        component=args.get("component"),
+        topic=args.get("topic"),
+        as_of=ctx.as_of,  # the pinned as-of, never the wall clock
+        trace_id=ctx.trace_id or None,
+    )
+    if isinstance(result, Refused):
+        if result.reason == "not_found":
+            return ToolRecord(tool="propose_action", args=recorded, error="not_found")
+        return ToolRecord(
+            tool="propose_action",
+            args=recorded,
+            action_refusal={"reason": result.reason, "detail": result.detail},
+        )
+    return ToolRecord(
+        tool="propose_action", args=recorded, proposal=result.card.model_dump(mode="json")
+    )
+
+
 def _respond(
     name: str, args: dict[str, Any], runtime: ToolRuntime[AgentContext]
 ) -> tuple[str, dict[str, Any]]:
@@ -223,7 +263,7 @@ def _respond(
     return record.llm_view(), record.model_dump(mode="json")
 
 
-# ---- the eight tools (model-facing): enumerated, bounded, no tenant arguments -------------
+# ---- the model-facing tools: enumerated, bounded, no tenant arguments -------------
 
 
 @tool(response_format="content_and_artifact")
@@ -373,6 +413,30 @@ def software_inventory(
     return _respond("software_inventory", args, runtime)
 
 
+@tool(response_format="content_and_artifact")
+def propose_action(
+    runtime: ToolRuntime[AgentContext],
+    action_type: ActionType,
+    device_id: DeviceId,
+    check_id: CheckId | None = None,
+    component: Component | None = None,
+    topic: Topic | None = None,
+) -> tuple[str, dict[str, Any]]:
+    """Proposes ONE action for ONE device: a remediation ticket (`check_id`), a replacement flag, a hardware
+    upgrade order (`component` memory or storage) or an employee notification (`topic`). The system checks
+    eligibility and writes the proposal; nothing changes until a person approves it. Use only when the
+    user asks for such an action, and call it once."""
+    args = {
+        "action_type": action_type,
+        "device_id": device_id,
+        "check_id": check_id,
+        "component": component,
+        "topic": topic,
+    }
+    record = execute_propose(args, runtime.context)
+    return record.llm_view(), record.model_dump(mode="json")
+
+
 TOOLS = [
     low_disk_devices,
     macos_version_check,
@@ -382,8 +446,10 @@ TOOLS = [
     find_devices,
     device_history,
     software_inventory,
+    propose_action,
 ]
-DEVICE_FILTER_TOOLS = frozenset(t.name for t in TOOLS) - {"device_history"}
+# `device_history` and `propose_action` take ONE device, not a filter list.
+DEVICE_FILTER_TOOLS = frozenset(t.name for t in TOOLS) - {"device_history", "propose_action"}
 
 
 def tool_error_text(exc: Exception) -> str:

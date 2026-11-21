@@ -11,8 +11,16 @@ from typing import Any, get_args
 
 from langgraph.config import get_stream_writer
 
-from fleet_copilot.agent.tools import CheckId, FormFactor, OsName, Severity, SoftwareView
-from fleet_copilot.contracts import TraceEvent, TraceKind
+from fleet_copilot.agent.tools import (
+    CheckId,
+    Component,
+    FormFactor,
+    OsName,
+    Severity,
+    SoftwareView,
+    Topic,
+)
+from fleet_copilot.contracts import ActionType, TraceEvent, TraceKind
 
 # Arguments whose values are enumerated or numeric. Model-supplied text is not trusted just because the
 # key is a safe one: a string is shown only if it is one of the values the tool accepts for that key
@@ -29,6 +37,9 @@ _ENUMERATED: dict[str, frozenset[str]] = {
     "os_name": frozenset(get_args(OsName)),
     "group_by": frozenset({"os", "model", "form_factor"}),
     "view": frozenset(get_args(SoftwareView)),
+    "action_type": frozenset(get_args(ActionType)),
+    "component": frozenset(get_args(Component)),
+    "topic": frozenset(get_args(Topic)),
 }
 _VERSION = re.compile(r"^\d{1,3}(\.\d{1,3}){0,2}$")
 _NUMERIC_KEYS = frozenset({"window_days", "threshold_pct"})
