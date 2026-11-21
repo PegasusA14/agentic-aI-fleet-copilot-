@@ -38,6 +38,7 @@ evals/reports/
 # ── Local-only brief and design docs (not part of the deliverable) ─
 docs/
 HANDOFF.md
+AUDIT_REPORT.md
 
 # ── IDE / OS ──────────────────────────────────────────────────────
 .idea/
