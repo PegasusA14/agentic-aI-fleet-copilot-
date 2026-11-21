@@ -57,6 +57,8 @@ export type ReasonCode =
       | "step_limit"
       | "not_eligible"
       | "insufficient_evidence"
+      | "already_done"
+      | "too_many_pending"
     )
   | null;
 export type AsOf = string;

@@ -124,6 +124,7 @@
       "population": 10,
       "rule": "devices matching os=macOS"
     },
+    "suggested_actions": [],
     "trace_id": "replay-acme-001-inventory_by_model"
   },
   "meta": {

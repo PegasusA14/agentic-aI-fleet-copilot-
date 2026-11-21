@@ -52,6 +52,7 @@
       "population": 7,
       "rule": "memory used >= 85% at the latest snapshot"
     },
+    "suggested_actions": [],
     "trace_id": "replay-initech-003-memory_pressure"
   },
   "meta": {

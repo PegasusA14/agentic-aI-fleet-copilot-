@@ -18,6 +18,7 @@
       "population": null,
       "rule": null
     },
+    "suggested_actions": [],
     "trace_id": "replay-initech-003-device_not_found"
   },
   "meta": {

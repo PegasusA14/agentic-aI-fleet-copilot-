@@ -18,6 +18,7 @@
       "population": null,
       "rule": null
     },
+    "suggested_actions": [],
     "trace_id": "replay-acme-001-unsupported"
   },
   "meta": {

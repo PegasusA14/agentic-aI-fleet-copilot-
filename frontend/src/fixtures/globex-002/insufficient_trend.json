@@ -36,6 +36,7 @@
       "population": 8,
       "rule": "memory used >= 85% over the last 1 days"
     },
+    "suggested_actions": [],
     "trace_id": "replay-globex-002-insufficient_trend"
   },
   "meta": {

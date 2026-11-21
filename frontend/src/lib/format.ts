@@ -28,6 +28,10 @@ export const REASON_TEXT: Record<string, string> = {
   prompt_injection: "Instruction not followed",
   tool_failure: "Data lookup failed",
   step_limit: "Step limit reached",
+  not_eligible: "Not supported by the evidence",
+  insufficient_evidence: "Not enough recent evidence",
+  already_done: "Already done",
+  too_many_pending: "Too many proposals waiting",
 };
 
 export const EXCLUDED_TEXT: Record<string, string> = {

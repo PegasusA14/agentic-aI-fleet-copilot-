@@ -35,6 +35,7 @@
       "population": 7,
       "rule": "memory used >= 85% over the last 1 days"
     },
+    "suggested_actions": [],
     "trace_id": "replay-initech-003-insufficient_trend"
   },
   "meta": {

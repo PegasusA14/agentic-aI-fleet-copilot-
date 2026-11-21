@@ -124,6 +124,7 @@
       "population": 7,
       "rule": "primary volume free space < 10% over the last 7 days"
     },
+    "suggested_actions": [],
     "trace_id": "replay-initech-003-disk_trend"
   },
   "meta": {

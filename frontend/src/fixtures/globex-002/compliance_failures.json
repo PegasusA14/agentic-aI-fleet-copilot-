@@ -126,6 +126,7 @@
       "population": 8,
       "rule": "failing check at the latest snapshot"
     },
+    "suggested_actions": [],
     "trace_id": "replay-globex-002-compliance_failures"
   },
   "meta": {

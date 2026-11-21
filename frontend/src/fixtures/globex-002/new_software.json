@@ -58,6 +58,7 @@
       "population": 8,
       "rule": "software newly installed in the last 30 days: not in the common set and first seen after the device's first snapshot in the window. The common set is the apps on every device at its first snapshot in the window: 1Password, Google Chrome, Slack, Visual Studio Code, Zoom"
     },
+    "suggested_actions": [],
     "trace_id": "replay-globex-002-new_software"
   },
   "meta": {

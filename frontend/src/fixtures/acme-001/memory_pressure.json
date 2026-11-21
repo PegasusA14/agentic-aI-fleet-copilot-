@@ -52,6 +52,7 @@
       "population": 10,
       "rule": "memory used >= 85% at the latest snapshot"
     },
+    "suggested_actions": [],
     "trace_id": "replay-acme-001-memory_pressure"
   },
   "meta": {

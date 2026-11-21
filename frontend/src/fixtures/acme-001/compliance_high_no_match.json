@@ -23,6 +23,7 @@
       "population": 10,
       "rule": "failing check at the latest snapshot, severity=high"
     },
+    "suggested_actions": [],
     "trace_id": "replay-acme-001-compliance_high_no_match"
   },
   "meta": {

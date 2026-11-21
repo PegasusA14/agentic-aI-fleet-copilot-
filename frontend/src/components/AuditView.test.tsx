@@ -98,6 +98,9 @@ describe("the tenant audit view", () => {
       ["hash_mismatch", "proposal changed"],
       ["forbidden", "not allowed"],
       ["not_pending:executed", "already executed"],
+      ["already_done", "already done recently"],
+      ["too_many_pending", "too many proposals waiting"],
+      ["recipient_changed", "the device was reassigned to another employee"],
     ];
     const list = [
       ...events.map((event, i) => entry(i + 1, { event, proposal_id: `p${i}` })),

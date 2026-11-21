@@ -25,6 +25,7 @@
       "population": 8,
       "rule": "laptops with capacity down more than 1% or a Service Recommended flag over the last 30 days"
     },
+    "suggested_actions": [],
     "trace_id": "replay-globex-002-battery_wear"
   },
   "meta": {

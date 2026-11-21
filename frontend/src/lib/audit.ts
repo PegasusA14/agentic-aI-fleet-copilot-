@@ -42,6 +42,9 @@ const REASONS: Record<string, string> = {
   hash_mismatch: "proposal changed",
   forbidden: "not allowed",
   changed: "the data changed since it was proposed",
+  recipient_changed: "the device was reassigned to another employee",
+  already_done: "already done recently",
+  too_many_pending: "too many proposals waiting",
 };
 
 const STATUSES = new Set(["pending", "approved", "executed", "rejected", "invalidated", "failed", "uncertain"]);

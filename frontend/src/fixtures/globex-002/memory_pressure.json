@@ -64,6 +64,7 @@
       "population": 8,
       "rule": "memory used >= 85% at the latest snapshot"
     },
+    "suggested_actions": [],
     "trace_id": "replay-globex-002-memory_pressure"
   },
   "meta": {

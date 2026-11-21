@@ -64,6 +64,7 @@
       "population": 8,
       "rule": "primary volume free space < 10% at the latest snapshot"
     },
+    "suggested_actions": [],
     "trace_id": "replay-globex-002-low_disk"
   },
   "meta": {

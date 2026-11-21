@@ -18,6 +18,7 @@
       "population": null,
       "rule": null
     },
+    "suggested_actions": [],
     "trace_id": "replay-globex-002-device_not_found"
   },
   "meta": {

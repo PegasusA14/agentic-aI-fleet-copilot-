@@ -28,7 +28,7 @@
         "globex-002/CUXW0BQSV1B7@2026-06-05T09:11:00Z#compliance[screen_lock]"
       ],
       "expected_effect": "A medium-severity remediation ticket for screen_lock on globex-thinkpad-6 would be opened (simulated)",
-      "payload_hash": "272134c1c838515fd3440acd1257842d0e8db249bf90617953db2c3d43dfbd36",
+      "payload_hash": "989ad25ac63140aa55779104be4b158b3c367c6a31a445e69d2bd38bdaed243f",
       "proposal_id": "prop-replay-globex-002-proposal",
       "rationale": "screen_lock reports fail with medium severity at the latest reading (2026-06-12); the first failing reading in the last 30 days is 2026-06-05.",
       "scope": {
@@ -48,6 +48,7 @@
       "population": null,
       "rule": null
     },
+    "suggested_actions": [],
     "trace_id": "replay-globex-002-proposal"
   },
   "meta": {

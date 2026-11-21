@@ -28,7 +28,7 @@
         "acme-001/1LYSSFD074BB@2026-05-22T09:41:00Z#compliance[screen_lock]"
       ],
       "expected_effect": "A medium-severity remediation ticket for screen_lock on acme-macbook-2 would be opened (simulated)",
-      "payload_hash": "11d87ca9cea1f4599be2b67dbd96df3374443934c4f9870ab7fb3a3bfabf83a3",
+      "payload_hash": "44ce99fd316f7fa98aff82fc067290aa10783619ab442b015cef79fc5e7d4961",
       "proposal_id": "prop-replay-acme-001-proposal",
       "rationale": "screen_lock reports fail with medium severity at the latest reading (2026-06-12); the first failing reading in the last 30 days is 2026-05-22.",
       "scope": {
@@ -48,6 +48,7 @@
       "population": null,
       "rule": null
     },
+    "suggested_actions": [],
     "trace_id": "replay-acme-001-proposal"
   },
   "meta": {

@@ -100,6 +100,7 @@
       "population": 8,
       "rule": "devices matching os=macOS"
     },
+    "suggested_actions": [],
     "trace_id": "replay-globex-002-inventory_by_model"
   },
   "meta": {

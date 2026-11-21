@@ -64,6 +64,7 @@
       "population": 7,
       "rule": "primary volume free space < 10% at the latest snapshot"
     },
+    "suggested_actions": [],
     "trace_id": "replay-initech-003-low_disk"
   },
   "meta": {

@@ -162,6 +162,7 @@
       "population": 7,
       "rule": "failing check at the latest snapshot"
     },
+    "suggested_actions": [],
     "trace_id": "replay-initech-003-compliance_failures"
   },
   "meta": {

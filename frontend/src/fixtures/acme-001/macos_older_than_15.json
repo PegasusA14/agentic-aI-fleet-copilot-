@@ -96,6 +96,7 @@
       "population": 7,
       "rule": "macOS devices with version < 15"
     },
+    "suggested_actions": [],
     "trace_id": "replay-acme-001-macos_older_than_15"
   },
   "meta": {

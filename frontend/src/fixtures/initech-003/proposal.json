@@ -28,7 +28,7 @@
         "initech-003/2MAN6T4DJD95@2026-06-05T10:47:00Z#compliance[screen_lock]"
       ],
       "expected_effect": "A medium-severity remediation ticket for screen_lock on initech-dell-5 would be opened (simulated)",
-      "payload_hash": "1df49fb1a2fdd0cbbd0f2f04c85bcb39d6c8c9975f3e4d6f5f8331c48fc3ac20",
+      "payload_hash": "60f1423f7179cc62e8a07f92781b8a091dced3050fa2e1550aa18a11d42c52e7",
       "proposal_id": "prop-replay-initech-003-proposal",
       "rationale": "screen_lock reports fail with medium severity at the latest reading (2026-06-12); the first failing reading in the last 30 days is 2026-06-05.",
       "scope": {
@@ -48,6 +48,7 @@
       "population": null,
       "rule": null
     },
+    "suggested_actions": [],
     "trace_id": "replay-initech-003-proposal"
   },
   "meta": {

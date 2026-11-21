@@ -100,6 +100,7 @@
       "population": 7,
       "rule": "devices matching os=macOS"
     },
+    "suggested_actions": [],
     "trace_id": "replay-initech-003-inventory_by_model"
   },
   "meta": {

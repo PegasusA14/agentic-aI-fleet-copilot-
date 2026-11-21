@@ -64,6 +64,7 @@
       "population": 10,
       "rule": "primary volume free space < 10% at the latest snapshot"
     },
+    "suggested_actions": [],
     "trace_id": "replay-acme-001-low_disk"
   },
   "meta": {

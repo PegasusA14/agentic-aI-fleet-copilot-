@@ -124,6 +124,7 @@
       "population": 8,
       "rule": "primary volume free space < 10% over the last 7 days"
     },
+    "suggested_actions": [],
     "trace_id": "replay-globex-002-disk_trend"
   },
   "meta": {

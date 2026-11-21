@@ -117,6 +117,7 @@
       "population": 9,
       "rule": "laptops with capacity down more than 1% or a Service Recommended flag over the last 30 days"
     },
+    "suggested_actions": [],
     "trace_id": "replay-acme-001-battery_wear"
   },
   "meta": {

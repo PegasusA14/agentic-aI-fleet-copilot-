@@ -222,6 +222,7 @@
       "population": 10,
       "rule": "failing check at the latest snapshot"
     },
+    "suggested_actions": [],
     "trace_id": "replay-acme-001-compliance_failures"
   },
   "meta": {
