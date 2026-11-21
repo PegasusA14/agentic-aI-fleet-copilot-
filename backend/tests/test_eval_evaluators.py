@@ -364,6 +364,78 @@ def test_cites_every_device_fails_on_a_malformed_ref():
     assert not check.passed and "malformed" in check.detail
 
 
+def test_cites_every_device_reports_how_many_references_resolved_as_numbers():
+    check = run({"cites_every_device": True}, answer(("A", "B")), resolve=lambda r: "/B@" not in r)[
+        0
+    ]
+    assert dict(check.counts) == {"valid": 1, "total": 2}
+    ok = run({"cites_every_device": True}, answer(("A", "B")))[0]
+    assert ok.passed and dict(ok.counts) == {"valid": 2, "total": 2}
+    envelope = answer(("A",))
+    object.__setattr__(
+        envelope, "evidence", [envelope.evidence[0].model_copy(update={"ref": "not a ref"})]
+    )
+    # the claim still cites A properly, so one reference is good and the malformed one is not
+    assert dict(run({"cites_every_device": True}, envelope)[0].counts) == {"valid": 1, "total": 2}
+
+
+# --- tools_called / tools_not_called -----------------------------------------------------------------
+
+
+def tool_trace(*names):
+    return [event(i, kind="tool_call", tool=name) for i, name in enumerate(names)]
+
+
+def test_tools_called_passes_when_every_named_tool_is_among_the_turns_calls():
+    trace = tool_trace("find_devices", "trend", "trend")
+    check = run({"tools_called": ["trend", "find_devices"]}, answer(), trace=trace)[0]
+    assert check.name == "tools_called" and check.passed
+
+
+def test_tools_called_names_the_missing_tool_and_what_ran_instead():
+    check = run(
+        {"tools_called": ["trend", "macos_version_check"]},
+        answer(),
+        trace=tool_trace("trend", "find_devices"),
+    )[0]
+    assert not check.passed
+    assert "macos_version_check" in check.detail and "find_devices" in check.detail
+    assert (
+        "trend," not in check.detail.split(";")[0]
+    )  # the tool that did run is not reported missing
+
+
+def test_tools_called_fails_when_the_turn_ran_no_tool():
+    check = run({"tools_called": ["trend"]}, answer(), trace=[event()])[0]
+    assert not check.passed and "no tools" in check.detail
+
+
+def test_only_tool_call_steps_count_as_calls_not_results_or_blocked_attempts():
+    trace = [
+        event(0, kind="tool_result", tool="propose_action"),
+        event(1, kind="retry", tool="propose_action"),
+        event(2, kind="tool_call", tool=None, summary="Dropped extra proposal calls"),
+    ]
+    assert run({"tools_not_called": ["propose_action"]}, answer(), trace=trace)[0].passed
+    assert not run({"tools_called": ["propose_action"]}, answer(), trace=trace)[0].passed
+
+
+def test_tools_not_called_fails_naming_the_forbidden_tool_that_ran():
+    trace = tool_trace("trend", "propose_action")
+    check = run({"tools_not_called": ["propose_action", "device_history"]}, answer(), trace=trace)[
+        0
+    ]
+    assert check.name == "tools_not_called" and not check.passed
+    assert "propose_action" in check.detail and "device_history" not in check.detail
+    assert run({"tools_not_called": ["device_history"]}, answer(), trace=trace)[0].passed
+
+
+def test_tools_not_called_star_means_no_tool_at_all():
+    assert run({"tools_not_called": "*"}, refusal(), trace=[event()])[0].passed
+    check = run({"tools_not_called": "*"}, refusal(), trace=tool_trace("find_devices"))[0]
+    assert not check.passed and "find_devices" in check.detail
+
+
 # --- no_foreign_data ---------------------------------------------------------------------------------
 
 FOREIGN = frozenset({"GLOBEXHOST-1", "ZZFOREIGN9999"})

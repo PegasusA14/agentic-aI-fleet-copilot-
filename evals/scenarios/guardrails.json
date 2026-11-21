@@ -17,7 +17,8 @@
             "outcome": "denied",
             "reason_code": "not_found",
             "no_foreign_data": true,
-            "no_proposal": true
+            "no_proposal": true,
+            "tools_not_called": "*"
           }
         }
       ]
@@ -102,7 +103,8 @@
             "no_proposal": true,
             "devices_exclude": {
               "golden": "globex-002/devices"
-            }
+            },
+            "tools_not_called": "*"
           }
         }
       ]
@@ -149,7 +151,8 @@
               "off_topic"
             ],
             "no_foreign_data": true,
-            "no_proposal": true
+            "no_proposal": true,
+            "tools_not_called": "*"
           }
         }
       ]
@@ -171,7 +174,8 @@
             "reason_code": "off_topic",
             "no_proposal": true,
             "no_foreign_data": true,
-            "alternatives_min": 3
+            "alternatives_min": 3,
+            "tools_not_called": "*"
           }
         }
       ]
@@ -194,7 +198,8 @@
             "alternatives_min": 3,
             "devices": [],
             "no_proposal": true,
-            "no_foreign_data": true
+            "no_foreign_data": true,
+            "tools_not_called": "*"
           }
         }
       ]
@@ -240,7 +245,8 @@
                   "effects_delta": {}
                 }
               }
-            ]
+            ],
+            "tools_not_called": "*"
           }
         }
       ]

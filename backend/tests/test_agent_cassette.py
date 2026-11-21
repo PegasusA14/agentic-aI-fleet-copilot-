@@ -107,3 +107,112 @@ async def test_a_content_filter_refusal_is_recorded_and_replayed(tmp_path):
     with pytest.raises(ContentFiltered) as err:
         await CassetteGateway(path).plan(MESSAGES)  # offline replay matches what the provider did
     assert err.value.category == "jailbreak"
+
+
+# ---- token usage -------------------------------------------------------------------------------------
+
+
+class Metered:
+    """An inner gateway that reports token usage the way the live gateway does (a context variable)."""
+
+    def __init__(self, inner, usage):
+        self._inner, self._usage = inner, usage
+
+    async def _call(self, kind, messages):
+        from fleet_copilot.agent import usage
+
+        result = await getattr(self._inner, kind)(messages)
+        usage.CURRENT.set(self._usage)
+        return result
+
+    async def plan(self, messages):
+        return await self._call("plan", messages)
+
+    async def act(self, messages):
+        return await self._call("act", messages)
+
+    async def explain(self, messages):
+        return await self._call("explain", messages)
+
+
+def test_the_call_key_does_not_depend_on_usage_and_is_pinned():
+    # Changing the key would orphan every committed cassette line, so it is pinned here.
+    assert call_key("plan", MESSAGES) == (
+        "2a4556b5f533c12cdff60716cac67354bcaad27e828e0fadb0f23c508f01b129"
+    )
+
+
+async def test_recorded_usage_is_stored_beside_the_response_and_summed_on_replay(tmp_path):
+    path = tmp_path / "c.jsonl"
+    inner = Metered(
+        ScriptedLLM(plans=[PLAN], explains=[EXPLANATION]), {"prompt": 120, "completion": 30}
+    )
+    recorder = CassetteGateway(path, inner=inner)
+    await recorder.plan(MESSAGES)
+    await recorder.explain(MESSAGES)
+    lines = [json.loads(line) for line in path.read_text().splitlines()]
+    assert all(line["usage"] == {"prompt": 120, "completion": 30} for line in lines)
+    assert all(set(line) == {"key", "kind", "response", "usage"} for line in lines)
+    both = {"calls": 2, "calls_with_usage": 2, "prompt": 240, "completion": 60}
+    assert recorder.usage_total() == both
+
+    replay = CassetteGateway(path)
+    assert replay.usage_total()["calls"] == 0
+    assert await replay.plan(MESSAGES) == PLAN
+    assert await replay.explain(MESSAGES) == EXPLANATION
+    assert replay.usage_total() == both
+
+
+async def test_a_cassette_line_without_usage_still_replays_and_counts_no_tokens(tmp_path):
+    path = tmp_path / "old.jsonl"
+    await CassetteGateway(path, inner=ScriptedLLM(plans=[PLAN])).plan(MESSAGES)  # records no usage
+    (line,) = path.read_text().splitlines()
+    assert "usage" not in json.loads(line)
+    replay = CassetteGateway(path)
+    assert await replay.plan(MESSAGES) == PLAN
+    assert replay.usage_total() == {
+        "calls": 1,
+        "calls_with_usage": 0,
+        "prompt": 0,
+        "completion": 0,
+    }
+
+
+async def test_a_mixed_cassette_counts_usage_only_for_the_lines_that_have_it(tmp_path):
+    path = tmp_path / "mixed.jsonl"
+    await CassetteGateway(path, inner=ScriptedLLM(plans=[PLAN])).plan(MESSAGES)
+    metered = Metered(ScriptedLLM(explains=[EXPLANATION]), {"prompt": 7, "completion": 3})
+    await CassetteGateway(path, inner=metered).explain(MESSAGES)
+    replay = CassetteGateway(path)
+    await replay.plan(MESSAGES)
+    await replay.explain(MESSAGES)
+    assert replay.usage_total() == {
+        "calls": 2,
+        "calls_with_usage": 1,
+        "prompt": 7,
+        "completion": 3,
+    }
+
+
+@pytest.mark.parametrize(
+    "bad",
+    [{"prompt": "9", "completion": 1}, {"prompt": 1}, {"prompt": -1, "completion": 0}, [1], 5],
+)
+async def test_a_malformed_usage_field_is_ignored_not_fatal(tmp_path, bad):
+    path = tmp_path / "c.jsonl"
+    await CassetteGateway(path, inner=ScriptedLLM(plans=[PLAN])).plan(MESSAGES)
+    entry = json.loads(path.read_text())
+    entry["usage"] = bad
+    path.write_text(json.dumps(entry) + "\n")
+    replay = CassetteGateway(path)
+    assert await replay.plan(MESSAGES) == PLAN
+    assert replay.usage_total()["calls_with_usage"] == 0
+
+
+async def test_a_stale_usage_is_not_recorded_for_a_call_that_reported_none(tmp_path):
+    from fleet_copilot.agent import usage
+
+    usage.CURRENT.set({"prompt": 999, "completion": 999})  # left over from some earlier call
+    path = tmp_path / "c.jsonl"
+    await CassetteGateway(path, inner=ScriptedLLM(plans=[PLAN])).plan(MESSAGES)
+    assert "usage" not in json.loads(path.read_text())

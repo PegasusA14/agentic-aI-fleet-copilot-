@@ -10,8 +10,9 @@ class FakeRunnable:
         self._owner = owner
         self._label = label
 
-    async def ainvoke(self, messages: Any) -> Any:
+    async def ainvoke(self, messages: Any, config: Any = None) -> Any:
         self._owner.calls.append((self._label, messages))
+        self._owner.configs.append(config)
         item = self._owner.script.pop(0)
         if isinstance(item, BaseException):
             raise item
@@ -24,6 +25,7 @@ class FakeChatModel:
     def __init__(self, script: list[Any]) -> None:
         self.script = list(script)
         self.calls: list[tuple[str, Any]] = []
+        self.configs: list[Any] = []
         self.schemas: list[tuple[Any, str | None]] = []
         self.bound_tools: Any = None
 

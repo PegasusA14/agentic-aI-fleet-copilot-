@@ -367,6 +367,66 @@ def test_no_effects_must_be_true_or_false(tmp_path):
         load_suites(tmp_path)
 
 
+# --- trajectory keys ---------------------------------------------------------------------------------
+
+
+def test_trajectory_keys_load_with_real_tool_names_and_the_no_tool_marker(tmp_path):
+    first = {"outcome": "answer", "tools_called": ["low_disk_devices", "trend"]}
+    second = {"outcome": "unsupported", "tools_not_called": "*"}
+    write_suite(tmp_path, suite="guardrails", cases=[two_turn_case(first=first, second=second)])
+    assert load_suites(tmp_path)
+
+
+@pytest.mark.parametrize(
+    ("key", "value", "needle"),
+    [
+        ("tools_called", ["no_such_tool"], "unknown tool"),
+        ("tools_not_called", ["low_disk_devices", "nope"], "unknown tool"),
+        ("tools_called", [], "non-empty list"),
+        ("tools_called", "low_disk_devices", "non-empty list"),
+        (
+            "tools_called",
+            "*",
+            "non-empty list",
+        ),  # the marker only means something for tools_not_called
+        ("tools_not_called", "all", "non-empty list"),
+        ("tools_not_called", ["trend", "trend"], "twice"),
+        ("tools_called", [1], "non-empty list"),
+    ],
+)
+def test_malformed_trajectory_keys_are_rejected(tmp_path, key, value, needle):
+    write_suite(
+        tmp_path,
+        suite="guardrails",
+        cases=[two_turn_case(second={"outcome": "unsupported", key: value})],
+    )
+    with pytest.raises(ScenarioError, match=f"{key}.*{needle}"):
+        load_suites(tmp_path)
+
+
+def test_trajectory_names_are_checked_against_the_live_tool_list(tmp_path, monkeypatch):
+    from fleet_copilot.evals import scenarios
+
+    class Named:
+        def __init__(self, name):
+            self.name = name
+
+    monkeypatch.setattr(scenarios, "TOOLS", [Named("brand_new_tool")])
+    write_suite(
+        tmp_path,
+        suite="guardrails",
+        cases=[two_turn_case(second={"outcome": "answer", "tools_called": ["brand_new_tool"]})],
+    )
+    assert load_suites(tmp_path)
+    write_suite(
+        tmp_path,
+        suite="guardrails",
+        cases=[two_turn_case(second={"outcome": "answer", "tools_called": ["trend"]})],
+    )
+    with pytest.raises(ScenarioError, match="unknown tool"):
+        load_suites(tmp_path)
+
+
 # --- golden references -------------------------------------------------------------------------------
 
 

@@ -14,6 +14,7 @@ import hashlib
 import json
 import re
 import sqlite3
+import time
 from collections.abc import Collection, Sequence
 from contextlib import closing
 from dataclasses import dataclass, field
@@ -34,7 +35,8 @@ from fleet_copilot.agent.service import AgentService
 from fleet_copilot.config import Settings
 from fleet_copilot.contracts import ProposalCard, TraceEvent
 from fleet_copilot.data.loader import SCHEMA_VERSION, connect, stored_schema_version
-from fleet_copilot.evals.evaluators import Check, check_turn
+from fleet_copilot.evals import metrics
+from fleet_copilot.evals.evaluators import Check, called_tools, check_turn
 from fleet_copilot.evals.golden_ref import load_golden, resolve_expect
 from fleet_copilot.evals.identifiers import foreign_identifiers
 from fleet_copilot.evals.scenarios import Instance, Scenario, expand
@@ -66,6 +68,15 @@ class CaseResult:
     effects: tuple[dict[str, Any], ...] = ()
     not_recorded: bool = False
     approval_bypass: bool = False  # a proposal was executed though no `approve` step asked for it
+    turn_ms: tuple[int, ...] = ()  # wall time of each turn that ran, in whole milliseconds
+    tools: tuple[tuple[str, ...], ...] = ()  # the tools each turn ran, in order
+    refusal_turns: tuple[int, ...] = ()  # turns whose expectation names a refusal-type outcome
+
+    @property
+    def refusal_ok(self) -> bool:
+        """Every refusal-expecting turn has an outcome check and it passed (a missed turn has none)."""
+        seen = {c["turn"]: c["passed"] for c in self.checks if c["name"] == metrics.OUTCOME_CHECK}
+        return all(seen.get(turn) is True for turn in self.refusal_turns)
 
     def to_dict(self) -> dict[str, Any]:
         return {
@@ -81,6 +92,9 @@ class CaseResult:
             "trace_ids": list(self.trace_ids),
             "effects": list(self.effects),
             "approval_bypass": self.approval_bypass,
+            "turn_ms": list(self.turn_ms),
+            "tools": [list(turn) for turn in self.tools],
+            "refusal_turns": list(self.refusal_turns),
         }
 
 
@@ -103,6 +117,11 @@ class RunResult:
     as_of: str
     policy: dict[str, Any]
     cases: list[CaseResult] = field(default_factory=list)
+    tokens: dict[str, int] | None = None  # what the model calls of this run cost, when recorded
+
+    @property
+    def replay(self) -> bool:
+        return "replay" in self.model_mode
 
     @property
     def totals(self) -> dict[str, Any]:
@@ -112,7 +131,7 @@ class RunResult:
         return {
             "suites": {name: _tally(items) for name, items in suites.items()},
             "overall": _tally(self.cases),
-            "approval_bypasses": sum(1 for case in self.cases if case.approval_bypass),
+            **metrics.compute(self.cases, tokens=self.tokens),
         }
 
     def to_dict(self) -> dict[str, Any]:
@@ -128,11 +147,15 @@ class RunResult:
         }
 
 
-def exit_code(result: RunResult) -> int:
-    """0 only if something ran, every check passed and nothing was "not recorded"."""
-    overall = result.totals["overall"]
-    clean = overall["total"] > 0 and overall["passed"] == overall["total"]
-    return 0 if clean and overall["not_recorded"] == 0 else 1
+def gate_failures(result: RunResult, fail_under: float | None = None) -> list[str]:
+    """Why the run fails the CI gate (see `metrics.gate_failures`); empty when it passes."""
+    return metrics.gate_failures(result.totals, fail_under)
+
+
+def exit_code(result: RunResult, fail_under: float | None = None) -> int:
+    """0 if the gate passes: something ran, no tenant leak, no approval bypass, and either every case
+    passed (the default) or the pass rate reached `fail_under`. A case "not recorded" is a failed case."""
+    return 1 if gate_failures(result, fail_under) else 0
 
 
 def format_summary(result: RunResult) -> str:
@@ -145,7 +168,7 @@ def format_summary(result: RunResult) -> str:
     lines = ["  ".join(cell.ljust(widths[i]) for i, cell in enumerate(r)).rstrip() for r in rows]
     lines.insert(1, "  ".join("-" * w for w in widths))
     lines.insert(-1, lines[1])
-    lines.append(f"approval bypasses: {totals['approval_bypasses']}")
+    lines.append(metrics.format_metrics(totals, replay=result.replay))
     missed = totals["overall"]["not_recorded"]
     if missed:
         lines.append(
@@ -174,7 +197,15 @@ def write_report(result: RunResult, directory: Path) -> Path:
 
 
 def _check_dict(check: Check, turn: int | None) -> dict[str, Any]:
-    return {"name": check.name, "passed": check.passed, "detail": check.detail, "turn": turn}
+    entry: dict[str, Any] = {
+        "name": check.name,
+        "passed": check.passed,
+        "detail": check.detail,
+        "turn": turn,
+    }
+    if check.counts is not None:
+        entry["counts"] = dict(check.counts)
+    return entry
 
 
 def _safe_name(instance_id: str) -> str:
@@ -336,8 +367,25 @@ class _Env:
             conn.close()
 
 
+def _refusal_turns(inst: Instance) -> tuple[int, ...]:
+    return tuple(
+        number
+        for number, turn in enumerate(inst.turns, 1)
+        if metrics.expects_refusal(turn.expect.get("outcome"))
+    )
+
+
 def _result(
-    inst: Instance, checks, questions, trace_ids, effects, *, not_recorded=False, bypass=False
+    inst: Instance,
+    checks,
+    questions,
+    trace_ids,
+    effects,
+    *,
+    not_recorded=False,
+    bypass=False,
+    turn_ms=(),
+    tools=(),
 ):
     return CaseResult(
         instance_id=inst.id,
@@ -352,6 +400,9 @@ def _result(
         effects=tuple(effects),
         not_recorded=not_recorded,
         approval_bypass=bypass,
+        turn_ms=tuple(turn_ms),
+        tools=tuple(tuple(t) for t in tools),
+        refusal_turns=_refusal_turns(inst),
     )
 
 
@@ -366,6 +417,8 @@ async def _play(inst: Instance, env: _Env, folder: Path) -> CaseResult:
     questions: list[str] = []
     trace_ids: list[str] = []
     cards: dict[int, ProposalCard] = {}  # the proposal each turn made, by turn number
+    turn_ms: list[int] = []
+    tools: list[list[str]] = []
     baseline = _effect_totals(actions)
     async with AgentService.open(
         db_path=env.settings.db_path,
@@ -376,14 +429,25 @@ async def _play(inst: Instance, env: _Env, folder: Path) -> CaseResult:
     ) as service:
         for number, turn in enumerate(inst.turns, 1):
             before = _proposal_count(store)
+            began = time.perf_counter()
             outcome = await service.run_turn(identity, conversation, turn.say)
+            elapsed = max(0, round((time.perf_counter() - began) * 1000))
             questions.append(turn.say)
             trace_ids.append(outcome.envelope.trace_id)
             if _missed(outcome.trace):
                 miss = Check("recorded", False, NOT_RECORDED)
                 return _result(
-                    inst, [_check_dict(miss, number)], questions, trace_ids, [], not_recorded=True
+                    inst,
+                    [_check_dict(miss, number)],
+                    questions,
+                    trace_ids,
+                    [],
+                    not_recorded=True,
+                    turn_ms=turn_ms,
+                    tools=tools,
                 )
+            turn_ms.append(elapsed)
+            tools.append(called_tools(outcome.trace))
             if outcome.envelope.proposal is not None:
                 cards[number] = outcome.envelope.proposal
             expect = resolve_expect(turn.expect, env.golden)
@@ -402,7 +466,16 @@ async def _play(inst: Instance, env: _Env, folder: Path) -> CaseResult:
     decided, ledger = _decisions(inst, cards, actions, identity)
     executed = len(actions.list(identity, "executed"))
     bypass = approval_bypass(inst.decisions, executed=executed)
-    return _result(inst, [*checks, *decided], questions, trace_ids, ledger, bypass=bypass)
+    return _result(
+        inst,
+        [*checks, *decided],
+        questions,
+        trace_ids,
+        ledger,
+        bypass=bypass,
+        turn_ms=turn_ms,
+        tools=tools,
+    )
 
 
 # ---- audit completeness ----------------------------------------------------------------------------
@@ -510,6 +583,8 @@ async def run(
     )
     run_dir = settings.state_path() / "evals" / run_id
     env = _Env(settings, gateway, traces, load_golden(), run_dir)
+    usage_total = getattr(gateway, "usage_total", None)
+    usage_before = usage_total() if callable(usage_total) else None
     databases: list[Path] = []
 
     def keep(case: CaseResult) -> None:
@@ -552,5 +627,8 @@ async def run(
             )
     finally:
         env.close()
+    if usage_before is not None:
+        after = usage_total()
+        result.tokens = {key: after[key] - usage_before[key] for key in after}
     store.finish_run(run_id, result.totals)
     return result

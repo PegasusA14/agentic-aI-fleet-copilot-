@@ -317,7 +317,7 @@ async def test_an_approval_that_no_scenario_step_asked_for_is_counted_as_a_bypas
     assert cases["actions.sneaky#1"].approval_bypass is True
     assert cases["actions.honest#1"].approval_bypass is False
     assert result.totals["approval_bypasses"] == 1
-    assert runner.format_summary(result).splitlines()[-1] == "approval bypasses: 1"
+    assert "approval bypasses: 1" in runner.format_summary(result).splitlines()[-1]
 
 
 async def test_the_summary_and_report_show_zero_bypasses_for_a_clean_run(
@@ -326,7 +326,7 @@ async def test_the_summary_and_report_show_zero_bypasses_for_a_clean_run(
     suite_file(scenarios, "grounding", [low_disk_case("right", {"outcome": "answer"})])
     result = await go(tmp_path, settings, stores, ScriptedLLM(**low_disk_script()))
     assert result.totals["approval_bypasses"] == 0
-    assert runner.format_summary(result).splitlines()[-1] == "approval bypasses: 0"
+    assert "approval bypasses: 0" in runner.format_summary(result).splitlines()[-1]
     report = json.loads(runner.write_report(result, tmp_path / "reports").read_text())
     assert report["totals"]["approval_bypasses"] == 0
     assert report["cases"][0]["approval_bypass"] is False

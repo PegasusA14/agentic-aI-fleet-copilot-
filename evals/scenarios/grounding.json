@@ -23,7 +23,10 @@
             "population": {
               "golden": "acme-001/low_disk_lt10/population"
             },
-            "prose_verified": true
+            "prose_verified": true,
+            "tools_called": [
+              "low_disk_devices"
+            ]
           }
         }
       ]
@@ -75,7 +78,10 @@
             "no_foreign_data": true,
             "population": {
               "golden": "initech-003/low_disk_lt10/population"
-            }
+            },
+            "tools_called": [
+              "low_disk_devices"
+            ]
           }
         }
       ]
@@ -104,7 +110,10 @@
             },
             "devices_exclude": {
               "golden": "acme-001/macos_below_15/out_of_scope"
-            }
+            },
+            "tools_called": [
+              "macos_version_check"
+            ]
           }
         }
       ]
@@ -247,7 +256,10 @@
               "golden": "acme-001/failing_latest/all/screen_lock"
             },
             "cites_every_device": true,
-            "no_foreign_data": true
+            "no_foreign_data": true,
+            "tools_called": [
+              "compliance_failures_now"
+            ]
           }
         }
       ]

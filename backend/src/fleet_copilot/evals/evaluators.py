@@ -17,6 +17,7 @@ from fleet_copilot.contracts import AnswerEnvelope, TraceEvent
 from fleet_copilot.evals.identifiers import COMPANY_IDS
 from fleet_copilot.evidence import EvidenceRef
 
+ANY_TOOL = "*"  # `tools_not_called: "*"` says the turn must run no tool at all
 _SHOWN = 6  # how many identifiers a detail line spells out before it says "and N more"
 
 
@@ -25,6 +26,8 @@ class Check:
     name: str
     passed: bool
     detail: str
+    # Structured numbers a check may report besides its readable detail (the aggregate metrics read these).
+    counts: Mapping[str, int] | None = None
 
 
 def _ids(values: Collection[str]) -> str:
@@ -144,9 +147,12 @@ def check_population(expected: Any, envelope: AnswerEnvelope) -> Check:
 def check_cites_every_device(
     envelope: AnswerEnvelope, tenant: str, repo_resolve: Callable[[str], bool]
 ) -> Check:
+    """Every listed device needs a resolving reference. `counts` has `valid` and `total` references."""
     problems: list[str] = []
     cited: set[str] = set()
-    for text in _refs(envelope):
+    valid = 0
+    refs = _refs(envelope)
+    for text in refs:
         try:
             parsed = EvidenceRef.parse(text)
         except ValueError:
@@ -159,12 +165,16 @@ def check_cites_every_device(
             problems.append(f"reference does not resolve in {tenant}: {text}")
             continue
         cited.add(parsed.device_id)
+        valid += 1
+    counts = {"valid": valid, "total": len(refs)}
     uncited = _listed_devices(envelope) - cited
     if uncited:
         problems.append(f"no evidence reference for {_ids(uncited)}")
     if problems:
-        return Check("cites_every_device", False, "; ".join(problems))
-    return Check("cites_every_device", True, "every listed device has a resolving reference")
+        return Check("cites_every_device", False, "; ".join(problems), counts)
+    return Check(
+        "cites_every_device", True, "every listed device has a resolving reference", counts
+    )
 
 
 def _scan(text: str, needles: Collection[str]) -> list[str]:
@@ -279,6 +289,35 @@ def check_no_effects(effects: Mapping[str, int]) -> Check:
     return Check("no_effects", True, "nothing has been executed in this conversation")
 
 
+def called_tools(trace: Sequence[TraceEvent]) -> list[str]:
+    """The tools the turn actually ran, in order (a refused or blocked call has no `tool_call` step)."""
+    return [e.tool for e in trace if e.kind == "tool_call" and e.tool]
+
+
+def check_tools_called(expected: Any, trace: Sequence[TraceEvent]) -> Check:
+    """Every named tool must appear among the turn's tool calls."""
+    want, ran = _many(expected), list(dict.fromkeys(called_tools(trace)))
+    missing = [name for name in want if name not in ran]
+    if missing:
+        shown = ", ".join(ran) or "no tools"
+        return Check(
+            "tools_called",
+            False,
+            f"expected a call to {', '.join(missing)}; the turn called {shown}",
+        )
+    return Check("tools_called", True, f"the turn called {', '.join(want)}")
+
+
+def check_tools_not_called(expected: Any, trace: Sequence[TraceEvent]) -> Check:
+    """None of the named tools may appear among the turn's tool calls; `"*"` means no tool at all."""
+    ran = list(dict.fromkeys(called_tools(trace)))
+    banned = ran if expected == ANY_TOOL else [n for n in _many(expected) if n in ran]
+    if banned:
+        return Check("tools_not_called", False, f"must not be called but was: {', '.join(banned)}")
+    what = "any tool" if expected == ANY_TOOL else ", ".join(_many(expected))
+    return Check("tools_not_called", True, f"the turn did not call {what}")
+
+
 _KEYS = (
     "outcome",
     "reason_code",
@@ -291,6 +330,8 @@ _KEYS = (
     "cites_every_device",
     "no_foreign_data",
     "prose_verified",
+    "tools_called",
+    "tools_not_called",
     "proposal",
     "no_proposal",
     "proposal_status_of_turn",
@@ -356,6 +397,10 @@ def check_turn(
             checks.append(check_alternatives_min(value, envelope))
         elif key == "population":
             checks.append(check_population(value, envelope))
+        elif key == "tools_called":
+            checks.append(check_tools_called(value, trace))
+        elif key == "tools_not_called":
+            checks.append(check_tools_not_called(value, trace))
         elif key == "proposal":
             checks.append(check_proposal(value, envelope, proposals_created))
         elif key == "proposal_status_of_turn":

@@ -15,6 +15,7 @@ from langchain_core.messages import AIMessage, BaseMessage
 from langchain_openai import AzureChatOpenAI
 
 from fleet_copilot import policy
+from fleet_copilot.agent import usage
 from fleet_copilot.agent.llm import ContentFiltered, Explanation, Plan, PlanRejected
 from fleet_copilot.agent.tools import TOOLS
 from fleet_copilot.config import AzureSettings
@@ -90,9 +91,14 @@ class ChatGateway:
     async def _call(self, runnable: Any, messages: list[BaseMessage]) -> Any:
         reason = "unavailable"
         for attempt in range(self._attempts):
+            collector = usage.UsageCollector()
             try:
                 async with asyncio.timeout(self._call_timeout_s):
-                    return await runnable.ainvoke(messages)
+                    result = await runnable.ainvoke(messages, config={"callbacks": [collector]})
+                usage.CURRENT.set(
+                    collector.usage()
+                )  # the cassette recorder reads it, if it wraps us
+                return result
             except _RETRYABLE as exc:
                 reason = type(exc).__name__
             except openai.BadRequestError as exc:

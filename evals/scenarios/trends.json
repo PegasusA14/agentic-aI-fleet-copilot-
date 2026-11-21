@@ -375,7 +375,10 @@
               "golden": "acme-001/software/new_installs/7",
               "pluck": "device_id"
             },
-            "no_foreign_data": true
+            "no_foreign_data": true,
+            "tools_called": [
+              "software_inventory"
+            ]
           }
         }
       ]

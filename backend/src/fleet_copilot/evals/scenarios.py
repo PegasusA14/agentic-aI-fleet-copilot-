@@ -14,7 +14,9 @@ from pathlib import Path
 from typing import Any, get_args
 
 from fleet_copilot.agent.identity import DEMO_IDENTITIES
+from fleet_copilot.agent.tools import TOOLS
 from fleet_copilot.contracts import ActionType, OutcomeType, ReasonCode
+from fleet_copilot.evals.evaluators import ANY_TOOL
 from fleet_copilot.evals.golden_ref import validate_ref
 
 _ID = re.compile(r"^[a-z][a-z0-9_]*$")
@@ -39,6 +41,8 @@ _EXPECT_KEYS = frozenset(
         "decisions",
         "suggestions_include",
         "alternatives_min",
+        "tools_called",
+        "tools_not_called",
         *_BOOLEAN_KEYS,
         *_DEVICE_SET_KEYS,
     }
@@ -260,6 +264,9 @@ def _check_expect(expect: Any, *, last: bool) -> None:
         count = expect["alternatives_min"]
         if not isinstance(count, int) or isinstance(count, bool) or not 1 <= count <= 4:
             raise ScenarioError("expect.alternatives_min must be a whole number from 1 to 4")
+    for key in ("tools_called", "tools_not_called"):
+        if key in expect:
+            _check_tools(key, expect[key])
     for key in _BOOLEAN_KEYS:
         if key in expect and not isinstance(expect[key], bool):
             raise ScenarioError(f"expect.{key} must be true or false")
@@ -271,6 +278,21 @@ def _check_expect(expect: Any, *, last: bool) -> None:
         if not last:
             raise ScenarioError("decisions belong on the last turn of the case")
         _check_decisions(expect["decisions"])
+
+
+def _check_tools(key: str, value: Any) -> None:
+    """Tool names are read from the live tool list, so a renamed or split tool is caught at load time."""
+    if key == "tools_not_called" and value == ANY_TOOL:
+        return
+    known = frozenset(t.name for t in TOOLS)
+    if not isinstance(value, list) or not value or not all(isinstance(v, str) for v in value):
+        hint = f' or "{ANY_TOOL}" (no tool at all)' if key == "tools_not_called" else ""
+        raise ScenarioError(f"expect.{key} must be a non-empty list of tool names{hint}")
+    unknown = [v for v in value if v not in known]
+    if unknown:
+        raise ScenarioError(f"expect.{key} names unknown tool {unknown}; known {sorted(known)}")
+    if len(set(value)) != len(value):
+        raise ScenarioError(f"expect.{key} lists the same tool twice")
 
 
 def _check_suggestions(items: Any) -> None:

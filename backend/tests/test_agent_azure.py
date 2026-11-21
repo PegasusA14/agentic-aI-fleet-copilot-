@@ -164,3 +164,96 @@ async def test_other_bad_requests_are_not_mistaken_for_the_content_filter():
     gw, _ = gateway(FakeChatModel([plain]))
     with pytest.raises(openai.BadRequestError):
         await gw.plan(MESSAGES)
+
+
+# ---- token usage -------------------------------------------------------------------------------------
+
+
+def llm_result(*usages):
+    from langchain_core.outputs import ChatGeneration, LLMResult
+
+    return LLMResult(
+        generations=[
+            [
+                ChatGeneration(message=AIMessage(content="", usage_metadata=usage))
+                for usage in usages
+            ]
+        ]
+    )
+
+
+def test_the_collector_adds_up_the_usage_metadata_of_every_generation():
+    from fleet_copilot.agent.usage import UsageCollector
+
+    collector = UsageCollector()
+    assert collector.usage() is None
+    collector.on_llm_end(
+        llm_result(
+            {"input_tokens": 100, "output_tokens": 20, "total_tokens": 120},
+            {"input_tokens": 5, "output_tokens": 1, "total_tokens": 6},
+        )
+    )
+    assert collector.usage() == {"prompt": 105, "completion": 21}
+
+
+def test_the_collector_falls_back_to_the_provider_token_usage_and_ignores_junk():
+    from langchain_core.outputs import LLMResult
+
+    from fleet_copilot.agent.usage import UsageCollector
+
+    collector = UsageCollector()
+    collector.on_llm_end(
+        LLMResult(
+            generations=[[]],
+            llm_output={"token_usage": {"prompt_tokens": 40, "completion_tokens": 8}},
+        )
+    )
+    assert collector.usage() == {"prompt": 40, "completion": 8}
+    nothing = UsageCollector()
+    nothing.on_llm_end(LLMResult(generations=[[]], llm_output={"token_usage": "lots"}))
+    assert nothing.usage() is None
+
+
+async def test_every_call_carries_a_collector_and_publishes_what_it_saw():
+    from fleet_copilot.agent import usage
+
+    model = FakeChatModel([])
+
+    async def respond():
+        collector = model.configs[-1]["callbacks"][0]
+        collector.on_llm_end(
+            llm_result({"input_tokens": 60, "output_tokens": 9, "total_tokens": 69})
+        )
+        return PLAN
+
+    model.script.append(respond)
+    gw, _ = gateway(model)
+    usage.CURRENT.set(None)
+    assert await gw.plan(MESSAGES) == PLAN
+    assert usage.CURRENT.get() == {"prompt": 60, "completion": 9}
+
+
+async def test_a_provider_that_reports_nothing_publishes_none():
+    from fleet_copilot.agent import usage
+
+    usage.CURRENT.set({"prompt": 1, "completion": 1})
+    gw, _ = gateway(FakeChatModel([PLAN]))
+    await gw.plan(MESSAGES)
+    assert usage.CURRENT.get() is None
+
+
+async def test_only_the_attempt_that_succeeded_is_published_after_a_retry():
+    from fleet_copilot.agent import usage
+
+    model = FakeChatModel([])
+
+    async def respond():
+        model.configs[-1]["callbacks"][0].on_llm_end(
+            llm_result({"input_tokens": 11, "output_tokens": 2, "total_tokens": 13})
+        )
+        return PLAN
+
+    model.script.extend([rate_limited(), respond])
+    gw, _ = gateway(model)
+    await gw.plan(MESSAGES)
+    assert usage.CURRENT.get() == {"prompt": 11, "completion": 2}
