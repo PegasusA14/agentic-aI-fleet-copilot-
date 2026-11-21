@@ -1,4 +1,4 @@
-.PHONY: setup load-data api ask doctor live-check test lint golden contracts fixtures frontend-install frontend-dev frontend-build frontend-test dev demo
+.PHONY: setup load-data api ask doctor live-check eval eval-live test lint golden contracts fixtures frontend-install frontend-dev frontend-build frontend-test dev demo
 
 setup:
 	cd backend && uv sync
@@ -17,6 +17,12 @@ doctor:
 
 live-check:
 	cd backend && FLEET_MODEL_MODE=live uv run python -m fleet_copilot.live_check --cassette ../var/cassettes/live-check.jsonl
+
+eval:
+	cd backend && uv run python -m fleet_copilot.evals run
+
+eval-live:
+	cd backend && uv run python -m fleet_copilot.evals run --live
 
 test:
 	cd backend && uv run pytest
