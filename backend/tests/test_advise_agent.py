@@ -277,7 +277,12 @@ async def test_recommend_actions_on_an_answer_plan_is_an_input_error(real_db_pat
         explains=[explanation()],
     )
     result = await ask(make_service(real_db_path, llm), LOW_DISK_QUESTION)
-    assert result.envelope.outcome == "answer" and result.envelope.suggested_actions == []
+    assert result.envelope.outcome == "answer"
+    # the model's own recommend call was refused; any suggestions are the code's, for the listed devices
+    assert {s.device_id for s in result.envelope.suggested_actions} <= {
+        "MT7PJB7N5LRE",
+        "8NM23J95R5I6",
+    }
     results = [e for e in result.trace if e.kind == "tool_result" and e.tool == "recommend_actions"]
     assert [e.data["status"] for e in results] == ["invalid_input"]
     reply = [m for m in llm.calls_of("act")[-1].messages if getattr(m, "tool_call_id", None)]

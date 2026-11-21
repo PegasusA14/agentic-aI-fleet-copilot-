@@ -284,7 +284,7 @@ async def test_turns_in_one_conversation_never_interleave(real_db_path):
         acts=[
             tool_calls_message(("low_disk_devices", {})),
             final_message(),
-            tool_calls_message(("low_disk_devices", {})),
+            tool_calls_message(("memory_pressure_now", {})),  # a different answer: not a repeat
             final_message(),
         ],
         explains=[explanation(), explanation()],

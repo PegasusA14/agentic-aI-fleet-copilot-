@@ -32,6 +32,7 @@ EDGES = {
     ("tools", "collect"),
     ("collect", "act"),
     ("compose", "explain"),
+    ("compose", "verify"),  # a repeated answer skips the explanation
     ("compose", "respond"),
     ("explain", "verify"),
     ("verify", "respond"),

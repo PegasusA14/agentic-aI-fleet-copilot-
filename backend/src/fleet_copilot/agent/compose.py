@@ -916,3 +916,21 @@ def compose(records: Sequence[ToolRecord], *, resolve: Resolver) -> Composition:
         rules=builder.rules,
         **ui,
     )
+
+
+def suggestion_evidence(
+    composition: Composition, suggestions: Sequence[SuggestedAction], resolve: Resolver
+) -> list[EvidenceItem]:
+    """Evidence items that `suggestions` cite and the composition does not show yet, rendered by code."""
+    builder = _Builder(resolve)
+    for entity_list in composition.entity_lists:
+        for item in entity_list.items:
+            builder._hosts[item.device_id] = item.label  # noqa: SLF001
+    for suggestion in suggestions:
+        builder._hosts[suggestion.device_id] = suggestion.target_label  # noqa: SLF001
+    shown = {item.ref for item in composition.evidence}
+    for suggestion in suggestions:
+        for ref in suggestion.refs:
+            if ref not in shown:
+                builder.add_evidence(ref)
+    return list(builder.evidence.values())

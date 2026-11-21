@@ -26,7 +26,7 @@ from langgraph.runtime import Runtime
 
 from fleet_copilot import policy
 from fleet_copilot.agent import outcomes, texts
-from fleet_copilot.agent.compose import compose
+from fleet_copilot.agent.compose import Resolver, compose, suggestion_evidence
 from fleet_copilot.agent.context import AgentContext
 from fleet_copilot.agent.focus import (
     NeedsClarification,
@@ -42,6 +42,7 @@ from fleet_copilot.agent.llm import (
     Reference,
     plan_problems,
 )
+from fleet_copilot.agent.present import ADVISABLE_TOOLS
 from fleet_copilot.agent.prompts import (
     act_messages,
     explain_messages,
@@ -49,11 +50,18 @@ from fleet_copilot.agent.prompts import (
     plan_retry_message,
 )
 from fleet_copilot.agent.records import ToolRecord, record_from_message, redact_tool_calls
-from fleet_copilot.agent.state import TurnState, next_focus, next_history
+from fleet_copilot.agent.state import (
+    TurnState,
+    earlier_turn,
+    next_focus,
+    next_history,
+    turn_fingerprint,
+)
 from fleet_copilot.agent.tools import (
     DEVICE_FILTER_TOOLS,
     INVALID_INPUT_PREFIX,
     TOOLS,
+    execute_recommend,
     tool_error_text,
 )
 from fleet_copilot.agent.trace import emit, trace_args
@@ -63,7 +71,7 @@ from fleet_copilot.agent.verify import (
     verify_evidence,
     verify_prose,
 )
-from fleet_copilot.contracts import AnswerEnvelope, EntityList
+from fleet_copilot.contracts import AnswerEnvelope, EntityList, EvidenceItem, SuggestedAction
 from fleet_copilot.data.loader import connect
 from fleet_copilot.repository import FleetRepository, TenantContext
 
@@ -274,6 +282,53 @@ async def _tool_wrapper(
     return result
 
 
+def _list_suggestions(
+    ctx: AgentContext, composition: Any, records: list[ToolRecord], resolve: Resolver
+) -> dict[str, Any] | None:
+    """Code-only suggested actions for the devices a list answer found, or None.
+
+    The same deterministic `recommend_actions` an advise turn runs, over the devices the answer lists
+    (in the order it lists them), with the same cap. It makes no model call. The result is kept out of the
+    draft the model reads, and merged into the final envelope after the prose is verified.
+    """
+    advisable = [r for r in records if r.tool in ADVISABLE_TOOLS and not r.error]
+    if not advisable:
+        return None
+    matched = {device_id for r in advisable for device_id in r.device_ids}
+    listed = dict.fromkeys(
+        item.device_id for entity_list in composition.entity_lists for item in entity_list.items
+    )
+    ids = [device_id for device_id in listed if device_id in matched]
+    if not ids:
+        return None
+    try:
+        record = execute_recommend({"device_ids": ids}, ctx)
+        if record.error or not record.suggestions:
+            return None
+        suggestions = [SuggestedAction.model_validate(s) for s in record.suggestions]
+        evidence = suggestion_evidence(composition, suggestions, resolve)
+    except Exception as exc:  # suggestions are an extra: the answer stands without them
+        emit("error", "Suggesting actions failed", data={"error": type(exc).__name__})
+        return None
+    return {
+        "suggested_actions": [s.model_dump(mode="json") for s in suggestions],
+        "evidence": [e.model_dump(mode="json") for e in evidence],
+    }
+
+
+def _with_extras(draft: AnswerEnvelope, extras: dict[str, Any]) -> AnswerEnvelope | None:
+    """The draft with its suggestions and their evidence, or None if they do not form a valid envelope."""
+    try:
+        suggestions = [SuggestedAction.model_validate(s) for s in extras["suggested_actions"]]
+        evidence = [EvidenceItem.model_validate(e) for e in extras["evidence"]]
+        merged = draft.model_copy(
+            update={"evidence": [*draft.evidence, *evidence], "suggested_actions": suggestions}
+        )
+        return AnswerEnvelope.model_validate(merged.model_dump())
+    except (KeyError, ValueError):
+        return None
+
+
 def build_graph(llm: LLMGateway, checkpointer: Any):
     """Compile the agent graph around one model gateway and one checkpointer."""
 
@@ -290,6 +345,8 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
             "unfixed_calls": [],
             "records": [],
             "draft": None,
+            "extras": None,
+            "fingerprint": None,
             "prose": None,
             "envelope": None,
         }
@@ -531,9 +588,13 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
         if not records:
             emit("compose", "No evidence was gathered", data={"records": 0})
             return {"envelope": _dump(outcomes.clarification(None, [], **kwargs))}
+        plan_intent = (state.get("plan") or {}).get("intent") or ""
+        extras: dict[str, Any] | None = None
         try:
             with _repo(ctx) as repo:
                 composition = compose(records, resolve=repo.resolve)
+                if composition.outcome == "answer" and plan_intent != "advise":
+                    extras = _list_suggestions(ctx, composition, records, repo.resolve)
             if state.get("limit_hit"):
                 if composition.outcome in ("no_match", "insufficient_data"):
                     # Nothing was found and the search was cut short: say that, not "nothing matched".
@@ -559,6 +620,12 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
         except Exception as exc:  # a composer or contract bug must not become a wrong answer
             emit("error", "Composing the answer failed", data={"error": type(exc).__name__})
             return _failure(ctx)
+        fingerprint: str | None = None
+        if draft.outcome == "answer":
+            fingerprint = turn_fingerprint(plan_intent, records, ctx.as_of)
+            earlier = earlier_turn(state.get("history"), fingerprint)
+            if earlier is not None:
+                draft = draft.model_copy(update={"repeat_of": earlier})
         emit(
             "compose",
             "Composed the answer from tool records",
@@ -567,11 +634,12 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
                 "claims": len(draft.claims),
                 "evidence": len(draft.evidence),
                 "records": len(records),
+                **({"repeat": True} if draft.repeat_of else {}),
             },
         )
         if draft.outcome in ("denied", "tool_error"):
             return {"envelope": _dump(draft)}
-        return {"draft": _dump(draft)}
+        return {"draft": _dump(draft), "extras": extras, "fingerprint": fingerprint}
 
     async def explain_node(state: TurnState, runtime: Runtime[AgentContext]) -> dict[str, Any]:
         draft = AnswerEnvelope.model_validate(state["draft"])
@@ -600,8 +668,16 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
     async def verify_node(state: TurnState, runtime: Runtime[AgentContext]) -> dict[str, Any]:
         ctx = runtime.context
         draft = AnswerEnvelope.model_validate(state["draft"])
+        extras = state.get("extras")
+        merged: AnswerEnvelope | None = None
         with _repo(ctx) as repo:
             problems = verify_evidence(draft, repo.resolve)
+            if extras and not problems:
+                # The suggestions' own evidence is checked like the rest; if it fails, the answer is
+                # shown without suggestions rather than not at all.
+                candidate = _with_extras(draft, extras)
+                if candidate is not None and not verify_evidence(candidate, repo.resolve):
+                    merged = candidate
         if problems:
             emit("verify", "Evidence failed verification", data={"problems": problems})
             return _failure(ctx)
@@ -623,7 +699,7 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
                 "problems": list(verdict.problems),
             },
         )
-        final = draft.model_copy(
+        final = (merged or draft).model_copy(
             update={"headline": verdict.headline, "explanation": verdict.explanation}
         )
         return {"envelope": _dump(AnswerEnvelope.model_validate(final.model_dump()))}
@@ -641,7 +717,12 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
             },
         )
         return {
-            "history": next_history(state.get("history"), state["question"], envelope),
+            "history": next_history(
+                state.get("history"),
+                state["question"],
+                envelope,
+                state.get("fingerprint") if envelope.outcome == "answer" else None,
+            ),
             "focus": next_focus(state.get("focus"), envelope),
             "envelope": _dump(envelope),
         }
@@ -662,7 +743,10 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
         return "tools" if state.get("pending_calls") else "compose"
 
     def after_compose(state: TurnState) -> str:
-        return "respond" if state.get("envelope") else "explain"
+        if state.get("envelope"):
+            return "respond"
+        # A repeated answer is not explained again: the code-written headline stands on its own.
+        return "verify" if (state.get("draft") or {}).get("repeat_of") else "explain"
 
     graph = StateGraph(TurnState, context_schema=AgentContext)
     graph.add_node("scope", scope)
@@ -691,7 +775,7 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
     graph.add_conditional_edges("act", after_act, ["respond", "tools", "compose"])
     graph.add_edge("tools", "collect")
     graph.add_edge("collect", "act")
-    graph.add_conditional_edges("compose", after_compose, ["respond", "explain"])
+    graph.add_conditional_edges("compose", after_compose, ["respond", "explain", "verify"])
     graph.add_edge("explain", "verify")
     graph.add_edge("verify", "respond")
     graph.add_edge("respond", END)
