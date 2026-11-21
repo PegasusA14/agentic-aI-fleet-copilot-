@@ -219,7 +219,7 @@ row. `network` is still dropped at load.
 
 `make eval` runs four evaluation suites against the real agent and the real approval path, scores every case with
 code (no model judges anything), prints a pass rate per suite and stores the run for the operator console. It
-needs no network and no key: the model's answers are replayed from the committed cassette.
+needs no network and no key: the model's answers are replayed from the cassette `evals/cassettes/eval.jsonl`, once it has been recorded with `make eval-live` (the file is not in the repository until then).
 
 ```bash
 make eval        # offline replay; exit code 0 only if every case passed and none was "not recorded"
@@ -299,7 +299,7 @@ for the asking company, or if two instances share an id. At most one turn per ca
 
 The model is called at temperature 0. In replay, answers come from `evals/cassettes/eval.jsonl`, keyed by a SHA-256
 over the call kind and the messages (types, contents, tool-call names and arguments). The key does not include the
-deployment, so a different deployment or model reuses old entries. The file is committed. A line holds the key, the
+deployment, so a different deployment or model reuses old entries. Commit the file after recording it; until it exists every case is "not recorded". A line holds the key, the
 call kind and the model's response; the question text is inside the hash only, and no credential is ever written.
 
 Each instance runs on its own state directory, `var/evals/<run_id>/<instance>/`, with its own conversation
@@ -321,7 +321,7 @@ cassette at all every case is "not recorded".
 - Then run `make eval` and commit `evals/cassettes/eval.jsonl` with the change that required it.
 
 A live run is not reproducible: temperature 0 narrows but does not remove the variation between calls. That is why
-the committed cassette, not the live model, is what `make eval` judges.
+the recorded cassette, not the live model, is what `make eval` judges.
 
 ### Reading a run in `/observe`
 
