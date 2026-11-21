@@ -8,6 +8,7 @@ import {
   EVAL_STATE,
   type EvalState,
   effectLines,
+  evalFigures,
   SUITE_ORDER,
   suiteLabel,
   tallyState,
@@ -80,6 +81,38 @@ function SuiteCell({ suite, tally }: { suite: string; tally: EvalTally | undefin
         </span>
       </span>
     </td>
+  );
+}
+
+/**
+ * The aggregate figures of one run: the two hard gates with a mark and a word, then the rates and the cost. Runs
+ * stored before these figures existed have none and show nothing.
+ */
+function RunFigures({ run }: { run: EvalRun }) {
+  const figures = evalFigures(run.totals, run.model_mode);
+  if (!figures) return null;
+  const started = formatAsOf(run.started_at);
+  return (
+    <section className="evals__figures" aria-label={`Metrics of the run started ${started}`}>
+      <p className="label">Metrics · {started}</p>
+      <dl className="evals__figure-row">
+        {figures.map((figure) => (
+          <div key={figure.id} className="evals__figure" data-gate={figure.gate}>
+            <dt>{figure.label}</dt>
+            <dd className="evals__figure-value">{figure.value}</dd>
+            {figure.gate ? (
+              <dd className="evals__figure-mark">
+                <EvalMark
+                  state={figure.gate === "clear" ? "passed" : "failed"}
+                  word={figure.gate === "clear" ? "None" : "Fails the run"}
+                />
+              </dd>
+            ) : null}
+            <dd className="evals__figure-note">{figure.note}</dd>
+          </div>
+        ))}
+      </dl>
+    </section>
   );
 }
 
@@ -266,6 +299,10 @@ export function EvalsView({ transport, nonce, onSessionEnded }: EvalsViewProps) 
     return <p className="approvals__empty">No evaluation runs yet. Run make eval.</p>;
   }
   const suites = suitesOf(runs);
+  // The chosen run's figures, else the newest run that has any (a run from before the metrics has none).
+  const figured = [runs.find((run) => run.run_id === selected), ...runs].find(
+    (run) => run && evalFigures(run.totals, run.model_mode) !== null,
+  );
 
   return (
     <>
@@ -327,6 +364,7 @@ export function EvalsView({ transport, nonce, onSessionEnded }: EvalsViewProps) 
           </tbody>
         </table>
       </div>
+      {figured ? <RunFigures run={figured} /> : null}
       {selected ? (
         <RunCases key={selected} transport={transport} runId={selected} nonce={nonce} onSessionEnded={onSessionEnded} />
       ) : null}

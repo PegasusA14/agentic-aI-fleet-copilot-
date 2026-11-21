@@ -81,6 +81,12 @@ export const EXAMPLE_EVAL_RUN: EvalRunDetail = {
       guardrails: { passed: 0, total: 1, rate: 0, not_recorded: 1 },
     },
     overall: { passed: 2, total: 3, rate: 0.6667, not_recorded: 1 },
+    tenant_leaks: 0,
+    approval_bypasses: 0,
+    citation_precision: { valid: 4, total: 4, rate: 1 },
+    refusal_accuracy: { passed: 0, total: 1, rate: 0 },
+    latency_ms: { p50: 12, p95: 19, turns: 3 },
+    tokens: null,
   },
   cases: [grounding, actions, guardrails],
 };

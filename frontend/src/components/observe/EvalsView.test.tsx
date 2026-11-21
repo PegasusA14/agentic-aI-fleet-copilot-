@@ -352,3 +352,73 @@ describe("the Evaluations tab", () => {
     });
   });
 });
+
+const METRICS = {
+  tenant_leaks: 0,
+  approval_bypasses: 0,
+  citation_precision: { valid: 1103, total: 1103, rate: 1 },
+  refusal_accuracy: { passed: 88, total: 94, rate: 0.9362 },
+  latency_ms: { p50: 12, p95: 19, turns: 303 },
+  tokens: null,
+};
+
+describe("a run's aggregate figures", () => {
+  it("shows the newest run's figures as a labelled row, with replay latency named as such", async () => {
+    const runs: EvalRun[] = [{ ...RUNS[0], totals: { ...RUNS[0].totals, ...METRICS } }, RUNS[1]];
+    renderView(fake({ observeEvals: vi.fn(async () => runs) }));
+    const row = await screen.findByRole("region", { name: /Metrics of the run started 2026-06-12 11:30 UTC/ });
+    const text = row.textContent ?? "";
+    for (const part of [
+      "Tenant leaks0",
+      "Approval bypasses0",
+      "Citation precision100%",
+      "1,103 of 1,103 references resolve",
+      "Refusal accuracy93.6%",
+      "88 of 94 refusals as expected",
+      "Latency p50 / p9512 / 19 ms",
+      "replay latency, not the model's",
+      "Tokensn/a",
+      "no usage recorded",
+    ]) {
+      expect(text).toContain(part);
+    }
+    // The two hard gates have a mark and a word, never colour alone.
+    expect(within(row).getAllByText("None")).toHaveLength(2);
+  });
+
+  it("marks a tenant leak or an approval bypass as failing the run", async () => {
+    const totals = { ...RUNS[0].totals, ...METRICS, tenant_leaks: 2, approval_bypasses: 1 };
+    renderView(fake({ observeEvals: vi.fn(async () => [{ ...RUNS[0], totals }]) }));
+    const row = await screen.findByRole("region", { name: /Metrics of the run/ });
+    expect(within(row).getAllByText("Fails the run")).toHaveLength(2);
+    expect(row.querySelector('[data-gate="failed"] .mark')).toHaveAttribute("data-tone", "alert");
+  });
+
+  it("sums tokens when the cassette recorded usage", async () => {
+    const tokens = { calls: 10, calls_with_usage: 10, prompt: 12000, completion: 345 };
+    const totals = { ...RUNS[0].totals, ...METRICS, tokens };
+    renderView(fake({ observeEvals: vi.fn(async () => [{ ...RUNS[0], totals }]) }));
+    const row = await screen.findByRole("region", { name: /Metrics of the run/ });
+    expect(row).toHaveTextContent("Tokens12,345");
+    expect(row).toHaveTextContent("12,000 prompt, 345 completion");
+  });
+
+  it("shows nothing for runs stored before the figures existed", async () => {
+    renderView(fake());
+    await screen.findByRole("table", { name: "Evaluation runs" });
+    expect(screen.queryByRole("region", { name: /Metrics of the run/ })).not.toBeInTheDocument();
+  });
+
+  it("follows the chosen run, falling back to the newest run that has figures", async () => {
+    const user = userEvent.setup();
+    const older: EvalRun = {
+      ...RUNS[1],
+      totals: { ...METRICS, overall: { passed: 1, total: 1, rate: 1, not_recorded: 0 } },
+    };
+    renderView(fake({ observeEvals: vi.fn(async () => [RUNS[0], older]) }));
+    // The newest run has none, so the older run's figures stand in for it, and the label says which run.
+    expect(await screen.findByRole("region", { name: /Metrics of the run started 2026-06-12 10:00 UTC/ })).toBeTruthy();
+    await user.click(screen.getByRole("button", { name: "2026-06-12 11:30 UTC" }));
+    expect(screen.getByRole("region", { name: /Metrics of the run started 2026-06-12 10:00 UTC/ })).toBeTruthy();
+  });
+});

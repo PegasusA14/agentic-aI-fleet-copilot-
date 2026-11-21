@@ -129,10 +129,35 @@ export interface EvalTally {
   not_recorded: number;
 }
 
-/** A run that has not finished (or crashed) stores empty totals, so both parts are optional. */
+/** A share of something (references that resolve, refusals made): `rate` is null when there was nothing to measure. */
+export interface EvalShare {
+  total: number;
+  rate: number | null;
+}
+
+/** Tokens the run's model calls used, where the cassette or provider recorded them. */
+export interface EvalTokens {
+  calls: number;
+  calls_with_usage: number;
+  prompt: number;
+  completion: number;
+}
+
+/**
+ * A run that has not finished (or crashed) stores empty totals, so every part is optional. Runs stored before the
+ * aggregate metrics existed have none of them.
+ */
 export interface EvalTotals {
   suites?: Record<string, EvalTally>;
   overall?: EvalTally;
+  tenant_leaks?: number;
+  approval_bypasses?: number;
+  citation_precision?: EvalShare & { valid: number };
+  refusal_accuracy?: EvalShare & { passed: number };
+  /** Wall time of each turn; in replay this is replay latency, not model latency. */
+  latency_ms?: { p50: number; p95: number; turns: number } | null;
+  /** Null when no call recorded its usage. */
+  tokens?: EvalTokens | null;
 }
 
 export interface EvalCheck {
@@ -140,6 +165,8 @@ export interface EvalCheck {
   passed: boolean;
   detail: string;
   turn: number | null;
+  /** Numbers a check reports besides its sentence (the citation check: references that resolve, and all of them). */
+  counts?: Record<string, number>;
 }
 
 /** One human decision an action case made, with the effect ledger before and after it. */
