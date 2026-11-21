@@ -1,4 +1,4 @@
-import { OctagonAlert } from "lucide-react";
+import { MarkDot } from "../StateMark";
 import { formatValue, KIND_WORD } from "../../lib/trace";
 import type { Transport } from "../../lib/transport";
 import { useLoad } from "./useLoad";
@@ -42,7 +42,7 @@ export function TraceTimeline({ transport, traceId, onSessionEnded }: TraceTimel
                 <div className="timeline__head">
                   {event.kind === "error" ? (
                     <span className="mark" data-tone="alert">
-                      <OctagonAlert size={16} strokeWidth={2.4} fill="currentColor" fillOpacity={0.16} aria-hidden="true" />
+                      <MarkDot />
                       <span>{KIND_WORD.error}</span>
                     </span>
                   ) : (

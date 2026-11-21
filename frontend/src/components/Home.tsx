@@ -1,10 +1,16 @@
 import { HOME_SUGGESTIONS } from "../lib/suggestions";
 
-export function Hero() {
+/** A mono label, then one display sentence in two tones: the clause in ink, the rest in grey. */
+export function Hero({ asOf }: { asOf?: string | null }) {
   return (
     <div className="hero">
-      <h1 className="hero__title">Ask your fleet anything.</h1>
-      <p className="hero__sub">Plain-English answers, cited to your telemetry.</p>
+      <p className="hero__label">Fleet Copilot{asOf ? ` · As of ${asOf.slice(0, 10)}` : ""}</p>
+      <div className="hero__display">
+        <h1 className="hero__title">Ask your fleet anything.</h1>{" "}
+        <p className="hero__sub">
+          <span className="nowrap">Plain-English</span> answers, cited to your telemetry.
+        </p>
+      </div>
     </div>
   );
 }

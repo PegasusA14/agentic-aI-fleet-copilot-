@@ -11,7 +11,7 @@ export const AUDIT_EVENT: Record<AuditEventName, { word: string; tone: AuditTone
   proposal_approved: { word: "Approved", tone: "action", mark: "check" },
   proposal_executed: { word: "Executed (simulated)", tone: "pass", mark: "check" },
   proposal_rejected: { word: "Rejected", tone: "neutral", mark: "x" },
-  proposal_invalidated: { word: "Invalidated", tone: "attention", mark: "triangle" },
+  proposal_invalidated: { word: "Invalidated", tone: "denied", mark: "triangle" },
   proposal_failed: { word: "Failed", tone: "alert", mark: "alert" },
   approval_refused: { word: "Approval refused", tone: "denied", mark: "lock" },
   duplicate_approval: { word: "Duplicate approval", tone: "neutral", mark: "hollow" },

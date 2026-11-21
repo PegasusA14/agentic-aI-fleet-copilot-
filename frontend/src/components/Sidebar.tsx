@@ -1,5 +1,5 @@
 import * as Dialog from "@radix-ui/react-dialog";
-import { ClipboardCheck, ScrollText, SquarePen, Trash2, X } from "lucide-react";
+import { ClipboardCheck, Plus, ScrollText, Trash2, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { groupConversations } from "../lib/conversations";
 import type { ConversationSummary } from "../lib/transport";
@@ -141,7 +141,7 @@ export function Sidebar(props: SidebarProps) {
   const body = (
     <nav className="sidebar" aria-label="Conversation history">
       <button type="button" className="sidebar__new" data-new-chat onClick={() => chose(props.onNew)}>
-        <SquarePen size={16} aria-hidden="true" />
+        <Plus size={16} aria-hidden="true" />
         New chat
       </button>
 

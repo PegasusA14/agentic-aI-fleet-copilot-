@@ -122,15 +122,15 @@ export function shortHash(hash: string): string {
   return hash.slice(0, 12);
 }
 
-export type StatusTone = "action" | "pass" | "neutral" | "attention" | "alert";
+export type StatusTone = "action" | "pass" | "neutral" | "attention" | "alert" | "denied";
 export type StatusMarkName = "review" | "check" | "x" | "triangle" | "alert" | "hollow";
 
 export const STATUS_STYLE: Record<Status, { word: string; tone: StatusTone; mark: StatusMarkName }> = {
   pending: { word: "Awaiting your approval", tone: "action", mark: "review" },
   approved: { word: "Approved", tone: "action", mark: "check" },
   executed: { word: "Executed (simulated)", tone: "pass", mark: "check" },
-  rejected: { word: "Rejected", tone: "neutral", mark: "x" },
-  invalidated: { word: "Invalidated", tone: "attention", mark: "triangle" },
+  rejected: { word: "Rejected", tone: "denied", mark: "x" },
+  invalidated: { word: "Invalidated", tone: "denied", mark: "triangle" },
   failed: { word: "Failed", tone: "alert", mark: "alert" },
   uncertain: { word: "Outcome uncertain", tone: "attention", mark: "triangle" },
 };

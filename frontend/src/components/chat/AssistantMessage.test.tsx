@@ -145,7 +145,7 @@ describe("outcomes that are not an answer", () => {
     ["compliance_high_no_match", "No match", "No devices matched (10 evaluated)"],
     ["insufficient_trend", "Not enough data", "There are not enough snapshots in that window to report a trend."],
     ["device_not_found", "Not found", "I can't find that in your fleet."],
-    ["unsupported", "Out of scope", "I can only answer questions about this company's managed devices."],
+    ["unsupported", "Not something I can do", "I can only answer questions about this company's managed devices."],
     ["tool_error", "Lookup failed", "A data lookup failed, so I can't answer reliably. No changes were made."],
   ];
 

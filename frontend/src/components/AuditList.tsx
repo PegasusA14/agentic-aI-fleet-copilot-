@@ -1,30 +1,16 @@
-import { Check, FileSearch, Lock, OctagonAlert, ClipboardCheck, TriangleAlert, X } from "lucide-react";
-import type { ReactNode } from "react";
-import { actionWords, type AuditMarkName, eventStyle, reasonWords } from "../lib/audit";
+import { FileSearch } from "lucide-react";
+import { actionWords, eventStyle, reasonWords } from "../lib/audit";
 import { formatAsOf, plural } from "../lib/format";
 import { tenantName } from "../lib/fixtures";
 import type { AuditEntry } from "../lib/transport";
-
-const MARKS: Record<AuditMarkName, ReactNode> = {
-  review: <ClipboardCheck size={16} strokeWidth={2.4} aria-hidden="true" />,
-  check: <Check size={16} strokeWidth={2.6} aria-hidden="true" />,
-  x: <X size={16} strokeWidth={2.6} aria-hidden="true" />,
-  triangle: <TriangleAlert size={16} strokeWidth={2.4} aria-hidden="true" />,
-  alert: <OctagonAlert size={16} strokeWidth={2.4} fill="currentColor" fillOpacity={0.16} aria-hidden="true" />,
-  lock: <Lock size={16} strokeWidth={2.4} aria-hidden="true" />,
-  hollow: (
-    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-      <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="2" />
-    </svg>
-  ),
-};
+import { MarkDot } from "./StateMark";
 
 /** Mark plus word for what happened. */
 function EventMark({ event }: { event: string }) {
   const style = eventStyle(event);
   return (
     <span className="mark" data-tone={style.tone} data-event={event}>
-      {MARKS[style.mark]}
+      <MarkDot hollow={style.mark === "hollow"} />
       <span>{style.word}</span>
     </span>
   );

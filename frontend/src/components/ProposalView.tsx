@@ -1,6 +1,6 @@
 import * as Dialog from "@radix-ui/react-dialog";
-import { Check, ClipboardCheck, FileSearch, OctagonAlert, TriangleAlert, X } from "lucide-react";
-import { type ReactNode, useEffect, useId, useRef, useState } from "react";
+import { FileSearch, X } from "lucide-react";
+import { useEffect, useId, useRef, useState } from "react";
 import { ApiError, UNREACHABLE } from "../lib/api";
 import {
   actionSentence,
@@ -8,10 +8,10 @@ import {
   scopeFacts,
   shortHash,
   STATUS_STYLE,
-  type StatusMarkName,
 } from "../lib/proposals";
 import type { Transport } from "../lib/transport";
 import type { ProposalCard } from "../lib/types";
+import { MarkDot } from "./StateMark";
 
 /** How a person decides. `proposal`, when given, lets a reopened card ask where the proposal stands now. */
 export type Decide = Pick<Transport, "approve" | "reject"> & Partial<Pick<Transport, "proposal">>;
@@ -33,25 +33,12 @@ interface ProposalViewProps {
   onSessionEnded?: () => void;
 }
 
-const MARKS: Record<StatusMarkName, ReactNode> = {
-  review: <ClipboardCheck size={16} strokeWidth={2.4} aria-hidden="true" />,
-  check: <Check size={16} strokeWidth={2.6} aria-hidden="true" />,
-  x: <X size={16} strokeWidth={2.6} aria-hidden="true" />,
-  triangle: <TriangleAlert size={16} strokeWidth={2.4} aria-hidden="true" />,
-  alert: <OctagonAlert size={16} strokeWidth={2.4} fill="currentColor" fillOpacity={0.16} aria-hidden="true" />,
-  hollow: (
-    <svg width="16" height="16" viewBox="0 0 16 16" aria-hidden="true">
-      <circle cx="8" cy="8" r="6" fill="none" stroke="currentColor" strokeWidth="2" />
-    </svg>
-  ),
-};
-
 /** Mark plus word for where a proposal stands. */
 function StatusMark({ status }: { status: ProposalCard["status"] }) {
   const style = STATUS_STYLE[status];
   return (
     <span className="mark" data-tone={style.tone} data-status={status}>
-      {MARKS[style.mark]}
+      <MarkDot hollow={style.mark === "hollow"} />
       <span>{style.word}</span>
     </span>
   );

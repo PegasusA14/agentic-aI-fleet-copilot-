@@ -1,4 +1,4 @@
-import { ChevronDown, FileSearch, ListTree } from "lucide-react";
+import { FileSearch, ListTree } from "lucide-react";
 import { useId, useState } from "react";
 import { EXCLUDED_TEXT, REASON_TEXT, plural } from "../../lib/format";
 import { replyOf } from "../../lib/reply";
@@ -210,7 +210,6 @@ export function AssistantMessage({
             setOpen((value) => !value);
           }}
         >
-          <ChevronDown size={15} aria-hidden="true" />
           Details
         </button>
         {/* Closed, the panel is folded to nothing and inert; its content mounts on first open and stays for the close. */}

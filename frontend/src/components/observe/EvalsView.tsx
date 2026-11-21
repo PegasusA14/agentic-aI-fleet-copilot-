@@ -13,6 +13,7 @@ import {
   tallyState,
 } from "../../lib/evals";
 import type { EvalCase, EvalRun, EvalTally, Transport } from "../../lib/transport";
+import { MarkDot } from "../StateMark";
 import { TraceTimeline } from "./TraceTimeline";
 import { useLoad } from "./useLoad";
 
@@ -41,7 +42,7 @@ function EvalMark({ state, word }: { state: EvalState; word?: string }) {
   const style = EVAL_STATE[state];
   return (
     <span className="mark" data-tone={style.tone} data-state={state}>
-      <EvalIcon state={state} />
+      <MarkDot hollow={state === "not_recorded" || state === "none"} />
       <span>{word ?? style.word}</span>
     </span>
   );

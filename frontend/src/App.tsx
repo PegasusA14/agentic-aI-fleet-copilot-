@@ -2,7 +2,6 @@ import { MotionConfig, motion } from "motion/react";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { ApprovalsView } from "./components/ApprovalsView";
 import { AuditView } from "./components/AuditView";
-import { Aurora } from "./components/Aurora";
 import { Composer } from "./components/Composer";
 import { EvidenceDrawer, type DrawerTab } from "./components/EvidenceDrawer";
 import { Hero, Suggestions } from "./components/Home";
@@ -382,7 +381,6 @@ export default function App({ transport: given }: AppProps) {
   }, [turns, drawer]);
   const onApprovals = hash === APPROVALS_HASH;
   const onAudit = hash === AUDIT_HASH;
-  const onSubview = onApprovals || onAudit;
   const openProposalEvidence = useCallback(
     (refs: string[], subject: string) => setDrawer({ turnId: "", tab: "evidence", refs, proposal: { subject } }),
     [],
@@ -393,7 +391,6 @@ export default function App({ transport: given }: AppProps) {
   if (booting) {
     return (
       <MotionConfig reducedMotion="user">
-        <Aurora docked={false} />
         <div className="app" aria-busy="true">
           <TopBar asOf={asOf} replay={transport.mode === "fixtures"} />
           <main className="stage" data-view="home" />
@@ -405,7 +402,6 @@ export default function App({ transport: given }: AppProps) {
   if (!session) {
     return (
       <MotionConfig reducedMotion="user">
-        <Aurora docked={false} />
         <div className="app">
           <TopBar asOf={asOf} replay={transport.mode === "fixtures"} />
           <main className="stage" data-view="home">
@@ -426,7 +422,6 @@ export default function App({ transport: given }: AppProps) {
   if (session.role === "operator") {
     return (
       <MotionConfig reducedMotion="user">
-        <Aurora docked />
         <div className="app">
           <TopBar operator asOf={asOf} replay={transport.mode === "fixtures"} onSignOut={signOut} />
           <main className="stage" data-view="observe">
@@ -439,7 +434,6 @@ export default function App({ transport: given }: AppProps) {
 
   return (
     <MotionConfig reducedMotion="user">
-      <Aurora docked={docked || onSubview} />
       <div className="app" data-sidebar="true">
         <TopBar
           companyName={tenantName(session.company_id)}
@@ -489,7 +483,7 @@ export default function App({ transport: given }: AppProps) {
                 onOpenTrace={(turn) => setDrawer({ turnId: turn.id, tab: "trace", refs: [] })}
               />
             ) : (
-              <Hero />
+              <Hero asOf={asOf} />
             )}
           </div>
           <motion.div layout="position" transition={DOCK} className="stage__composer">

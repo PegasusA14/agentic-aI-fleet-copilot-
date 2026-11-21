@@ -17,6 +17,6 @@ export const OUTCOMES: Record<Outcome, OutcomeStyle> = {
   clarification: { word: "One detail needed", tone: "action", mark: "question" },
   proposal: { word: "Proposal for your decision", tone: "action", mark: "review" },
   denied: { word: "Not found", tone: "denied", mark: "lock" },
-  unsupported: { word: "Out of scope", tone: "neutral", mark: "hollow" },
+  unsupported: { word: "Not something I can do", tone: "neutral", mark: "hollow" },
   tool_error: { word: "Lookup failed", tone: "alert", mark: "alert" },
 };

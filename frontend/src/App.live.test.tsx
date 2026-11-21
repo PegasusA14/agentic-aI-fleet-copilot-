@@ -104,8 +104,8 @@ describe("live sign-in", () => {
     await waitFor(() => expect(window.location.hash).toBe("#/observe"));
     expect(screen.getByText("Operator")).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "Operator console" })).toBeInTheDocument();
-    // An Operate surface: the quiet working ground, not the home aurora.
-    expect(document.querySelector(".aurora")).toHaveAttribute("data-docked", "true");
+    // An Operate surface: the console, not the home hero.
+    expect(document.querySelector(".hero")).toBeNull();
     expect(observeTurns).toHaveBeenCalled();
     expect(screen.queryByLabelText(/ask a question about your fleet/i)).not.toBeInTheDocument();
   });

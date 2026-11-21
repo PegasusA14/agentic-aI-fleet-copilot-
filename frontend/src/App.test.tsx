@@ -33,6 +33,12 @@ describe("sign-in and company boundary", () => {
     expect(screen.getByRole("heading", { name: "Ask your fleet anything." })).toBeInTheDocument();
   });
 
+  it("opens home with a mono label that names the pinned date, above the headline and the three starters", async () => {
+    await signInAs("Acme");
+    expect(document.querySelector(".hero__label")).toHaveTextContent("Fleet Copilot · As of 2026-06-12");
+    expect(within(screen.getByRole("group", { name: "Suggested questions" })).getAllByRole("button")).toHaveLength(3);
+  });
+
   it("answers only from the signed-in company's data", async () => {
     const user = await signInAs("Globex");
     await ask(user, "Which devices are low on disk space?");
@@ -193,12 +199,12 @@ describe("navigation", () => {
     expect(screen.getByRole("heading", { name: "Ask your fleet anything." })).toBeInTheDocument();
   });
 
-  it("sits the approvals and audit views on the quiet working ground", async () => {
+  it("leaves the home hero behind when the approvals or audit view opens", async () => {
     const user = await signInAs("Acme");
-    expect(document.querySelector(".aurora")).toHaveAttribute("data-docked", "false");
+    expect(document.querySelector(".hero")).not.toBeNull();
     await user.click(within(screen.getByRole("navigation", { name: "Conversation history" })).getByRole("link", { name: "Audit" }));
     expect(await screen.findByRole("heading", { name: "Audit" })).toBeInTheDocument();
-    expect(document.querySelector(".aurora")).toHaveAttribute("data-docked", "true");
+    expect(document.querySelector(".hero")).toBeNull();
   });
 });
 
