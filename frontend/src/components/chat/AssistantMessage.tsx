@@ -164,9 +164,11 @@ export function AssistantMessage({
   const { lead, explanation } = replyOf(envelope, status);
   const clarification = envelope.clarification;
   const suggestions = envelope.suggested_actions ?? [];
+  /** An advice reply says each action in its claims and chips. A list answer (it has a table) may carry suggestions too, and keeps its own claims and devices. */
+  const isAdvice = suggestions.length > 0 && !envelope.table;
   /** The reply carries the claims only when nothing else already says them: no explanation, no chips that name each action. */
-  const claimsInReply = !explanation && !envelope.proposal && suggestions.length === 0 && envelope.claims.length > 0;
-  const lists = suggestions.length > 0 ? [] : envelope.entity_lists;
+  const claimsInReply = !explanation && !envelope.proposal && !isAdvice && envelope.claims.length > 0;
+  const lists = isAdvice ? [] : envelope.entity_lists;
   /** A proposal's card owns its state, so the reply carries no second mark above it. */
   const markShown = outcome !== "answer" && outcome !== "proposal";
 

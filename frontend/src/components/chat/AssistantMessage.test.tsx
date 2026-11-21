@@ -245,6 +245,7 @@ describe("a refusal with alternatives", () => {
 describe("suggested actions", () => {
   const ADVISE: AnswerEnvelope = {
     ...LOW_DISK,
+    table: null,
     headline: "2 actions are supported by the evidence",
     suggested_actions: [
       {

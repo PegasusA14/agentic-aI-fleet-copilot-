@@ -149,6 +149,7 @@ describe("streamed chat", () => {
   it("keeps suggestion chips from earlier replies disabled while the next turn runs", async () => {
     const advice = {
       ...ENVELOPE,
+      table: null,
       suggested_actions: [
         {
           action_type: "upgrade_order",
