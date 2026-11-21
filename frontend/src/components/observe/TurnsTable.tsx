@@ -16,7 +16,7 @@ interface TurnsTableProps {
 }
 
 function reasonWords(code: string | null): string {
-  if (!code) return "None";
+  if (!code) return "—";
   return REASON_TEXT[code] ?? code.replaceAll("_", " ");
 }
 

@@ -102,7 +102,9 @@ export function ProposalView({ proposal, onOpenEvidence, decide, onDecided, onSe
   const effectId = useId();
   const sentence = actionSentence(proposal);
   const busy = outcome?.kind === "busy";
-  const locked = busy || closed || status !== "pending";
+  /** Once decided, the buttons go: a dark disabled Approve would still read as available. */
+  const decided = closed || status !== "pending";
+  const locked = busy || decided;
 
   useEffect(() => {
     if (outcome && outcome.kind !== "busy") result.current?.focus();
@@ -194,7 +196,7 @@ export function ProposalView({ proposal, onOpenEvidence, decide, onDecided, onSe
         </button>
       </div>
 
-      {decide ? (
+      {decide && !decided ? (
         <div className="proposal__actions">
           <Dialog.Root open={confirming} onOpenChange={setConfirming}>
             <Dialog.Trigger asChild>

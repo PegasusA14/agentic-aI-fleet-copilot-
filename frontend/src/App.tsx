@@ -22,6 +22,10 @@ const OBSERVE_HASH = "#/observe";
 const APPROVALS_HASH = "#/approvals";
 const AUDIT_HASH = "#/audit";
 const SESSION_ENDED = "Your session ended. Sign in again.";
+/** The server's own limit and words for a question it would refuse; checked here so the thread only docks for one that will be sent. */
+const MAX_QUESTION_CHARS = 2000;
+const EMPTY_QUESTION = "Ask a question about your devices.";
+const LONG_QUESTION = `Questions are limited to ${MAX_QUESTION_CHARS} characters.`;
 const DATASET_UNAVAILABLE = "The dataset is not available. Run make load-data, then try again.";
 
 interface DrawerState {
@@ -175,6 +179,13 @@ export default function App({ transport: given }: AppProps) {
   const ask = useCallback(
     (question: string) => {
       if (session?.role !== "admin" || inFlight.current) return;
+      const text = question.trim();
+      const refused = !text ? EMPTY_QUESTION : [...text].length > MAX_QUESTION_CHARS ? LONG_QUESTION : null;
+      if (refused) {
+        setComposerError(refused);
+        setRestore({ text: question });
+        return;
+      }
       inFlight.current = true;
       const mine = epoch.current;
       const live = () => epoch.current === mine;
@@ -296,7 +307,7 @@ export default function App({ transport: given }: AppProps) {
   if (session.role === "operator") {
     return (
       <MotionConfig reducedMotion="user">
-        <Aurora docked={false} streaming={false} />
+        <Aurora docked streaming={false} />
         <div className="app">
           <TopBar operator asOf={asOf} replay={transport.mode === "fixtures"} onSignOut={signOut} />
           <main className="stage" data-view="observe">
@@ -309,19 +320,17 @@ export default function App({ transport: given }: AppProps) {
 
   return (
     <MotionConfig reducedMotion="user">
-      <Aurora docked={docked} streaming={running} />
+      <Aurora docked={docked || onSubview} streaming={running} />
       <div className="app" data-rail={docked && !onSubview}>
         <TopBar
           companyName={tenantName(session.company_id)}
           asOf={asOf}
           replay={transport.mode === "fixtures"}
           onSignOut={signOut}
-          onNewConversation={resetConversation}
-          newConversationDisabled={!docked}
           approvals={{ pending, active: onApprovals }}
           audit={{ active: onAudit }}
         />
-        {docked && !onSubview ? <Rail turns={turns} onNew={resetConversation} pending={pending} /> : null}
+        {docked && !onSubview ? <Rail turns={turns} onNew={resetConversation} /> : null}
         {onApprovals ? (
           <main className="stage" data-view="approvals">
             <ApprovalsView

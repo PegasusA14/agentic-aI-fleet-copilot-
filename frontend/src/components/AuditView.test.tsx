@@ -67,6 +67,8 @@ describe("the tenant audit view", () => {
     expect(within(rows[0]).getByText("Remediation ticket")).toBeInTheDocument();
     expect(within(rows[0]).getByText(PROPOSAL.target_device_id)).toBeInTheDocument();
     expect(within(rows[0]).getByText("2026-06-12 11:03 UTC")).toBeInTheDocument();
+    expect(within(rows[0]).getByText("Recorded")).toBeInTheDocument();
+    expect(within(rows[0]).getByText("Recorded").closest("time")).toHaveTextContent("Recorded 2026-06-12 11:03 UTC");
     expect(within(rows[1]).getByText("Approval refused")).toBeInTheDocument();
     expect(within(rows[1]).getByText(/proposal changed/)).toBeInTheDocument();
     expect(within(rows[2]).getByText("Refused")).toBeInTheDocument();
@@ -116,6 +118,14 @@ describe("the tenant audit view", () => {
     }
     expect(screen.getAllByText("Approval refused")).toHaveLength(1 + reasons.length);
     for (const [, words] of reasons) expect(screen.getByText(new RegExp(words))).toBeInTheDocument();
+  });
+
+  it("keeps a long proposal id on one line, with its full text on hover and in its name", async () => {
+    const long = "prop-replay-acme-001-proposal";
+    renderView(fake([entry(1, { proposal_id: long })]));
+    const button = await screen.findByRole("button", { name: `Show only ${long}` });
+    expect(button).toHaveAttribute("title", long);
+    expect(button).toHaveTextContent(long);
   });
 
   it("filters by proposal when its id is chosen, and clears the filters", async () => {

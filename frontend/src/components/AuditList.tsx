@@ -53,8 +53,8 @@ export function AuditList({ entries, showWho = false, onFilterProposal, onOpenRe
         const subject = [style.word, action, when].filter(Boolean).join(" · ");
         return (
           <li key={entry.seq} className="audit__row">
-            <time className="audit__time mono" dateTime={entry.at}>
-              {when}
+            <time className="audit__time" dateTime={entry.at}>
+              <span className="audit__when">Recorded</span> <span className="mono">{when}</span>
             </time>
             <div className="audit__what">
               <EventMark event={entry.event} />
@@ -76,13 +76,16 @@ export function AuditList({ entries, showWho = false, onFilterProposal, onOpenRe
                   <button
                     type="button"
                     className="audit__id mono"
+                    title={entry.proposal_id}
                     aria-label={`Show only ${entry.proposal_id}`}
                     onClick={() => onFilterProposal(entry.proposal_id as string)}
                   >
                     {entry.proposal_id}
                   </button>
                 ) : (
-                  <span className="mono">{entry.proposal_id}</span>
+                  <span className="audit__id audit__id--text mono" title={entry.proposal_id}>
+                    {entry.proposal_id}
+                  </span>
                 )
               ) : null}
               {entry.refs.length === 0 ? (

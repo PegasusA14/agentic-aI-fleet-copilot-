@@ -100,7 +100,12 @@ describe("the working thread", () => {
     expect(screen.queryByRole("status")).not.toBeInTheDocument();
     await user.click(within(dialog).getByRole("button", { name: "Approve and execute (simulated)" }));
     expect(await screen.findByRole("status")).toHaveTextContent(/recorded in tickets as entry 1 \(simulated\)/i);
-    expect(screen.getByText("Executed (simulated)")).toBeInTheDocument();
+    expect(screen.getAllByText("Executed (simulated)").length).toBeGreaterThan(0);
+    expect(screen.queryByText("Proposal for your decision")).not.toBeInTheDocument();
+    expect(screen.queryByText(/waits for your approval/)).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: /^Executed \(simulated\): Remediation ticket for acme-macbook-2\.$/ })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Reject" })).not.toBeInTheDocument();
   });
 
   it("lets a proposal be rejected without confirmation and changes nothing", async () => {
@@ -108,6 +113,46 @@ describe("the working thread", () => {
     await ask(user, "Open a ticket for the first one");
     await user.click(await screen.findByRole("button", { name: "Reject" }));
     expect(await screen.findByRole("status")).toHaveTextContent(/rejected\. nothing was executed/i);
+  });
+});
+
+describe("navigation", () => {
+  beforeEach(() => {
+    window.location.hash = "";
+  });
+
+  it("keeps Approvals and Audit in the top bar only, and New question in the rail only", async () => {
+    const user = await signInAs("Acme");
+    await ask(user, "Which devices are low on disk space?");
+    await screen.findByRole("heading", { name: "2 of 10 devices have under 10% disk space free" });
+    const bar = screen.getByRole("banner");
+    const rail = screen.getByRole("navigation", { name: "This session" });
+    expect(within(bar).getByRole("link", { name: "Approvals" })).toBeInTheDocument();
+    expect(within(bar).getByRole("link", { name: "Audit" })).toBeInTheDocument();
+    expect(within(bar).queryByRole("button", { name: /new conversation/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /new conversation/i })).not.toBeInTheDocument();
+    expect(within(rail).queryByRole("link", { name: /approvals/i })).not.toBeInTheDocument();
+    expect(within(rail).queryByRole("link", { name: /audit/i })).not.toBeInTheDocument();
+    expect(screen.getAllByRole("link", { name: "Approvals" })).toHaveLength(1);
+    expect(screen.getAllByRole("link", { name: "Audit" })).toHaveLength(1);
+    expect(within(rail).getByRole("button", { name: "New question" })).toBeInTheDocument();
+  });
+
+  it("starts over from the rail: no thread, a fresh home", async () => {
+    const user = await signInAs("Acme");
+    await ask(user, "Which devices are low on disk space?");
+    await screen.findByRole("heading", { name: "2 of 10 devices have under 10% disk space free" });
+    await user.click(screen.getByRole("button", { name: "New question" }));
+    expect(screen.queryByRole("article")).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Ask your fleet anything." })).toBeInTheDocument();
+  });
+
+  it("sits the approvals and audit views on the quiet working ground", async () => {
+    const user = await signInAs("Acme");
+    expect(document.querySelector(".aurora")).toHaveAttribute("data-docked", "false");
+    await user.click(within(screen.getByRole("banner")).getByRole("link", { name: "Audit" }));
+    expect(await screen.findByRole("heading", { name: "Audit" })).toBeInTheDocument();
+    expect(document.querySelector(".aurora")).toHaveAttribute("data-docked", "true");
   });
 });
 

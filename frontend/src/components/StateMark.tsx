@@ -1,6 +1,6 @@
 import { Check, CircleHelp, ClipboardCheck, Lock, OctagonAlert, TriangleAlert } from "lucide-react";
 import type { ReactNode } from "react";
-import { type MarkName, OUTCOMES } from "../lib/outcomes";
+import { type MarkName, type OutcomeStyle, OUTCOMES } from "../lib/outcomes";
 import type { Outcome } from "../lib/types";
 
 const ICONS: Record<Exclude<MarkName, "hollow">, ReactNode> = {
@@ -12,9 +12,9 @@ const ICONS: Record<Exclude<MarkName, "hollow">, ReactNode> = {
   review: <ClipboardCheck size={16} strokeWidth={2.4} aria-hidden="true" />,
 };
 
-/** Mark plus word: a state is never carried by colour alone. */
-export function StateMark({ outcome }: { outcome: Outcome }) {
-  const style = OUTCOMES[outcome];
+/** Mark plus word: a state is never carried by colour alone. `as` replaces the outcome's own words, e.g. once a proposal is decided. */
+export function StateMark({ outcome, as }: { outcome: Outcome; as?: OutcomeStyle }) {
+  const style = as ?? OUTCOMES[outcome];
   return (
     <span className="mark" data-tone={style.tone} data-outcome={outcome}>
       {style.mark === "hollow" ? (

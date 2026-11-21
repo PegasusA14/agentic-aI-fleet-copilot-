@@ -72,6 +72,10 @@ describe("the approvals view", () => {
     await user.click(within(cards[0]).getByRole("button", { name: "Approve" }));
     await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Approve and execute (simulated)" }));
     expect(await within(cards[0]).findByText("Executed (simulated)")).toBeInTheDocument();
+    for (const card of cards) {
+      expect(within(card).queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
+      expect(within(card).queryByRole("button", { name: "Reject" })).not.toBeInTheDocument();
+    }
     expect(screen.getByText("No proposals awaiting your decision")).toBeInTheDocument();
     expect(onDecided).toHaveBeenCalledTimes(2);
   });

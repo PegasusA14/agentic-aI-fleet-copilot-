@@ -134,6 +134,8 @@ describe("the operator console", () => {
     expect(within(rows[0]).getByText("admin-acme")).toBeInTheDocument();
     expect(within(rows[0]).getByText("Answer")).toBeInTheDocument();
     expect(within(rows[0]).getByText("412 ms")).toBeInTheDocument();
+    expect(within(rows[0]).getByText("—")).toBeInTheDocument();
+    expect(within(rows[0]).queryByText("None")).not.toBeInTheDocument();
     expect(within(rows[0]).getByText("deterministic")).toBeInTheDocument();
     expect(within(rows[1]).getByText("Not found")).toBeInTheDocument();
     expect(within(rows[1]).getByText("Not found in your fleet")).toBeInTheDocument();
@@ -180,6 +182,8 @@ describe("the operator console", () => {
     await user.click(await screen.findByRole("tab", { name: "Audit" }));
     expect(transport.observeAudit).toHaveBeenCalledWith({});
     const list = await screen.findByRole("list", { name: "Audit entries" });
+    expect(within(list).getByText("Recorded").closest("time")).toHaveTextContent("Recorded 2026-06-12 11:03 UTC");
+    expect(within(list).getByText("prp_9")).toHaveAttribute("title", "prp_9");
     const row = within(list).getByRole("listitem");
     expect(within(row).getByText("Executed (simulated)")).toBeInTheDocument();
     expect(within(row).getByText("Replacement flag")).toBeInTheDocument();

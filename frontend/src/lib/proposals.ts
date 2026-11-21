@@ -1,4 +1,5 @@
 /** How a proposal reads: the action, the facts it rests on, its state and the effect table in plain words. */
+import { ACTION_WORDS } from "./audit";
 import type { ProposalCard } from "./types";
 
 type ActionType = ProposalCard["action_type"];
@@ -53,13 +54,38 @@ export interface ScopeFact {
   token: boolean;
 }
 
+/** Codes the server writes into a proposal's scope, in the words a person reads. */
+const VALUE_WORDS: Record<string, Record<string, string>> = {
+  check_id: {
+    screen_lock: "Screen lock",
+    disk_encryption: "Disk encryption",
+    os_up_to_date: "OS up to date",
+  },
+  topic: {
+    low_disk: "Low disk",
+    memory_pressure: "Memory pressure",
+    failing_check: "Failing check",
+    battery_service: "Battery service",
+  },
+  component: {
+    memory: "Memory",
+    storage: "Storage",
+  },
+};
+
+function displayValue(key: string, value: string): string {
+  const words = VALUE_WORDS[key];
+  if (!words) return value;
+  return words[value] ?? humanise(value);
+}
+
 export function scopeFacts(scope: Record<string, string>): ScopeFact[] {
   return Object.entries(scope)
     .filter(([, value]) => value)
     .map(([key, value]) => ({
       key,
       label: SCOPE_LABELS[key] ?? humanise(key),
-      value,
+      value: displayValue(key, value),
       token: key === "device" || key === "employee",
     }));
 }
@@ -80,3 +106,46 @@ export const STATUS_STYLE: Record<Status, { word: string; tone: StatusTone; mark
   failed: { word: "Failed", tone: "alert", mark: "alert" },
   uncertain: { word: "Outcome uncertain", tone: "attention", mark: "triangle" },
 };
+
+export interface DecidedSheet {
+  /** The state chip on the answer sheet, once the decision is known. */
+  word: string;
+  tone: "pass" | "neutral" | "attention" | "alert";
+  mark: "check" | "hollow" | "triangle" | "alert";
+  /** Written by code from the decision; the server's "waits for your approval" no longer holds. */
+  headline: string;
+}
+
+/** What the answer sheet says once a person has decided; null while the proposal still waits. */
+export function decidedSheet(
+  status: Status,
+  card: Pick<ProposalCard, "action_type" | "target_label">,
+): DecidedSheet | null {
+  switch (status) {
+    case "executed":
+      return {
+        word: "Executed (simulated)",
+        tone: "pass",
+        mark: "check",
+        headline: `Executed (simulated): ${ACTION_WORDS[card.action_type]} for ${card.target_label}.`,
+      };
+    case "rejected":
+      return { word: "Rejected", tone: "neutral", mark: "hollow", headline: "Rejected: no action was taken." };
+    case "invalidated":
+      return {
+        word: "Not executed",
+        tone: "attention",
+        mark: "triangle",
+        headline: "Not executed: the evidence no longer supports it.",
+      };
+    case "failed":
+      return {
+        word: "Not executed",
+        tone: "alert",
+        mark: "alert",
+        headline: "Not executed: the simulated action failed.",
+      };
+    default:
+      return null;
+  }
+}

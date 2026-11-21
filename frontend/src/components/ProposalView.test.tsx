@@ -53,7 +53,7 @@ describe("the proposal card", () => {
     expect(within(card).getByText("1LYSSFD074BB", { selector: ".token" })).toBeInTheDocument();
     expect(within(card).getByText(CARD.rationale)).toBeInTheDocument();
     expect(within(card).getByText(CARD.expected_effect)).toBeInTheDocument();
-    expect(within(card).getByText("Check").nextElementSibling).toHaveTextContent("screen_lock");
+    expect(within(card).getByText("Check").nextElementSibling).toHaveTextContent("Screen lock");
     expect(within(card).getByText("Severity").nextElementSibling).toHaveTextContent("medium");
     expect(within(card).getByText(HASH.slice(0, 12))).toBeInTheDocument();
     expect(within(card).queryByText(HASH)).not.toBeInTheDocument();
@@ -81,7 +81,7 @@ describe("approving", () => {
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByText("Open a remediation ticket for acme-macbook-2")).toBeInTheDocument();
     expect(within(dialog).getByText("1LYSSFD074BB", { selector: ".token" })).toBeInTheDocument();
-    expect(within(dialog).getByText("Check").nextElementSibling).toHaveTextContent("screen_lock");
+    expect(within(dialog).getByText("Check").nextElementSibling).toHaveTextContent("Screen lock");
     expect(within(dialog).getByText("Severity").nextElementSibling).toHaveTextContent("medium");
     expect(within(dialog).getByText(HASH.slice(0, 12))).toBeInTheDocument();
     expect(within(dialog).getByRole("button", { name: "Cancel" })).toHaveFocus();
@@ -100,8 +100,8 @@ describe("approving", () => {
     expect(screen.getByText("Executed (simulated)")).toBeInTheDocument();
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
     expect(onDecided).toHaveBeenCalledWith(expect.objectContaining({ status: "executed" }));
-    expect(screen.getByRole("button", { name: "Approve" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Reject" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Reject" })).not.toBeInTheDocument();
   });
 
   it("can be done from the keyboard, and Escape closes the dialog without deciding", async () => {
@@ -165,7 +165,7 @@ describe("approving", () => {
     expect(await screen.findByRole("status")).toHaveTextContent(
       "This proposal changed since you saw it. Nothing was executed.",
     );
-    expect(screen.getByRole("button", { name: "Approve" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
   });
 
   it("shows the current status when the proposal is no longer pending", async () => {
@@ -236,8 +236,8 @@ describe("rejecting", () => {
     expect(await screen.findByRole("status")).toHaveTextContent("Rejected. Nothing was executed.");
     expect(screen.getByText("Rejected", { selector: ".mark span" })).toBeInTheDocument();
     expect(onDecided).toHaveBeenCalledWith(expect.objectContaining({ status: "rejected" }));
-    expect(screen.getByRole("button", { name: "Approve" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Reject" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Reject" })).not.toBeInTheDocument();
   });
 });
 
@@ -251,7 +251,7 @@ describe("a proposal that is already decided", () => {
       />,
     );
     expect(screen.getByText("Executed (simulated)")).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Approve" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Reject" })).toBeDisabled();
+    expect(screen.queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Reject" })).not.toBeInTheDocument();
   });
 });

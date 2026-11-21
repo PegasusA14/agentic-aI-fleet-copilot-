@@ -1,4 +1,4 @@
-import { Building2, ClipboardCheck, Eye, LogOut, ScrollText, SquarePen } from "lucide-react";
+import { Building2, ClipboardCheck, Eye, LogOut, ScrollText } from "lucide-react";
 import { formatAsOf } from "../lib/format";
 
 interface TopBarProps {
@@ -9,9 +9,6 @@ interface TopBarProps {
   /** "fixtures" answers are replayed from stored output; the bar says so. */
   replay?: boolean;
   onSignOut?: () => void;
-  /** Resets the thread and starts a fresh conversation. */
-  onNewConversation?: () => void;
-  newConversationDisabled?: boolean;
   /** An admin's entry to the approvals view: `pending` is null until the count is known. */
   approvals?: { pending: number | null; active: boolean };
   /** An admin's entry to the audit trail. */
@@ -24,8 +21,6 @@ export function TopBar({
   asOf,
   replay = false,
   onSignOut,
-  onNewConversation,
-  newConversationDisabled = false,
   approvals,
   audit,
 }: TopBarProps) {
@@ -45,7 +40,7 @@ export function TopBar({
               />
             </svg>
           </span>
-          Fleet Copilot
+          <span className="brand__word">Fleet Copilot</span>
         </span>
         {companyName ? (
           <span className="pill" aria-label={`Company: ${companyName}`}>
@@ -69,7 +64,14 @@ export function TopBar({
             Replay
           </span>
         ) : null}
-        {asOf ? <span className="pill pill--quiet">As of {formatAsOf(asOf)}</span> : null}
+        {asOf ? (
+          <span className="pill pill--quiet pill--asof" title={`As of ${formatAsOf(asOf)}`}>
+            <span className="asof__full">As of {formatAsOf(asOf)}</span>
+            <span className="asof__short" aria-hidden="true">
+              {asOf.slice(0, 10)}
+            </span>
+          </span>
+        ) : null}
         {approvals ? (
           <a
             className="pill"
@@ -96,23 +98,17 @@ export function TopBar({
             </span>
           </a>
         ) : null}
-        {onNewConversation ? (
+        {onSignOut ? (
           <button
             type="button"
             className="pill"
-            aria-label="New conversation"
-            onClick={onNewConversation}
-            disabled={newConversationDisabled}
+            aria-label={operator ? "Sign out" : "Switch company"}
+            onClick={onSignOut}
           >
-            <SquarePen size={16} aria-hidden="true" />
-            <span className="pill--hide-sm">New conversation</span>
-          </button>
-        ) : null}
-        {onSignOut ? (
-          <button type="button" className="pill" onClick={onSignOut}>
             <LogOut size={16} aria-hidden="true" />
-            <span className="pill--hide-sm">{operator ? "Sign out" : "Switch company"}</span>
-            <span className="sr-only">Sign out</span>
+            <span className="pill--hide-sm" aria-hidden="true">
+              {operator ? "Sign out" : "Switch company"}
+            </span>
           </button>
         ) : null}
       </div>

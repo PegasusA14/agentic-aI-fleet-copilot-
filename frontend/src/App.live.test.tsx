@@ -103,6 +103,8 @@ describe("live sign-in", () => {
     await waitFor(() => expect(window.location.hash).toBe("#/observe"));
     expect(screen.getByText("Operator")).toBeInTheDocument();
     expect(await screen.findByRole("heading", { name: "Operator console" })).toBeInTheDocument();
+    // An Operate surface: the quiet working ground, not the home aurora.
+    expect(document.querySelector(".aurora")).toHaveAttribute("data-docked", "true");
     expect(observeTurns).toHaveBeenCalled();
     expect(screen.queryByLabelText(/ask a question about your fleet/i)).not.toBeInTheDocument();
   });
@@ -142,7 +144,7 @@ describe("streamed chat", () => {
     expect(screen.queryByRole("list", { name: "Working" })).not.toBeInTheDocument();
   });
 
-  it("keeps one conversation per session and starts a fresh one from the top bar", async () => {
+  it("keeps one conversation per session and starts a fresh one from the rail", async () => {
     const newConversation = vi
       .fn()
       .mockResolvedValueOnce({ conversation_id: "conv-1" })
@@ -156,7 +158,7 @@ describe("streamed chat", () => {
     expect(newConversation).toHaveBeenCalledTimes(1);
     expect(transport.ask).toHaveBeenLastCalledWith("conv-1", "And which have old macOS?", expect.any(Function));
 
-    await user.click(screen.getByRole("button", { name: /new conversation/i }));
+    await user.click(screen.getByRole("button", { name: "New question" }));
     expect(screen.queryByRole("article")).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Ask your fleet anything." })).toBeInTheDocument();
     await ask(user, "Which devices are low on disk space?");
@@ -173,6 +175,31 @@ describe("streamed chat", () => {
     expect(screen.queryByRole("article")).not.toBeInTheDocument();
     expect(screen.queryByRole("list", { name: "Working" })).not.toBeInTheDocument();
     expect(screen.getByLabelText(/ask a question about your fleet/i)).toHaveValue("tell me everything");
+  });
+
+  it("refuses a question over 2000 characters before docking, in the server's words", async () => {
+    const transport = fake();
+    const user = await signedInApp(transport);
+    const box = screen.getByLabelText(/ask a question about your fleet/i);
+    await user.click(box);
+    await user.paste("x".repeat(2001));
+    await user.keyboard("{Enter}");
+    expect(await screen.findByRole("alert")).toHaveTextContent("Questions are limited to 2000 characters.");
+    expect(transport.ask).not.toHaveBeenCalled();
+    expect(transport.newConversation).not.toHaveBeenCalled();
+    expect(screen.getByRole("heading", { name: "Ask your fleet anything." })).toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "This session" })).not.toBeInTheDocument();
+    expect(box).toHaveValue("x".repeat(2001));
+  });
+
+  it("accepts a question of exactly 2000 characters", async () => {
+    const transport = fake();
+    const user = await signedInApp(transport);
+    await user.click(screen.getByLabelText(/ask a question about your fleet/i));
+    await user.paste("y".repeat(2000));
+    await user.keyboard("{Enter}");
+    await screen.findByRole("heading", { name: ENVELOPE.headline });
+    expect(transport.ask).toHaveBeenCalledTimes(1);
   });
 
   it("shows a calm banner when the dataset is not loaded", async () => {

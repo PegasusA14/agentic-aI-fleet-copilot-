@@ -1,6 +1,8 @@
 import { FileSearch, ListTree } from "lucide-react";
+import { useState } from "react";
 import { EXCLUDED_TEXT, REASON_TEXT, formatAsOf, plural } from "../lib/format";
 import { tenantName } from "../lib/fixtures";
+import { decidedSheet } from "../lib/proposals";
 import type { AnswerEnvelope, EntityList, ProposalCard } from "../lib/types";
 import { ProposalView, type Decide } from "./ProposalView";
 import { StateMark } from "./StateMark";
@@ -104,17 +106,20 @@ export function AnswerSheet({
 }: AnswerSheetProps) {
   const headingId = `h-${envelope.trace_id}`;
   const { outcome } = envelope;
+  /** What the person decided, once they have: the sheet then stops saying the proposal waits. */
+  const [decision, setDecision] = useState<ProposalCard["status"] | null>(null);
+  const decided = envelope.proposal ? decidedSheet(decision ?? envelope.proposal.status, envelope.proposal) : null;
   return (
     <article className="sheet" data-outcome={outcome} aria-labelledby={headingId}>
       <div className="sheet__head">
-        <StateMark outcome={outcome} />
+        <StateMark outcome={outcome} as={decided ?? undefined} />
         <span className="sheet__scope">
           {tenantName(envelope.scope.company_id)} · as of {formatAsOf(envelope.scope.as_of)}
         </span>
       </div>
 
       <h2 className="sheet__headline" id={headingId}>
-        {envelope.headline}
+        {decided ? decided.headline : envelope.headline}
       </h2>
       {envelope.explanation ? <p className="sheet__explanation">{envelope.explanation}</p> : null}
 
@@ -136,7 +141,10 @@ export function AnswerSheet({
           proposal={envelope.proposal}
           onOpenEvidence={onOpenEvidence}
           decide={decide}
-          onDecided={onDecided}
+          onDecided={(card) => {
+            setDecision(card.status);
+            onDecided?.(card);
+          }}
           onSessionEnded={onSessionEnded}
         />
       ) : null}
