@@ -14,13 +14,13 @@ import json
 import sys
 from collections.abc import Callable
 from dataclasses import dataclass
-from functools import lru_cache
 from pathlib import Path
 
 from fleet_copilot.agent.identity import DEMO_IDENTITIES, Identity, new_conversation_id
 from fleet_copilot.agent.service import AgentService
 from fleet_copilot.config import REPO_ROOT, ModelSettings, Settings, load_env
 from fleet_copilot.contracts import AnswerEnvelope
+from fleet_copilot.evals.identifiers import COMPANY_IDS, foreign_identifiers, identifiers_by_tenant
 
 GOLDEN = REPO_ROOT / "evals" / "golden" / "golden.json"
 ACME = DEMO_IDENTITIES["admin-acme"]
@@ -81,32 +81,9 @@ def _pending_proposal(action_type: str, device_id: str, tenant: str) -> Check:
     return check
 
 
-DATASET = REPO_ROOT / "data" / "device-telemetry-dataset.ndjson"
-_COMPANIES = ("acme-001", "globex-002", "initech-003")
-
-
-@lru_cache(maxsize=1)
-def _identifiers_by_tenant() -> dict[str, frozenset[str]]:
-    """Device ids and hostnames per company, read straight from the dataset file (no product code)."""
-    found: dict[str, set[str]] = {}
-    with DATASET.open(encoding="utf-8") as handle:
-        for line in handle:
-            if not line.strip():
-                continue
-            row = json.loads(line)
-            names = found.setdefault(row["company_id"], set())
-            names.add(row["device_id"])
-            names.add(row["os"]["hostname"])
-    return {company: frozenset(names) for company, names in found.items()}
-
-
-def _foreign_identifiers(tenant: str) -> frozenset[str]:
-    by_tenant = _identifiers_by_tenant()
-    own = by_tenant.get(tenant, frozenset())
-    return (
-        frozenset(n for company, names in by_tenant.items() if company != tenant for n in names)
-        - own
-    )
+_COMPANIES = COMPANY_IDS
+_identifiers_by_tenant = identifiers_by_tenant
+_foreign_identifiers = foreign_identifiers
 
 
 def _no_foreign_data(tenant: str) -> Check:
