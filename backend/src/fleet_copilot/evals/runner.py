@@ -47,6 +47,7 @@ from fleet_copilot.timeutil import iso_z
 NOT_RECORDED = "not recorded"
 AUDIT_CASE = "audit_completeness"
 AUDIT_SUITE = "guardrails"
+ACTIONS_SUITE = "actions"
 _CASSETTE_MISS = "CassetteMiss"
 _COMPANIES = tuple(sorted({i.company_id for i in DEMO_IDENTITIES.values()}))
 
@@ -378,6 +379,10 @@ async def _play(inst: Instance, env: _Env, folder: Path) -> CaseResult:
 def audit_completeness(databases: Collection[Path]) -> Check:
     """Every proposal row has a `proposal_created` audit entry; every executed one also has
     `proposal_approved` and `proposal_executed`; every rejected one has `proposal_rejected`."""
+    return _audit(databases)[0]
+
+
+def _audit(databases: Collection[Path]) -> tuple[Check, int]:
     needs = {
         "pending": ("proposal_created",),
         "executed": ("proposal_created", "proposal_approved", "proposal_executed"),
@@ -402,12 +407,18 @@ def audit_completeness(databases: Collection[Path]) -> Check:
     if problems:
         shown = "; ".join(problems[:6])
         more = f"; and {len(problems) - 6} more" if len(problems) > 6 else ""
-        return Check(AUDIT_CASE, False, f"audit entries are missing: {shown}{more}")
-    return Check(AUDIT_CASE, True, f"{rows} proposal(s) checked; every one has its audit entries")
+        return Check(AUDIT_CASE, False, f"audit entries are missing: {shown}{more}"), rows
+    ok = Check(AUDIT_CASE, True, f"{rows} proposal(s) checked; every one has its audit entries")
+    return ok, rows
 
 
-def _audit_case(databases: Collection[Path]) -> CaseResult:
-    check = audit_completeness(databases)
+def _audit_case(databases: Collection[Path], *, actions_ran: bool) -> CaseResult:
+    check, rows = _audit(databases)
+    # With the actions suite in the run, "no proposals at all" means nothing was recorded to audit
+    # (an empty cassette); passing on nothing would be a vacuous pass.
+    vacuous = actions_ran and rows == 0 and check.passed
+    if vacuous:
+        check = Check("recorded", False, NOT_RECORDED)
     return CaseResult(
         instance_id=f"{AUDIT_SUITE}.{AUDIT_CASE}",
         suite=AUDIT_SUITE,
@@ -417,6 +428,7 @@ def _audit_case(databases: Collection[Path]) -> CaseResult:
         questions=(),
         passed=check.passed,
         checks=(_check_dict(check, None),),
+        not_recorded=vacuous,
     )
 
 
@@ -500,7 +512,12 @@ async def run(
                         outcome = _result(inst, [_check_dict(crash, None)], [], [], [])
                     keep(outcome)
         if any(s.suite == AUDIT_SUITE for s in chosen):
-            keep(_audit_case([p for p in databases if p.exists()]))
+            keep(
+                _audit_case(
+                    [p for p in databases if p.exists()],
+                    actions_ran=any(s.suite == ACTIONS_SUITE for s in chosen),
+                )
+            )
     finally:
         env.close()
     store.finish_run(run_id, result.totals)

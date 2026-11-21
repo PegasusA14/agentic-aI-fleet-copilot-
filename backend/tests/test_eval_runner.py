@@ -346,6 +346,29 @@ async def test_audit_completeness_is_not_added_when_guardrails_did_not_run(
     assert "guardrails.audit_completeness" not in by_id(result)
 
 
+async def test_audit_completeness_is_not_recorded_when_actions_ran_but_made_no_proposals(
+    tmp_path, scenarios, settings, stores
+):
+    suite_file(scenarios, "actions", [low_disk_case("nothing", {"outcome": "answer"})])
+    suite_file(scenarios, "guardrails", [low_disk_case("plain", {"outcome": "answer"})])
+    result = await go(tmp_path, settings, stores, ScriptedLLM(**low_disk_script(2)))
+    audit = by_id(result)["guardrails.audit_completeness"]
+    assert audit.not_recorded and not audit.passed
+    assert audit.checks[0]["detail"] == runner.NOT_RECORDED
+    stored = stores[0].get_run("run1")
+    assert stored is not None
+    assert not [c for c in stored["cases"] if c["case_id"] == "audit_completeness"][0]["passed"]
+    assert result.totals["overall"]["not_recorded"] == 1
+
+
+async def test_audit_completeness_still_passes_with_no_proposals_when_actions_did_not_run(
+    tmp_path, scenarios, settings, stores
+):
+    suite_file(scenarios, "guardrails", [low_disk_case("plain", {"outcome": "answer"})])
+    result = await go(tmp_path, settings, stores, ScriptedLLM(**low_disk_script()))
+    assert by_id(result)["guardrails.audit_completeness"].passed
+
+
 def test_audit_completeness_names_a_proposal_without_its_audit_entries(tmp_path):
     store = ActionStore(tmp_path / "actions.db")
     with store.transaction() as conn:
