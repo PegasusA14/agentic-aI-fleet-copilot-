@@ -191,10 +191,13 @@ export function ProposalView({ proposal, onOpenEvidence, decide, onDecided, onSe
       </div>
       <p className="proposal__rationale">{proposal.rationale}</p>
       <Scope card={proposal} label="What this proposal covers" />
-      <div className="proposal__effect" id={effectId}>
-        <p className="proposal__effect-label">If you approve</p>
-        <p className="proposal__effect-text">{proposal.expected_effect}</p>
-      </div>
+      {decided ? null : (
+        // Only a pending proposal has a future to describe; once decided the result line says what happened.
+        <div className="proposal__effect" id={effectId}>
+          <p className="proposal__effect-label">If you approve</p>
+          <p className="proposal__effect-text">{proposal.expected_effect}</p>
+        </div>
+      )}
       <ProposalHash card={proposal} />
       <div className="sheet__foot">
         <button type="button" className="link-btn" onClick={() => onOpenEvidence(proposal.evidence_refs)}>
