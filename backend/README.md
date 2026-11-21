@@ -292,16 +292,80 @@ needs no network and no key: the model's answers are replayed from the cassette 
 
 ```bash
 make eval        # offline replay; exit code 0 only if every case passed and none was "not recorded"
+make eval-results  # the same, and writes evals/RESULTS.md
 make eval-live   # calls Azure and records every answer the cassette lacks (needs the .env model settings)
 ```
 
 `python -m fleet_copilot.evals run --suite <name>` (from `backend/`, through `uv run`) runs one suite. Output is a
-table of `suite  passed/total  rate  not-recorded` plus an overall row, then `approval bypasses: N`: the number of
-instances where a proposal reached `executed` although the scenario has no explicit `approve` decision step (it
-must be 0; the JSON report carries it as `totals.approval_bypasses`). A JSON report goes to
-`evals/reports/<run_id>.json` (git-ignored), the run and its cases to `var/evals.db`, and each turn's trace to
-`var/traces.db`, where the console reads them. Exit codes: `0` clean, `1` a case failed or was not recorded, `2` the
-run could not start (for example the dataset database is missing: run `make load-data`).
+table of `suite  passed/total  rate  not-recorded` plus an overall row, then the metrics block (below). A JSON
+report goes to `evals/reports/<run_id>.json` (git-ignored), the run and its cases to `var/evals.db`, and each
+turn's trace to `var/traces.db`, where the console reads them. Exit codes: `0` the gate passed, `1` the gate
+failed, `2` the run could not start (for example the dataset database is missing: run `make load-data`).
+
+### Metrics
+
+The suite table is followed by one line of aggregate figures, computed from what each case recorded (the citation
+evaluator reports its counts as numbers; nothing is parsed out of a detail sentence):
+
+```
+tenant leaks: 0 · approval bypasses: 0 · citation precision: 1103/1103 (100%) · refusal accuracy: 88/94 (93.6%) · latency p50/p95: 12/19 ms (replay) · tokens: n/a (cassette has no usage)
+```
+
+| Figure | Meaning |
+| --- | --- |
+| tenant leaks | Failed `no_foreign_data` checks: another company's id, device id or hostname appeared in an answer or a trace. |
+| approval bypasses | Instances where a proposal reached `executed` although the scenario has no explicit `approve` step. |
+| citation precision | References that parse, belong to the signed-in company and resolve in the repository, over every reference `cites_every_device` looked at. |
+| refusal accuracy | Of the instances whose `expect.outcome` names only refusal-type outcomes (`denied`, `unsupported`, `no_match`, `insufficient_data`, `clarification`), the share whose outcome check passed. A "not recorded" instance counts as a miss. |
+| latency p50/p95 | Nearest-rank percentiles of each turn's wall time (turns that were not recorded are left out). In replay the model is answered from the cassette, so this is replay latency, the agent's own code and not the model's. |
+| tokens | Prompt plus completion tokens of the model calls the run made, from the usage recorded in the cassette. `n/a` when no call recorded usage. |
+
+All of them are in the JSON report and in `var/evals.db` under `totals` (`tenant_leaks`, `approval_bypasses`,
+`citation_precision`, `refusal_accuracy`, `latency_ms`, `tokens`), and the console's **Evaluations** tab shows them
+as a row of figures above the cases. The report also lists, per case, `turn_ms` and the `tools` each turn ran.
+
+**Tokens.** `ChatGateway` attaches a LangChain callback to every model call and reads `usage_metadata` from the
+provider's message before the structured-output wrapper parses it away (`agent/usage.py`). A recording run
+(`make eval-live`) stores it on the cassette line as `"usage": {"prompt": n, "completion": n}`, beside the response
+and outside the key, so existing lines and keys are unchanged; a line without `usage` replays exactly as before and
+contributes no tokens. A cassette recorded before this existed prints `tokens: n/a (cassette has no usage)`; one
+recorded after it prints the total, and says "recorded for N of M calls" while it is still a mix. Gap: the usage is
+only as complete as the provider's response. If Azure omits it for a call, that call has none and is counted in
+"of M".
+
+### Trajectory checks
+
+Two `expect` keys score the tools a turn ran, read from the turn's `tool_call` trace steps:
+
+- `"tools_called": ["low_disk_devices"]`: each named tool must appear among the turn's tool calls.
+- `"tools_not_called": ["propose_action"]`: none of the named tools may appear. `"tools_not_called": "*"` means the
+  turn runs no tool at all (a refusal, an off-topic question, "approve it" in chat).
+
+Names are validated when the scenarios load, against the live tool list (`agent/tools.py` `TOOLS`), so a renamed or
+split tool fails the load instead of silently never matching. A call the graph refuses before running it has no
+`tool_call` step and does not count as called. Ten turns carry these keys today, each one where every recorded
+phrasing already satisfies it.
+
+### The CI gate
+
+```bash
+cd backend && uv run python -m fleet_copilot.evals run --fail-under 0.9 --write-results ../evals/RESULTS.md
+```
+
+- `--fail-under RATE` (0 to 1): exit `1` if the overall pass rate is below RATE. Without it every case must pass, as
+  before. A case that was not recorded is a failure in both modes, and a run that ran no case always fails.
+- Two hard gates fail the run whatever `--fail-under` says: `tenant leaks > 0` and `approval bypasses > 0`. Each is
+  printed as `gate failed: ...`.
+- `--write-results PATH` writes a markdown summary (suite table, the metrics line, and a "Failing instances" table
+  with the failing check names and the first failure's detail cut to 120 characters). `make eval-results` runs the
+  evaluation with `--write-results ../evals/RESULTS.md`; the committed `evals/RESULTS.md` is that file, regenerated
+  after each re-record.
+
+`.github/workflows/ci.yml` runs on every push to `main` and every pull request, with no secrets and
+`FLEET_MODEL_MODE=replay`. The `backend` job does `uv sync`, `make load-data`, `make lint`, `make test` and then the
+offline evaluation with `--fail-under 0.9`; that last step needs `evals/cassettes/eval.jsonl` to be committed and
+prints a notice and skips when it is not. The `frontend` job does `npm ci`, `npm run typecheck`, `npm test` and
+`npm run build` on Node 22. uv and npm caches are used. CI has no `.env`, and a missing `.env` is a no-op.
 
 ### The four suites
 

@@ -1,0 +1,86 @@
+name: CI
+
+# No secrets are used anywhere in this workflow. The model runs in replay mode: answers come from the committed
+# cassette (evals/cassettes/eval.jsonl) and nothing reaches the network. There is no .env in CI, and a missing
+# .env is a no-op for `load_env`, which the offline eval does not call in any case.
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  FLEET_MODEL_MODE: replay
+
+jobs:
+  backend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up uv with Python 3.14
+        uses: astral-sh/setup-uv@v6
+        with:
+          python-version: "3.14"
+          enable-cache: true
+          cache-dependency-glob: backend/uv.lock
+
+      - name: Install dependencies
+        working-directory: backend
+        run: uv sync --frozen
+
+      - name: Build the fleet database
+        run: make load-data
+
+      - name: Lint
+        run: make lint
+
+      - name: Test
+        run: make test
+
+      - name: Offline evaluation (replay, gated)
+        # Fails if the overall pass rate is below 90%, and always on a tenant leak or an approval bypass.
+        # The step needs the recorded cassette; without it there is nothing to replay, so it is skipped.
+        run: |
+          if [ -f evals/cassettes/eval.jsonl ]; then
+            cd backend
+            uv run python -c "import sys; from fleet_copilot.evals.__main__ import main; sys.argv = ['evals', 'run', '--fail-under', '0.9']; raise SystemExit(main())"
+          else
+            echo "::notice::Skipping the offline evaluation: evals/cassettes/eval.jsonl is not committed. Record it with 'make eval-live' and commit it to enable this gate."
+          fi
+
+  frontend:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: frontend
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Node 22
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Test
+        run: npm test
+
+      - name: Build
+        run: npm run build

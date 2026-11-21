@@ -161,6 +161,9 @@ phrasings (terse, verbose, misspelled, alternate wording), and each phrasing mus
 Details, exit codes, the cassette key, "not recorded" semantics and re-recording are in
 [backend/README.md, "Evaluation"](backend/README.md#evaluation).
 
+The latest offline result, with the aggregate metrics and every failing instance, is in [evals/RESULTS.md](evals/RESULTS.md) (`make eval-results`).
+CI (`.github/workflows/ci.yml`) lints, tests and builds both halves and gates the replay on `--fail-under 0.9`, a tenant leak or an approval bypass.
+
 ## Agent architecture
 
 Request path:
