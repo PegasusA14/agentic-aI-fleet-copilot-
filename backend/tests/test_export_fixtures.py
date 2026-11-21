@@ -72,7 +72,7 @@ def test_outcomes_cover_every_state_the_ui_renders(exported):
 
 def test_meta_marks_synthetic_fixtures_and_carries_router_keywords(exported):
     synthetic = {s.name for s in SCENARIOS if s.synthetic}
-    assert synthetic == {"clarification", "unsupported", "tool_error"}
+    assert synthetic == {"clarification", "unsupported", "unsupported_wifi", "tool_error"}
     for scenario in SCENARIOS:
         meta = load(exported, "acme-001", scenario.name)["meta"]
         assert meta["synthetic"] is scenario.synthetic
@@ -222,3 +222,16 @@ def test_the_proposal_fixture_holds_no_random_ids(exported):
     for tenant in TENANTS:
         text = (exported / tenant / "proposal.json").read_text(encoding="utf-8")
         assert text.count("prp_") == 0
+
+
+def test_the_missing_data_fixture_is_the_fixed_refusal_with_alternatives(exported):
+    for tenant in TENANTS:
+        envelope = load(exported, tenant, "unsupported_wifi")["envelope"]
+        assert (envelope["outcome"], envelope["reason_code"]) == ("unsupported", "data_unavailable")
+        assert (
+            envelope["headline"]
+            == "Wi-Fi and network quality aren't something the fleet data records."
+        )
+        assert envelope["notes"] and 3 <= len(envelope["alternatives"]) <= 4
+        off_topic = load(exported, tenant, "unsupported")["envelope"]
+        assert off_topic["reason_code"] == "off_topic" and off_topic["alternatives"]

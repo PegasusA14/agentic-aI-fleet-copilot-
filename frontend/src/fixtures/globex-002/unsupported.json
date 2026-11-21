@@ -1,5 +1,19 @@
 {
   "envelope": {
+    "alternatives": [
+      {
+        "label": "Fleet health summary",
+        "request": "Give me a fleet health summary"
+      },
+      {
+        "label": "Failing compliance checks",
+        "request": "Which devices are failing compliance checks?"
+      },
+      {
+        "label": "Devices low on disk",
+        "request": "Which devices are low on disk space?"
+      }
+    ],
     "claims": [],
     "clarification": null,
     "coverage": null,
@@ -7,7 +21,9 @@
     "evidence": [],
     "explanation": null,
     "headline": "I can only answer questions about this company's managed devices.",
-    "notes": [],
+    "notes": [
+      "I can answer from hardware, OS, memory, disk, battery, installed software and compliance data."
+    ],
     "outcome": "unsupported",
     "proposal": null,
     "reason_code": "off_topic",

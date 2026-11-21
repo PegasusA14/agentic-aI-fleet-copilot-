@@ -1,0 +1,76 @@
+{
+  "envelope": {
+    "alternatives": [
+      {
+        "label": "Fleet health summary",
+        "request": "Give me a fleet health summary"
+      },
+      {
+        "label": "Failing compliance checks",
+        "request": "Which devices are failing compliance checks?"
+      },
+      {
+        "label": "Devices low on disk",
+        "request": "Which devices are low on disk space?"
+      }
+    ],
+    "claims": [],
+    "clarification": null,
+    "coverage": null,
+    "entity_lists": [],
+    "evidence": [],
+    "explanation": null,
+    "headline": "Wi-Fi and network quality aren't something the fleet data records.",
+    "notes": [
+      "I can answer from hardware, OS, memory, disk, battery, installed software and compliance data."
+    ],
+    "outcome": "unsupported",
+    "proposal": null,
+    "reason_code": "data_unavailable",
+    "scope": {
+      "as_of": "2026-06-12T11:00:00Z",
+      "calculation": null,
+      "company_id": "acme-001",
+      "population": null,
+      "rule": null
+    },
+    "suggested_actions": [],
+    "trace_id": "replay-acme-001-unsupported_wifi"
+  },
+  "meta": {
+    "keywords": [
+      "wi-fi",
+      "wifi",
+      "signal",
+      "network quality"
+    ],
+    "note": "The refusal text and alternatives are fixed wording; routing needs the model.",
+    "question": "Which devices have a weak Wi-Fi signal?",
+    "scenario": "unsupported_wifi",
+    "synthetic": true,
+    "tenant": "acme-001"
+  },
+  "trace": [
+    {
+      "data": {},
+      "kind": "plan",
+      "latency_ms": null,
+      "seq": 0,
+      "summary": "The question asks for network data the telemetry does not hold.",
+      "tool": null,
+      "trace_id": "replay-acme-001-unsupported_wifi"
+    },
+    {
+      "data": {
+        "outcome": "unsupported",
+        "reason_code": "data_unavailable"
+      },
+      "kind": "respond",
+      "latency_ms": null,
+      "seq": 1,
+      "summary": "Responded with unsupported.",
+      "tool": null,
+      "trace_id": "replay-acme-001-unsupported_wifi"
+    }
+  ]
+}

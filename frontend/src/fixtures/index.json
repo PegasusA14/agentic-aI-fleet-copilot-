@@ -163,6 +163,19 @@
     },
     {
       "keywords": [
+        "wi-fi",
+        "wifi",
+        "signal",
+        "network quality"
+      ],
+      "note": "The refusal text and alternatives are fixed wording; routing needs the model.",
+      "question": "Which devices have a weak Wi-Fi signal?",
+      "scenario": "unsupported_wifi",
+      "synthetic": true,
+      "tenant": "acme-001"
+    },
+    {
+      "keywords": [
         "ticket",
         "first one",
         "open a ticket"
@@ -350,6 +363,19 @@
     },
     {
       "keywords": [
+        "wi-fi",
+        "wifi",
+        "signal",
+        "network quality"
+      ],
+      "note": "The refusal text and alternatives are fixed wording; routing needs the model.",
+      "question": "Which devices have a weak Wi-Fi signal?",
+      "scenario": "unsupported_wifi",
+      "synthetic": true,
+      "tenant": "globex-002"
+    },
+    {
+      "keywords": [
         "ticket",
         "first one",
         "open a ticket"
@@ -532,6 +558,19 @@
       "note": "The refusal text is the composer's fixed wording; routing needs the model.",
       "question": "What's the weather in Berlin?",
       "scenario": "unsupported",
+      "synthetic": true,
+      "tenant": "initech-003"
+    },
+    {
+      "keywords": [
+        "wi-fi",
+        "wifi",
+        "signal",
+        "network quality"
+      ],
+      "note": "The refusal text and alternatives are fixed wording; routing needs the model.",
+      "question": "Which devices have a weak Wi-Fi signal?",
+      "scenario": "unsupported_wifi",
       "synthetic": true,
       "tenant": "initech-003"
     },

@@ -21,6 +21,7 @@ describe("routeQuestion", () => {
     expect(scenario(acme, "How many Macs do we have, by model?")).toBe("inventory_by_model");
     expect(scenario(acme, "Open a ticket for the first one")).toBe("proposal");
     expect(scenario(acme, "What's the weather in Berlin?")).toBe("unsupported");
+    expect(scenario(acme, "Which devices have a weak Wi-Fi signal?")).toBe("unsupported_wifi");
   });
 
   it("answers each shorter home-screen suggestion with the real answer it stands for", () => {

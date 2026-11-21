@@ -2,7 +2,7 @@ import { Check } from "lucide-react";
 import { motion } from "motion/react";
 import { useState } from "react";
 import { GLIDE, usePrefersReducedMotion } from "../../lib/motion";
-import type { SuggestedAction } from "../../types/AnswerEnvelope";
+import type { Alternative, SuggestedAction } from "../../types/AnswerEnvelope";
 
 /**
  * After a pick the composer takes focus, so a disabled chip does not drop focus onto the page. Only where a keyboard is
@@ -62,6 +62,37 @@ export function SuggestionChips({ actions, busy, onAsk, withReason = false }: Su
           </motion.button>
         );
       })}
+    </div>
+  );
+}
+
+interface AlternativeChipsProps {
+  alternatives: Alternative[];
+  busy: boolean;
+  /** Sends the alternative's own request as the next user message. */
+  onAsk: (request: string) => void;
+}
+
+/** What to ask instead, under a refusal. The questions are code-written; a chip sends its request as written. */
+export function AlternativeChips({ alternatives, busy, onAsk }: AlternativeChipsProps) {
+  if (alternatives.length === 0) return null;
+  return (
+    <div className="chips" role="group" aria-label="You could ask">
+      {alternatives.map((alternative) => (
+        <button
+          key={alternative.label}
+          type="button"
+          className="chip"
+          disabled={busy}
+          title={alternative.request}
+          onClick={() => {
+            onAsk(alternative.request);
+            focusComposer();
+          }}
+        >
+          {alternative.label}
+        </button>
+      ))}
     </div>
   );
 }

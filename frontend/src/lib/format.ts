@@ -26,6 +26,7 @@ export const REASON_TEXT: Partial<Record<string, string>> = {
   not_found: "Not found in your fleet",
   off_topic: "Not about this fleet",
   unsupported_action: "Action not available",
+  data_unavailable: "Not recorded in fleet data",
   prompt_injection: "Instruction not followed",
   tool_failure: "Data lookup failed",
   step_limit: "Step limit reached",

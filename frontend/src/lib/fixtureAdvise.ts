@@ -106,6 +106,7 @@ export function adviseFixture(tenantId: string): Fixture | null {
     refs: [d.ref] as SuggestedAction["refs"],
   }));
   const envelope: AnswerEnvelope = {
+    alternatives: [],
     claims: devices.map((d, i) => ({
       count: 1,
       device_ids: [d.device_id],
@@ -171,6 +172,7 @@ export function upgradeFixture(tenantId: string, name: string): Fixture | null {
     target_label: d.label,
   };
   const envelope: AnswerEnvelope = {
+    alternatives: [],
     claims: [],
     clarification: null,
     coverage: null,

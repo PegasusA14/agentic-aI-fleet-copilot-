@@ -8,7 +8,7 @@ import type { AnswerEnvelope, EntityList, ProposalCard } from "../../lib/types";
 import { Count, CountedText } from "../Count";
 import { ProposalView, type Decide } from "../ProposalView";
 import { StateMark } from "../StateMark";
-import { SuggestionChips, focusComposer } from "./SuggestionChips";
+import { AlternativeChips, SuggestionChips, focusComposer } from "./SuggestionChips";
 
 interface AssistantMessageProps {
   envelope: AnswerEnvelope;
@@ -245,6 +245,8 @@ export function AssistantMessage({
           ))}
         </ul>
       ) : null}
+
+      <AlternativeChips alternatives={envelope.alternatives ?? []} busy={busy} onAsk={onAsk} />
 
       <div className="details">
         <button

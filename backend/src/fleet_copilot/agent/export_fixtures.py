@@ -23,8 +23,8 @@ from typing import Any
 
 from langgraph.checkpoint.memory import InMemorySaver
 
-from fleet_copilot.agent import texts
-from fleet_copilot.agent.compose import Composition, compose
+from fleet_copilot.agent import outcomes
+from fleet_copilot.agent.compose import compose
 from fleet_copilot.agent.context import AgentContext
 from fleet_copilot.agent.identity import Identity
 from fleet_copilot.agent.llm import (
@@ -67,6 +67,7 @@ class Scenario:
     calls: tuple[ToolCall, ...] = ()
     synthetic: bool = False
     note: str = ""
+    missing_topic: str = ""  # unsupported scenarios: the data the telemetry does not hold
 
 
 SCENARIOS: tuple[Scenario, ...] = (
@@ -175,6 +176,16 @@ SCENARIOS: tuple[Scenario, ...] = (
         "Decide whether the question is about this fleet.",
         synthetic=True,
         note="The refusal text is the composer's fixed wording; routing needs the model.",
+    ),
+    Scenario(
+        "unsupported_wifi",
+        "Which devices have a weak Wi-Fi signal?",
+        ("wi-fi", "wifi", "signal", "network quality"),
+        "unsupported",
+        "The question asks for network data the telemetry does not hold.",
+        synthetic=True,
+        note="The refusal text and alternatives are fixed wording; routing needs the model.",
+        missing_topic="network",
     ),
     Scenario(
         "proposal",
@@ -369,13 +380,20 @@ def _build(
     trace_id = f"replay-{tenant}-{scenario.name}"
     if scenario.kind == "clarification":
         return _clarification(tenant, trace_id, ctx.as_of), []
-    if scenario.kind in ("unsupported", "tool_error"):
-        records: list[ToolRecord] = []
-        if scenario.kind == "unsupported":
-            composition = Composition("unsupported", "off_topic", fallback_headline=texts.OFF_TOPIC)
-        else:
-            records = [ToolRecord(tool="low_disk_devices", args={}, error="tool_error")]
-            composition = compose(records, resolve=repo.resolve)
+    if scenario.kind == "unsupported":
+        # The graph's own refusal builder: fixed text, the capability line and the code-written alternatives.
+        reason = "data_unavailable" if scenario.missing_topic else "off_topic"
+        envelope = outcomes.refusal(
+            reason,  # type: ignore[arg-type]
+            missing_topic=scenario.missing_topic or None,  # type: ignore[arg-type]
+            company_id=tenant,
+            as_of=ctx.as_of,
+            trace_id=trace_id,
+        )
+        return envelope, []
+    if scenario.kind == "tool_error":
+        records = [ToolRecord(tool="low_disk_devices", args={}, error="tool_error")]
+        composition = compose(records, resolve=repo.resolve)
         envelope = composition.to_envelope(company_id=tenant, as_of=ctx.as_of, trace_id=trace_id)
         return envelope, records
     records = [execute(tool, _fill(args, foreign_id), ctx) for tool, args in scenario.calls]

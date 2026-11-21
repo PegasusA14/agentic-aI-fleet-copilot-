@@ -204,6 +204,44 @@ describe("outcomes that are not an answer", () => {
   });
 });
 
+describe("a refusal with alternatives", () => {
+  const WIFI = envelopeOf("unsupported_wifi");
+
+  it("says what the fleet data records and offers the alternatives as chips that send their request", async () => {
+    const { user, onAsk } = setup(WIFI);
+    expect(screen.getByText(WIFI.headline)).toBeInTheDocument();
+    expect(screen.getByRole("list", { name: "Notes" })).toHaveTextContent(WIFI.notes[0]);
+    const group = screen.getByRole("group", { name: "You could ask" });
+    const chips = within(group).getAllByRole("button");
+    expect(chips.map((c) => c.textContent)).toEqual(WIFI.alternatives.map((a) => a.label));
+    await user.click(screen.getByRole("button", { name: "Devices low on disk" }));
+    expect(onAsk).toHaveBeenCalledWith("Which devices are low on disk space?");
+  });
+
+  it("shows the same chips for an off-topic refusal", () => {
+    setup(envelopeOf("unsupported"));
+    expect(within(screen.getByRole("group", { name: "You could ask" })).getAllByRole("button").length).toBeGreaterThanOrEqual(3);
+  });
+
+  it("disables the chips while a turn runs", () => {
+    setup(WIFI, { busy: true });
+    for (const chip of within(screen.getByRole("group", { name: "You could ask" })).getAllByRole("button")) {
+      expect(chip).toBeDisabled();
+    }
+  });
+
+  it("shows no chip group when there are no alternatives", () => {
+    setup({ ...WIFI, alternatives: [] });
+    expect(screen.queryByRole("group", { name: "You could ask" })).not.toBeInTheDocument();
+  });
+
+  it("reads the data_unavailable reason in plain words under Details", async () => {
+    const { user } = setup(WIFI);
+    await user.click(screen.getByRole("button", { name: "Details" }));
+    expect(screen.getByText("Not recorded in fleet data")).toBeInTheDocument();
+  });
+});
+
 describe("suggested actions", () => {
   const ADVISE: AnswerEnvelope = {
     ...LOW_DISK,

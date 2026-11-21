@@ -1,5 +1,16 @@
 /* Generated from contracts/*.schema.json by scripts/gen-types.mjs. Do not edit. */
 
+/**
+ * @maxItems 4
+ */
+export type Alternatives =
+  | []
+  | [Alternative]
+  | [Alternative, Alternative]
+  | [Alternative, Alternative, Alternative]
+  | [Alternative, Alternative, Alternative, Alternative];
+export type Label = string;
+export type Request = string;
 export type Count = number | null;
 export type DeviceIds = string[];
 /**
@@ -18,12 +29,12 @@ export type Stale = string[];
  */
 export type Items = [EntityRef, ...EntityRef[]];
 export type DeviceId = string;
-export type Label = string;
+export type Label1 = string;
 export type Rank = number;
 export type ListId = string;
 export type Title = string;
 export type EntityLists = EntityList[];
-export type Label1 = string;
+export type Label2 = string;
 export type Ref = string;
 export type Value = string;
 export type Evidence = EvidenceItem[];
@@ -59,6 +70,7 @@ export type ReasonCode =
       | "insufficient_evidence"
       | "already_done"
       | "too_many_pending"
+      | "data_unavailable"
     )
   | null;
 export type AsOf = string;
@@ -68,13 +80,13 @@ export type Population1 = number | null;
 export type Rule = string | null;
 export type ActionType1 = "remediation_ticket" | "replacement_flag" | "upgrade_order" | "employee_notification";
 export type DeviceId1 = string;
-export type Label2 = string;
+export type Label3 = string;
 export type Reason = string;
 /**
  * @minItems 1
  */
 export type Refs1 = [string, ...string[]];
-export type Request = string;
+export type Request1 = string;
 export type TargetLabel1 = string;
 export type SuggestedActions = SuggestedAction[];
 export type TraceId = string;
@@ -83,6 +95,7 @@ export type TraceId = string;
  * The only shape the agent returns. The UI maps it to fixed components; the LLM never emits markup.
  */
 export interface AnswerEnvelope {
+  alternatives: Alternatives;
   claims: Claims;
   clarification: Clarification | null;
   coverage: Coverage | null;
@@ -97,6 +110,13 @@ export interface AnswerEnvelope {
   scope: ScopeInfo;
   suggested_actions: SuggestedActions;
   trace_id: TraceId;
+}
+/**
+ * A question the copilot can answer, offered after a refusal. Code-written; `request` is sent as the next message.
+ */
+export interface Alternative {
+  label: Label;
+  request: Request;
 }
 export interface Claim {
   count: Count;
@@ -130,11 +150,11 @@ export interface EntityList {
 }
 export interface EntityRef {
   device_id: DeviceId;
-  label: Label;
+  label: Label1;
   rank: Rank;
 }
 export interface EvidenceItem {
-  label: Label1;
+  label: Label2;
   ref: Ref;
   value: Value;
 }
@@ -169,9 +189,9 @@ export interface ScopeInfo {
 export interface SuggestedAction {
   action_type: ActionType1;
   device_id: DeviceId1;
-  label: Label2;
+  label: Label3;
   reason: Reason;
   refs: Refs1;
-  request: Request;
+  request: Request1;
   target_label: TargetLabel1;
 }
