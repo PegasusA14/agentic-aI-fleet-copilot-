@@ -143,15 +143,27 @@ def _json(value: Any) -> str:
 
 
 def payload_hash(
-    company_id: str, action_type: str, target_device_id: str, params: dict[str, str]
+    company_id: str,
+    action_type: str,
+    target_device_id: str,
+    params: dict[str, str],
+    *,
+    employee_id: str | None = None,
+    rationale: str = "",
 ) -> str:
-    """The hash the approver signs: tenant, action, target and every parameter, independent of key order."""
+    """The hash the approver signs, independent of key order.
+
+    It covers the tenant, action, target and every parameter, plus what the effect or the card carries beyond
+    the parameters: the notification recipient (`employee_id`) and the card's rationale (a ticket's note).
+    """
     canonical = json.dumps(
         {
             "company_id": company_id,
             "action_type": action_type,
             "target_device_id": target_device_id,
             "params": params,
+            "employee_id": employee_id,
+            "rationale": rationale,
         },
         sort_keys=True,
         separators=(",", ":"),
@@ -262,6 +274,30 @@ class ActionStore:
             (company_id, payload_hash),
         ).fetchone()
         return _proposal(found) if found else None
+
+    def find_executed(
+        self,
+        conn: sqlite3.Connection,
+        company_id: str,
+        action_type: str,
+        target_device_id: str,
+        params: dict[str, str],
+        since: datetime,
+    ) -> ProposalRow | None:
+        """The latest EXECUTED proposal of this exact action (type, device, parameters) created at or after `since`."""
+        found = conn.execute(
+            "SELECT * FROM proposals WHERE company_id = ? AND action_type = ? AND target_device_id = ?"
+            " AND params = ? AND status = 'executed' AND created_at >= ? ORDER BY rowid DESC LIMIT 1",
+            (company_id, action_type, target_device_id, _json(params), iso_z(since)),
+        ).fetchone()
+        return _proposal(found) if found else None
+
+    def count_pending(self, conn: sqlite3.Connection, company_id: str) -> int:
+        row = conn.execute(
+            "SELECT COUNT(*) AS n FROM proposals WHERE company_id = ? AND status = 'pending'",
+            (company_id,),
+        ).fetchone()
+        return int(row["n"])
 
     def get(
         self, conn: sqlite3.Connection, company_id: str, proposal_id: str

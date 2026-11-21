@@ -15,10 +15,11 @@ import sqlite3
 from collections.abc import Callable
 from contextlib import closing
 from dataclasses import dataclass
-from datetime import datetime
+from datetime import datetime, timedelta
 from pathlib import Path
 from typing import Any, Literal
 
+from fleet_copilot import policy
 from fleet_copilot.actions import eligibility, executors
 from fleet_copilot.actions.store import ActionStore, AuditEvent, ProposalRow, payload_hash
 from fleet_copilot.agent.identity import Identity
@@ -27,6 +28,15 @@ from fleet_copilot.data.loader import connect
 from fleet_copilot.repository import FleetRepository, TenantContext, dataset_as_of
 
 _CHECK_REF = re.compile(r"#compliance\[([A-Za-z0-9_.-]+)\]$")
+_PLAIN_ARG = re.compile(r"[A-Za-z0-9_.-]{1,64}")
+
+RefusalReason = Literal[
+    "not_eligible", "insufficient_evidence", "not_found", "already_done", "too_many_pending"
+]
+TOO_MANY_PENDING = (
+    "There are already {limit} proposals waiting for a decision. Approve or reject some first."
+)
+ALREADY_DONE = "This was already done on {day}: {action}. Nothing new was created."
 
 
 @dataclass(frozen=True)
@@ -37,7 +47,7 @@ class Proposed:
 
 @dataclass(frozen=True)
 class Refused:
-    reason: Literal["not_eligible", "insufficient_evidence", "not_found"]
+    reason: RefusalReason
     detail: str
 
 
@@ -77,6 +87,37 @@ def _params(eligible: eligibility.Eligible) -> dict[str, str]:
         if match:
             params["check_id"] = match.group(1)
     return params
+
+
+def _recipient(card: dict[str, Any]) -> str | None:
+    """The notification recipient the approver's hash covers: the `employee` the stored card names, if any."""
+    scope = card.get("scope")
+    employee = scope.get("employee") if isinstance(scope, dict) else None
+    return employee if isinstance(employee, str) else None
+
+
+def _requested_params(**args: str | None) -> dict[str, str]:
+    """The requested arguments for an audit row: only plain enum-like values, never free text."""
+    return {
+        name: value if _PLAIN_ARG.fullmatch(value) else "<invalid>"
+        for name, value in args.items()
+        if isinstance(value, str)
+    }
+
+
+def _short_action(row: ProposalRow) -> str:
+    """A fixed, code-built phrase for an executed proposal, from its enumerated parameters."""
+    label = eligibility.display_hostname(
+        str(row.card.get("target_label", "")), row.target_device_id
+    )
+    p = row.params
+    if row.action_type == "remediation_ticket":
+        return f"remediation ticket for {p.get('check_id')} on {label}"
+    if row.action_type == "replacement_flag":
+        return f"replacement flag for {label}"
+    if row.action_type == "upgrade_order":
+        return f"{p.get('component')} upgrade order for {label} ({p.get('current')} to {p.get('target')})"
+    return f"{p.get('topic')} notification to the employee of {label}"
 
 
 def _raise_if_refused(outcome: ProposalRow | Decision | Exception) -> None:
@@ -122,26 +163,40 @@ class ActionService:
             component=component,
             topic=topic,
         )
+        requested = _requested_params(check_id=check_id, component=component, topic=topic)
+        target = (company_id, actor_id, trace_id, action_type, device_id, requested)
         if isinstance(result, eligibility.Ineligible):
             with self._store.transaction() as conn:
-                self._store.append_audit(
-                    conn,
-                    "proposal_refused",
-                    company_id=company_id,
-                    actor_id=actor_id,
-                    trace_id=trace_id,
-                    action_type=action_type,
-                    target_device_id=device_id,
-                    detail={"reason": result.reason},
-                )
-            return Refused(result.reason, result.detail)
+                return self._refuse_proposal(conn, target, result.reason, result.detail)
 
         params = _params(result)
-        digest = payload_hash(company_id, action_type, device_id, params)
+        digest = payload_hash(
+            company_id,
+            action_type,
+            device_id,
+            params,
+            employee_id=result.employee_id,
+            rationale=result.rationale,
+        )
         with self._store.transaction() as conn:
             existing = self._store.find_pending(conn, company_id, digest)
             if existing is not None:
                 return Proposed(_card(existing), reused=True)
+            done = self._store.find_executed(
+                conn,
+                company_id,
+                action_type,
+                device_id,
+                params,
+                as_of - timedelta(days=policy.ACTION_REPEAT_WINDOW_DAYS),
+            )
+            if done is not None:
+                day = (done.decided_at or done.created_at or "")[:10]
+                detail = ALREADY_DONE.format(day=day, action=_short_action(done))
+                return self._refuse_proposal(conn, target, "already_done", detail)
+            if self._store.count_pending(conn, company_id) >= policy.MAX_PENDING_PER_TENANT:
+                detail = TOO_MANY_PENDING.format(limit=policy.MAX_PENDING_PER_TENANT)
+                return self._refuse_proposal(conn, target, "too_many_pending", detail)
             card = ProposalCard(
                 proposal_id=self._new_id(),
                 action_type=action_type,
@@ -188,6 +243,27 @@ class ActionService:
                 refs=result.refs,
             )
         return Proposed(card, reused=False)
+
+    def _refuse_proposal(
+        self,
+        conn: sqlite3.Connection,
+        target: tuple[str, str, str | None, str, str, dict[str, str]],
+        reason: RefusalReason,
+        detail: str,
+    ) -> Refused:
+        """Audit a refused proposal (what was asked for and why not) and return it."""
+        company_id, actor_id, trace_id, action_type, device_id, requested = target
+        self._store.append_audit(
+            conn,
+            "proposal_refused",
+            company_id=company_id,
+            actor_id=actor_id,
+            trace_id=trace_id,
+            action_type=action_type,
+            target_device_id=device_id,
+            detail={"reason": reason, "params": requested},
+        )
+        return Refused(reason, detail)
 
     def _check(
         self,
@@ -307,9 +383,20 @@ class ActionService:
             return self._conclude(
                 conn, identity, row, "invalidated", "proposal_invalidated", current.reason
             )
+        if current.employee_id != _recipient(row.card):
+            return self._conclude(
+                conn, identity, row, "invalidated", "proposal_invalidated", "recipient_changed"
+            )
         if (
             _params(current) != row.params
-            or payload_hash(row.company_id, row.action_type, row.target_device_id, _params(current))
+            or payload_hash(
+                row.company_id,
+                row.action_type,
+                row.target_device_id,
+                _params(current),
+                employee_id=current.employee_id,
+                rationale=str(row.card.get("rationale", "")),
+            )
             != row.payload_hash
         ):
             return self._conclude(

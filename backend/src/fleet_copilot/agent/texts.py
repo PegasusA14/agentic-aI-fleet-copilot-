@@ -19,9 +19,15 @@ ACTION_NOT_ELIGIBLE = (
 ACTION_INSUFFICIENT_EVIDENCE = (
     "There is not enough recent evidence to propose that action, so no proposal was made."
 )
+ACTION_ALREADY_DONE = "That action was already carried out recently, so no new proposal was made."
+ACTION_TOO_MANY_PENDING = (
+    "Too many proposals are waiting for a decision, so no new proposal was made."
+)
 ACTION_REFUSAL_HEADLINES = {
     "not_eligible": ACTION_NOT_ELIGIBLE,
     "insufficient_evidence": ACTION_INSUFFICIENT_EVIDENCE,
+    "already_done": ACTION_ALREADY_DONE,
+    "too_many_pending": ACTION_TOO_MANY_PENDING,
 }
 ACTION_LABELS = {
     "remediation_ticket": "open a remediation ticket",

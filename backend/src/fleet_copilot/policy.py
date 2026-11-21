@@ -38,6 +38,8 @@ MAX_HISTORY_TURNS = 6  # earlier turns the planner may see
 MAX_HEADLINE_CHARS = 160  # longest model-written headline that passes verification
 MAX_EXPLANATION_CHARS = 900  # longest model-written explanation that passes verification
 MAX_SUGGESTIONS = 6  # suggested actions one advise reply offers
+ACTION_REPEAT_WINDOW_DAYS = 30  # an action already executed this recently is not proposed again
+MAX_PENDING_PER_TENANT = 20  # proposals one company may have waiting for a decision at once
 
 
 def disclosure() -> dict[str, float | int]:

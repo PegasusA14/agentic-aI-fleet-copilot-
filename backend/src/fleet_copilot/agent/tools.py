@@ -10,7 +10,7 @@ from pydantic import Field
 
 from fleet_copilot import policy
 from fleet_copilot.actions import recommend as recommender
-from fleet_copilot.actions.eligibility import Topic
+from fleet_copilot.actions.eligibility import Topic, display_hostname
 from fleet_copilot.actions.service import ActionService, Refused
 from fleet_copilot.actions.store import ActionStore
 from fleet_copilot.agent.context import AgentContext
@@ -270,7 +270,9 @@ def execute_recommend(args: dict[str, Any], ctx: AgentContext) -> ToolRecord:
     conn = connect(ctx.db_path, read_only=True)
     try:
         repo = FleetRepository(conn, TenantContext(ctx.company_id, ctx.actor_id))
-        hostnames = {d.device_id: d.hostname for d in repo.list_devices()}
+        hostnames = {
+            d.device_id: display_hostname(d.hostname, d.device_id) for d in repo.list_devices()
+        }
         considered = [i for i in dict.fromkeys(requested) if i in hostnames]
         if not considered:
             return ToolRecord(tool="recommend_actions", args=recorded, error="not_found")

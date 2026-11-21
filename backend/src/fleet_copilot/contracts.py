@@ -46,6 +46,8 @@ ReasonCode = Literal[
     "step_limit",
     "not_eligible",
     "insufficient_evidence",
+    "already_done",
+    "too_many_pending",
 ]
 # The only keys a query may put in `excluded` (and so the only keys `Coverage.excluded` accepts).
 ExcludedReason = Literal[
@@ -57,7 +59,16 @@ ExcludedReason = Literal[
 ]
 _REASON_REQUIRED = {"denied", "unsupported", "tool_error", "insufficient_data", "no_match"}
 _VALID_REASONS: dict[str, frozenset[str]] = {
-    "denied": frozenset({"not_found", "prompt_injection", "not_eligible", "insufficient_evidence"}),
+    "denied": frozenset(
+        {
+            "not_found",
+            "prompt_injection",
+            "not_eligible",
+            "insufficient_evidence",
+            "already_done",
+            "too_many_pending",
+        }
+    ),
     "unsupported": frozenset({"off_topic", "unsupported_action"}),
     "tool_error": frozenset({"tool_failure"}),
     "insufficient_data": frozenset({"insufficient_history", "step_limit"}),

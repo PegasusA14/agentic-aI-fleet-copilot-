@@ -514,7 +514,9 @@
             "tool_failure",
             "step_limit",
             "not_eligible",
-            "insufficient_evidence"
+            "insufficient_evidence",
+            "already_done",
+            "too_many_pending"
           ],
           "type": "string"
         },

@@ -80,7 +80,7 @@ def clarification(
 
 
 def action_refusal(
-    reason: Literal["not_eligible", "insufficient_evidence"],
+    reason: Literal["not_eligible", "insufficient_evidence", "already_done", "too_many_pending"],
     detail: str,
     *,
     company_id: str,

@@ -7,6 +7,7 @@ chooses an action type, a device and an enumerated parameter; it never writes an
 
 from __future__ import annotations
 
+import re
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import datetime
@@ -29,6 +30,18 @@ Component = Literal["memory", "storage"]
 TOPICS: tuple[str, ...] = ("low_disk", "memory_pressure", "failing_check", "battery_service")
 COMPONENTS: tuple[str, ...] = ("memory", "storage")
 _GIB = 2**30
+
+_SAFE_HOSTNAME = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,62}")
+
+
+def display_hostname(hostname: str, device_id: str) -> str:
+    """The device's hostname if it is a plain hostname, else its serial (the device id).
+
+    A hostname is device-reported data. Anything that is not a plain hostname (spaces, slashes, a URL, a
+    sentence, markup) is never spliced into text that an approver or an employee reads.
+    """
+    return hostname if _SAFE_HOSTNAME.fullmatch(hostname or "") else device_id
+
 
 _TEMPLATES: dict[str, str] = {
     "low_disk": (
@@ -68,6 +81,11 @@ class Ineligible:
     detail: str  # code-written, safe to show
 
 
+def label(device: Device) -> str:
+    """How a device is named in any text built here."""
+    return display_hostname(device.hostname, device.device_id)
+
+
 def _size_label(gib: int) -> str:
     return f"{gib // 1024} TiB" if gib >= 1024 and gib % 1024 == 0 else f"{gib} GiB"
 
@@ -86,7 +104,7 @@ def upgrade_target(component: Component, current_bytes: int) -> tuple[str, str] 
 
 
 def notification_message(topic: Topic, hostname: str, facts: dict[str, str]) -> str:
-    """The fixed notification text for a topic; `hostname` is the device's own."""
+    """The fixed notification text for a topic; `hostname` must already be a `display_hostname`."""
     return _TEMPLATES[topic].format(hostname=hostname, **facts)
 
 
@@ -128,6 +146,7 @@ def check(
     component: str | None = None,
     topic: str | None = None,
 ) -> Eligible | Ineligible:
+    """Eligibility of one action on one device. Every text in the result names the device by `display_hostname`."""
     try:
         device = repo.get_device(device_id)
     except NotFound:
@@ -174,12 +193,12 @@ def _ticket(
     return Eligible(
         "remediation_ticket",
         device.device_id,
-        device.hostname,
+        label(device),
         {"check_id": check_id, "severity": result.severity},
         refs,
         f"{check_id} reports fail with {result.severity} severity at the latest reading "
         f"({fmt_day(iso_z(latest.collected_at))}){since}.",
-        f"A {result.severity}-severity remediation ticket for {check_id} on {device.hostname} "
+        f"A {result.severity}-severity remediation ticket for {check_id} on {label(device)} "
         "would be opened (simulated)",
     )
 
@@ -211,12 +230,12 @@ def _replacement(repo: FleetRepository, as_of: datetime, device: Device) -> Elig
     return Eligible(
         "replacement_flag",
         device.device_id,
-        device.hostname,
+        label(device),
         {"reason": "battery_service_recommended"},
         refs,
         f"The last {len(run)} battery readings, from {fmt_day(iso_z(run[0].collected_at))} to "
         f"{fmt_day(iso_z(run[-1].collected_at))}, report the condition {SERVICE_RECOMMENDED}.",
-        f"{device.hostname} would be flagged for replacement because of its battery (simulated)",
+        f"{label(device)} would be flagged for replacement because of its battery (simulated)",
     )
 
 
@@ -274,13 +293,13 @@ def _upgrade(
     return Eligible(
         "upgrade_order",
         device.device_id,
-        device.hostname,
+        label(device),
         {"component": component, "current": current, "target": new},
         _cap(finding.refs),
         f"{rule[0].upper()}{rule[1:]} on {values['breached']} of {values['snapshots']} readings in "
         f"the last {days} days; the latest reading is {latest_text}. Current {component} size is "
         f"{current}.",
-        f"An order to upgrade {component} on {device.hostname} from {current} to {new} "
+        f"An order to upgrade {component} on {label(device)} from {current} to {new} "
         "would be placed (simulated)",
     )
 
@@ -345,15 +364,15 @@ def _notification(
         rationale = (
             f"The latest battery reading ({when}) reports the condition {SERVICE_RECOMMENDED}."
         )
-    message = notification_message(topic, device.hostname, facts)  # type: ignore[arg-type]
+    message = notification_message(topic, label(device), facts)  # type: ignore[arg-type]
     return Eligible(
         "employee_notification",
         device.device_id,
-        device.hostname,
+        label(device),
         {"topic": topic, "message": message},
         (ref,),
         rationale,
         f"A notification with the approved text would be sent to the employee assigned to "
-        f"{device.hostname} (simulated)",
+        f"{label(device)} (simulated)",
         employee_id=device.employee_id,
     )
