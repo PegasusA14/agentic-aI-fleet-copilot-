@@ -30,6 +30,7 @@ _EXPECT_KEYS = frozenset(
         "population",
         "proposal",
         "decisions",
+        "suggestions_include",
         *_BOOLEAN_KEYS,
         *_DEVICE_SET_KEYS,
     }
@@ -244,6 +245,8 @@ def _check_expect(expect: Any, *, last: bool) -> None:
                 raise ScenarioError(f"expect.population: {problem}")
         elif not isinstance(population, int) or isinstance(population, bool) or population < 0:
             raise ScenarioError("expect.population must be a whole number or a golden reference")
+    if "suggestions_include" in expect:
+        _check_suggestions(expect["suggestions_include"])
     for key in _BOOLEAN_KEYS:
         if key in expect and not isinstance(expect[key], bool):
             raise ScenarioError(f"expect.{key} must be true or false")
@@ -253,6 +256,31 @@ def _check_expect(expect: Any, *, last: bool) -> None:
         if not last:
             raise ScenarioError("decisions belong on the last turn of the case")
         _check_decisions(expect["decisions"])
+
+
+def _check_suggestions(items: Any) -> None:
+    where = "expect.suggestions_include"
+    if not isinstance(items, list) or not items:
+        raise ScenarioError(f"{where} must be a non-empty list of {{action_type, device}} objects")
+    for number, item in enumerate(items, 1):
+        if not isinstance(item, dict):
+            raise ScenarioError(f"{where} item {number} must be an object")
+        extra = sorted(set(item) - {"action_type", "device"})
+        if extra:
+            raise ScenarioError(f"{where} item {number} has unknown key {extra}")
+        if item.get("action_type") not in _ACTIONS:
+            raise ScenarioError(
+                f"{where} item {number}: action_type must be one of {sorted(_ACTIONS)}"
+            )
+        device = item.get("device")
+        if isinstance(device, dict):
+            problem = validate_ref(device)
+            if problem is not None:
+                raise ScenarioError(f"{where} item {number}: device {problem}")
+        elif not isinstance(device, str) or not device:
+            raise ScenarioError(
+                f"{where} item {number}: device must be a device id or a golden reference"
+            )
 
 
 def _check_proposal(card: Any) -> None:

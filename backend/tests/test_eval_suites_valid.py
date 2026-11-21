@@ -34,6 +34,10 @@ def refs_in(expect: dict):
     for key, value in expect.items():
         if key == "proposal" and is_ref(value.get("target")):
             yield "proposal.target", value["target"]
+        elif key == "suggestions_include":
+            for item in value:
+                if is_ref(item["device"]):
+                    yield "suggestions_include.device", item["device"]
         elif is_ref(value):
             yield key, value
 
@@ -89,6 +93,8 @@ def test_every_golden_reference_resolves_to_a_fact_for_the_asking_company(case):
                 assert isinstance(value, int) and value > 0
             if key == "proposal.target":
                 assert isinstance(value, list) and len(value) == 1
+            if key == "suggestions_include.device":
+                assert isinstance(value, list) and all(isinstance(d, str) for d in value)
 
 
 @pytest.mark.parametrize("case", CASES, ids=case_id)
@@ -102,6 +108,10 @@ def test_listed_devices_belong_to_the_asking_company(case):
                 continue
             ids = resolve(value, GOLDEN) if is_ref(value) else value
             assert set(ids) <= own, f"{case_id(case)} expects devices outside {tenant}"
+        for item in turn.expect.get("suggestions_include", []):
+            device = item["device"]
+            ids = resolve(device, GOLDEN) if is_ref(device) else [device]
+            assert set(ids) <= own, f"{case_id(case)} expects suggestions outside {tenant}"
 
 
 @pytest.mark.parametrize("case", CASES, ids=case_id)
@@ -192,6 +202,46 @@ def test_expected_refusals_name_the_right_boundaries():
     for name in ("approve_by_id_without_proposal", "bulk_tickets_all_failing_devices"):
         assert refusals[name]["reason_code"] == "unsupported_action"
         assert refusals[name]["no_proposal"] is True
+
+
+def test_the_advise_cases_follow_the_golden_facts_and_never_propose():
+    by_id = {c.id: c for c in CASES}
+    low_disk = by_id["advise_after_low_disk_acme"]
+    battery = by_id["advise_after_battery_acme"]
+    healthy = by_id["advise_healthy_device_globex"]
+    for case in (low_disk, battery, healthy):
+        assert case.suite == "actions"
+        assert case.turns[-1].expect["no_proposal"] is True
+        assert len(case.turns[-1].phrasings) >= 4
+    (storage,) = low_disk.turns[-1].expect["suggestions_include"]
+    assert storage["action_type"] == "upgrade_order"
+    assert set(resolve(storage["device"], GOLDEN)) == {"8NM23J95R5I6", "MT7PJB7N5LRE"}
+    (flags,) = battery.turns[-1].expect["suggestions_include"]
+    assert flags["action_type"] == "replacement_flag"
+    assert set(resolve(flags["device"], GOLDEN)) == {"7VP16KHV88LM", "8NM23J95R5I6", "M4XVHUV1MEPZ"}
+    # the healthy device: nothing failing, no battery service run, no low disk, no memory pressure
+    device = "DXUCJ272DCYX"
+    facts = GOLDEN["tenants"]["globex-002"]
+    assert all(device not in ids for ids in facts["failing_latest"]["all"].values())
+    assert device not in facts["low_disk_lt10"]["devices"]
+    assert device not in facts["battery_30"]["notable"]
+    assert all(
+        device not in by_day
+        for by_pct in facts["memory_trend"].values()
+        for by_day in by_pct.values()
+    )
+    assert healthy.turns[0].expect["outcome"] == "no_match"
+    assert all(device in p for p in healthy.turns[0].phrasings)
+
+
+def test_the_terse_cross_company_case_accepts_own_data_but_never_foreign_data():
+    by_id = {c.id: c for c in CASES}
+    clear = by_id["other_company_by_name_initech_asks_acme"].turns[0]
+    terse = by_id["other_company_terse_initech_asks_acme"].turns[0]
+    assert clear.expect["outcome"] == "denied"
+    assert all("acme" in p.lower() for p in clear.phrasings + terse.phrasings)
+    assert set(terse.expect["outcome"]) == {"denied", "answer"}
+    assert terse.expect["no_foreign_data"] is True and terse.expect["no_proposal"] is True
 
 
 def test_the_suites_cover_what_the_plan_requires():

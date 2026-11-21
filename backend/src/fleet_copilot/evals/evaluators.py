@@ -103,6 +103,25 @@ def check_devices_exclude(expected: Any, envelope: AnswerEnvelope) -> Check:
     return Check("devices_exclude", False, f"must not be listed but are: {_ids(present)}")
 
 
+def check_suggestions_include(expected: Any, envelope: AnswerEnvelope) -> Check:
+    """Every `{action_type, device}` pair must appear among the envelope's suggested actions."""
+    got = {(s.action_type, s.device_id) for s in envelope.suggested_actions}
+    want = [(item["action_type"], item["device"]) for item in expected]
+    missing = [f"{action} for {device}" for action, device in want if (action, device) not in got]
+    if not missing:
+        return Check("suggestions_include", True, f"all {len(want)} expected suggestions are made")
+    shown = (
+        ", ".join(f"{a} for {d}" for a, d in sorted(got)[:_SHOWN])
+        if got
+        else "no suggested actions"
+    )
+    return Check(
+        "suggestions_include",
+        False,
+        f"missing {', '.join(missing)}; the answer suggests {shown}",
+    )
+
+
 def check_population(expected: Any, envelope: AnswerEnvelope) -> Check:
     if envelope.coverage is None:
         return Check(
@@ -234,6 +253,7 @@ _KEYS = (
     "devices",
     "devices_include",
     "devices_exclude",
+    "suggestions_include",
     "population",
     "cites_every_device",
     "no_foreign_data",
@@ -264,7 +284,14 @@ def check_turn(
     if unknown:
         raise ValueError(f"unknown expect key {unknown}")
     for key, value in expect.items():
-        if _unresolved(value) or (key == "proposal" and _unresolved(value.get("target"))):
+        if (
+            _unresolved(value)
+            or (key == "proposal" and _unresolved(value.get("target")))
+            or (
+                key == "suggestions_include"
+                and any(_unresolved(item.get("device")) for item in value)
+            )
+        ):
             raise ValueError(f"expect.{key} still holds a golden reference; resolve it first")
     checks: list[Check] = []
     for key in _KEYS:
@@ -281,6 +308,8 @@ def check_turn(
             checks.append(check_devices_include(value, envelope))
         elif key == "devices_exclude":
             checks.append(check_devices_exclude(value, envelope))
+        elif key == "suggestions_include":
+            checks.append(check_suggestions_include(value, envelope))
         elif key == "population":
             checks.append(check_population(value, envelope))
         elif key == "proposal":

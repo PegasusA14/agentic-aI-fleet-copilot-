@@ -134,6 +134,16 @@ def resolve(ref: dict[str, Any], golden: dict[str, Any]) -> Any:
     return copy.deepcopy(value)
 
 
+def _suggestion_pairs(items: list[dict[str, Any]], golden: dict[str, Any]) -> list[dict[str, Any]]:
+    """One `{action_type, device}` pair per device a reference names, in the reference's order."""
+    pairs: list[dict[str, Any]] = []
+    for item in items:
+        device = item["device"]
+        devices = resolve(device, golden) if is_ref(device) else [device]
+        pairs.extend({"action_type": item["action_type"], "device": d} for d in devices)
+    return pairs
+
+
 def resolve_expect(expect: dict[str, Any], golden: dict[str, Any]) -> dict[str, Any]:
     """A copy of a turn's `expect` with every reference replaced by its value, ready for `check_turn`."""
     resolved: dict[str, Any] = {}
@@ -148,6 +158,8 @@ def resolve_expect(expect: dict[str, Any], golden: dict[str, Any]) -> dict[str, 
                     )
                 card["target"] = targets[0]
             resolved[key] = card
+        elif key == "suggestions_include":
+            resolved[key] = _suggestion_pairs(value, golden)
         elif is_ref(value):
             resolved[key] = resolve(value, golden)
         else:

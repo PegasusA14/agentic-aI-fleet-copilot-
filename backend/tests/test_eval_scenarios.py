@@ -129,6 +129,43 @@ def test_suites_load_in_a_stable_order_and_other_files_are_ignored(tmp_path):
             "keys",
         ),
         (lambda c: c["turns"][0].update(expect={"devices": {"devices": ["A"]}}), "source"),
+        (lambda c: c["turns"][0].update(expect={"suggestions_include": []}), "suggestions_include"),
+        (
+            lambda c: c["turns"][0].update(expect={"suggestions_include": "A"}),
+            "suggestions_include",
+        ),
+        (
+            lambda c: c["turns"][0].update(
+                expect={"suggestions_include": [{"action_type": "nope", "device": "A"}]}
+            ),
+            "action_type",
+        ),
+        (
+            lambda c: c["turns"][0].update(
+                expect={"suggestions_include": [{"action_type": "upgrade_order"}]}
+            ),
+            "device",
+        ),
+        (
+            lambda c: c["turns"][0].update(
+                expect={
+                    "suggestions_include": [
+                        {"action_type": "upgrade_order", "device": "A", "extra": 1}
+                    ]
+                }
+            ),
+            "extra",
+        ),
+        (
+            lambda c: c["turns"][0].update(
+                expect={
+                    "suggestions_include": [
+                        {"action_type": "upgrade_order", "device": {"golden": "acme-001"}}
+                    ]
+                }
+            ),
+            "golden",
+        ),
     ],
 )
 def test_malformed_cases_are_rejected_naming_the_file_and_the_case(tmp_path, mutation, needle):
@@ -304,6 +341,25 @@ def test_resolve_expect_replaces_every_reference_and_leaves_other_values_alone()
     assert resolved["cites_every_device"] is True
     assert resolved["outcome"] == "answer"
     assert expect["devices"] == {"golden": "acme-001/low_disk_lt10/devices"}  # input untouched
+
+
+def test_resolve_expect_expands_a_suggestion_device_reference_into_one_pair_per_device():
+    expect = {
+        "suggestions_include": [
+            {
+                "action_type": "upgrade_order",
+                "device": {"golden": "acme-001/disk_trend_lt10/7", "keys_where": "sustained"},
+            },
+            {"action_type": "replacement_flag", "device": "Z"},
+        ]
+    }
+    resolved = resolve_expect(expect, GOLDEN)
+    assert resolved["suggestions_include"] == [
+        {"action_type": "upgrade_order", "device": "A"},
+        {"action_type": "upgrade_order", "device": "C"},
+        {"action_type": "replacement_flag", "device": "Z"},
+    ]
+    assert isinstance(expect["suggestions_include"][0]["device"], dict)  # input untouched
 
 
 def test_a_proposal_target_reference_must_resolve_to_exactly_one_device():

@@ -365,6 +365,110 @@
           }
         }
       ]
+    },
+    {
+      "id": "advise_after_low_disk_acme",
+      "user": "admin-acme",
+      "turns": [
+        {
+          "say": "Which devices are low on disk space?",
+          "expect": {
+            "outcome": "answer",
+            "devices": {
+              "golden": "acme-001/low_disk_lt10/devices"
+            },
+            "cites_every_device": true,
+            "no_foreign_data": true
+          }
+        },
+        {
+          "say": [
+            "so what should I do?",
+            "any recommendations?",
+            "how do I fix these",
+            "what are my options here",
+            "What would you suggest I do about those?"
+          ],
+          "expect": {
+            "outcome": "answer",
+            "suggestions_include": [
+              {
+                "action_type": "upgrade_order",
+                "device": {
+                  "golden": "acme-001/disk_trend_lt10/7",
+                  "keys_where": "sustained"
+                }
+              }
+            ],
+            "cites_every_device": true,
+            "no_foreign_data": true,
+            "no_proposal": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "advise_after_battery_acme",
+      "user": "admin-acme",
+      "turns": [
+        {
+          "say": "Which laptops show signs of battery wear?",
+          "expect": {
+            "outcome": "answer",
+            "devices_include": {
+              "golden": "acme-001/battery_30/notable",
+              "keys": true
+            },
+            "no_foreign_data": true
+          }
+        },
+        {
+          "say": [
+            "so what should I do?",
+            "any recommendations?",
+            "how do I fix these",
+            "what are my options here",
+            "What would you suggest I do about those?"
+          ],
+          "expect": {
+            "outcome": "answer",
+            "suggestions_include": [
+              {
+                "action_type": "replacement_flag",
+                "device": {
+                  "golden": "acme-001/battery_30/notable",
+                  "keys": true
+                }
+              }
+            ],
+            "cites_every_device": true,
+            "no_foreign_data": true,
+            "no_proposal": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "advise_healthy_device_globex",
+      "user": "admin-globex",
+      "turns": [
+        {
+          "say": [
+            "What should I do about DXUCJ272DCYX?",
+            "any recommendations for DXUCJ272DCYX?",
+            "how do I fix DXUCJ272DCYX",
+            "what are my options for DXUCJ272DCYX?",
+            "so what would you suggest for device DXUCJ272DCYX?"
+          ],
+          "expect": {
+            "outcome": "no_match",
+            "reason_code": "no_matching_records",
+            "devices": [],
+            "no_proposal": true,
+            "no_foreign_data": true
+          }
+        }
+      ]
     }
   ]
 }

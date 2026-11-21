@@ -89,6 +89,37 @@ def proposal_envelope(action="remediation_ticket", target="A", status="pending")
     )
 
 
+def advice(*pairs):
+    """An answer that suggests actions: `pairs` are (action_type, device_id)."""
+    devices = list(dict.fromkeys(d for _, d in pairs))
+    evidence = [{"ref": ref(d), "label": "x", "value": "y"} for d in devices]
+    return AnswerEnvelope.model_validate(
+        {
+            "outcome": "answer",
+            "trace_id": "t4",
+            "headline": "Suggestions",
+            "claims": [
+                {"text": f"reason {d}", "refs": [ref(d)], "count": 1, "device_ids": [d]}
+                for d in devices
+            ],
+            "evidence": evidence,
+            "scope": {"company_id": TENANT, "as_of": "2026-06-12T09:00:00Z"},
+            "suggested_actions": [
+                {
+                    "action_type": action,
+                    "device_id": d,
+                    "target_label": f"host-{d}",
+                    "label": f"Do {action}",
+                    "reason": "because",
+                    "request": f"Do {action} on host-{d}",
+                    "refs": [ref(d)],
+                }
+                for action, d in pairs
+            ],
+        }
+    )
+
+
 def event(seq=0, kind="respond", summary="done", data=None, tool=None):
     return TraceEvent(
         trace_id="t1", seq=seq, kind=kind, summary=summary, data=data or {}, tool=tool
@@ -207,6 +238,57 @@ def test_devices_include_and_exclude():
     assert run({"devices_exclude": ["Z"]}, envelope)[0].passed
     hit = run({"devices_exclude": ["B"]}, envelope)[0]
     assert not hit.passed and "B" in hit.detail
+
+
+# --- suggestions -------------------------------------------------------------------------------------
+
+
+def test_suggestions_include_passes_when_every_pair_is_suggested():
+    envelope = advice(("upgrade_order", "A"), ("upgrade_order", "B"), ("replacement_flag", "A"))
+    expect = {
+        "suggestions_include": [
+            {"action_type": "upgrade_order", "device": "A"},
+            {"action_type": "upgrade_order", "device": "B"},
+        ]
+    }
+    check = run(expect, envelope)[0]
+    assert check.name == "suggestions_include" and check.passed
+
+
+def test_suggestions_include_needs_the_action_type_and_the_device_together():
+    envelope = advice(("upgrade_order", "A"), ("replacement_flag", "B"))
+    check = run(
+        {
+            "suggestions_include": [
+                {"action_type": "upgrade_order", "device": "B"},
+                {"action_type": "replacement_flag", "device": "A"},
+                {"action_type": "upgrade_order", "device": "A"},
+            ]
+        },
+        envelope,
+    )[0]
+    assert not check.passed
+    missing = check.detail.split(";")[0]
+    assert "upgrade_order for B" in missing and "replacement_flag for A" in missing
+    assert "upgrade_order for A" not in missing
+
+
+def test_suggestions_include_fails_readably_when_nothing_is_suggested():
+    check = run(
+        {"suggestions_include": [{"action_type": "upgrade_order", "device": "A"}]}, answer()
+    )[0]
+    assert not check.passed and "upgrade_order for A" in check.detail
+    assert "no suggested actions" in check.detail
+
+
+def test_suggestions_include_may_not_hold_a_golden_reference_unresolved():
+    expect = {
+        "suggestions_include": [
+            {"action_type": "upgrade_order", "device": {"golden": "acme-001/x/devices"}}
+        ]
+    }
+    with pytest.raises(ValueError, match="golden"):
+        run(expect, advice(("upgrade_order", "A")))
 
 
 # --- population --------------------------------------------------------------------------------------
