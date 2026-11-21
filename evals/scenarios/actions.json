@@ -1,0 +1,370 @@
+{
+  "suite": "actions",
+  "cases": [
+    {
+      "id": "ticket_screen_lock_1lyssfd074bb",
+      "user": "admin-acme",
+      "turns": [
+        {
+          "say": [
+            "Open a remediation ticket for 1LYSSFD074BB's screen lock check",
+            "ticket for 1LYSSFD074BB screen lock pls",
+            "Can you raise a remediation ticket for device 1LYSSFD074BB because its screen lock check is failing?",
+            "creat a ticket on 1LYSSFD074BB re: screen lock",
+            "1LYSSFD074BB keeps failing the screen lock compliance check. Please file a ticket so someone fixes it."
+          ],
+          "expect": {
+            "outcome": "proposal",
+            "proposal": {
+              "action_type": "remediation_ticket",
+              "target": "1LYSSFD074BB",
+              "status": "pending"
+            },
+            "no_foreign_data": true,
+            "decisions": [
+              {
+                "do": "approve",
+                "expect": {
+                  "status": "executed",
+                  "duplicate": false,
+                  "effects_delta": {
+                    "tickets": 1
+                  }
+                }
+              },
+              {
+                "do": "approve_again",
+                "expect": {
+                  "status": "executed",
+                  "duplicate": true,
+                  "effects_delta": {}
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "ticket_screen_lock_jrzsgxvmke6m_globex",
+      "user": "admin-globex",
+      "turns": [
+        {
+          "say": [
+            "Open a ticket for JRZSGXVMKE6M, its screen lock check is failing",
+            "remediation ticket JRZSGXVMKE6M screen lock",
+            "Please log a remediation ticket against device JRZSGXVMKE6M for the failing screen lock compliance check",
+            "raise a tiket for JRZSGXVMKE6M screenlock"
+          ],
+          "expect": {
+            "outcome": "proposal",
+            "proposal": {
+              "action_type": "remediation_ticket",
+              "target": "JRZSGXVMKE6M",
+              "status": "pending"
+            },
+            "no_foreign_data": true,
+            "decisions": [
+              {
+                "do": "approve",
+                "expect": {
+                  "status": "executed",
+                  "duplicate": false,
+                  "effects_delta": {
+                    "tickets": 1
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "replacement_flag_8nm23j95r5i6",
+      "user": "admin-acme",
+      "turns": [
+        {
+          "say": [
+            "Flag 8NM23J95R5I6 for replacement because of its battery",
+            "mark 8NM23J95R5I6 for replacement",
+            "The battery on 8NM23J95R5I6 is worn out. Please flag that laptop for replacement.",
+            "flg 8NM23J95R5I6 for repalcement",
+            "I want to put device 8NM23J95R5I6 on the replacement list, its battery keeps reporting Service Recommended"
+          ],
+          "expect": {
+            "outcome": "proposal",
+            "proposal": {
+              "action_type": "replacement_flag",
+              "target": "8NM23J95R5I6",
+              "status": "pending"
+            },
+            "no_foreign_data": true,
+            "decisions": [
+              {
+                "do": "approve_wrong_hash",
+                "expect": {
+                  "error": "proposal changed",
+                  "effects_delta": {}
+                }
+              },
+              {
+                "do": "reject",
+                "expect": {
+                  "status": "rejected",
+                  "effects_delta": {}
+                }
+              },
+              {
+                "do": "approve_again",
+                "expect": {
+                  "error": "proposal is rejected",
+                  "effects_delta": {}
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "replacement_flag_approved_m4xvhuv1mepz",
+      "user": "admin-acme",
+      "turns": [
+        {
+          "say": [
+            "Flag M4XVHUV1MEPZ for replacement, the battery needs service",
+            "replacement flag for M4XVHUV1MEPZ",
+            "Could you mark the laptop M4XVHUV1MEPZ to be replaced? Its battery has been reporting Service Recommended for weeks.",
+            "pleas flag M4XVHUV1MEPZ for repalcement"
+          ],
+          "expect": {
+            "outcome": "proposal",
+            "proposal": {
+              "action_type": "replacement_flag",
+              "target": "M4XVHUV1MEPZ",
+              "status": "pending"
+            },
+            "no_foreign_data": true,
+            "decisions": [
+              {
+                "do": "approve",
+                "expect": {
+                  "status": "executed",
+                  "duplicate": false,
+                  "effects_delta": {
+                    "replacement_flags": 1
+                  }
+                }
+              },
+              {
+                "do": "approve_again",
+                "expect": {
+                  "status": "executed",
+                  "duplicate": true,
+                  "effects_delta": {}
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "memory_upgrade_m4xvhuv1mepz",
+      "user": "admin-acme",
+      "turns": [
+        {
+          "say": [
+            "Order a memory upgrade for M4XVHUV1MEPZ",
+            "M4XVHUV1MEPZ needs more RAM, can you order an upgrade?",
+            "double the memory on M4XVHUV1MEPZ (16 GB to 32 GB)",
+            "upgrde ram on M4XVHUV1MEPZ",
+            "Place an order to bring M4XVHUV1MEPZ up to 32 GB of memory, it has been above 85 percent all week"
+          ],
+          "expect": {
+            "outcome": "proposal",
+            "proposal": {
+              "action_type": "upgrade_order",
+              "target": "M4XVHUV1MEPZ",
+              "status": "pending"
+            },
+            "no_foreign_data": true,
+            "decisions": [
+              {
+                "do": "approve",
+                "expect": {
+                  "status": "executed",
+                  "duplicate": false,
+                  "effects_delta": {
+                    "upgrade_orders": 1
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "storage_upgrade_mt7pjb7n5lre",
+      "user": "admin-acme",
+      "turns": [
+        {
+          "say": [
+            "Order a storage upgrade for MT7PJB7N5LRE",
+            "MT7PJB7N5LRE is out of room, upgrade its SSD to 1 TB",
+            "bigger drive for MT7PJB7N5LRE pls",
+            "Can we get a disk upgrade ordered for MT7PJB7N5LRE? 512 GB isn't enough anymore.",
+            "order more storage for device MT7PJB7N5LRE"
+          ],
+          "expect": {
+            "outcome": "proposal",
+            "proposal": {
+              "action_type": "upgrade_order",
+              "target": "MT7PJB7N5LRE",
+              "status": "pending"
+            },
+            "no_foreign_data": true,
+            "decisions": [
+              {
+                "do": "approve",
+                "expect": {
+                  "status": "executed",
+                  "duplicate": false,
+                  "effects_delta": {
+                    "upgrade_orders": 1
+                  }
+                }
+              },
+              {
+                "do": "approve_again",
+                "expect": {
+                  "status": "executed",
+                  "duplicate": true,
+                  "effects_delta": {}
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "notify_low_disk_mt7pjb7n5lre",
+      "user": "admin-acme",
+      "turns": [
+        {
+          "say": [
+            "Notify the employee on MT7PJB7N5LRE that their disk is almost full",
+            "tell the user of MT7PJB7N5LRE they are low on disk space",
+            "Send a low disk notification for MT7PJB7N5LRE",
+            "let whoever uses MT7PJB7N5LRE know their drive is nearly full",
+            "notfy the employee of MT7PJB7N5LRE about low disk"
+          ],
+          "expect": {
+            "outcome": "proposal",
+            "proposal": {
+              "action_type": "employee_notification",
+              "target": "MT7PJB7N5LRE",
+              "status": "pending"
+            },
+            "no_foreign_data": true,
+            "decisions": [
+              {
+                "do": "approve",
+                "expect": {
+                  "status": "executed",
+                  "duplicate": false,
+                  "effects_delta": {
+                    "employee_notifications": 1
+                  }
+                }
+              }
+            ]
+          }
+        }
+      ]
+    },
+    {
+      "id": "ineligible_ticket_disk_encryption_passing",
+      "user": "admin-acme",
+      "turns": [
+        {
+          "say": [
+            "Open a ticket for 1LYSSFD074BB's disk encryption check",
+            "ticket for disk encryption on 1LYSSFD074BB",
+            "Please raise a remediation ticket for the disk encryption compliance problem on 1LYSSFD074BB",
+            "creat a tiket 1LYSSFD074BB disk encrypton"
+          ],
+          "expect": {
+            "outcome": "denied",
+            "reason_code": "not_eligible",
+            "no_proposal": true,
+            "no_foreign_data": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "ineligible_replacement_no_service_run",
+      "user": "admin-acme",
+      "turns": [
+        {
+          "say": [
+            "Flag 1LYSSFD074BB for replacement because of its battery",
+            "replacement flag 1LYSSFD074BB",
+            "I think the battery on 1LYSSFD074BB is dying, please mark it for replacement",
+            "flg 1LYSSFD074BB for repalcement"
+          ],
+          "expect": {
+            "outcome": "denied",
+            "reason_code": "not_eligible",
+            "no_proposal": true,
+            "no_foreign_data": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "ineligible_memory_upgrade_no_pressure",
+      "user": "admin-acme",
+      "turns": [
+        {
+          "say": [
+            "Order a memory upgrade for DLT35MHGTH2D",
+            "more RAM for DLT35MHGTH2D",
+            "Can you place an order to upgrade the memory on DLT35MHGTH2D?",
+            "upgrde the ram on DLT35MHGTH2D"
+          ],
+          "expect": {
+            "outcome": "denied",
+            "reason_code": "not_eligible",
+            "no_proposal": true,
+            "no_foreign_data": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "ineligible_notify_low_disk_plenty_free",
+      "user": "admin-acme",
+      "turns": [
+        {
+          "say": [
+            "Notify the employee on 7VP16KHV88LM that their disk is almost full",
+            "send a low disk notification for 7VP16KHV88LM",
+            "Please tell whoever uses 7VP16KHV88LM that they are running low on disk space",
+            "notfy user of 7VP16KHV88LM low disk"
+          ],
+          "expect": {
+            "outcome": "denied",
+            "reason_code": "not_eligible",
+            "no_proposal": true,
+            "no_foreign_data": true
+          }
+        }
+      ]
+    }
+  ]
+}

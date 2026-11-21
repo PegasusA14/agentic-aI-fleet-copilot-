@@ -1,0 +1,442 @@
+{
+  "suite": "trends",
+  "cases": [
+    {
+      "id": "memory_sustained_week_acme",
+      "user": "admin-acme",
+      "turns": [
+        {
+          "say": [
+            "Which devices have had sustained high memory use over the past week?",
+            "memory pressure all week?",
+            "wich machines have been runing hot on memory for the last 7 days",
+            "Find the devices where memory use has stayed at or above 85 percent for most of the last seven days, not just a one-off spike",
+            "Is any computer constantly short on RAM lately?"
+          ],
+          "expect": {
+            "outcome": "answer",
+            "devices": {
+              "golden": "acme-001/memory_trend/85/7",
+              "keys_where": "sustained"
+            },
+            "cites_every_device": true,
+            "no_foreign_data": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "memory_sustained_week_initech",
+      "user": "admin-initech",
+      "turns": [
+        {
+          "say": [
+            "Which computers have been under constant memory pressure this week?",
+            "sustained memory use, last 7 days",
+            "Show me devices whose RAM usage has been high for most of the past week",
+            "wich pcs r always low on memory"
+          ],
+          "expect": {
+            "outcome": "answer",
+            "devices": {
+              "golden": "initech-003/memory_trend/85/7",
+              "keys_where": "sustained"
+            },
+            "cites_every_device": true,
+            "no_foreign_data": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "memory_transient_vs_sustained_globex",
+      "user": "admin-globex",
+      "turns": [
+        {
+          "say": [
+            "Which devices have had sustained high memory use over the past week?",
+            "memory pressure this week, which machines?",
+            "Is anything constantly running out of memory, as opposed to a brief spike, in the last 7 days?",
+            "wich laptops hav been maxing out ther ram for the last week",
+            "Look at memory use over the past seven days and tell me which devices are in trouble"
+          ],
+          "expect": {
+            "outcome": "answer",
+            "devices": {
+              "golden": "globex-002/memory_trend/85/7",
+              "keys": true
+            },
+            "devices_include": {
+              "golden": "globex-002/memory_trend/85/7",
+              "keys_where": "sustained"
+            },
+            "cites_every_device": true,
+            "no_foreign_data": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "disk_sustained_week_acme",
+      "user": "admin-acme",
+      "turns": [
+        {
+          "say": [
+            "Which devices have been low on disk space all week?",
+            "consistently low disk, last 7 days",
+            "wich pcs have had almost no free space for the whole week",
+            "Show devices whose free disk space stayed under 10% across the last week, not only today",
+            "Has any machine been short on storage for the past several days?"
+          ],
+          "expect": {
+            "outcome": "answer",
+            "devices": {
+              "golden": "acme-001/disk_trend_lt10/7",
+              "keys_where": "sustained"
+            },
+            "cites_every_device": true,
+            "no_foreign_data": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "disk_sustained_week_globex",
+      "user": "admin-globex",
+      "turns": [
+        {
+          "say": [
+            "Which machines have had low free disk space throughout the past week?",
+            "disk low for 7 days straight?",
+            "Which devices have been persistently almost full over the last seven days?",
+            "wich computrs r constantly out of disk space this week"
+          ],
+          "expect": {
+            "outcome": "answer",
+            "devices": {
+              "golden": "globex-002/disk_trend_lt10/7",
+              "keys_where": "sustained"
+            },
+            "cites_every_device": true,
+            "no_foreign_data": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "disk_sustained_week_initech",
+      "user": "admin-initech",
+      "turns": [
+        {
+          "say": [
+            "Are any devices consistently low on storage over the last week?",
+            "sustained low disk 7d",
+            "Show every computer whose drive has stayed under ten percent free for the whole of the past week",
+            "wich devces hav had no space left all week"
+          ],
+          "expect": {
+            "outcome": "answer",
+            "devices": {
+              "golden": "initech-003/disk_trend_lt10/7",
+              "keys_where": "sustained"
+            },
+            "cites_every_device": true,
+            "no_foreign_data": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "screen_lock_new_failures_acme",
+      "user": "admin-acme",
+      "turns": [
+        {
+          "say": [
+            "Which devices started failing the screen lock check recently?",
+            "new screen lock failures this month?",
+            "wich laptops stopped passing screen lock in the last 30 days",
+            "Has the screen lock check changed from pass to fail on any device over the past month? List them.",
+            "what has newly gone non-compliant on screen lock lately"
+          ],
+          "expect": {
+            "outcome": "answer",
+            "devices": {
+              "golden": "acme-001/compliance_trend/screen_lock/30",
+              "keys_where": "transition"
+            },
+            "cites_every_device": true,
+            "no_foreign_data": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "screen_lock_new_failures_globex",
+      "user": "admin-globex",
+      "turns": [
+        {
+          "say": [
+            "Which devices have newly started failing screen lock?",
+            "screen lock regressions in the last month",
+            "Show me the computers that used to pass the screen lock check but fail it now",
+            "wich machnes r newly failing screenlock"
+          ],
+          "expect": {
+            "outcome": "answer",
+            "devices": {
+              "golden": "globex-002/compliance_trend/screen_lock/30",
+              "keys_where": "transition"
+            },
+            "cites_every_device": true,
+            "no_foreign_data": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "screen_lock_new_failures_initech",
+      "user": "admin-initech",
+      "turns": [
+        {
+          "say": [
+            "Did any device start failing the screen lock compliance check in the past 30 days?",
+            "recent screen lock failures",
+            "Which computers flipped from passing to failing screen lock this month?",
+            "new screnlock fails?"
+          ],
+          "expect": {
+            "outcome": "answer",
+            "devices": {
+              "golden": "initech-003/compliance_trend/screen_lock/30",
+              "keys_where": "transition"
+            },
+            "cites_every_device": true,
+            "no_foreign_data": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "os_update_persistent_acme",
+      "user": "admin-acme",
+      "turns": [
+        {
+          "say": [
+            "Which devices have been failing the OS update check the whole month?",
+            "persistently out of date OS over 30 days?",
+            "wich machines have never passed the os update compliance in the last month",
+            "List the devices that failed the operating system up-to-date check on every report over the past 30 days",
+            "who has been behind on OS updates for as long as we have data this month"
+          ],
+          "expect": {
+            "outcome": "answer",
+            "devices": {
+              "golden": "acme-001/compliance_trend/os_up_to_date/30",
+              "keys_where": "persistent_failure"
+            },
+            "cites_every_device": true,
+            "no_foreign_data": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "os_update_persistent_initech",
+      "user": "admin-initech",
+      "turns": [
+        {
+          "say": [
+            "Which computers have been behind on OS updates for the entire last month?",
+            "os update failing 30 days straight?",
+            "Show me the devices that have never passed the OS up to date check in the past thirty days",
+            "wich pcs r permanantly out of date on os"
+          ],
+          "expect": {
+            "outcome": "answer",
+            "devices": {
+              "golden": "initech-003/compliance_trend/os_up_to_date/30",
+              "keys_where": "persistent_failure"
+            },
+            "cites_every_device": true,
+            "no_foreign_data": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "battery_signals_acme",
+      "user": "admin-acme",
+      "turns": [
+        {
+          "say": [
+            "Which laptops show signs of battery wear?",
+            "battery health issues?",
+            "wich laptops have a batery that the vendor says needs service",
+            "Show laptops whose battery capacity has declined, or whose condition is flagged Service Recommended, over the past month",
+            "Are any batteries on their way out?"
+          ],
+          "expect": {
+            "outcome": "answer",
+            "devices": {
+              "golden": "acme-001/battery_30/notable",
+              "keys": true
+            },
+            "cites_every_device": true,
+            "no_foreign_data": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "battery_signals_globex",
+      "user": "admin-globex",
+      "turns": [
+        {
+          "say": [
+            "Any laptops with battery problems?",
+            "battery wear in the last month?",
+            "Do any of our laptops have a battery the vendor flags as needing service, or a falling capacity?",
+            "wich batterys r goin bad"
+          ],
+          "expect": {
+            "outcome": "no_match",
+            "reason_code": "no_matching_records",
+            "devices": {
+              "golden": "globex-002/battery_30/notable",
+              "keys": true
+            },
+            "no_foreign_data": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "new_software_30_days_acme",
+      "user": "admin-acme",
+      "turns": [
+        {
+          "say": [
+            "What new software has been installed recently?",
+            "new apps in the last month?",
+            "wat new sofware got installed on our machines in the past 30 days",
+            "List every application that first showed up on a device within the last thirty days",
+            "Has anyone installed anything new lately?"
+          ],
+          "expect": {
+            "outcome": "answer",
+            "devices": {
+              "golden": "acme-001/software/new_installs/30",
+              "pluck": "device_id"
+            },
+            "cites_every_device": true,
+            "no_foreign_data": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "new_software_30_days_initech",
+      "user": "admin-initech",
+      "turns": [
+        {
+          "say": [
+            "Which devices have new software installed in the last 30 days?",
+            "recently installed apps",
+            "Show me anything that was installed on our computers over the past month that wasn't there before",
+            "new aps on the machines this month?"
+          ],
+          "expect": {
+            "outcome": "answer",
+            "devices": {
+              "golden": "initech-003/software/new_installs/30",
+              "pluck": "device_id"
+            },
+            "cites_every_device": true,
+            "no_foreign_data": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "new_software_7_days_acme",
+      "user": "admin-acme",
+      "turns": [
+        {
+          "say": [
+            "Has any new software been installed in the last 7 days?",
+            "new apps this week?",
+            "Were any applications added to any device over the past seven days?",
+            "anything new installd in the past week"
+          ],
+          "expect": {
+            "outcome": "no_match",
+            "reason_code": "no_matching_records",
+            "devices": {
+              "golden": "acme-001/software/new_installs/7",
+              "pluck": "device_id"
+            },
+            "no_foreign_data": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "new_software_7_days_globex",
+      "user": "admin-globex",
+      "turns": [
+        {
+          "say": [
+            "Was any new software installed this past week?",
+            "new software last 7 days",
+            "Check whether any apps appeared on our devices in the last week",
+            "wats been installed new in the last 7 days"
+          ],
+          "expect": {
+            "outcome": "no_match",
+            "reason_code": "no_matching_records",
+            "devices": {
+              "golden": "globex-002/software/new_installs/7",
+              "pluck": "device_id"
+            },
+            "no_foreign_data": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "low_disk_then_all_week_acme",
+      "user": "admin-acme",
+      "turns": [
+        {
+          "say": "Which devices are low on disk space?",
+          "expect": {
+            "outcome": "answer",
+            "devices": {
+              "golden": "acme-001/low_disk_lt10/devices"
+            },
+            "cites_every_device": true,
+            "no_foreign_data": true
+          }
+        },
+        {
+          "say": [
+            "Which of those have been low all week?",
+            "and which of them stayed that way for the whole last 7 days?",
+            "of those, any consistently low over the past week",
+            "whch ones r low consistantly this week",
+            "Out of that list, which have had under 10% free for the entire past week?"
+          ],
+          "expect": {
+            "outcome": "answer",
+            "devices": {
+              "golden": "acme-001/disk_trend_lt10/7",
+              "keys_where": "sustained"
+            },
+            "cites_every_device": true,
+            "no_foreign_data": true
+          }
+        }
+      ]
+    }
+  ]
+}

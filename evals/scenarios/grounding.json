@@ -1,0 +1,367 @@
+{
+  "suite": "grounding",
+  "cases": [
+    {
+      "id": "low_disk_acme",
+      "user": "admin-acme",
+      "turns": [
+        {
+          "say": [
+            "Which devices are low on disk space?",
+            "low disk?",
+            "wich machnes r almost out of disk space",
+            "List every device whose primary volume has less than ten percent free space at the latest reading",
+            "Are any of our computers running out of storage?"
+          ],
+          "expect": {
+            "outcome": "answer",
+            "devices": {
+              "golden": "acme-001/low_disk_lt10/devices"
+            },
+            "cites_every_device": true,
+            "no_foreign_data": true,
+            "population": {
+              "golden": "acme-001/low_disk_lt10/population"
+            },
+            "prose_verified": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "low_disk_globex",
+      "user": "admin-globex",
+      "turns": [
+        {
+          "say": [
+            "Which of our machines are short on disk space?",
+            "disk space problems?",
+            "Any laptops whose drive is nearly full? Under 10% free is what I care about.",
+            "whcih devcies have no storage left",
+            "Give me the list of computers that are running low on free disk"
+          ],
+          "expect": {
+            "outcome": "answer",
+            "devices": {
+              "golden": "globex-002/low_disk_lt10/devices"
+            },
+            "cites_every_device": true,
+            "no_foreign_data": true,
+            "population": {
+              "golden": "globex-002/low_disk_lt10/population"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "low_disk_initech",
+      "user": "admin-initech",
+      "turns": [
+        {
+          "say": [
+            "Show devices with low free disk space",
+            "low storage devices",
+            "I need to know which computers have less than 10 percent of their disk free, please list them",
+            "wich pcs r runnin out of space on the hard drive",
+            "Which systems have almost no free storage left?"
+          ],
+          "expect": {
+            "outcome": "answer",
+            "devices": {
+              "golden": "initech-003/low_disk_lt10/devices"
+            },
+            "cites_every_device": true,
+            "no_foreign_data": true,
+            "population": {
+              "golden": "initech-003/low_disk_lt10/population"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "macos_older_than_15_acme",
+      "user": "admin-acme",
+      "turns": [
+        {
+          "say": [
+            "Which Macs are running an older macOS than 15?",
+            "macOS below 15?",
+            "wich macs havent upgraded to macOS 15 yet",
+            "List every Apple computer that is still on a macOS version older than 15, and leave out the Windows machines",
+            "Are there any devices on macOS 14 or earlier?"
+          ],
+          "expect": {
+            "outcome": "answer",
+            "devices": {
+              "golden": "acme-001/macos_below_15/devices"
+            },
+            "cites_every_device": true,
+            "no_foreign_data": true,
+            "population": {
+              "golden": "acme-001/macos_below_15/population"
+            },
+            "devices_exclude": {
+              "golden": "acme-001/macos_below_15/out_of_scope"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "macos_older_than_15_initech",
+      "user": "admin-initech",
+      "turns": [
+        {
+          "say": [
+            "Which of our Macs still need the macOS 15 update?",
+            "old macOS versions?",
+            "show me all macs that arent on macOS 15 or newer",
+            "How many Apple computers are behind macOS 15, and which ones are they?",
+            "wich devces r still on macos 14 or 13"
+          ],
+          "expect": {
+            "outcome": "answer",
+            "devices": {
+              "golden": "initech-003/macos_below_15/devices"
+            },
+            "cites_every_device": true,
+            "no_foreign_data": true,
+            "population": {
+              "golden": "initech-003/macos_below_15/population"
+            },
+            "devices_exclude": {
+              "golden": "initech-003/macos_below_15/out_of_scope"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "id": "high_severity_laptop_failures_acme",
+      "user": "admin-acme",
+      "turns": [
+        {
+          "say": [
+            "Do any laptops have high-severity compliance failures?",
+            "high severity failures on laptops?",
+            "Are there laptops failing any compliance check rated high severity right now?",
+            "wich laptops fail a high sev compliance rule",
+            "Show me every laptop that is out of compliance on a high-severity check"
+          ],
+          "expect": {
+            "outcome": "no_match",
+            "reason_code": "no_matching_records",
+            "devices": {
+              "golden": "acme-001/failing_high_severity/laptop"
+            },
+            "no_foreign_data": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "high_severity_laptop_failures_globex",
+      "user": "admin-globex",
+      "turns": [
+        {
+          "say": [
+            "Any laptops failing high-severity compliance checks?",
+            "high severity laptop compliance problems",
+            "I want a list of notebooks that currently fail a compliance check with high severity",
+            "laptops w/ high-severity fails?"
+          ],
+          "expect": {
+            "outcome": "no_match",
+            "reason_code": "no_matching_records",
+            "devices": {
+              "golden": "globex-002/failing_high_severity/laptop"
+            },
+            "no_foreign_data": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "os_update_failing_acme",
+      "user": "admin-acme",
+      "turns": [
+        {
+          "say": [
+            "Which devices are failing the OS update compliance check?",
+            "os update failures?",
+            "Show every device that is behind on operating system updates according to the compliance check right now",
+            "wich computers fail the os up to date check",
+            "Who is out of date on their OS at the moment?"
+          ],
+          "expect": {
+            "outcome": "answer",
+            "devices": {
+              "golden": "acme-001/failing_latest/all/os_up_to_date"
+            },
+            "cites_every_device": true,
+            "no_foreign_data": true,
+            "prose_verified": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "os_update_failing_initech",
+      "user": "admin-initech",
+      "turns": [
+        {
+          "say": [
+            "Which devices currently fail the OS up to date check?",
+            "devices not on the latest OS (compliance)",
+            "List every computer where the operating system update check is failing in the latest report",
+            "wich pcs r behind on os updates"
+          ],
+          "expect": {
+            "outcome": "answer",
+            "devices": {
+              "golden": "initech-003/failing_latest/all/os_up_to_date"
+            },
+            "cites_every_device": true,
+            "no_foreign_data": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "screen_lock_failing_acme",
+      "user": "admin-acme",
+      "turns": [
+        {
+          "say": [
+            "Which devices fail the screen lock check right now?",
+            "screen lock failures",
+            "Who doesn't have screen lock set up properly at the moment?",
+            "wich machnes r failing the screenlock compliance check",
+            "List all the devices where screen lock is currently non-compliant"
+          ],
+          "expect": {
+            "outcome": "answer",
+            "devices": {
+              "golden": "acme-001/failing_latest/all/screen_lock"
+            },
+            "cites_every_device": true,
+            "no_foreign_data": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "screen_lock_failing_globex",
+      "user": "admin-globex",
+      "turns": [
+        {
+          "say": [
+            "Which devices are failing the screen lock check at the moment?",
+            "screen lock compliance failures?",
+            "Show me the computers where the screen lock policy is not being met in the latest report",
+            "whcih laptops dont pass screen lock"
+          ],
+          "expect": {
+            "outcome": "answer",
+            "devices": {
+              "golden": "globex-002/failing_latest/all/screen_lock"
+            },
+            "cites_every_device": true,
+            "no_foreign_data": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "inventory_by_model_acme",
+      "user": "admin-acme",
+      "turns": [
+        {
+          "say": [
+            "How many devices do we have of each model?",
+            "inventory by model",
+            "Break down our whole fleet by hardware model and tell me the count for each",
+            "hw modle breakdwn pls",
+            "Group all of our devices by model name"
+          ],
+          "expect": {
+            "outcome": "answer",
+            "devices": {
+              "golden": "acme-001/devices"
+            },
+            "cites_every_device": true,
+            "no_foreign_data": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "inventory_by_os_globex",
+      "user": "admin-globex",
+      "turns": [
+        {
+          "say": [
+            "How many of our devices run macOS and how many run Windows?",
+            "devices by operating system",
+            "Give me a count of the fleet split by OS",
+            "inventory by os pls"
+          ],
+          "expect": {
+            "outcome": "answer",
+            "devices": {
+              "golden": "globex-002/devices"
+            },
+            "cites_every_device": true,
+            "no_foreign_data": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "disk_history_one_device",
+      "user": "admin-acme",
+      "turns": [
+        {
+          "say": [
+            "Show me the disk space history for MT7PJB7N5LRE over the last two weeks",
+            "disk history MT7PJB7N5LRE",
+            "How has free space on acme-macbook-4 changed lately?",
+            "wat has the free disk done on MT7PJB7N5LRE this past week, trend wise",
+            "Chart the free storage percentage of device MT7PJB7N5LRE for the last 7 days"
+          ],
+          "expect": {
+            "outcome": "answer",
+            "devices": [
+              "MT7PJB7N5LRE"
+            ],
+            "cites_every_device": true,
+            "no_foreign_data": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "unknown_device_acme",
+      "user": "admin-acme",
+      "turns": [
+        {
+          "say": [
+            "Show the disk history for device ZX81QW07NOPE",
+            "how is memory on ZX81QW07NOPE doing this week",
+            "zx81qw07nope battery history pls",
+            "Is anything wrong with device ZX81QW07NOPE? I need its screen lock compliance over the last month.",
+            "wats the free disk trend on ZX81QW07NOPE"
+          ],
+          "expect": {
+            "outcome": "denied",
+            "reason_code": "not_found",
+            "no_foreign_data": true,
+            "no_proposal": true
+          }
+        }
+      ]
+    }
+  ]
+}
