@@ -34,7 +34,7 @@ from fleet_copilot.agent.focus import (
     focus_summary,
     resolve_reference,
 )
-from fleet_copilot.agent.llm import ContentFiltered, LLMGateway, Plan
+from fleet_copilot.agent.llm import ContentFiltered, LLMGateway, Plan, Reference
 from fleet_copilot.agent.prompts import act_messages, explain_messages, plan_messages
 from fleet_copilot.agent.records import ToolRecord, record_from_message, redact_tool_calls
 from fleet_copilot.agent.state import TurnState, next_focus, next_history
@@ -139,6 +139,8 @@ def _is_transient_error(result: Any) -> bool:
 
 PROPOSE_ONLY_FOR_ACTIONS = "propose_action is only for action requests"
 ONE_PROPOSAL_PER_TURN = "one proposal per turn"
+RECOMMEND_ONLY_FOR_ADVICE = "recommend_actions is only for advice requests"
+ONE_RECOMMENDATION_PER_TURN = "one recommendation per turn"
 
 
 def _propose_blocked(name: str, state: Any) -> str | None:
@@ -156,9 +158,25 @@ def _propose_blocked(name: str, state: Any) -> str | None:
     return None
 
 
+def _recommend_blocked(name: str, state: Any) -> str | None:
+    """Why this `recommend_actions` call must not run (fixed text for the model), or None.
+
+    Only an advise plan may ask for recommendations, and a turn holds at most one.
+    """
+    if name != "recommend_actions":
+        return None
+    if (state.get("plan") or {}).get("intent") != "advise":
+        return RECOMMEND_ONLY_FOR_ADVICE
+    if any(r.get("tool") == "recommend_actions" for r in state.get("records") or []):
+        return ONE_RECOMMENDATION_PER_TURN
+    return None
+
+
 def _result_status(result: Any, record: ToolRecord) -> str:
     if _is_input_error(result):
         return "invalid_input"
+    if record.suggestions is not None:
+        return "recommended"
     if record.proposal is not None:
         return "proposed"
     if record.action_refusal is not None:
@@ -185,7 +203,7 @@ async def _tool_wrapper(
             tool_call_id=call["id"],
             status="error",
         )
-    blocked = _propose_blocked(name, request.state)
+    blocked = _propose_blocked(name, request.state) or _recommend_blocked(name, request.state)
     if blocked:
         emit(
             "tool_result",
@@ -215,7 +233,9 @@ async def _tool_wrapper(
         tool=name,
         data={
             "status": _result_status(result, record),
-            "matches": len(record.findings),
+            "matches": len(record.findings)
+            if record.suggestions is None
+            else len(record.suggestions),
             "population": record.population,
         },
         latency_ms=_ms(started),
@@ -289,14 +309,27 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
         ctx = runtime.context
         plan = Plan.model_validate(state["plan"])
         focus = [EntityList.model_validate(item) for item in state.get("focus") or []]
-        with _repo(ctx) as repo:
-            resolution = resolve_reference(plan.reference, focus, repo.list_devices())  # type: ignore[arg-type]
         kwargs = {"company_id": ctx.company_id, "as_of": ctx.as_of, "trace_id": ctx.trace_id}
+        reference = plan.reference
+        advise = plan.intent == "advise"
+        if advise and (reference is None or reference.kind != "named"):
+            if not focus:
+                emit("reference", "Nothing to advise on yet", data={"resolved": False})
+                return {
+                    "envelope": _dump(
+                        outcomes.clarification(texts.ADVISE_NEEDS_DEVICES, [], **kwargs)
+                    )
+                }
+            # No named device: advice covers every device of the last substantive answer.
+            reference = reference or Reference(kind="all")
+        assert reference is not None
+        with _repo(ctx) as repo:
+            resolution = resolve_reference(reference, focus, repo.list_devices())  # type: ignore[arg-type]
         if isinstance(resolution, Resolved):
             emit(
                 "reference",
                 "Resolved the follow-up",
-                data={"kind": plan.reference.kind, "devices": len(resolution.device_ids)},  # type: ignore[union-attr]
+                data={"kind": reference.kind, "devices": len(resolution.device_ids)},
             )
             if plan.intent == "propose" and len(resolution.device_ids) > 1:
                 # One device per proposal: "those" and "all of them" are never turned into a bulk action.
@@ -356,6 +389,15 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
             # One proposal per turn: only the first request is kept.
             emit("tool_call", "Dropped extra proposal calls", data={"dropped": len(proposals) - 1})
             extra = set(proposals[1:])
+            calls = [call for i, call in enumerate(calls) if i not in extra]
+            dropped_any = True
+        advice = [i for i, call in enumerate(calls) if call["name"] == "recommend_actions"]
+        if len(advice) > 1:
+            # One recommendation per turn: only the first request is kept.
+            emit(
+                "tool_call", "Dropped extra recommendation calls", data={"dropped": len(advice) - 1}
+            )
+            extra = set(advice[1:])
             calls = [call for i, call in enumerate(calls) if i not in extra]
             dropped_any = True
         if len(calls) > policy.MAX_CALLS_PER_ROUND:
@@ -537,7 +579,9 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
     def after_plan(state: TurnState) -> str:
         if state.get("envelope"):
             return "respond"
-        return "reference" if (state.get("plan") or {}).get("reference") else "act"
+        plan = state.get("plan") or {}
+        # An advise turn always resolves its devices first: a named or pointed-at device, else the last answer's.
+        return "reference" if plan.get("reference") or plan.get("intent") == "advise" else "act"
 
     def after_reference(state: TurnState) -> str:
         return "respond" if state.get("envelope") else "act"

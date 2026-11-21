@@ -54,6 +54,9 @@ class ToolRecord(BaseModel):
     # `propose_action` only: the code-written card of the proposal that was made, or why none was.
     proposal: dict[str, Any] | None = None
     action_refusal: dict[str, str] | None = None
+    # `recommend_actions` only: the code-written suggestions (empty when nothing is eligible). `findings`
+    # then lists the devices that were considered, so the composer has their hostnames.
+    suggestions: list[dict[str, Any]] | None = None
 
     @classmethod
     def from_query(cls, tool: str, args: dict[str, Any], result: QueryResult) -> ToolRecord:
@@ -107,6 +110,18 @@ class ToolRecord(BaseModel):
             if self.action_refusal is not None:
                 view["reason"] = self.action_refusal["reason"]
             return json.dumps(view, sort_keys=True)
+        if self.suggestions is not None:
+            # Counts and action types only: no reasons, evidence refs, hostnames or employees.
+            return json.dumps(
+                {
+                    "tool": self.tool,
+                    "status": "recommended",
+                    "device_count": self.population,
+                    "suggestion_count": len(self.suggestions),
+                    "action_types": dict(Counter(s["action_type"] for s in self.suggestions)),
+                },
+                sort_keys=True,
+            )
         view: dict[str, Any] = {
             "tool": self.tool,
             "rule": self.rule,

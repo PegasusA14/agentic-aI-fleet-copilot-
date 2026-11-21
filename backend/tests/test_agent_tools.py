@@ -147,6 +147,7 @@ def test_tools_expose_enumerated_bounded_inputs_and_no_tenant_arguments():
         "device_history",
         "software_inventory",
         "propose_action",
+        "recommend_actions",
     }
     assert set(DEVICE_FILTER_TOOLS) == set(by_name) - {"device_history", "propose_action"}
     for tool in TOOLS:
@@ -165,6 +166,8 @@ def test_tools_expose_enumerated_bounded_inputs_and_no_tenant_arguments():
         "employee_notification",
     ]
     assert propose["required"] == ["action_type", "device_id"]
+    recommend = by_name["recommend_actions"].tool_call_schema.model_json_schema()
+    assert set(recommend["properties"]) == {"device_ids"} and "required" not in recommend
     checks = by_name["compliance_failures_now"].tool_call_schema.model_json_schema()["properties"][
         "check_id"
     ]

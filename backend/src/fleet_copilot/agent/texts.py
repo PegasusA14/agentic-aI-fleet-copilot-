@@ -45,11 +45,21 @@ DEFAULT_CLARIFICATION = "I need one more detail to answer that. What would you l
 CLARIFICATION_HEADLINE = "I need one detail to answer that"
 NO_SUGGESTIONS = "None of these devices supports one of the four actions right now."
 ADVISE_NEEDS_DEVICES = "Which devices do you want recommendations for?"
+ADVISE_HEADLINE = "Recommended next steps from the current evidence"
+ADVISE_RULE = (
+    "An action is suggested only where the eligibility rules for a remediation ticket, a replacement "
+    "flag, a hardware upgrade or an employee notification are met by current readings"
+)
 
 
 def entry_out_of_range(n: int) -> str:
     """Fixed question when an ordinal points past the end of the list that was shown."""
     return f"That list has {n} {'entry' if n == 1 else 'entries'}. Which one do you mean?"
+
+
+def no_suggestion_note(hostname: str) -> str:
+    """Why a device got no suggestion, in fixed words: nothing current meets an action's rules."""
+    return f"{hostname}: no current reading meets the rules for a ticket, replacement, upgrade or notification."
 
 
 def unresolved_note(n: int) -> str:

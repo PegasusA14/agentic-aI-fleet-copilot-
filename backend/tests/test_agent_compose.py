@@ -1,11 +1,13 @@
 import copy
 
 import pytest
-from agent_support import ACME, GLOBEX, INITECH, repo_for, run
+from agent_support import ACME, GLOBEX, INITECH, context_for, repo_for, run
 
+from fleet_copilot.agent import texts
 from fleet_copilot.agent.compose import Composition, compose, representative
 from fleet_copilot.agent.records import FindingRecord, ToolRecord
 from fleet_copilot.agent.texts import NOT_FOUND, PARTIAL_NOT_FOUND, TOOL_FAILED, unresolved_note
+from fleet_copilot.agent.tools import execute_recommend
 from fleet_copilot.contracts import AnswerEnvelope
 from fleet_copilot.evidence import EvidenceRef
 from fleet_copilot.repository import EvidenceValue, dataset_as_of
@@ -684,3 +686,29 @@ def test_scope_calculation_states_the_real_maximum_of_readings_per_device(real_d
     most = max(len(refs) for refs in cited.values())
     calculation = as_envelope(comp, real_conn).scope.calculation
     assert f"at most {most} supporting reading" in calculation
+
+
+def test_suggestions_compose_into_claims_with_refs_a_list_and_facts(real_db_path, real_conn):
+    record = execute_recommend(
+        {"device_ids": ["MT7PJB7N5LRE", "8NM23J95R5I6"]}, context_for(real_db_path, real_conn)
+    )
+    comp = compose([record], resolve=repo_for(real_conn).resolve)
+    envelope = as_envelope(comp, real_conn)
+    assert envelope.outcome == "answer"
+    assert [c.text for c in envelope.claims] == [s.reason for s in envelope.suggested_actions]
+    assert all(c.refs for c in envelope.claims)
+    assert envelope.entity_lists[0].title == "Suggested actions"
+    facts = comp.facts()
+    assert facts["suggested_actions"] == [s.label for s in envelope.suggested_actions]
+
+
+def test_no_suggestions_compose_into_no_match_with_a_note_per_device(real_db_path, real_conn):
+    record = ToolRecord(
+        tool="recommend_actions",
+        findings=[FindingRecord(device_id="D1", hostname="host-1", values={}, refs=[])],
+        population=1,
+        suggestions=[],
+    )
+    comp = compose([record], resolve=repo_for(real_conn).resolve)
+    assert comp.outcome == "no_match" and comp.fallback_headline == texts.NO_SUGGESTIONS
+    assert comp.notes == [texts.no_suggestion_note("host-1")]

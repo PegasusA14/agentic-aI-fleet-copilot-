@@ -20,6 +20,7 @@ from fleet_copilot.contracts import (
     ProposalCard,
     ReasonCode,
     ScopeInfo,
+    SuggestedAction,
 )
 from fleet_copilot.domain.metrics import free_pct, used_pct
 from fleet_copilot.evidence import EvidenceRef
@@ -89,15 +90,19 @@ class Composition:
     fallback_headline: str = ""
     rules: list[str] = field(default_factory=list)
     proposal: ProposalCard | None = None
+    suggested_actions: list[SuggestedAction] = field(default_factory=list)
 
     def facts(self) -> dict:
         """Everything the model may read when asked to explain: code-written text only."""
-        return {
+        facts: dict = {
             "claims": [c.text for c in self.claims],
             "notes": list(self.notes),
             "population": self.coverage.population if self.coverage else None,
             "rules": list(self.rules),
         }
+        if self.suggested_actions:
+            facts["suggested_actions"] = [a.label for a in self.suggested_actions]
+        return facts
 
     def to_envelope(
         self,
@@ -130,6 +135,7 @@ class Composition:
             claims=self.claims,
             evidence=self.evidence,
             proposal=self.proposal,
+            suggested_actions=self.suggested_actions,
             scope=scope,
             coverage=self.coverage,
             # One list id per turn: the raw ids repeat every turn, so follow-ups could not tell lists apart.
@@ -665,6 +671,60 @@ _TEMPLATES: dict[str, Callable[[ToolRecord, int, _Builder], None]] = {
 }
 
 
+def _advice(record: ToolRecord, resolve: Resolver) -> Composition:
+    """The recommendations of one `recommend_actions` record: a claim per suggestion, or why none."""
+    builder = _Builder(resolve)
+    builder.coverage(record)
+    suggestions = [SuggestedAction.model_validate(s) for s in record.suggestions or []]
+    hostnames = {f.device_id: f.hostname for f in record.findings}
+    notes: list[str] = []
+    if record.unresolved_ids:
+        notes.append(texts.unresolved_note(record.unresolved_ids))
+    coverage = Coverage(population=record.population)
+    if not suggestions:
+        # Fixed headline, plus one code-written line per device saying why nothing was suggested.
+        return Composition(
+            "no_match",
+            "no_matching_records",
+            coverage=coverage,
+            notes=[texts.no_suggestion_note(h) for h in hostnames.values()] + notes,
+            fallback_headline=texts.NO_SUGGESTIONS,
+            rules=[texts.ADVISE_RULE],
+        )
+    for suggestion in suggestions:
+        builder._hosts[suggestion.device_id] = suggestion.target_label  # noqa: SLF001
+        finding = FindingRecord(
+            device_id=suggestion.device_id,
+            hostname=suggestion.target_label,
+            values={},
+            refs=suggestion.refs,
+        )
+        builder.claim(
+            suggestion.reason, [finding], refs_by_device={suggestion.device_id: suggestion.refs}
+        )
+    ordered = list(dict.fromkeys(s.device_id for s in suggestions))
+    builder.entity_list(
+        "suggested_actions",
+        "Suggested actions",
+        [
+            FindingRecord(device_id=i, hostname=hostnames.get(i, i), values={}, refs=[])
+            for i in ordered
+        ],
+    )
+    return Composition(
+        "answer",
+        None,
+        builder.claims,
+        list(builder.evidence.values()),
+        coverage,
+        builder.lists,
+        notes,
+        texts.ADVISE_HEADLINE,
+        [texts.ADVISE_RULE],
+        suggested_actions=suggestions,
+    )
+
+
 def compose(records: Sequence[ToolRecord], *, resolve: Resolver) -> Composition:
     """Turn tool records into claims, evidence, coverage and entity lists. No model involved."""
     if any(r.error == "tool_error" for r in records):
@@ -695,6 +755,9 @@ def compose(records: Sequence[ToolRecord], *, resolve: Resolver) -> Composition:
         )
     if records and all(r.error == "not_found" for r in records):
         return Composition("denied", "not_found", fallback_headline=texts.NOT_FOUND)
+    advised = next((r for r in records if not r.error and r.suggestions is not None), None)
+    if advised is not None:
+        return _advice(advised, resolve)
     builder = _Builder(resolve)
     usable = [r for r in records if not r.error]
     for index, record in enumerate(usable, start=1):

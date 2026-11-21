@@ -154,3 +154,47 @@ def test_the_explain_prompt_forbids_describing_or_labelling_software():
     for word in ("risky", "unapproved", "malicious"):
         assert word in explain
     assert "only state what <facts> say" in explain
+
+
+def _flat(text: str) -> str:
+    return " ".join(text.lower().split())
+
+
+def test_the_planner_answers_broadly_and_clarifies_only_without_a_default():
+    plan = _flat(prompts.PLAN_SYSTEM)
+    for fragment in (
+        "typos",
+        "terse",
+        "genuinely ambiguous",
+        "no disclosed default",
+        "prefer answering",
+    ):
+        assert fragment in plan
+
+
+def test_the_planner_routes_advice_and_next_steps_to_advise_not_unsupported():
+    plan = _flat(prompts.PLAN_SYSTEM)
+    assert 'intent "advise"' in plan
+    for phrase in ("what should i do", "how do i fix", "next steps", "recommendations"):
+        assert phrase in plan
+    assert "never unsupported" in plan
+    # the device target of advice follows the follow-up rules: leave `reference` empty to use the last answer
+    assert "last answer" in plan
+
+
+def test_the_act_prompt_calls_recommend_actions_once_on_an_advise_plan():
+    act = _flat(prompts.ACT_SYSTEM)
+    assert "<plan> is advice" in act
+    assert "`recommend_actions` exactly once" in act
+    assert "never pass device ids" in act
+
+
+def test_the_explain_prompt_asks_for_a_natural_short_reply_to_the_admin():
+    explain = _flat(prompts.EXPLAIN_SYSTEM)
+    assert "two to four sentences" in explain
+    assert "addressed to the administrator" in explain
+    assert "headline" in explain and "at most 140 characters" in explain
+    assert "at most three short sentences" not in explain
+    # the strict grounding rules are unchanged
+    for fragment in ("copied exactly", "do not round", "plain text only", "negations"):
+        assert fragment in explain

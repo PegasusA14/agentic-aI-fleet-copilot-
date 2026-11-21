@@ -142,3 +142,38 @@ def test_redact_tool_calls_removes_the_employee_id_without_mutating_the_input():
     assert redacted[1] == message.tool_calls[1]
     assert message.tool_calls[0]["args"] == {"employee_id": "emp-1"}
     assert "emp-1" not in json.dumps(redacted)
+
+
+def test_the_model_view_of_suggestions_is_counts_and_action_types_only():
+    suggestion = {
+        "action_type": "upgrade_order",
+        "device_id": "MT7PJB7N5LRE",
+        "target_label": "acme-macbook-4",
+        "label": "Order a storage upgrade (512 GiB → 1 TiB)",
+        "reason": "acme-macbook-4: sustained low disk",
+        "request": "Order a storage upgrade for acme-macbook-4",
+        "refs": ["acme-001/MT7PJB7N5LRE/2026-06-12T09:00:00Z#disk"],
+    }
+    record = ToolRecord(
+        tool="recommend_actions",
+        findings=[
+            FindingRecord(device_id="MT7PJB7N5LRE", hostname="acme-macbook-4", values={}, refs=[])
+        ],
+        population=1,
+        suggestions=[suggestion, {**suggestion, "action_type": "employee_notification"}],
+    )
+    view = json.loads(record.llm_view())
+    assert view == {
+        "tool": "recommend_actions",
+        "status": "recommended",
+        "device_count": 1,
+        "suggestion_count": 2,
+        "action_types": {"upgrade_order": 1, "employee_notification": 1},
+    }
+    text = record.llm_view()
+    assert "acme-macbook-4" not in text and "MT7PJB7N5LRE" not in text and "disk" not in text
+
+
+def test_an_empty_suggestion_list_is_still_a_recommendation_view():
+    record = ToolRecord(tool="recommend_actions", population=2, suggestions=[])
+    assert json.loads(record.llm_view())["suggestion_count"] == 0

@@ -9,12 +9,13 @@ from langgraph.prebuilt.tool_node import ToolInvocationError
 from pydantic import Field
 
 from fleet_copilot import policy
+from fleet_copilot.actions import recommend as recommender
 from fleet_copilot.actions.eligibility import Topic
 from fleet_copilot.actions.service import ActionService, Refused
 from fleet_copilot.actions.store import ActionStore
 from fleet_copilot.agent.context import AgentContext
-from fleet_copilot.agent.records import ToolRecord, redact_args
-from fleet_copilot.contracts import ActionType
+from fleet_copilot.agent.records import FindingRecord, ToolRecord, redact_args
+from fleet_copilot.contracts import ActionType, SuggestedAction
 from fleet_copilot.data.loader import connect
 from fleet_copilot.data.models import SOFTWARE_NAME_PATTERN
 from fleet_copilot.fleet import inventory
@@ -256,6 +257,51 @@ def execute_propose(args: dict[str, Any], ctx: AgentContext) -> ToolRecord:
     )
 
 
+def execute_recommend(args: dict[str, Any], ctx: AgentContext) -> ToolRecord:
+    """Recommend actions for the given devices as the context's tenant, on a READ-ONLY connection.
+
+    Code decides which actions the evidence supports and writes every word; nothing is proposed or
+    stored. Unknown and foreign devices are the uniform `not_found`, as for every other tool.
+    """
+    recorded = redact_args(args)
+    requested = args.get("device_ids")
+    if not requested:
+        return ToolRecord(tool="recommend_actions", args=recorded, error="tool_error")
+    conn = connect(ctx.db_path, read_only=True)
+    try:
+        repo = FleetRepository(conn, TenantContext(ctx.company_id, ctx.actor_id))
+        hostnames = {d.device_id: d.hostname for d in repo.list_devices()}
+        considered = [i for i in dict.fromkeys(requested) if i in hostnames]
+        if not considered:
+            return ToolRecord(tool="recommend_actions", args=recorded, error="not_found")
+        suggestions = recommender.recommend(repo, ctx.as_of, considered)
+        return ToolRecord(
+            tool="recommend_actions",
+            args=recorded,
+            findings=[
+                FindingRecord(device_id=i, hostname=hostnames[i], values={}, refs=[])
+                for i in considered
+            ],
+            population=len(considered),
+            as_of=ctx.as_of,
+            unresolved_ids=len(set(requested) - set(considered)),
+            suggestions=[
+                SuggestedAction(
+                    action_type=s.action_type,
+                    device_id=s.device_id,
+                    target_label=s.target_label,
+                    label=s.label,
+                    reason=s.reason,
+                    request=s.request,
+                    refs=list(s.refs),
+                ).model_dump(mode="json")
+                for s in suggestions
+            ],
+        )
+    finally:
+        conn.close()
+
+
 def _respond(
     name: str, args: dict[str, Any], runtime: ToolRuntime[AgentContext]
 ) -> tuple[str, dict[str, Any]]:
@@ -437,6 +483,19 @@ def propose_action(
     return record.llm_view(), record.model_dump(mode="json")
 
 
+@tool(response_format="content_and_artifact")
+def recommend_actions(
+    runtime: ToolRuntime[AgentContext],
+    device_ids: DeviceIds = None,
+) -> tuple[str, dict[str, Any]]:
+    """Recommends the actions the evidence supports for the devices the user is asking about: a remediation
+    ticket, a replacement flag, a hardware upgrade or an employee notification. The system checks eligibility
+    and writes every suggestion; nothing is proposed or changed. Use only when the user asks what to do, for
+    advice or for next steps, and call it once."""
+    record = execute_recommend({"device_ids": device_ids}, runtime.context)
+    return record.llm_view(), record.model_dump(mode="json")
+
+
 TOOLS = [
     low_disk_devices,
     macos_version_check,
@@ -447,6 +506,7 @@ TOOLS = [
     device_history,
     software_inventory,
     propose_action,
+    recommend_actions,
 ]
 # `device_history` and `propose_action` take ONE device, not a filter list.
 DEVICE_FILTER_TOOLS = frozenset(t.name for t in TOOLS) - {"device_history", "propose_action"}

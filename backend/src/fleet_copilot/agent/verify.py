@@ -178,6 +178,7 @@ def allowed_numbers(comp: Composition, as_of: datetime) -> set[str]:
     texts += [comp.fallback_headline]
     texts += [e.label for e in comp.evidence] + [e.value for e in comp.evidence]
     texts += [entity_list.title for entity_list in comp.entity_lists]
+    texts += [a.label for a in comp.suggested_actions]
     allowed: set[str] = set()
     for text in texts:
         allowed |= {_norm(m) for m in _NUMBER.findall(text)}
@@ -204,6 +205,7 @@ def composition_of(envelope: AnswerEnvelope) -> Composition:
         notes=list(envelope.notes),
         fallback_headline=envelope.headline,
         rules=[envelope.scope.rule] if envelope.scope.rule else [],
+        suggested_actions=list(envelope.suggested_actions),
     )
 
 
