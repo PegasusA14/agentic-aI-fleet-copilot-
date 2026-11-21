@@ -19,7 +19,8 @@ export function plural(n: number, word: string): string {
   return `${n} ${n === 1 ? word : `${word}s`}`;
 }
 
-export const REASON_TEXT: Record<string, string> = {
+/** Keyed by string so a code the backend adds before the generated types catch up still reads as words. */
+export const REASON_TEXT: Partial<Record<string, string>> = {
   no_matching_records: "No records matched",
   insufficient_history: "Not enough history",
   not_found: "Not found in your fleet",
@@ -28,11 +29,17 @@ export const REASON_TEXT: Record<string, string> = {
   prompt_injection: "Instruction not followed",
   tool_failure: "Data lookup failed",
   step_limit: "Step limit reached",
-  not_eligible: "Not supported by the evidence",
-  insufficient_evidence: "Not enough recent evidence",
+  not_eligible: "Not supported yet. This device is not eligible for that action.",
+  insufficient_evidence: "Not enough evidence in the readings to support that action",
   already_done: "Already done",
   too_many_pending: "Too many proposals waiting",
 };
+
+/** A reason code as a plain phrase; a code with no entry reads as its words, and none at all as a dash. */
+export function reasonWords(code: string | null | undefined): string {
+  if (!code) return "—";
+  return REASON_TEXT[code] ?? code.replaceAll("_", " ");
+}
 
 export const EXCLUDED_TEXT: Record<string, string> = {
   out_of_scope: "out of scope",

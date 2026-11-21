@@ -1313,7 +1313,7 @@ number-flow-react {
 }
 
 /* Asked for already: still there to ask again, marked by its green check. */
-.chip[aria-pressed="true"] {
+.chip[data-asked="true"] {
   border-color: var(--line-strong);
 }
 
@@ -2602,6 +2602,27 @@ p.evidence__raw {
   .details__toggle,
   .link-btn {
     min-height: 44px;
+  }
+
+  /* The round and pill controls keep their look; an invisible layer centred on each reaches 44px so the tap lands. */
+  .menu-btn,
+  button.pill,
+  .send,
+  .icon-btn {
+    position: relative;
+  }
+
+  .menu-btn::after,
+  button.pill::after,
+  .send::after,
+  .icon-btn::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    width: max(100%, 44px);
+    height: max(100%, 44px);
+    transform: translate(-50%, -50%);
   }
 }
 

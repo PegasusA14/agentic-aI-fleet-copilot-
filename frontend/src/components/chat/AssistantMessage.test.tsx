@@ -141,6 +141,27 @@ describe("an answer", () => {
   });
 });
 
+describe("a refused action", () => {
+  const DENIED = envelopeOf("device_not_found");
+
+  it.each([
+    ["not_eligible", "Not supported yet", /not supported yet\. this device is not eligible/i],
+    ["insufficient_evidence", "Not enough evidence", /not enough evidence in the readings/i],
+  ] as const)("shows %s as the word %s and explains the reason in Details", async (code, word, reason) => {
+    const { user } = setup({ ...DENIED, reason_code: code });
+    expect(document.querySelector(".msg__state .mark")).toHaveTextContent(word);
+    expect(document.querySelector(".msg__state .mark svg")).not.toBeNull();
+    await user.click(screen.getByRole("button", { name: "Details" }));
+    expect(screen.getByText("Reason").nextElementSibling).toHaveTextContent(reason);
+    expect(screen.queryByText(code)).not.toBeInTheDocument();
+  });
+
+  it("keeps Not found for a missing device", () => {
+    setup({ ...DENIED, reason_code: "not_found" });
+    expect(document.querySelector(".msg__state .mark")).toHaveTextContent("Not found");
+  });
+});
+
 describe("outcomes that are not an answer", () => {
   const CASES: Array<[string, string, string]> = [
     ["compliance_high_no_match", "No match", "No devices matched (10 evaluated)"],
@@ -263,19 +284,61 @@ describe("suggested actions", () => {
     expect(chips[0]).toHaveAttribute("title", "2.0% free of 512.0 GiB.");
   });
 
-  it("marks a chip as used once picked: pressed, checked, still focusable", async () => {
+  it("marks a chip as used once picked: a check and hidden '(asked)' text, no toggle state, still focusable", async () => {
     const { user, onAsk } = setup(ADVISE);
     const chips = within(screen.getByRole("group", { name: "Suggested actions" })).getAllByRole("button");
-    expect(chips[0]).toHaveAttribute("aria-pressed", "false");
+    expect(chips[0]).not.toHaveAttribute("aria-pressed");
+    expect(chips[0]).not.toHaveTextContent("(asked)");
     await user.click(chips[0]);
     expect(onAsk).toHaveBeenCalledWith("Order a storage upgrade for acme-macbook-4");
-    expect(chips[0]).toHaveAttribute("aria-pressed", "true");
+    expect(chips[0]).not.toHaveAttribute("aria-pressed");
+    expect(chips[0]).toHaveAccessibleName(/\(asked\)/);
+    expect(chips[0].querySelector(".sr-only")).toHaveTextContent("(asked)");
     expect(chips[0].querySelector(".chip__label svg")).not.toBeNull();
-    expect(chips[1]).toHaveAttribute("aria-pressed", "false");
+    expect(chips[1]).not.toHaveAccessibleName(/\(asked\)/);
     expect(chips[1].querySelector("svg")).toBeNull();
     chips[0].focus();
     expect(chips[0]).toHaveFocus();
     expect(chips[0]).toBeEnabled();
+  });
+
+  describe("returning focus to the composer after a pick", () => {
+    function withComposer() {
+      const input = document.createElement("input");
+      input.id = "ask-input";
+      document.body.append(input);
+      return input;
+    }
+    const original = window.matchMedia;
+    function pointer(fine: boolean) {
+      window.matchMedia = ((query: string) =>
+        ({
+          matches: fine && query.includes("hover: hover") && query.includes("pointer: fine"),
+          media: query,
+          addEventListener: () => {},
+          removeEventListener: () => {},
+        }) as unknown as MediaQueryList) as typeof window.matchMedia;
+    }
+    afterEach(() => {
+      window.matchMedia = original;
+      document.getElementById("ask-input")?.remove();
+    });
+
+    it("refocuses the composer with a mouse or trackpad", async () => {
+      const input = withComposer();
+      pointer(true);
+      const { user } = setup(ADVISE);
+      await user.click(within(screen.getByRole("group", { name: "Suggested actions" })).getAllByRole("button")[0]);
+      expect(input).toHaveFocus();
+    });
+
+    it("leaves the keyboard down on a touch screen", async () => {
+      const input = withComposer();
+      pointer(false);
+      const { user } = setup(ADVISE);
+      await user.click(within(screen.getByRole("group", { name: "Suggested actions" })).getAllByRole("button")[0]);
+      expect(input).not.toHaveFocus();
+    });
   });
 
   it("does not list the same devices twice as device chips", () => {

@@ -20,3 +20,15 @@ export const OUTCOMES: Record<Outcome, OutcomeStyle> = {
   unsupported: { word: "Not something I can do", tone: "neutral", mark: "hollow" },
   tool_error: { word: "Lookup failed", tone: "alert", mark: "alert" },
 };
+
+/**
+ * A refused action is `denied`, but the reason says which kind of refusal: a missing device keeps "Not found" and the lock,
+ * an action the device cannot take is "Not supported yet", and one the readings cannot back is "Not enough evidence".
+ */
+export function outcomeStyle(outcome: Outcome, reasonCode?: string | null): OutcomeStyle {
+  if (outcome === "denied") {
+    if (reasonCode === "not_eligible") return { word: "Not supported yet", tone: "neutral", mark: "hollow" };
+    if (reasonCode === "insufficient_evidence") return { word: "Not enough evidence", tone: "attention", mark: "triangle" };
+  }
+  return OUTCOMES[outcome];
+}

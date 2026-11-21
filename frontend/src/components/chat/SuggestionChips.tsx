@@ -4,8 +4,12 @@ import { useState } from "react";
 import { GLIDE, usePrefersReducedMotion } from "../../lib/motion";
 import type { SuggestedAction } from "../../types/AnswerEnvelope";
 
-/** After a pick the composer takes focus, so a disabled chip does not drop the keyboard onto the page. */
+/**
+ * After a pick the composer takes focus, so a disabled chip does not drop focus onto the page. Only where a keyboard is
+ * already physical: on a touch screen, focusing the input would raise the on-screen keyboard over the answer.
+ */
 export function focusComposer() {
+  if (typeof window.matchMedia !== "function" || !window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
   document.getElementById("ask-input")?.focus();
 }
 
@@ -40,7 +44,7 @@ export function SuggestionChips({ actions, busy, onAsk, withReason = false }: Su
             type="button"
             className="chip chip--action"
             disabled={busy}
-            aria-pressed={used}
+            data-asked={used || undefined}
             title={action.reason}
             onClick={() => {
               setPicked((now) => new Set(now).add(keyOf(action)));
@@ -51,6 +55,7 @@ export function SuggestionChips({ actions, busy, onAsk, withReason = false }: Su
             <span className="chip__label">
               {used ? <Check size={14} strokeWidth={2.6} aria-hidden="true" /> : null}
               {action.label}
+              {used ? <span className="sr-only"> (asked)</span> : null}
             </span>
             <span className="chip__device">{action.target_label}</span>
             {withReason ? <span className="chip__reason">{action.reason}</span> : null}

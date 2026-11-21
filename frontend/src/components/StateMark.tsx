@@ -1,4 +1,4 @@
-import { OUTCOMES } from "../lib/outcomes";
+import { outcomeStyle } from "../lib/outcomes";
 import type { Outcome } from "../lib/types";
 
 /** The state's dot: filled for a result, a ring for "nothing to show". Its colour is set by the label's tone. */
@@ -15,8 +15,8 @@ export function MarkDot({ hollow = false }: { hollow?: boolean }) {
 }
 
 /** Mono label plus a coloured dot: a state is never carried by colour alone. */
-export function StateMark({ outcome }: { outcome: Outcome }) {
-  const style = OUTCOMES[outcome];
+export function StateMark({ outcome, reason }: { outcome: Outcome; reason?: string | null }) {
+  const style = outcomeStyle(outcome, reason);
   return (
     <span className="mark" data-tone={style.tone} data-outcome={outcome}>
       <MarkDot hollow={style.mark === "hollow"} />

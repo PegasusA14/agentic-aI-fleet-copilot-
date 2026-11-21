@@ -4,7 +4,7 @@ import { motion } from "motion/react";
 import { Fragment, useEffect, useRef, useState } from "react";
 import { ApiError } from "../lib/api";
 import { FOLD_IN, FOLD_OUT, Presence, usePrefersReducedMotion } from "../lib/motion";
-import { OUTCOMES } from "../lib/outcomes";
+import { outcomeStyle } from "../lib/outcomes";
 import type { EvidenceValue, TraceView } from "../lib/transport";
 import { formatValue, KIND_WORD } from "../lib/trace";
 import type { AnswerEnvelope, EvidenceItem, TraceEvent } from "../lib/types";
@@ -148,7 +148,7 @@ export function EvidenceDrawer({
                         {readings
                           ? (subject ?? "Cited readings")
                           : envelope
-                            ? `${OUTCOMES[envelope.outcome].word} · ${envelope.trace_id}`
+                            ? `${outcomeStyle(envelope.outcome, envelope.reason_code).word} · ${envelope.trace_id}`
                             : "Nothing selected"}
                       </Dialog.Description>
                     </div>

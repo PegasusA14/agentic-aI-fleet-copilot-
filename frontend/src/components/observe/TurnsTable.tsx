@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { tenantName } from "../../lib/fixtures";
-import { formatAsOf, REASON_TEXT } from "../../lib/format";
+import { formatAsOf, reasonWords } from "../../lib/format";
 import { OUTCOMES } from "../../lib/outcomes";
 import type { Transport } from "../../lib/transport";
 import type { Outcome } from "../../lib/types";
@@ -13,11 +13,6 @@ interface TurnsTableProps {
   /** Bumped by the console's Refresh button. */
   nonce: number;
   onSessionEnded: () => void;
-}
-
-function reasonWords(code: string | null): string {
-  if (!code) return "—";
-  return REASON_TEXT[code] ?? code.replaceAll("_", " ");
 }
 
 /** Recent turns across every company; choosing one shows its stored trace below. */
@@ -84,7 +79,7 @@ export function TurnsTable({ transport, nonce, onSessionEnded }: TurnsTableProps
                   <td className="mono">{turn.actor_id}</td>
                   <td>
                     {turn.outcome in OUTCOMES ? (
-                      <StateMark outcome={turn.outcome as Outcome} />
+                      <StateMark outcome={turn.outcome as Outcome} reason={turn.reason_code} />
                     ) : (
                       <span>{turn.outcome.replaceAll("_", " ")}</span>
                     )}

@@ -6,6 +6,7 @@ import { fixtureTransport } from "./lib/transport";
 import { AssistantMessage } from "./components/chat/AssistantMessage";
 import { OUTCOMES } from "./lib/outcomes";
 import { fixturesFor, getFixture } from "./lib/fixtures";
+import { setFinePointer } from "./test/motion";
 
 const noop = () => {};
 
@@ -145,13 +146,14 @@ describe("the working thread", () => {
     await user.click(screen.getByRole("button", { name: "Details" }));
     expect(screen.getByText(/Simulated example\. Built from the stored low-disk answer/)).toBeInTheDocument();
 
+    setFinePointer();
     await user.click(chips[1]);
     expect(screen.getByRole("region", { name: "Question: Order a storage upgrade for acme-thinkpad-8" })).toBeInTheDocument();
     const card = await screen.findByRole("region", { name: "Proposed action" });
     expect(card).toHaveTextContent("Order a storage upgrade for acme-thinkpad-8");
     expect(card).toHaveTextContent("1 TiB → 2 TiB");
     expect(card).not.toHaveTextContent(/hardware/i);
-    expect(chips[1]).toHaveAttribute("aria-pressed", "true");
+    expect(chips[1]).toHaveAccessibleName(/\(asked\)/);
     expect(card).toHaveTextContent("8NM23J95R5I6");
     expect(screen.getByRole("button", { name: "Approve" })).toBeInTheDocument();
     expect(screen.getByLabelText(/ask a question about your fleet/i)).toHaveFocus();
