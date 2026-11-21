@@ -13,13 +13,13 @@ describe("the fleet pulse", () => {
   it("draws one dot per device and names the fleet in an accessible label", () => {
     const { container } = render(<FleetPulse size={10} />);
     expect(dots(container)).toHaveLength(10);
-    expect(screen.getByRole("img", { name: "10 devices in your fleet" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "10 devices in your fleet, 0 need attention" })).toBeInTheDocument();
     expect(lit(container)).toHaveLength(0);
   });
 
   it("says 'device' for a fleet of one", () => {
     render(<FleetPulse size={1} />);
-    expect(screen.getByRole("img", { name: "1 device in your fleet" })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "1 device in your fleet, 0 need attention" })).toBeInTheDocument();
   });
 
   it.each([null, 0])("draws nothing at all when the size is %s", (size) => {
@@ -31,7 +31,7 @@ describe("the fleet pulse", () => {
     const flagged = ["A1", "B2", "C3"];
     const { container } = render(<FleetPulse size={10} flagged={flagged} />);
     expect(lit(container)).toHaveLength(3);
-    expect(screen.getByRole("img", { name: /^10 devices in your fleet, 3 with a/ })).toBeInTheDocument();
+    expect(screen.getByRole("img", { name: "10 devices in your fleet, 3 need attention" })).toBeInTheDocument();
   });
 
   it("never lights more dots than there are devices", () => {
@@ -43,7 +43,7 @@ describe("the fleet pulse", () => {
     const { container } = render(<FleetPulse size={7} flagged={["A"]} />);
     const label = container.querySelector(".pulse__label") as HTMLElement;
     expect(label).toHaveAttribute("aria-hidden", "true");
-    expect(label.textContent).toMatch(/7\s*devices\s*·\s*1\s*flagged/);
+    expect(label.textContent).toMatch(/^7\s*devices\s*·\s*1\s*needs attention$/);
   });
 
   it("fades the dots in one after another when motion is allowed, and breathes only the lit ones", () => {
@@ -68,5 +68,6 @@ describe("the fleet pulse", () => {
     expect(flagged).toHaveLength(4);
     const { container } = render(<FleetPulse size={fleetSize("acme-001")} flagged={flagged} />);
     expect(lit(container)).toHaveLength(4);
+    expect(container.querySelector(".pulse__label")).toHaveTextContent("10 devices · 4 need attention");
   });
 });

@@ -1,12 +1,11 @@
 import { HOME_SUGGESTIONS } from "../lib/suggestions";
 import { FleetPulse } from "./FleetPulse";
 
-interface FleetInfo {
-  /** Devices in the signed-in tenant's fleet; null when no number is known yet. */
-  size: number | null;
-  /** Device ids with a current finding, when held on the client. */
-  flagged?: string[];
-}
+/** The fleet summary as the home screen sees it: on its way, here, or failed. */
+export type FleetInfo =
+  | { status: "loading" }
+  | { status: "ready"; size: number; flagged: string[] }
+  | { status: "error" };
 
 /** A mono label, then one display sentence in two tones: the clause in ink, the rest in grey. */
 export function Hero({ asOf, fleet }: { asOf?: string | null; fleet?: FleetInfo }) {
@@ -19,7 +18,8 @@ export function Hero({ asOf, fleet }: { asOf?: string | null; fleet?: FleetInfo 
           <span className="nowrap">Plain-English</span> answers, cited to your telemetry.
         </p>
       </div>
-      {fleet ? <FleetPulse size={fleet.size} flagged={fleet.flagged} /> : null}
+      {fleet?.status === "loading" ? <div className="pulse" aria-hidden="true" data-loading /> : null}
+      {fleet?.status === "ready" ? <FleetPulse size={fleet.size} flagged={fleet.flagged} /> : null}
     </div>
   );
 }

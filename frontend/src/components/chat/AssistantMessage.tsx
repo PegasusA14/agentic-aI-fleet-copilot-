@@ -28,13 +28,13 @@ interface AssistantMessageProps {
 }
 
 /** The reply's opening words. When the composer wrote a count into them ("2 of 10 …"), the numbers tick; the rest stays text. */
-function Lead({ text, counted, fresh, withList }: { text: string; counted: boolean; fresh: boolean; withList: boolean }) {
+function Lead({ text, counted, withList }: { text: string; counted: boolean; withList: boolean }) {
   const count = counted ? leadCount(text) : null;
   return (
     <p className="msg__lead" data-with-list={withList || undefined}>
       {count ? (
         <CountedText text={text}>
-          <Count value={count.n} countUp={fresh} />
+          <Count value={count.n} />
           {count.kind === "of" ? (
             <>
               {" of "}
@@ -193,7 +193,6 @@ export function AssistantMessage({
         text={lead}
         // Only the composer's own headline is read for a count, never the model's explanation or a question.
         counted={!explanation && !clarification}
-        fresh={!reopened && !reduce}
         withList={claimsInReply}
       />
 

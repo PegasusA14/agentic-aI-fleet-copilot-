@@ -1,27 +1,22 @@
 import NumberFlow, { useIsSupported } from "@number-flow/react";
-import { useEffect, useState, type ReactNode } from "react";
+import type { ReactNode } from "react";
 import { EASE_OUT, usePrefersReducedMotion } from "../lib/motion";
 
 const ROLL = { duration: 420, easing: `cubic-bezier(${EASE_OUT.join(",")})` };
 const FADE = { duration: 240, easing: "ease-out" };
 
-interface CountProps {
-  value: number;
-  /** Roll up from zero when the number first appears. Only for a number that has just arrived, never a reopened one. */
-  countUp?: boolean;
-}
-
-/** A whole number that rolls when it changes. Under reduced motion it never animates. */
-export function Count({ value, countUp = false }: CountProps) {
+/**
+ * A whole number that rolls when it changes. The first render shows the final value at once, never a count up from
+ * zero: a wrong number is worse than a still one. Under reduced motion it never animates.
+ */
+export function Count({ value }: { value: number }) {
   const reduce = usePrefersReducedMotion();
   const supported = useIsSupported();
-  const [shown, setShown] = useState(countUp && !reduce ? 0 : value);
-  useEffect(() => setShown(value), [value]);
   // Where the browser cannot run the roll (no custom elements or adopted style sheets) the number is plain text.
-  if (!supported) return <span className="count">{shown.toLocaleString("en-US")}</span>;
+  if (!supported) return <span className="count">{value.toLocaleString("en-US")}</span>;
   return (
     <NumberFlow
-      value={shown}
+      value={value}
       animated={!reduce}
       respectMotionPreference
       transformTiming={ROLL}

@@ -278,3 +278,22 @@ describe("fixtureTransport conversation history", () => {
     expect((await rejection(t.conversations())).status).toBe(403);
   });
 });
+
+describe("fixtureTransport.fleetSummary", () => {
+  it("gives the signed-in company's fixture-derived numbers, labelled as fixtures", async () => {
+    const t = await signedIn("admin-acme");
+    const summary = await t.fleetSummary();
+    expect(summary).toMatchObject({ devices: 10, source: "fixtures" });
+    expect(summary.flagged).toHaveLength(4);
+    expect(summary.flagged).toEqual([...summary.flagged].sort());
+    await t.signIn("admin-globex");
+    expect((await t.fleetSummary()).devices).toBe(8);
+  });
+
+  it("refuses a signed-out caller and the operator", async () => {
+    const t = fixtureTransport(0);
+    expect((await rejection(t.fleetSummary())).status).toBe(401);
+    await t.signIn("operator", "pass");
+    expect((await rejection(t.fleetSummary())).status).toBe(403);
+  });
+});

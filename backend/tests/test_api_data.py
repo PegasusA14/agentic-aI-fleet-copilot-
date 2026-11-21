@@ -1,3 +1,4 @@
+import json
 from urllib.parse import quote
 
 import pytest
@@ -5,8 +6,10 @@ from api_support import client_for, parse_sse, sign_in
 from graph_support import answer_plan, explanation
 
 from fleet_copilot import policy
+from fleet_copilot.actions.recommend import recommend
 from fleet_copilot.agent.llm import ScriptedLLM, final_message, tool_calls_message
-from fleet_copilot.config import EXPECTED_DATASET_SHA256
+from fleet_copilot.config import EXPECTED_DATASET_SHA256, REPO_ROOT
+from fleet_copilot.repository import FleetRepository, TenantContext, dataset_as_of
 
 NOT_FOUND = {"detail": "not found"}
 
@@ -185,3 +188,55 @@ async def test_evidence_query_encoding_round_trips(real_db_path, tmp_path):
         ref = (await ask(client))["evidence"][0]["ref"]
         response = await client.get(f"/api/evidence?ref={quote(ref, safe='')}")
     assert response.status_code == 200
+
+
+GOLDEN = json.loads((REPO_ROOT / "evals" / "golden" / "golden.json").read_text(encoding="utf-8"))
+SUMMARY_USERS = {
+    "acme-001": "admin-acme",
+    "globex-002": "admin-globex",
+    "initech-003": "admin-initech",
+}
+
+
+@pytest.mark.parametrize("tenant", sorted(SUMMARY_USERS))
+async def test_fleet_summary_counts_the_tenants_devices(real_db_path, tmp_path, tenant):
+    want = GOLDEN["tenants"][tenant]["devices"]
+    async with client_for(real_db_path, tmp_path, ScriptedLLM()) as client:
+        await sign_in(client, SUMMARY_USERS[tenant])
+        response = await client.get("/api/fleet/summary")
+    body = response.json()
+    assert response.status_code == 200
+    assert set(body) == {"as_of", "devices", "flagged"}
+    assert body["as_of"] == "2026-06-12T11:00:00Z"
+    assert body["devices"] == len(want)
+    assert body["flagged"] == sorted(body["flagged"])
+    assert set(body["flagged"]) <= set(want)
+
+
+async def test_fleet_summary_flags_what_recommend_suggests(real_db_path, real_conn, tmp_path):
+    repo = FleetRepository(real_conn, TenantContext("acme-001", "test"))
+    as_of = dataset_as_of(real_conn)
+    want = sorted(d.device_id for d in repo.list_devices() if recommend(repo, as_of, [d.device_id]))
+    async with client_for(real_db_path, tmp_path, ScriptedLLM()) as client:
+        await sign_in(client, "admin-acme")
+        body = (await client.get("/api/fleet/summary")).json()
+    assert want and body["flagged"] == want
+    assert set(body["flagged"]) <= set(GOLDEN["tenants"]["acme-001"]["devices"])
+
+
+async def test_fleet_summary_never_shows_another_tenants_ids(real_db_path, tmp_path):
+    async with client_for(real_db_path, tmp_path, ScriptedLLM()) as client:
+        await sign_in(client, "admin-acme")
+        acme = (await client.get("/api/fleet/summary")).json()
+        await sign_in(client, "admin-globex")
+        globex = (await client.get("/api/fleet/summary")).json()
+    assert acme["flagged"]
+    assert not set(acme["flagged"]) & set(globex["flagged"])
+    assert set(globex["flagged"]) <= set(GOLDEN["tenants"]["globex-002"]["devices"])
+
+
+async def test_fleet_summary_needs_a_tenant_admin(real_db_path, tmp_path):
+    async with client_for(real_db_path, tmp_path, ScriptedLLM()) as client:
+        assert (await client.get("/api/fleet/summary")).status_code == 401
+        await sign_in(client, "operator", "op-pass")
+        assert (await client.get("/api/fleet/summary")).status_code == 403

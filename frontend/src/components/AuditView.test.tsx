@@ -203,6 +203,7 @@ describe("the audit route", () => {
       ...fake(),
       session: vi.fn(async () => session),
       policy: vi.fn(async () => ({ as_of: "2026-06-12T11:00:00Z", dataset_sha256: "x", defaults: {} })),
+      fleetSummary: vi.fn(async () => ({ as_of: "2026-06-12T11:00:00Z", devices: 10, flagged: [] })),
       proposals: vi.fn(async () => []),
       evidence: vi.fn(async (ref: string) => ({ ref, collected_at: "2026-06-12T08:39:00Z", value: { free_gb: 4 } })),
     } as unknown as Transport;

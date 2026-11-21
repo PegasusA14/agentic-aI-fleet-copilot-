@@ -53,6 +53,7 @@ function fake(overrides: Partial<Transport> = {}): Transport {
     })),
     trace: vi.fn(unused),
     policy: vi.fn(async () => ({ as_of: ENVELOPE.scope.as_of, dataset_sha256: "x", defaults: {} })),
+    fleetSummary: vi.fn(async () => ({ as_of: ENVELOPE.scope.as_of, devices: 12, flagged: ["a", "b", "c"] })),
   };
   return { ...base, ...overrides } as unknown as Transport;
 }
@@ -382,5 +383,38 @@ describe("evidence from the API", () => {
     expect(within(dialog).getByRole("list", { name: "Steps taken" })).toBeInTheDocument();
     expect(within(dialog).getByText("Calling low_disk_devices")).toBeInTheDocument();
     expect(transport.trace).not.toHaveBeenCalled();
+  });
+});
+
+describe("the home fleet pulse in live mode", () => {
+  it("draws the API's fleet summary on sign-in, with no answer needed", async () => {
+    const transport = fake();
+    await signedInApp(transport);
+    expect(await screen.findByRole("img", { name: "12 devices in your fleet, 3 need attention" })).toBeInTheDocument();
+    expect(document.querySelectorAll(".pulse__dot")).toHaveLength(12);
+    expect(document.querySelectorAll(".pulse__dot[data-lit]")).toHaveLength(3);
+    expect(document.querySelector(".pulse__label")).toHaveTextContent("12 devices · 3 need attention");
+    expect(transport.fleetSummary).toHaveBeenCalledTimes(1);
+  });
+
+  it("reserves the block while the summary loads, then fills it without adding another", async () => {
+    const pending = deferred<{ as_of: string; devices: number; flagged: string[] }>();
+    await signedInApp(fake({ fleetSummary: vi.fn(() => pending.promise) }));
+    const reserved = document.querySelector(".pulse");
+    expect(reserved).toHaveAttribute("data-loading");
+    expect(reserved).toBeEmptyDOMElement();
+    expect(document.querySelector(".pulse__dot")).toBeNull();
+    pending.resolve({ as_of: "x", devices: 4, flagged: [] });
+    await waitFor(() => expect(document.querySelectorAll(".pulse__dot")).toHaveLength(4));
+    expect(document.querySelectorAll(".pulse")).toHaveLength(1);
+    expect(document.querySelector(".pulse")).not.toHaveAttribute("data-loading");
+  });
+
+  it("renders nothing when the summary fails", async () => {
+    const fleetSummary = vi.fn(() => Promise.reject(new ApiError(500, "boom")));
+    await signedInApp(fake({ fleetSummary }));
+    await waitFor(() => expect(fleetSummary).toHaveBeenCalled());
+    await waitFor(() => expect(document.querySelector(".pulse")).toBeNull());
+    expect(screen.getByRole("heading", { name: "Ask your fleet anything." })).toBeInTheDocument();
   });
 });

@@ -7,7 +7,7 @@ import { ApiError, del, getJson, postJson, send } from "./api";
 import { adviseFixtures } from "./fixtureAdvise";
 import { routeQuestion } from "./fixtureRouter";
 import { EXAMPLE_EVAL_RUN, exampleEvalTrace } from "./evalExample";
-import { datasetAsOf, fixturesFor, TENANTS } from "./fixtures";
+import { datasetAsOf, fixturesFor, fleetFindings, fleetSize, TENANTS } from "./fixtures";
 import { parseSse } from "./sse";
 import type { AnswerEnvelope, ProposalCard, TraceEvent } from "./types";
 
@@ -38,6 +38,16 @@ export interface PolicyView {
   as_of: string;
   dataset_sha256: string;
   defaults: Record<string, number>;
+}
+
+/** The signed-in tenant's fleet at the pinned as-of: its size and the devices with at least one supported action. */
+export interface FleetSummary {
+  as_of: string;
+  devices: number;
+  /** Device ids, sorted. */
+  flagged: string[];
+  /** Set only by the offline replay: its numbers are read from stored answers, not computed by the API. */
+  source?: "fixtures";
 }
 
 export type ProposalStatus = ProposalCard["status"];
@@ -221,6 +231,8 @@ export interface Transport {
   evidence(ref: string): Promise<EvidenceValue>;
   trace(traceId: string): Promise<TraceView>;
   policy(): Promise<PolicyView>;
+  /** The home pulse's numbers for this admin's tenant. Fixtures label theirs as fixture-derived. */
+  fleetSummary(): Promise<FleetSummary>;
   proposals(status?: ProposalStatus): Promise<ProposalCard[]>;
   proposal(id: string): Promise<ProposalCard>;
   approve(id: string, payloadHash: string): Promise<ApprovalResult>;
@@ -278,6 +290,7 @@ export const liveTransport: Transport = {
   evidence: (ref) => getJson("/api/evidence", { ref }),
   trace: (traceId) => getJson(`/api/traces/${enc(traceId)}`),
   policy: () => getJson("/api/policy"),
+  fleetSummary: () => getJson("/api/fleet/summary"),
   proposals: (status) => getJson("/api/proposals", { status }),
   proposal: (id) => getJson(`/api/proposals/${enc(id)}`),
   approve: (id, payloadHash) =>
@@ -594,6 +607,19 @@ export function fixtureTransport(stepMs = 380): Transport {
     async policy() {
       who();
       return { as_of: datasetAsOf(), dataset_sha256: "fixtures", defaults: {} };
+    },
+    async fleetSummary() {
+      const { session } = who("admin");
+      let devices: number | null;
+      let flagged: string[];
+      try {
+        devices = fleetSize(session.company_id);
+        flagged = fleetFindings(session.company_id);
+      } catch {
+        throw notFound(); // a company the replay has no fixtures for
+      }
+      if (devices === null) throw notFound();
+      return { as_of: datasetAsOf(), devices, flagged, source: "fixtures" };
     },
     async proposals(status) {
       const { session } = who("admin");

@@ -30,23 +30,25 @@ describe("Count", () => {
 
   it("never lets number-flow animate under reduced motion", () => {
     setReducedMotion(true);
-    render(<Count value={7} countUp />);
+    render(<Count value={7} />);
     expect(seen.every((props) => props.animated === false)).toBe(true);
     // And it does not start from zero: the right number is there from the first paint.
     expect(seen[0].value).toBe(7);
   });
 
-  it("rolls up from zero for a number that has just arrived", () => {
-    setReducedMotion(false);
-    render(<Count value={7} countUp />);
-    expect(seen[0].value).toBe(0);
-    expect(screen.getByTestId("flow")).toHaveTextContent("7");
-  });
-
-  it("does not roll up from zero when it was not asked to", () => {
+  it("shows the final digits on the first render, even when motion is allowed, and never passes through zero", () => {
     setReducedMotion(false);
     render(<Count value={7} />);
     expect(seen[0].value).toBe(7);
+    expect(seen.map((props) => props.value)).toEqual(seen.map(() => 7));
+  });
+
+  it("animates only a change that happens after the first render", () => {
+    setReducedMotion(false);
+    const { rerender } = render(<Count value={7} />);
+    rerender(<Count value={8} />);
+    expect(seen.map((props) => props.value)).toEqual([7, 8]);
+    expect(seen.at(-1)?.animated).toBe(true);
   });
 
   it("follows the value when it changes", () => {

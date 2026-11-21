@@ -26,12 +26,12 @@ function slotsFor(ids: string[], size: number): Set<number> {
 interface FleetPulseProps {
   /** Devices in the signed-in tenant's fleet; the pulse is not drawn when this is unknown. */
   size: number | null;
-  /** Device ids with a current finding, when the client already holds them. Empty keeps every dot neutral. */
+  /** Device ids with at least one action the evidence supports, from the fleet summary. */
   flagged?: string[];
 }
 
 /**
- * One dot per device. Dots with a finding are lit in the accent colour and breathe; the rest stay neutral.
+ * One dot per device. Devices that need attention are lit in the accent colour and breathe; the rest stay neutral.
  * Nothing is drawn for an unknown fleet size: no placeholder, no invented number.
  */
 export function FleetPulse({ size, flagged = [] }: FleetPulseProps) {
@@ -41,8 +41,8 @@ export function FleetPulse({ size, flagged = [] }: FleetPulseProps) {
   const columns = columnsFor(size);
   const step = Math.min(0.03, ENTRY_SPAN / size);
   const label =
-    `${size} ${size === 1 ? "device" : "devices"} in your fleet` +
-    (lit.size > 0 ? `, ${lit.size} with a low disk, high memory or battery wear finding` : "");
+    `${size} ${size === 1 ? "device" : "devices"} in your fleet, ` +
+    `${lit.size} ${lit.size === 1 ? "needs" : "need"} attention`;
   return (
     <div className="pulse">
       <div
@@ -68,13 +68,9 @@ export function FleetPulse({ size, flagged = [] }: FleetPulseProps) {
         ))}
       </div>
       <p className="pulse__label" aria-hidden="true">
-        <Count value={size} countUp /> {size === 1 ? "device" : "devices"}
-        {lit.size > 0 ? (
-          <>
-            {" · "}
-            <Count value={lit.size} countUp /> flagged
-          </>
-        ) : null}
+        <Count value={size} /> {size === 1 ? "device" : "devices"}
+        {" · "}
+        <Count value={lit.size} /> {lit.size === 1 ? "needs" : "need"} attention
       </p>
     </div>
   );

@@ -4,7 +4,7 @@ import { ApprovalsView } from "./components/ApprovalsView";
 import { AuditView } from "./components/AuditView";
 import { Composer } from "./components/Composer";
 import { EvidenceDrawer, type DrawerTab } from "./components/EvidenceDrawer";
-import { Hero, Suggestions } from "./components/Home";
+import { Hero, Suggestions, type FleetInfo } from "./components/Home";
 import { ObserveView } from "./components/observe/ObserveView";
 import { Sidebar } from "./components/Sidebar";
 import { SignIn } from "./components/SignIn";
@@ -12,7 +12,7 @@ import { TopBar } from "./components/TopBar";
 import { Thread, type TurnData } from "./components/Thread";
 import { ApiError, UNREACHABLE } from "./lib/api";
 import { adviseFixtures } from "./lib/fixtureAdvise";
-import { datasetAsOf, fixturesFor, fleetFindings, fleetSize, tenantName } from "./lib/fixtures";
+import { datasetAsOf, fixturesFor, tenantName } from "./lib/fixtures";
 import { chooseTransport, type ConversationSummary, type Session, type StoredConversation, type Transport } from "./lib/transport";
 import { useMediaQuery } from "./lib/useMediaQuery";
 import type { AnswerEnvelope, EvidenceItem } from "./lib/types";
@@ -385,26 +385,22 @@ export default function App({ transport: given }: AppProps) {
     (refs: string[], subject: string) => setDrawer({ turnId: "", tab: "evidence", refs, proposal: { subject } }),
     [],
   );
-  /** Live sessions carry no fleet size of their own: the largest population any answer has evaluated is the best the client knows. */
-  const [seenFleet, setSeenFleet] = useState<{ company: string; size: number } | null>(null);
+  /** The home pulse comes from the API's fleet summary (the replay's own numbers in fixture mode), fetched once per sign-in. */
   const company = session?.company_id ?? null;
+  const isTenantAdmin = session?.role === "admin";
+  const [summary, setSummary] = useState<{ company: string; info: FleetInfo } | null>(null);
   useEffect(() => {
-    if (!company) return;
-    const best = Math.max(0, ...turns.map((turn) => turn.envelope?.coverage?.population ?? 0));
-    if (best > 0) setSeenFleet((prev) => (prev && prev.company === company && prev.size >= best ? prev : { company, size: best }));
-  }, [turns, company]);
-  /** The home pulse: one dot per device. Replay knows the fleet and its findings; live knows only what answers have shown; otherwise nothing is drawn. */
-  const fleet = useMemo(() => {
-    if (!company) return { size: null };
-    if (transport.mode === "fixtures") {
-      try {
-        return { size: fleetSize(company), flagged: fleetFindings(company) };
-      } catch {
-        return { size: null }; // a company the replay has no fixtures for
-      }
-    }
-    return { size: seenFleet && seenFleet.company === company ? seenFleet.size : null };
-  }, [company, transport.mode, seenFleet]);
+    if (!company || !isTenantAdmin) return;
+    let current = true;
+    transport.fleetSummary().then(
+      (got) => current && setSummary({ company, info: { status: "ready", size: got.devices, flagged: got.flagged } }),
+      () => current && setSummary({ company, info: { status: "error" } }),
+    );
+    return () => {
+      current = false;
+    };
+  }, [company, isTenantAdmin, transport]);
+  const fleet: FleetInfo = summary && summary.company === company ? summary.info : { status: "loading" };
   const running = turns.some((turn) => turn.status === "working");
   const docked = turns.length > 0;
 

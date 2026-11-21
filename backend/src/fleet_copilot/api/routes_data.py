@@ -6,6 +6,7 @@ from typing import Annotated
 from fastapi import APIRouter, Depends, HTTPException, Query, Request
 
 from fleet_copilot import policy
+from fleet_copilot.actions.recommend import recommend
 from fleet_copilot.agent.identity import Identity
 from fleet_copilot.api.security import require_admin, require_identity, require_operator
 from fleet_copilot.config import EXPECTED_DATASET_SHA256
@@ -45,6 +46,19 @@ def get_evidence(
         # malformed, foreign and nonexistent refs all look the same
         raise _not_found() from None
     return {"ref": value.ref, "collected_at": value.collected_at, "value": value.value}
+
+
+@router.get("/fleet/summary")
+def fleet_summary(request: Request, identity: Annotated[Identity, Depends(require_admin)]) -> dict:
+    """The session tenant's device count and the devices with at least one supported action.
+
+    Read-only at the pinned as-of. A device is flagged when `recommend` gives it a suggestion.
+    """
+    as_of = request.app.state.service.check_ready()
+    with _tenant_repo(request, identity) as repo:
+        device_ids = [d.device_id for d in repo.list_devices()]
+        flagged = sorted(d for d in device_ids if recommend(repo, as_of, [d]))
+    return {"as_of": iso_z(as_of), "devices": len(device_ids), "flagged": flagged}
 
 
 @router.get("/traces/{trace_id}")

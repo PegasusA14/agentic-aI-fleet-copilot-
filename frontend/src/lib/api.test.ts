@@ -224,3 +224,12 @@ describe("liveTransport conversation history", () => {
     expect(error.status).toBe(404);
   });
 });
+
+describe("liveTransport.fleetSummary", () => {
+  it("reads the tenant's summary from the fleet endpoint", async () => {
+    const summary = { as_of: "2026-06-12T11:00:00Z", devices: 10, flagged: ["a", "b"] };
+    fetchMock.mockResolvedValueOnce(json(summary));
+    await expect(liveTransport.fleetSummary()).resolves.toEqual(summary);
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/fleet/summary");
+  });
+});

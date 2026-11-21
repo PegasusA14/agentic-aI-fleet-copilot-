@@ -359,6 +359,8 @@ button.pill:disabled {
 .pulse {
   --pulse-dot: 10px;
   margin-top: 28px;
+  /* Two rows of dots, the gap and the label: the block keeps this height while the summary loads, so nothing jumps. */
+  min-height: calc(2 * var(--pulse-dot) + 6px + 12px + 0.71875rem * 1.3);
   display: flex;
   flex-direction: column;
   align-items: flex-start;

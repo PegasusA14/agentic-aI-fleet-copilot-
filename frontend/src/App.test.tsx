@@ -41,7 +41,7 @@ describe("sign-in and company boundary", () => {
 
   it("draws the fleet pulse on home: a dot per device in the signed-in company, none for another company's", async () => {
     await signInAs("Globex");
-    expect(await screen.findByRole("img", { name: /^8 devices in your fleet/ })).toBeInTheDocument();
+    expect(await screen.findByRole("img", { name: /^8 devices in your fleet, \d+ need/ })).toBeInTheDocument();
     expect(document.querySelectorAll(".pulse__dot")).toHaveLength(8);
     expect(document.querySelector(".pulse__label")).toHaveTextContent(/8\s*devices/i);
   });
