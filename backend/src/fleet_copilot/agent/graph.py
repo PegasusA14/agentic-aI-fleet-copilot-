@@ -11,6 +11,7 @@ Nodes are small and take what they need from state; `llm` is the only model depe
 
 from __future__ import annotations
 
+import re
 import time
 import uuid
 from collections.abc import Awaitable, Callable
@@ -79,6 +80,18 @@ from fleet_copilot.repository import FleetRepository, TenantContext
 RECURSION_LIMIT = 4 * policy.MAX_TOOL_ROUNDS + 20
 
 ToolCall = dict[str, Any]
+
+# Words that name a specific action (order/upgrade, ticket, flag/replace, notify/tell). A word is a prefix
+# match, so "upgrading", "tickets" and "notified" count. Without one, advice is not narrowed to an action.
+_ACTION_WORDS = re.compile(
+    r"\b(?:order|upgrad|ticket|flag|replac|notif|tell|messag|email|remind)", re.IGNORECASE
+)
+
+
+def names_an_action(question: str) -> bool:
+    """True when the user's question names a specific action the advice could be limited to."""
+    return _ACTION_WORDS.search(question) is not None
+
 
 _TOOL_NAMES = frozenset(t.name for t in TOOLS)
 # What a trace shows for a tool name the model made up: never the model's own text.
@@ -477,7 +490,14 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
                 return {"pending_calls": False}
             args: dict[str, Any] = {"device_ids": list(state.get("focus_ids") or [])}
             if plan.action_type:
-                args["action_type"] = plan.action_type
+                if names_an_action(state["question"]):
+                    args["action_type"] = plan.action_type
+                else:
+                    emit(
+                        "plan",
+                        "Generic advice: the planner's action filter was ignored",
+                        data={"action_type": plan.action_type},
+                    )
             call = {
                 "name": "recommend_actions",
                 "args": args,

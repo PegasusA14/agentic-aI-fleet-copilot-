@@ -39,6 +39,9 @@ The agent talks to a model through a gateway chosen by `FLEET_MODEL_MODE`:
 Keep LangSmith tracing (`LANGSMITH_*`, `LANGCHAIN_*`) off: it exports prompts and answers off-box and must
 never be on for tenant data.
 
+Optional model parameters: `FLEET_MODEL_TEMPERATURE` (0 to 1, default 0) and `FLEET_MODEL_NAME` (a label
+recorded with eval runs, default the deployment name; it does not change which deployment is called).
+
 Other variables: `FLEET_DATA_PATH`, `FLEET_DB_PATH`, `FLEET_STATE_DIR`, `FLEET_PORT`, `FLEET_ALLOWED_ORIGINS`,
 `FLEET_SESSION_SECRET`, `FLEET_OPERATOR_PASSCODE`.
 

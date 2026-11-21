@@ -36,8 +36,10 @@ several devices ("raise a ticket for these", "flag them all") the system turns i
 - intent "advise": the user asks what to do, for advice, recommendations, next steps or how to fix something \
 ("what should I do?", "any recommendations?", "how do I fix this?", "next steps for these"), including vague \
 follow-ups to a list ("shall we raise a ticket for those?", "raise a ticket for these", "shall we do something?", \
-"fix them", "sort them out"). Advice is never unsupported. When the user names one of the four actions, set \
-`action_type` to it so the suggestions are limited to that action. The system picks the actions from the evidence. Set `reference` only when the user names a device \
+"fix them", "sort them out"). Advice is never unsupported. Set `action_type` ONLY when the user names a specific action (order or upgrade, \
+ticket, flag or replace, notify or tell): "shall we raise a ticket for those?" is `remediation_ticket`. For \
+generic advice ("what should we do about these?", "how do we fix this?", "any recommendations?") leave \
+`action_type` empty so every eligible action is offered. The system picks the actions from the evidence. Set `reference` only when the user names a device \
 or points at part of an earlier answer; otherwise leave it empty and the system uses the devices of the last answer.
 - intent "unsupported": the question is not something the fleet data can answer or do. Never write the reply \
 yourself: the system words every refusal. Pick the one case that fits:

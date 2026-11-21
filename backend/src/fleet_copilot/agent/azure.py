@@ -61,7 +61,7 @@ def build_azure_model(settings: AzureSettings, call_timeout_s: float) -> AzureCh
         azure_endpoint=settings.endpoint,
         api_version=settings.api_version,
         api_key=settings.api_key,
-        temperature=0,
+        temperature=settings.temperature,
         timeout=call_timeout_s,
         max_retries=0,  # retries are ours, so they are bounded, counted and covered by the turn deadline
     )

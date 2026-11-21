@@ -125,6 +125,40 @@ def test_the_real_azure_model_builds_offline_and_binds_the_tools():
     assert "sk-not-a-real-key" not in repr(model)
 
 
+def test_the_azure_model_gets_the_configured_temperature():
+    settings = AzureSettings(
+        api_key=SecretStr("sk-not-a-real-key"),
+        endpoint="https://example.openai.azure.com/",
+        api_version="2024-10-21",
+        deployment="gpt-4o",
+        temperature=0.3,
+    )
+    assert build_azure_model(settings, call_timeout_s=5.0).temperature == 0.3
+
+
+def test_the_gateway_builder_passes_the_temperature_from_the_environment(monkeypatch):
+    seen = {}
+
+    def fake_build(azure, timeout):
+        seen["temperature"] = azure.temperature
+        return FakeChatModel([])
+
+    monkeypatch.setattr("fleet_copilot.agent.gateways.build_azure_model", fake_build)
+    env = {
+        "FLEET_MODEL_MODE": "live",
+        "AZURE_OPENAI_API_KEY": "sk-not-a-real-key",
+        "AZURE_OPENAI_ENDPOINT": "https://example.openai.azure.com/",
+        "AZURE_OPENAI_API_VERSION": "2024-10-21",
+        "AZURE_OPENAI_DEPLOYMENT": "gpt-4o",
+        "FLEET_MODEL_TEMPERATURE": "0.4",
+    }
+    from fleet_copilot.agent.gateways import build_gateway
+    from fleet_copilot.config import ModelSettings
+
+    build_gateway(ModelSettings.from_env(env))
+    assert seen["temperature"] == 0.4
+
+
 def content_filtered(jailbreak: bool) -> openai.BadRequestError:
     request = httpx.Request("POST", "https://example.invalid/x")
     flags = {

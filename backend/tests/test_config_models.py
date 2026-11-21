@@ -120,3 +120,34 @@ def test_the_endpoint_and_deployment_stay_out_of_repr():
     assert "example.openai.azure.com" not in shown
     assert "gpt-4o" not in shown
     assert AZURE["AZURE_OPENAI_API_KEY"] not in shown
+
+
+def test_the_temperature_defaults_to_zero_and_the_name_to_the_deployment():
+    replay = ModelSettings.from_env({})
+    assert replay.temperature == 0.0 and replay.model_name is None
+    live = ModelSettings.from_env({"FLEET_MODEL_MODE": "live", **AZURE})
+    assert live.temperature == 0.0 and live.azure.temperature == 0.0
+    assert live.model_name == "gpt-4o"
+
+
+@pytest.mark.parametrize("raw, expected", [("0", 0.0), ("0.2", 0.2), (" 1 ", 1.0), ("", 0.0)])
+def test_a_valid_temperature_is_read(raw, expected):
+    env = {"FLEET_MODEL_MODE": "live", **AZURE, "FLEET_MODEL_TEMPERATURE": raw}
+    settings = ModelSettings.from_env(env)
+    assert settings.temperature == expected and settings.azure.temperature == expected
+
+
+@pytest.mark.parametrize("raw", ["hot", "1.5", "-0.1", "nan", "inf", "7.25"])
+def test_a_bad_temperature_names_the_variable_but_not_the_value(raw):
+    with pytest.raises(ConfigError) as err:
+        ModelSettings.from_env({"FLEET_MODEL_TEMPERATURE": raw})
+    assert "FLEET_MODEL_TEMPERATURE" in str(err.value)
+    assert raw not in str(err.value)
+
+
+def test_the_model_name_is_a_label_that_leaves_the_deployment_alone():
+    env = {"FLEET_MODEL_MODE": "live", **AZURE, "FLEET_MODEL_NAME": " gpt-4o-2024-11-20 "}
+    settings = ModelSettings.from_env(env)
+    assert settings.model_name == "gpt-4o-2024-11-20"
+    assert settings.azure.deployment == "gpt-4o"
+    assert ModelSettings.from_env({"FLEET_MODEL_NAME": "label"}).model_name == "label"

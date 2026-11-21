@@ -67,10 +67,14 @@ def _parser() -> argparse.ArgumentParser:
     return parser
 
 
+def _live_models() -> ModelSettings:
+    return ModelSettings.from_env({**os.environ, "FLEET_MODEL_MODE": "live"})
+
+
 def _gateway(live: bool, refresh: bool) -> LLMGateway:
     if not live:
         return CassetteGateway(CASSETTE)
-    models = ModelSettings.from_env({**os.environ, "FLEET_MODEL_MODE": "live"})
+    models = _live_models()
     assert models.azure is not None  # live mode without Azure settings raises ConfigError
     if refresh:
         CASSETTE.unlink(missing_ok=True)
@@ -86,6 +90,9 @@ async def _run(args: argparse.Namespace) -> int:
     state = settings.state_path()
     mode = "eval-live" if args.live else "eval-replay"
     suites = load_suites(SCENARIOS)
+    models = (
+        _live_models() if args.live else None
+    )  # the label and temperature recorded with the run
     result = await runner.run(
         suites,
         gateway=_gateway(args.live, args.refresh),
@@ -95,6 +102,8 @@ async def _run(args: argparse.Namespace) -> int:
         run_id=datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ"),
         only_suite=args.suite,
         model_mode=mode,
+        model_name=models.model_name if models else None,
+        temperature=models.temperature if models else None,
     )
     print(runner.format_summary(result))
     print(f"run {result.run_id} ({mode}); report: {runner.write_report(result, REPORTS)}")

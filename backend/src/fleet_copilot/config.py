@@ -65,12 +65,27 @@ class Settings:
         return self.state_dir or self.db_path.parent
 
 
+def _temperature(raw: str | None) -> float:
+    """`FLEET_MODEL_TEMPERATURE`: a number from 0 to 1, default 0. The message never repeats the value."""
+    text = (raw or "").strip()
+    if not text:
+        return 0.0
+    try:
+        value = float(text)
+    except ValueError:
+        raise ConfigError("FLEET_MODEL_TEMPERATURE must be a number from 0 to 1") from None
+    if not 0.0 <= value <= 1.0:  # also false for nan
+        raise ConfigError("FLEET_MODEL_TEMPERATURE must be a number from 0 to 1")
+    return value
+
+
 @dataclass(frozen=True)
 class AzureSettings:
     api_key: SecretStr
     endpoint: str = field(repr=False)
     api_version: str
     deployment: str = field(repr=False)
+    temperature: float = 0.0
 
 
 @dataclass(frozen=True)
@@ -80,6 +95,9 @@ class ModelSettings:
     cassette_path: Path
     record: bool
     call_timeout_s: float
+    temperature: float = 0.0
+    # A label for the model behind the deployment, recorded with eval runs. It never picks the deployment.
+    model_name: str | None = field(default=None, repr=False)
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> ModelSettings:
@@ -91,6 +109,8 @@ class ModelSettings:
             policy,
         )  # local import: policy has no dependencies, keep config light
 
+        temperature = _temperature(env.get("FLEET_MODEL_TEMPERATURE"))
+        label = (env.get("FLEET_MODEL_NAME") or "").strip() or None
         azure: AzureSettings | None = None
         if raw_mode == "live":
             values = {name: (env.get(name) or "").strip() for name in _AZURE_VARS}
@@ -104,6 +124,7 @@ class ModelSettings:
                 endpoint=values["AZURE_OPENAI_ENDPOINT"],
                 api_version=values["AZURE_OPENAI_API_VERSION"],
                 deployment=values["AZURE_OPENAI_DEPLOYMENT"],
+                temperature=temperature,
             )
         cassette = env.get("FLEET_CASSETTE_PATH") or str(
             REPO_ROOT / "var" / "cassettes" / "live.jsonl"
@@ -115,6 +136,8 @@ class ModelSettings:
             cassette_path=Path(cassette),
             record=record,
             call_timeout_s=policy.MODEL_CALL_TIMEOUT_S,
+            temperature=temperature,
+            model_name=label or (azure.deployment if azure else None),
         )
 
 

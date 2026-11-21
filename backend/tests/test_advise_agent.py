@@ -18,7 +18,11 @@ from graph_support import (
 from fleet_copilot import policy
 from fleet_copilot.actions.store import ActionStore
 from fleet_copilot.agent import texts
-from fleet_copilot.agent.graph import ONE_RECOMMENDATION_PER_TURN, _recommend_blocked
+from fleet_copilot.agent.graph import (
+    ONE_RECOMMENDATION_PER_TURN,
+    _recommend_blocked,
+    names_an_action,
+)
 from fleet_copilot.agent.llm import (
     Plan,
     Reference,
@@ -511,3 +515,57 @@ def test_the_model_view_of_a_real_recommendation_is_counts_and_action_types_only
         assert s["reason"] not in text and s["target_label"] not in text
         assert not any(ref in text for ref in s["refs"])
     assert "emp-" not in text and "MT7PJB7N5LRE" not in text
+
+
+# ---- generic advice is not narrowed to one action -------------------------------------------------
+
+
+def _types(envelope):
+    return {s.action_type for s in envelope.suggested_actions}
+
+
+async def test_generic_advice_ignores_an_action_type_the_user_never_named(real_db_path, actions_db):
+    service, _, _ = await low_disk_then(
+        real_db_path,
+        advise_plan(action_type="remediation_ticket"),
+        [],
+        [explanation(headline="Suggested next steps", text=None)],
+        actions_db_path=actions_db,
+    )
+    envelope = (await ask(service, "what should we do about these?")).envelope
+    assert envelope.outcome == "answer"
+    assert "upgrade_order" in _types(envelope)  # not narrowed to tickets
+
+
+async def test_advice_that_names_an_action_stays_limited_to_it(real_db_path, actions_db):
+    service, _, _ = await low_disk_then(
+        real_db_path,
+        advise_plan(action_type="remediation_ticket"),
+        [],
+        [explanation(headline="Suggested next steps", text=None)],
+        actions_db_path=actions_db,
+    )
+    envelope = (await ask(service, "shall we raise a ticket for those?")).envelope
+    assert _types(envelope) == {"remediation_ticket"}
+
+
+@pytest.mark.parametrize(
+    "question, named",
+    [
+        ("what should we do about these?", False),
+        ("how do we fix this?", False),
+        ("any recommendations?", False),
+        ("Order storage for them", True),
+        ("shall we upgrade them", True),
+        ("raise tickets please", True),
+        ("flag these", True),
+        ("should we replace them?", True),
+        ("notify the owners", True),
+        ("tell the employees", True),
+        ("send them a message", True),
+        ("email them", True),
+        ("remind them", True),
+    ],
+)
+def test_the_action_words_in_a_question(question, named):
+    assert names_an_action(question) is named

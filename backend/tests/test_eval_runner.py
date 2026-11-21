@@ -406,6 +406,22 @@ async def test_the_report_is_written_as_json(tmp_path, scenarios, settings, stor
     assert report["cases"][0]["instance_id"] == "grounding.right#1"
 
 
+async def test_the_report_records_the_model_label_and_temperature(
+    tmp_path, scenarios, settings, stores
+):
+    suite_file(scenarios, "grounding", [low_disk_case("right", {"outcome": "answer"})])
+    result = await go(
+        tmp_path,
+        settings,
+        stores,
+        ScriptedLLM(**low_disk_script()),
+        model_name="gpt-4o-2024-11-20",
+        temperature=0.2,
+    )
+    report = result.to_dict()
+    assert report["model_name"] == "gpt-4o-2024-11-20" and report["temperature"] == 0.2
+
+
 async def test_exit_code_is_zero_only_when_everything_passed_and_was_recorded(
     tmp_path, scenarios, settings, stores
 ):

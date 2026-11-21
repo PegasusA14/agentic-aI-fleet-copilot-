@@ -112,6 +112,7 @@ The operator key also needs `FLEET_OPERATOR_PASSCODE` to be set in `.env` and en
 | --- | --- |
 | Azure OpenAI (live mode) | `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_VERSION`, `AZURE_OPENAI_DEPLOYMENT` |
 | Mode | `FLEET_MODEL_MODE` (`replay` or `live`) |
+| Model parameters (optional) | `FLEET_MODEL_TEMPERATURE` (0 to 1, default 0), `FLEET_MODEL_NAME` (a label recorded with eval runs, default the deployment name; it does not pick the deployment) |
 | API server | `FLEET_PORT`, `FLEET_SESSION_SECRET`, `FLEET_OPERATOR_PASSCODE`, `FLEET_ALLOWED_ORIGINS` |
 | Recorded responses and state | `FLEET_CASSETTE_PATH`, `FLEET_CASSETTE_RECORD`, `FLEET_STATE_DIR` |
 | Optional LangSmith export (keep off) | `LANGSMITH_TRACING`, `LANGSMITH_API_KEY` |

@@ -209,3 +209,9 @@ def test_the_explain_prompt_asks_for_a_natural_short_reply_to_the_admin():
     # the strict grounding rules are unchanged
     for fragment in ("copied exactly", "do not round", "plain text only", "negations"):
         assert fragment in explain
+
+
+def test_the_planner_sets_action_type_only_for_a_named_action():
+    plan = _flat(prompts.PLAN_SYSTEM)
+    assert "set `action_type` only when the user names a specific action" in plan
+    assert "what should we do about these?" in plan and "leave `action_type` empty" in plan
