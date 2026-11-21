@@ -6,6 +6,7 @@ import { Aurora } from "./components/Aurora";
 import { Composer } from "./components/Composer";
 import { EvidenceDrawer, type DrawerTab } from "./components/EvidenceDrawer";
 import { Hero, Suggestions } from "./components/Home";
+import { ObserveView } from "./components/observe/ObserveView";
 import { Rail } from "./components/Rail";
 import { SignIn } from "./components/SignIn";
 import { TopBar } from "./components/TopBar";
@@ -298,8 +299,8 @@ export default function App({ transport: given }: AppProps) {
         <Aurora docked={false} streaming={false} />
         <div className="app">
           <TopBar operator asOf={asOf} replay={transport.mode === "fixtures"} onSignOut={signOut} />
-          <main className="stage" data-view="home">
-            <p className="fine">The operator console is not connected yet.</p>
+          <main className="stage" data-view="observe">
+            <ObserveView transport={transport} onSessionEnded={sessionEnded} />
           </main>
         </div>
       </MotionConfig>

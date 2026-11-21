@@ -94,13 +94,16 @@ describe("live sign-in", () => {
 
   it("signs in an operator with a passcode and lands on the observe route", async () => {
     const signIn = vi.fn(async () => OPERATOR);
+    const observeTurns = vi.fn(async () => []);
     const user = userEvent.setup();
-    render(<App transport={fake({ signIn })} />);
+    render(<App transport={fake({ signIn, observeTurns })} />);
     await user.click(await screen.findByRole("button", { name: /Operator/ }));
     await user.type(screen.getByLabelText(/operator passcode/i), "open-sesame{Enter}");
     expect(signIn).toHaveBeenCalledWith("operator", "open-sesame");
     await waitFor(() => expect(window.location.hash).toBe("#/observe"));
     expect(screen.getByText("Operator")).toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "Operator console" })).toBeInTheDocument();
+    expect(observeTurns).toHaveBeenCalled();
     expect(screen.queryByLabelText(/ask a question about your fleet/i)).not.toBeInTheDocument();
   });
 

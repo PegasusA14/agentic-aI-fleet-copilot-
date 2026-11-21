@@ -44,7 +44,7 @@ interface AuditListProps {
 /** One audit trail, used by the tenant's Audit view and the operator console alike. Codes become words here. */
 export function AuditList({ entries, showWho = false, onFilterProposal, onOpenRefs }: AuditListProps) {
   return (
-    <ol className="audit" aria-label="Audit entries">
+    <ol className="audit" aria-label="Audit entries" data-who={showWho}>
       {entries.map((entry) => {
         const style = eventStyle(entry.event);
         const action = actionWords(entry.action_type);
