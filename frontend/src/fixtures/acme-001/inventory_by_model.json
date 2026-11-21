@@ -28,6 +28,7 @@
     "clarification": null,
     "coverage": {
       "excluded": {},
+      "excluded_devices": [],
       "missing_latest": [],
       "population": 10,
       "stale": []
@@ -113,11 +114,13 @@
       }
     ],
     "explanation": null,
+    "follow_ups": [],
     "headline": "7 devices grouped by model",
     "notes": [],
     "outcome": "answer",
     "proposal": null,
     "reason_code": null,
+    "repeat_of": null,
     "scope": {
       "as_of": "2026-06-12T11:00:00Z",
       "calculation": "7 distinct devices across 1 claim; at most 1 supporting reading is cited per device",
@@ -125,7 +128,213 @@
       "population": 10,
       "rule": "devices matching os=macOS"
     },
+    "scope_line": {
+      "as_of": "2026-06-12T11:00:00Z",
+      "basis": "latest snapshot per device",
+      "checked": 10,
+      "company_name": "Acme",
+      "matched": 7,
+      "not_checked": 0,
+      "ok": null,
+      "ok_label": ""
+    },
     "suggested_actions": [],
+    "summary": "Seven devices run four different OS versions.",
+    "table": {
+      "columns": [
+        {
+          "key": "device",
+          "kind": "device",
+          "label": "Device"
+        },
+        {
+          "key": "os",
+          "kind": "text",
+          "label": "OS"
+        },
+        {
+          "key": "model",
+          "kind": "text",
+          "label": "Model"
+        }
+      ],
+      "default_sort": {
+        "direction": "asc",
+        "key": "device"
+      },
+      "rows": [
+        {
+          "cells": {
+            "device": {
+              "display": "acme-mac-5",
+              "tone": null,
+              "value": "acme-mac-5"
+            },
+            "model": {
+              "display": "Mac mini",
+              "tone": null,
+              "value": "Mac mini"
+            },
+            "os": {
+              "display": "macOS 15.4",
+              "tone": null,
+              "value": "macOS 15.4"
+            }
+          },
+          "device_id": "DLT35MHGTH2D",
+          "label": "acme-mac-5",
+          "refs": [
+            "acme-001/DLT35MHGTH2D@2026-06-12T09:36:00Z#os"
+          ]
+        },
+        {
+          "cells": {
+            "device": {
+              "display": "acme-macbook-1",
+              "tone": null,
+              "value": "acme-macbook-1"
+            },
+            "model": {
+              "display": "MacBook Pro",
+              "tone": null,
+              "value": "MacBook Pro"
+            },
+            "os": {
+              "display": "macOS 13.6",
+              "tone": null,
+              "value": "macOS 13.6"
+            }
+          },
+          "device_id": "7VP16KHV88LM",
+          "label": "acme-macbook-1",
+          "refs": [
+            "acme-001/7VP16KHV88LM@2026-06-12T10:41:00Z#os"
+          ]
+        },
+        {
+          "cells": {
+            "device": {
+              "display": "acme-macbook-2",
+              "tone": null,
+              "value": "acme-macbook-2"
+            },
+            "model": {
+              "display": "MacBook Pro",
+              "tone": null,
+              "value": "MacBook Pro"
+            },
+            "os": {
+              "display": "macOS 14.5",
+              "tone": null,
+              "value": "macOS 14.5"
+            }
+          },
+          "device_id": "1LYSSFD074BB",
+          "label": "acme-macbook-2",
+          "refs": [
+            "acme-001/1LYSSFD074BB@2026-06-12T09:47:00Z#os"
+          ]
+        },
+        {
+          "cells": {
+            "device": {
+              "display": "acme-macbook-3",
+              "tone": null,
+              "value": "acme-macbook-3"
+            },
+            "model": {
+              "display": "MacBook Pro",
+              "tone": null,
+              "value": "MacBook Pro"
+            },
+            "os": {
+              "display": "macOS 15.3",
+              "tone": null,
+              "value": "macOS 15.3"
+            }
+          },
+          "device_id": "DSYPSES7SKBB",
+          "label": "acme-macbook-3",
+          "refs": [
+            "acme-001/DSYPSES7SKBB@2026-06-12T10:57:00Z#os"
+          ]
+        },
+        {
+          "cells": {
+            "device": {
+              "display": "acme-macbook-4",
+              "tone": null,
+              "value": "acme-macbook-4"
+            },
+            "model": {
+              "display": "MacBook Pro",
+              "tone": null,
+              "value": "MacBook Pro"
+            },
+            "os": {
+              "display": "macOS 14.5",
+              "tone": null,
+              "value": "macOS 14.5"
+            }
+          },
+          "device_id": "MT7PJB7N5LRE",
+          "label": "acme-macbook-4",
+          "refs": [
+            "acme-001/MT7PJB7N5LRE@2026-06-12T08:39:00Z#os"
+          ]
+        },
+        {
+          "cells": {
+            "device": {
+              "display": "acme-macbook-6",
+              "tone": null,
+              "value": "acme-macbook-6"
+            },
+            "model": {
+              "display": "MacBook Pro",
+              "tone": null,
+              "value": "MacBook Pro"
+            },
+            "os": {
+              "display": "macOS 14.5",
+              "tone": null,
+              "value": "macOS 14.5"
+            }
+          },
+          "device_id": "XSU9UUDGU6AC",
+          "label": "acme-macbook-6",
+          "refs": [
+            "acme-001/XSU9UUDGU6AC@2026-06-12T09:52:00Z#os"
+          ]
+        },
+        {
+          "cells": {
+            "device": {
+              "display": "acme-macbook-7",
+              "tone": null,
+              "value": "acme-macbook-7"
+            },
+            "model": {
+              "display": "MacBook Pro",
+              "tone": null,
+              "value": "MacBook Pro"
+            },
+            "os": {
+              "display": "macOS 15.3",
+              "tone": null,
+              "value": "macOS 15.3"
+            }
+          },
+          "device_id": "Q3VUITEGQ400",
+          "label": "acme-macbook-7",
+          "refs": [
+            "acme-001/Q3VUITEGQ400@2026-06-12T09:26:00Z#os"
+          ]
+        }
+      ],
+      "title": "Matching devices",
+      "total_rows": 7
+    },
     "trace_id": "replay-acme-001-inventory_by_model"
   },
   "meta": {

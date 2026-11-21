@@ -50,6 +50,7 @@
     "clarification": null,
     "coverage": {
       "excluded": {},
+      "excluded_devices": [],
       "missing_latest": [],
       "population": 10,
       "stale": []
@@ -211,11 +212,18 @@
       }
     ],
     "explanation": null,
+    "follow_ups": [
+      {
+        "label": "What should we do about these?",
+        "request": "What should we do about these devices?"
+      }
+    ],
     "headline": "10 of 10 devices fail at least one compliance check",
     "notes": [],
     "outcome": "answer",
     "proposal": null,
     "reason_code": null,
+    "repeat_of": null,
     "scope": {
       "as_of": "2026-06-12T11:00:00Z",
       "calculation": "10 distinct devices across 2 claims; at most 2 supporting readings are cited per device",
@@ -223,7 +231,456 @@
       "population": 10,
       "rule": "failing check at the latest snapshot"
     },
+    "scope_line": {
+      "as_of": "2026-06-12T11:00:00Z",
+      "basis": "latest snapshot per device",
+      "checked": 10,
+      "company_name": "Acme",
+      "matched": 10,
+      "not_checked": 0,
+      "ok": 0,
+      "ok_label": "passing"
+    },
     "suggested_actions": [],
+    "summary": "Nine fail os_up_to_date and five fail screen_lock.",
+    "table": {
+      "columns": [
+        {
+          "key": "device",
+          "kind": "device",
+          "label": "Device"
+        },
+        {
+          "key": "check",
+          "kind": "text",
+          "label": "Check"
+        },
+        {
+          "key": "severity",
+          "kind": "pill",
+          "label": "Severity"
+        },
+        {
+          "key": "seen",
+          "kind": "date",
+          "label": "Latest snapshot"
+        }
+      ],
+      "default_sort": {
+        "direction": "desc",
+        "key": "severity"
+      },
+      "rows": [
+        {
+          "cells": {
+            "check": {
+              "display": "os_up_to_date",
+              "tone": null,
+              "value": "os_up_to_date"
+            },
+            "device": {
+              "display": "acme-macbook-2",
+              "tone": null,
+              "value": "acme-macbook-2"
+            },
+            "seen": {
+              "display": "2026-06-12",
+              "tone": null,
+              "value": "2026-06-12T09:47:00Z"
+            },
+            "severity": {
+              "display": "Medium",
+              "tone": "neutral",
+              "value": 2
+            }
+          },
+          "device_id": "1LYSSFD074BB",
+          "label": "acme-macbook-2",
+          "refs": [
+            "acme-001/1LYSSFD074BB@2026-06-12T09:47:00Z#compliance[os_up_to_date]"
+          ]
+        },
+        {
+          "cells": {
+            "check": {
+              "display": "os_up_to_date",
+              "tone": null,
+              "value": "os_up_to_date"
+            },
+            "device": {
+              "display": "acme-macbook-1",
+              "tone": null,
+              "value": "acme-macbook-1"
+            },
+            "seen": {
+              "display": "2026-06-12",
+              "tone": null,
+              "value": "2026-06-12T10:41:00Z"
+            },
+            "severity": {
+              "display": "Medium",
+              "tone": "neutral",
+              "value": 2
+            }
+          },
+          "device_id": "7VP16KHV88LM",
+          "label": "acme-macbook-1",
+          "refs": [
+            "acme-001/7VP16KHV88LM@2026-06-12T10:41:00Z#compliance[os_up_to_date]"
+          ]
+        },
+        {
+          "cells": {
+            "check": {
+              "display": "os_up_to_date",
+              "tone": null,
+              "value": "os_up_to_date"
+            },
+            "device": {
+              "display": "acme-thinkpad-8",
+              "tone": null,
+              "value": "acme-thinkpad-8"
+            },
+            "seen": {
+              "display": "2026-06-12",
+              "tone": null,
+              "value": "2026-06-12T09:02:00Z"
+            },
+            "severity": {
+              "display": "Medium",
+              "tone": "neutral",
+              "value": 2
+            }
+          },
+          "device_id": "8NM23J95R5I6",
+          "label": "acme-thinkpad-8",
+          "refs": [
+            "acme-001/8NM23J95R5I6@2026-06-12T09:02:00Z#compliance[os_up_to_date]"
+          ]
+        },
+        {
+          "cells": {
+            "check": {
+              "display": "os_up_to_date",
+              "tone": null,
+              "value": "os_up_to_date"
+            },
+            "device": {
+              "display": "acme-thinkpad-10",
+              "tone": null,
+              "value": "acme-thinkpad-10"
+            },
+            "seen": {
+              "display": "2026-06-12",
+              "tone": null,
+              "value": "2026-06-12T09:13:00Z"
+            },
+            "severity": {
+              "display": "Medium",
+              "tone": "neutral",
+              "value": 2
+            }
+          },
+          "device_id": "9MXJVZ1I0DKA",
+          "label": "acme-thinkpad-10",
+          "refs": [
+            "acme-001/9MXJVZ1I0DKA@2026-06-12T09:13:00Z#compliance[os_up_to_date]"
+          ]
+        },
+        {
+          "cells": {
+            "check": {
+              "display": "os_up_to_date",
+              "tone": null,
+              "value": "os_up_to_date"
+            },
+            "device": {
+              "display": "acme-macbook-3",
+              "tone": null,
+              "value": "acme-macbook-3"
+            },
+            "seen": {
+              "display": "2026-06-12",
+              "tone": null,
+              "value": "2026-06-12T10:57:00Z"
+            },
+            "severity": {
+              "display": "Medium",
+              "tone": "neutral",
+              "value": 2
+            }
+          },
+          "device_id": "DSYPSES7SKBB",
+          "label": "acme-macbook-3",
+          "refs": [
+            "acme-001/DSYPSES7SKBB@2026-06-12T10:57:00Z#compliance[os_up_to_date]"
+          ]
+        },
+        {
+          "cells": {
+            "check": {
+              "display": "os_up_to_date",
+              "tone": null,
+              "value": "os_up_to_date"
+            },
+            "device": {
+              "display": "acme-dell-9",
+              "tone": null,
+              "value": "acme-dell-9"
+            },
+            "seen": {
+              "display": "2026-06-12",
+              "tone": null,
+              "value": "2026-06-12T11:00:00Z"
+            },
+            "severity": {
+              "display": "Medium",
+              "tone": "neutral",
+              "value": 2
+            }
+          },
+          "device_id": "M4XVHUV1MEPZ",
+          "label": "acme-dell-9",
+          "refs": [
+            "acme-001/M4XVHUV1MEPZ@2026-06-12T11:00:00Z#compliance[os_up_to_date]"
+          ]
+        },
+        {
+          "cells": {
+            "check": {
+              "display": "os_up_to_date",
+              "tone": null,
+              "value": "os_up_to_date"
+            },
+            "device": {
+              "display": "acme-macbook-4",
+              "tone": null,
+              "value": "acme-macbook-4"
+            },
+            "seen": {
+              "display": "2026-06-12",
+              "tone": null,
+              "value": "2026-06-12T08:39:00Z"
+            },
+            "severity": {
+              "display": "Medium",
+              "tone": "neutral",
+              "value": 2
+            }
+          },
+          "device_id": "MT7PJB7N5LRE",
+          "label": "acme-macbook-4",
+          "refs": [
+            "acme-001/MT7PJB7N5LRE@2026-06-12T08:39:00Z#compliance[os_up_to_date]"
+          ]
+        },
+        {
+          "cells": {
+            "check": {
+              "display": "os_up_to_date",
+              "tone": null,
+              "value": "os_up_to_date"
+            },
+            "device": {
+              "display": "acme-macbook-7",
+              "tone": null,
+              "value": "acme-macbook-7"
+            },
+            "seen": {
+              "display": "2026-06-12",
+              "tone": null,
+              "value": "2026-06-12T09:26:00Z"
+            },
+            "severity": {
+              "display": "Medium",
+              "tone": "neutral",
+              "value": 2
+            }
+          },
+          "device_id": "Q3VUITEGQ400",
+          "label": "acme-macbook-7",
+          "refs": [
+            "acme-001/Q3VUITEGQ400@2026-06-12T09:26:00Z#compliance[os_up_to_date]"
+          ]
+        },
+        {
+          "cells": {
+            "check": {
+              "display": "os_up_to_date",
+              "tone": null,
+              "value": "os_up_to_date"
+            },
+            "device": {
+              "display": "acme-macbook-6",
+              "tone": null,
+              "value": "acme-macbook-6"
+            },
+            "seen": {
+              "display": "2026-06-12",
+              "tone": null,
+              "value": "2026-06-12T09:52:00Z"
+            },
+            "severity": {
+              "display": "Medium",
+              "tone": "neutral",
+              "value": 2
+            }
+          },
+          "device_id": "XSU9UUDGU6AC",
+          "label": "acme-macbook-6",
+          "refs": [
+            "acme-001/XSU9UUDGU6AC@2026-06-12T09:52:00Z#compliance[os_up_to_date]"
+          ]
+        },
+        {
+          "cells": {
+            "check": {
+              "display": "screen_lock",
+              "tone": null,
+              "value": "screen_lock"
+            },
+            "device": {
+              "display": "acme-macbook-2",
+              "tone": null,
+              "value": "acme-macbook-2"
+            },
+            "seen": {
+              "display": "2026-06-12",
+              "tone": null,
+              "value": "2026-06-12T09:47:00Z"
+            },
+            "severity": {
+              "display": "Medium",
+              "tone": "neutral",
+              "value": 2
+            }
+          },
+          "device_id": "1LYSSFD074BB",
+          "label": "acme-macbook-2",
+          "refs": [
+            "acme-001/1LYSSFD074BB@2026-06-12T09:47:00Z#compliance[screen_lock]"
+          ]
+        },
+        {
+          "cells": {
+            "check": {
+              "display": "screen_lock",
+              "tone": null,
+              "value": "screen_lock"
+            },
+            "device": {
+              "display": "acme-thinkpad-8",
+              "tone": null,
+              "value": "acme-thinkpad-8"
+            },
+            "seen": {
+              "display": "2026-06-12",
+              "tone": null,
+              "value": "2026-06-12T09:02:00Z"
+            },
+            "severity": {
+              "display": "Medium",
+              "tone": "neutral",
+              "value": 2
+            }
+          },
+          "device_id": "8NM23J95R5I6",
+          "label": "acme-thinkpad-8",
+          "refs": [
+            "acme-001/8NM23J95R5I6@2026-06-12T09:02:00Z#compliance[screen_lock]"
+          ]
+        },
+        {
+          "cells": {
+            "check": {
+              "display": "screen_lock",
+              "tone": null,
+              "value": "screen_lock"
+            },
+            "device": {
+              "display": "acme-mac-5",
+              "tone": null,
+              "value": "acme-mac-5"
+            },
+            "seen": {
+              "display": "2026-06-12",
+              "tone": null,
+              "value": "2026-06-12T09:36:00Z"
+            },
+            "severity": {
+              "display": "Medium",
+              "tone": "neutral",
+              "value": 2
+            }
+          },
+          "device_id": "DLT35MHGTH2D",
+          "label": "acme-mac-5",
+          "refs": [
+            "acme-001/DLT35MHGTH2D@2026-06-12T09:36:00Z#compliance[screen_lock]"
+          ]
+        },
+        {
+          "cells": {
+            "check": {
+              "display": "screen_lock",
+              "tone": null,
+              "value": "screen_lock"
+            },
+            "device": {
+              "display": "acme-macbook-3",
+              "tone": null,
+              "value": "acme-macbook-3"
+            },
+            "seen": {
+              "display": "2026-06-12",
+              "tone": null,
+              "value": "2026-06-12T10:57:00Z"
+            },
+            "severity": {
+              "display": "Medium",
+              "tone": "neutral",
+              "value": 2
+            }
+          },
+          "device_id": "DSYPSES7SKBB",
+          "label": "acme-macbook-3",
+          "refs": [
+            "acme-001/DSYPSES7SKBB@2026-06-12T10:57:00Z#compliance[screen_lock]"
+          ]
+        },
+        {
+          "cells": {
+            "check": {
+              "display": "screen_lock",
+              "tone": null,
+              "value": "screen_lock"
+            },
+            "device": {
+              "display": "acme-macbook-4",
+              "tone": null,
+              "value": "acme-macbook-4"
+            },
+            "seen": {
+              "display": "2026-06-12",
+              "tone": null,
+              "value": "2026-06-12T08:39:00Z"
+            },
+            "severity": {
+              "display": "Medium",
+              "tone": "neutral",
+              "value": 2
+            }
+          },
+          "device_id": "MT7PJB7N5LRE",
+          "label": "acme-macbook-4",
+          "refs": [
+            "acme-001/MT7PJB7N5LRE@2026-06-12T08:39:00Z#compliance[screen_lock]"
+          ]
+        }
+      ],
+      "title": "Failing compliance checks",
+      "total_rows": 14
+    },
     "trace_id": "replay-acme-001-compliance_failures"
   },
   "meta": {
@@ -333,7 +790,7 @@
     {
       "data": {
         "claims": 2,
-        "evidence": 14,
+        "evidence": 50,
         "outcome": "answer",
         "reason_code": null
       },

@@ -18,6 +18,7 @@
     "clarification": null,
     "coverage": {
       "excluded": {},
+      "excluded_devices": [],
       "missing_latest": [],
       "population": 8,
       "stale": []
@@ -53,11 +54,22 @@
       }
     ],
     "explanation": null,
+    "follow_ups": [
+      {
+        "label": "Show their 7-day trend",
+        "request": "Which devices have had under 10% free disk space for most of the last 7 days?"
+      },
+      {
+        "label": "What should we do about these?",
+        "request": "What should we do about these devices?"
+      }
+    ],
     "headline": "2 of 8 devices have under 10% disk space free",
     "notes": [],
     "outcome": "answer",
     "proposal": null,
     "reason_code": null,
+    "repeat_of": null,
     "scope": {
       "as_of": "2026-06-12T11:00:00Z",
       "calculation": "2 distinct devices across 1 claim; at most 1 supporting reading is cited per device",
@@ -65,7 +77,93 @@
       "population": 8,
       "rule": "primary volume free space < 10% at the latest snapshot"
     },
+    "scope_line": {
+      "as_of": "2026-06-12T11:00:00Z",
+      "basis": "latest snapshot per device",
+      "checked": 8,
+      "company_name": "Globex",
+      "matched": 2,
+      "not_checked": 0,
+      "ok": 6,
+      "ok_label": "healthy"
+    },
     "suggested_actions": [],
+    "summary": "Both are under 10% free, the lowest at 2.0%.",
+    "table": {
+      "columns": [
+        {
+          "key": "device",
+          "kind": "device",
+          "label": "Device"
+        },
+        {
+          "key": "free",
+          "kind": "percent",
+          "label": "Free"
+        },
+        {
+          "key": "space",
+          "kind": "text",
+          "label": "Free space"
+        }
+      ],
+      "default_sort": {
+        "direction": "asc",
+        "key": "free"
+      },
+      "rows": [
+        {
+          "cells": {
+            "device": {
+              "display": "globex-thinkpad-8",
+              "tone": null,
+              "value": "globex-thinkpad-8"
+            },
+            "free": {
+              "display": "2.0%",
+              "tone": "attention",
+              "value": 2.0000000000436557
+            },
+            "space": {
+              "display": "20.5 GiB of 1.0 TiB",
+              "tone": null,
+              "value": 21990232556
+            }
+          },
+          "device_id": "JRZSGXVMKE6M",
+          "label": "globex-thinkpad-8",
+          "refs": [
+            "globex-002/JRZSGXVMKE6M@2026-06-12T10:46:00Z#disk"
+          ]
+        },
+        {
+          "cells": {
+            "device": {
+              "display": "globex-dell-7",
+              "tone": null,
+              "value": "globex-dell-7"
+            },
+            "free": {
+              "display": "2.4%",
+              "tone": "attention",
+              "value": 2.3919773437228287
+            },
+            "space": {
+              "display": "12.2 GiB of 512.0 GiB",
+              "tone": null,
+              "value": 13150034514
+            }
+          },
+          "device_id": "E4V0SB5I0MYU",
+          "label": "globex-dell-7",
+          "refs": [
+            "globex-002/E4V0SB5I0MYU@2026-06-12T08:54:00Z#disk"
+          ]
+        }
+      ],
+      "title": "Low disk (<10% free)",
+      "total_rows": 2
+    },
     "trace_id": "replay-globex-002-low_disk"
   },
   "meta": {
@@ -174,7 +272,7 @@
     {
       "data": {
         "claims": 1,
-        "evidence": 2,
+        "evidence": 20,
         "outcome": "answer",
         "reason_code": null
       },

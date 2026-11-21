@@ -20,6 +20,7 @@
     "entity_lists": [],
     "evidence": [],
     "explanation": null,
+    "follow_ups": [],
     "headline": "Wi-Fi and network quality aren't something the fleet data records.",
     "notes": [
       "I can answer from hardware, OS, memory, disk, battery, installed software and compliance data."
@@ -27,6 +28,7 @@
     "outcome": "unsupported",
     "proposal": null,
     "reason_code": "data_unavailable",
+    "repeat_of": null,
     "scope": {
       "as_of": "2026-06-12T11:00:00Z",
       "calculation": null,
@@ -34,7 +36,10 @@
       "population": null,
       "rule": null
     },
+    "scope_line": null,
     "suggested_actions": [],
+    "summary": "",
+    "table": null,
     "trace_id": "replay-globex-002-unsupported_wifi"
   },
   "meta": {

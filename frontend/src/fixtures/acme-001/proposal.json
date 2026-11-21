@@ -18,6 +18,7 @@
       }
     ],
     "explanation": null,
+    "follow_ups": [],
     "headline": "Proposed: open a remediation ticket for acme-macbook-2. It waits for your approval; nothing has changed yet.",
     "notes": [],
     "outcome": "proposal",
@@ -42,6 +43,7 @@
       "target_label": "acme-macbook-2"
     },
     "reason_code": null,
+    "repeat_of": null,
     "scope": {
       "as_of": "2026-06-12T11:00:00Z",
       "calculation": null,
@@ -49,7 +51,10 @@
       "population": null,
       "rule": null
     },
+    "scope_line": null,
     "suggested_actions": [],
+    "summary": "",
+    "table": null,
     "trace_id": "replay-acme-001-proposal"
   },
   "meta": {

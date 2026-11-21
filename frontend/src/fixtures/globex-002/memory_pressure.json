@@ -18,6 +18,7 @@
     "clarification": null,
     "coverage": {
       "excluded": {},
+      "excluded_devices": [],
       "missing_latest": [],
       "population": 8,
       "stale": []
@@ -53,11 +54,22 @@
       }
     ],
     "explanation": null,
+    "follow_ups": [
+      {
+        "label": "Show their 7-day trend",
+        "request": "Which devices have had memory use at or above 85% for most of the last 7 days?"
+      },
+      {
+        "label": "What should we do about these?",
+        "request": "What should we do about these devices?"
+      }
+    ],
     "headline": "2 of 8 devices use at least 85% of memory",
     "notes": [],
     "outcome": "answer",
     "proposal": null,
     "reason_code": null,
+    "repeat_of": null,
     "scope": {
       "as_of": "2026-06-12T11:00:00Z",
       "calculation": "2 distinct devices across 1 claim; at most 1 supporting reading is cited per device",
@@ -65,7 +77,93 @@
       "population": 8,
       "rule": "memory used >= 85% at the latest snapshot"
     },
+    "scope_line": {
+      "as_of": "2026-06-12T11:00:00Z",
+      "basis": "latest snapshot per device",
+      "checked": 8,
+      "company_name": "Globex",
+      "matched": 2,
+      "not_checked": 0,
+      "ok": 6,
+      "ok_label": "healthy"
+    },
     "suggested_actions": [],
+    "summary": "Both are at or above 85% used, the highest at 88.8%.",
+    "table": {
+      "columns": [
+        {
+          "key": "device",
+          "kind": "device",
+          "label": "Device"
+        },
+        {
+          "key": "used",
+          "kind": "percent",
+          "label": "Used"
+        },
+        {
+          "key": "memory",
+          "kind": "text",
+          "label": "Memory in use"
+        }
+      ],
+      "default_sort": {
+        "direction": "desc",
+        "key": "used"
+      },
+      "rows": [
+        {
+          "cells": {
+            "device": {
+              "display": "globex-thinkpad-8",
+              "tone": null,
+              "value": "globex-thinkpad-8"
+            },
+            "memory": {
+              "display": "14.2 GiB of 16.0 GiB",
+              "tone": null,
+              "value": 15257135307
+            },
+            "used": {
+              "display": "88.8%",
+              "tone": "attention",
+              "value": 88.80821584607475
+            }
+          },
+          "device_id": "JRZSGXVMKE6M",
+          "label": "globex-thinkpad-8",
+          "refs": [
+            "globex-002/JRZSGXVMKE6M@2026-06-12T10:46:00Z#memory"
+          ]
+        },
+        {
+          "cells": {
+            "device": {
+              "display": "globex-thinkpad-6",
+              "tone": null,
+              "value": "globex-thinkpad-6"
+            },
+            "memory": {
+              "display": "14.0 GiB of 16.0 GiB",
+              "tone": null,
+              "value": 15058814935
+            },
+            "used": {
+              "display": "87.7%",
+              "tone": "attention",
+              "value": 87.65383934951387
+            }
+          },
+          "device_id": "CUXW0BQSV1B7",
+          "label": "globex-thinkpad-6",
+          "refs": [
+            "globex-002/CUXW0BQSV1B7@2026-06-12T10:47:00Z#memory"
+          ]
+        }
+      ],
+      "title": "High memory (>=85% used)",
+      "total_rows": 2
+    },
     "trace_id": "replay-globex-002-memory_pressure"
   },
   "meta": {
@@ -172,7 +270,7 @@
     {
       "data": {
         "claims": 1,
-        "evidence": 2,
+        "evidence": 19,
         "outcome": "answer",
         "reason_code": null
       },

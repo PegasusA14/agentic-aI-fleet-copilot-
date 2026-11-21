@@ -28,6 +28,7 @@
     "clarification": null,
     "coverage": {
       "excluded": {},
+      "excluded_devices": [],
       "missing_latest": [],
       "population": 7,
       "stale": []
@@ -113,11 +114,18 @@
       }
     ],
     "explanation": null,
+    "follow_ups": [
+      {
+        "label": "What should we do about these?",
+        "request": "What should we do about these devices?"
+      }
+    ],
     "headline": "2 of 7 devices breached free disk space under 10% in the last 7 days (2 sustained)",
     "notes": [],
     "outcome": "answer",
     "proposal": null,
     "reason_code": null,
+    "repeat_of": null,
     "scope": {
       "as_of": "2026-06-12T11:00:00Z",
       "calculation": "2 distinct devices across 1 claim; at most 6 supporting readings are cited per device",
@@ -125,7 +133,118 @@
       "population": 7,
       "rule": "primary volume free space < 10% over the last 7 days"
     },
+    "scope_line": {
+      "as_of": "2026-06-12T11:00:00Z",
+      "basis": "last 7 days of snapshots",
+      "checked": 7,
+      "company_name": "Initech",
+      "matched": 2,
+      "not_checked": 0,
+      "ok": 5,
+      "ok_label": "healthy"
+    },
     "suggested_actions": [],
+    "summary": "Two are sustained.",
+    "table": {
+      "columns": [
+        {
+          "key": "device",
+          "kind": "device",
+          "label": "Device"
+        },
+        {
+          "key": "pattern",
+          "kind": "pill",
+          "label": "Pattern"
+        },
+        {
+          "key": "breached",
+          "kind": "text",
+          "label": "Breached"
+        },
+        {
+          "key": "latest",
+          "kind": "percent",
+          "label": "Free now"
+        }
+      ],
+      "default_sort": {
+        "direction": "desc",
+        "key": "pattern"
+      },
+      "rows": [
+        {
+          "cells": {
+            "breached": {
+              "display": "7 of 7 snapshots",
+              "tone": null,
+              "value": 7
+            },
+            "device": {
+              "display": "initech-macbook-6",
+              "tone": null,
+              "value": "initech-macbook-6"
+            },
+            "latest": {
+              "display": "2.0%",
+              "tone": null,
+              "value": 2.0000000000436557
+            },
+            "pattern": {
+              "display": "Sustained",
+              "tone": "attention",
+              "value": 5
+            }
+          },
+          "device_id": "DARFCP0BQM2G",
+          "label": "initech-macbook-6",
+          "refs": [
+            "initech-003/DARFCP0BQM2G@2026-06-06T09:37:00Z#disk",
+            "initech-003/DARFCP0BQM2G@2026-06-07T10:17:00Z#disk",
+            "initech-003/DARFCP0BQM2G@2026-06-08T10:08:00Z#disk",
+            "initech-003/DARFCP0BQM2G@2026-06-10T08:38:00Z#disk",
+            "initech-003/DARFCP0BQM2G@2026-06-11T09:41:00Z#disk",
+            "initech-003/DARFCP0BQM2G@2026-06-12T10:31:00Z#disk"
+          ]
+        },
+        {
+          "cells": {
+            "breached": {
+              "display": "7 of 7 snapshots",
+              "tone": null,
+              "value": 7
+            },
+            "device": {
+              "display": "initech-mac-4",
+              "tone": null,
+              "value": "initech-mac-4"
+            },
+            "latest": {
+              "display": "2.0%",
+              "tone": null,
+              "value": 2.0000000000436557
+            },
+            "pattern": {
+              "display": "Sustained",
+              "tone": "attention",
+              "value": 5
+            }
+          },
+          "device_id": "RLD7WV7J82SH",
+          "label": "initech-mac-4",
+          "refs": [
+            "initech-003/RLD7WV7J82SH@2026-06-06T10:09:00Z#disk",
+            "initech-003/RLD7WV7J82SH@2026-06-07T09:44:00Z#disk",
+            "initech-003/RLD7WV7J82SH@2026-06-08T09:58:00Z#disk",
+            "initech-003/RLD7WV7J82SH@2026-06-10T08:42:00Z#disk",
+            "initech-003/RLD7WV7J82SH@2026-06-11T10:42:00Z#disk",
+            "initech-003/RLD7WV7J82SH@2026-06-12T08:50:00Z#disk"
+          ]
+        }
+      ],
+      "title": "Disk trend (7 d)",
+      "total_rows": 2
+    },
     "trace_id": "replay-initech-003-disk_trend"
   },
   "meta": {
@@ -236,7 +355,7 @@
     {
       "data": {
         "claims": 1,
-        "evidence": 12,
+        "evidence": 18,
         "outcome": "answer",
         "reason_code": null
       },

@@ -28,6 +28,7 @@
     "clarification": null,
     "coverage": {
       "excluded": {},
+      "excluded_devices": [],
       "missing_latest": [],
       "population": 10,
       "stale": []
@@ -73,11 +74,13 @@
       }
     ],
     "explanation": null,
+    "follow_ups": [],
     "headline": "2 new installs on 2 of 10 devices in the last 30 days (not in the common set)",
     "notes": [],
     "outcome": "answer",
     "proposal": null,
     "reason_code": null,
+    "repeat_of": null,
     "scope": {
       "as_of": "2026-06-12T11:00:00Z",
       "calculation": "2 distinct devices across 2 claims; at most 2 supporting readings are cited per device",
@@ -85,7 +88,125 @@
       "population": 10,
       "rule": "software newly installed in the last 30 days: not in the common set and first seen after the device's first snapshot in the window. The common set is the apps on every device at its first snapshot in the window: 1Password, Google Chrome, Slack, Visual Studio Code, Zoom"
     },
+    "scope_line": {
+      "as_of": "2026-06-12T11:00:00Z",
+      "basis": "last 30 days of snapshots",
+      "checked": 10,
+      "company_name": "Acme",
+      "matched": 2,
+      "not_checked": 0,
+      "ok": null,
+      "ok_label": ""
+    },
     "suggested_actions": [],
+    "summary": "CleanMyMac X on one device and uTorrent on one device.",
+    "table": {
+      "columns": [
+        {
+          "key": "device",
+          "kind": "device",
+          "label": "Device"
+        },
+        {
+          "key": "app",
+          "kind": "text",
+          "label": "App"
+        },
+        {
+          "key": "version",
+          "kind": "version",
+          "label": "Version"
+        },
+        {
+          "key": "first_seen",
+          "kind": "date",
+          "label": "First seen"
+        },
+        {
+          "key": "status",
+          "kind": "pill",
+          "label": "Status"
+        }
+      ],
+      "default_sort": {
+        "direction": "desc",
+        "key": "first_seen"
+      },
+      "rows": [
+        {
+          "cells": {
+            "app": {
+              "display": "uTorrent",
+              "tone": null,
+              "value": "uTorrent"
+            },
+            "device": {
+              "display": "acme-macbook-2",
+              "tone": null,
+              "value": "acme-macbook-2"
+            },
+            "first_seen": {
+              "display": "2026-05-31",
+              "tone": null,
+              "value": "2026-05-31T11:13:00Z"
+            },
+            "status": {
+              "display": "Installed",
+              "tone": "neutral",
+              "value": 1
+            },
+            "version": {
+              "display": "3.6",
+              "tone": null,
+              "value": "3.6"
+            }
+          },
+          "device_id": "1LYSSFD074BB",
+          "label": "acme-macbook-2",
+          "refs": [
+            "acme-001/1LYSSFD074BB@2026-05-31T11:13:00Z#software[uTorrent]",
+            "acme-001/1LYSSFD074BB@2026-06-12T09:47:00Z#software[uTorrent]"
+          ]
+        },
+        {
+          "cells": {
+            "app": {
+              "display": "CleanMyMac X",
+              "tone": null,
+              "value": "CleanMyMac X"
+            },
+            "device": {
+              "display": "acme-macbook-1",
+              "tone": null,
+              "value": "acme-macbook-1"
+            },
+            "first_seen": {
+              "display": "2026-05-25",
+              "tone": null,
+              "value": "2026-05-25T08:55:00Z"
+            },
+            "status": {
+              "display": "Installed",
+              "tone": "neutral",
+              "value": 1
+            },
+            "version": {
+              "display": "4.15",
+              "tone": null,
+              "value": "4.15"
+            }
+          },
+          "device_id": "7VP16KHV88LM",
+          "label": "acme-macbook-1",
+          "refs": [
+            "acme-001/7VP16KHV88LM@2026-05-25T08:55:00Z#software[CleanMyMac X]",
+            "acme-001/7VP16KHV88LM@2026-06-12T10:41:00Z#software[CleanMyMac X]"
+          ]
+        }
+      ],
+      "title": "New software (30 d)",
+      "total_rows": 2
+    },
     "trace_id": "replay-acme-001-new_software"
   },
   "meta": {

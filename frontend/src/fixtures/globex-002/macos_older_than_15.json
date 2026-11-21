@@ -24,6 +24,26 @@
           "JRZSGXVMKE6M"
         ]
       },
+      "excluded_devices": [
+        {
+          "device_id": "E4V0SB5I0MYU",
+          "label": "globex-dell-7",
+          "reason": "out_of_scope",
+          "reason_text": "Windows 11, not a Mac"
+        },
+        {
+          "device_id": "CUXW0BQSV1B7",
+          "label": "globex-thinkpad-6",
+          "reason": "out_of_scope",
+          "reason_text": "Windows 10, not a Mac"
+        },
+        {
+          "device_id": "JRZSGXVMKE6M",
+          "label": "globex-thinkpad-8",
+          "reason": "out_of_scope",
+          "reason_text": "Windows 11, not a Mac"
+        }
+      ],
       "missing_latest": [],
       "population": 5,
       "stale": []
@@ -59,6 +79,16 @@
       }
     ],
     "explanation": null,
+    "follow_ups": [
+      {
+        "label": "Look at the 3 devices not checked",
+        "request": "Which devices were not checked, and why?"
+      },
+      {
+        "label": "What should we do about these?",
+        "request": "What should we do about these devices?"
+      }
+    ],
     "headline": "2 of 5 macOS devices run a version older than macOS 15",
     "notes": [
       "3 devices are out of scope for this check: CUXW0BQSV1B7, E4V0SB5I0MYU, JRZSGXVMKE6M."
@@ -66,6 +96,7 @@
     "outcome": "answer",
     "proposal": null,
     "reason_code": null,
+    "repeat_of": null,
     "scope": {
       "as_of": "2026-06-12T11:00:00Z",
       "calculation": "2 distinct devices across 1 claim; at most 1 supporting reading is cited per device",
@@ -73,7 +104,93 @@
       "population": 5,
       "rule": "macOS devices with version < 15"
     },
+    "scope_line": {
+      "as_of": "2026-06-12T11:00:00Z",
+      "basis": "latest snapshot per device",
+      "checked": 5,
+      "company_name": "Globex",
+      "matched": 2,
+      "not_checked": 3,
+      "ok": 3,
+      "ok_label": "up to date"
+    },
     "suggested_actions": [],
+    "summary": "One is on 13.6 and one on 14.5.",
+    "table": {
+      "columns": [
+        {
+          "key": "device",
+          "kind": "device",
+          "label": "Device"
+        },
+        {
+          "key": "macos",
+          "kind": "version",
+          "label": "macOS"
+        },
+        {
+          "key": "behind",
+          "kind": "pill",
+          "label": "Behind 15"
+        }
+      ],
+      "default_sort": {
+        "direction": "asc",
+        "key": "macos"
+      },
+      "rows": [
+        {
+          "cells": {
+            "behind": {
+              "display": "2 major behind",
+              "tone": "attention",
+              "value": 2
+            },
+            "device": {
+              "display": "globex-macbook-3",
+              "tone": null,
+              "value": "globex-macbook-3"
+            },
+            "macos": {
+              "display": "13.6",
+              "tone": null,
+              "value": "13.6"
+            }
+          },
+          "device_id": "4SEFDLPTKXAM",
+          "label": "globex-macbook-3",
+          "refs": [
+            "globex-002/4SEFDLPTKXAM@2026-06-12T08:34:00Z#os"
+          ]
+        },
+        {
+          "cells": {
+            "behind": {
+              "display": "1 major behind",
+              "tone": "neutral",
+              "value": 1
+            },
+            "device": {
+              "display": "globex-macbook-5",
+              "tone": null,
+              "value": "globex-macbook-5"
+            },
+            "macos": {
+              "display": "14.5",
+              "tone": null,
+              "value": "14.5"
+            }
+          },
+          "device_id": "QPZSXKINA7GP",
+          "label": "globex-macbook-5",
+          "refs": [
+            "globex-002/QPZSXKINA7GP@2026-06-12T10:04:00Z#os"
+          ]
+        }
+      ],
+      "title": "macOS older than 15",
+      "total_rows": 2
+    },
     "trace_id": "replay-globex-002-macos_older_than_15"
   },
   "meta": {
@@ -183,7 +300,7 @@
     {
       "data": {
         "claims": 1,
-        "evidence": 2,
+        "evidence": 6,
         "outcome": "answer",
         "reason_code": null
       },

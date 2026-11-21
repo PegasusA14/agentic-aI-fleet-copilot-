@@ -26,6 +26,7 @@
     "clarification": null,
     "coverage": {
       "excluded": {},
+      "excluded_devices": [],
       "missing_latest": [
         "MT7PJB7N5LRE"
       ],
@@ -103,6 +104,12 @@
       }
     ],
     "explanation": null,
+    "follow_ups": [
+      {
+        "label": "What should we do about these?",
+        "request": "What should we do about these devices?"
+      }
+    ],
     "headline": "3 of 9 laptops show battery wear signals over the last 30 days",
     "notes": [
       "The telemetry has no design capacity, so a battery health percentage cannot be computed; capacity change is relative to each device's own first reading in the window.",
@@ -111,6 +118,7 @@
     "outcome": "answer",
     "proposal": null,
     "reason_code": null,
+    "repeat_of": null,
     "scope": {
       "as_of": "2026-06-12T11:00:00Z",
       "calculation": "3 distinct devices across 1 claim; at most 3 supporting readings are cited per device",
@@ -118,7 +126,143 @@
       "population": 9,
       "rule": "laptops with capacity down more than 1% or a Service Recommended flag over the last 30 days"
     },
+    "scope_line": {
+      "as_of": "2026-06-12T11:00:00Z",
+      "basis": "last 30 days of snapshots",
+      "checked": 9,
+      "company_name": "Acme",
+      "matched": 3,
+      "not_checked": 0,
+      "ok": 6,
+      "ok_label": "with no wear signal"
+    },
     "suggested_actions": [],
+    "summary": "Three are down more than 1% in capacity and three have a Service Recommended flag.",
+    "table": {
+      "columns": [
+        {
+          "key": "device",
+          "kind": "device",
+          "label": "Device"
+        },
+        {
+          "key": "capacity",
+          "kind": "percent",
+          "label": "Capacity change"
+        },
+        {
+          "key": "cycles",
+          "kind": "number",
+          "label": "Cycles"
+        },
+        {
+          "key": "condition",
+          "kind": "pill",
+          "label": "Condition"
+        }
+      ],
+      "default_sort": {
+        "direction": "asc",
+        "key": "capacity"
+      },
+      "rows": [
+        {
+          "cells": {
+            "capacity": {
+              "display": "-4.2%",
+              "tone": "attention",
+              "value": -4.229532525352461
+            },
+            "condition": {
+              "display": "Service recommended",
+              "tone": "attention",
+              "value": "Service Recommended"
+            },
+            "cycles": {
+              "display": "1157",
+              "tone": null,
+              "value": 1157
+            },
+            "device": {
+              "display": "acme-thinkpad-8",
+              "tone": null,
+              "value": "acme-thinkpad-8"
+            }
+          },
+          "device_id": "8NM23J95R5I6",
+          "label": "acme-thinkpad-8",
+          "refs": [
+            "acme-001/8NM23J95R5I6@2026-05-14T10:10:00Z#battery",
+            "acme-001/8NM23J95R5I6@2026-06-12T09:02:00Z#battery",
+            "acme-001/8NM23J95R5I6@2026-05-23T09:01:00Z#battery"
+          ]
+        },
+        {
+          "cells": {
+            "capacity": {
+              "display": "-4.2%",
+              "tone": "attention",
+              "value": -4.227833235466823
+            },
+            "condition": {
+              "display": "Service recommended",
+              "tone": "attention",
+              "value": "Service Recommended"
+            },
+            "cycles": {
+              "display": "948",
+              "tone": null,
+              "value": 948
+            },
+            "device": {
+              "display": "acme-dell-9",
+              "tone": null,
+              "value": "acme-dell-9"
+            }
+          },
+          "device_id": "M4XVHUV1MEPZ",
+          "label": "acme-dell-9",
+          "refs": [
+            "acme-001/M4XVHUV1MEPZ@2026-05-14T08:40:00Z#battery",
+            "acme-001/M4XVHUV1MEPZ@2026-06-12T11:00:00Z#battery",
+            "acme-001/M4XVHUV1MEPZ@2026-05-24T10:05:00Z#battery"
+          ]
+        },
+        {
+          "cells": {
+            "capacity": {
+              "display": "-4.2%",
+              "tone": "attention",
+              "value": -4.185832566697332
+            },
+            "condition": {
+              "display": "Service recommended",
+              "tone": "attention",
+              "value": "Service Recommended"
+            },
+            "cycles": {
+              "display": "1049",
+              "tone": null,
+              "value": 1049
+            },
+            "device": {
+              "display": "acme-macbook-1",
+              "tone": null,
+              "value": "acme-macbook-1"
+            }
+          },
+          "device_id": "7VP16KHV88LM",
+          "label": "acme-macbook-1",
+          "refs": [
+            "acme-001/7VP16KHV88LM@2026-05-14T11:09:00Z#battery",
+            "acme-001/7VP16KHV88LM@2026-06-12T10:41:00Z#battery",
+            "acme-001/7VP16KHV88LM@2026-05-30T09:16:00Z#battery"
+          ]
+        }
+      ],
+      "title": "Battery wear (30 d)",
+      "total_rows": 3
+    },
     "trace_id": "replay-acme-001-battery_wear"
   },
   "meta": {
@@ -228,7 +372,7 @@
     {
       "data": {
         "claims": 1,
-        "evidence": 9,
+        "evidence": 35,
         "outcome": "answer",
         "reason_code": null
       },

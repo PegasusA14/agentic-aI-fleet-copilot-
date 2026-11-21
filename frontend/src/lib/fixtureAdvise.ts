@@ -107,6 +107,11 @@ export function adviseFixture(tenantId: string): Fixture | null {
   }));
   const envelope: AnswerEnvelope = {
     alternatives: [],
+    follow_ups: [],
+    repeat_of: null,
+    scope_line: null,
+    summary: "",
+    table: null,
     claims: devices.map((d, i) => ({
       count: 1,
       device_ids: [d.device_id],
@@ -173,6 +178,11 @@ export function upgradeFixture(tenantId: string, name: string): Fixture | null {
   };
   const envelope: AnswerEnvelope = {
     alternatives: [],
+    follow_ups: [],
+    repeat_of: null,
+    scope_line: null,
+    summary: "",
+    table: null,
     claims: [],
     clarification: null,
     coverage: null,

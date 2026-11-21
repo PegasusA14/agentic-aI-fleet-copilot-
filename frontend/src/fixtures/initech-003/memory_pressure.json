@@ -16,6 +16,7 @@
     "clarification": null,
     "coverage": {
       "excluded": {},
+      "excluded_devices": [],
       "missing_latest": [],
       "population": 7,
       "stale": []
@@ -41,11 +42,22 @@
       }
     ],
     "explanation": null,
+    "follow_ups": [
+      {
+        "label": "Show their 7-day trend",
+        "request": "Which devices have had memory use at or above 85% for most of the last 7 days?"
+      },
+      {
+        "label": "What should we do about these?",
+        "request": "What should we do about these devices?"
+      }
+    ],
     "headline": "1 of 7 devices use at least 85% of memory",
     "notes": [],
     "outcome": "answer",
     "proposal": null,
     "reason_code": null,
+    "repeat_of": null,
     "scope": {
       "as_of": "2026-06-12T11:00:00Z",
       "calculation": "1 distinct device across 1 claim; at most 1 supporting reading is cited per device",
@@ -53,7 +65,69 @@
       "population": 7,
       "rule": "memory used >= 85% at the latest snapshot"
     },
+    "scope_line": {
+      "as_of": "2026-06-12T11:00:00Z",
+      "basis": "latest snapshot per device",
+      "checked": 7,
+      "company_name": "Initech",
+      "matched": 1,
+      "not_checked": 0,
+      "ok": 6,
+      "ok_label": "healthy"
+    },
     "suggested_actions": [],
+    "summary": "It is at 89.0% used.",
+    "table": {
+      "columns": [
+        {
+          "key": "device",
+          "kind": "device",
+          "label": "Device"
+        },
+        {
+          "key": "used",
+          "kind": "percent",
+          "label": "Used"
+        },
+        {
+          "key": "memory",
+          "kind": "text",
+          "label": "Memory in use"
+        }
+      ],
+      "default_sort": {
+        "direction": "desc",
+        "key": "used"
+      },
+      "rows": [
+        {
+          "cells": {
+            "device": {
+              "display": "initech-mac-3",
+              "tone": null,
+              "value": "initech-mac-3"
+            },
+            "memory": {
+              "display": "7.1 GiB of 8.0 GiB",
+              "tone": null,
+              "value": 7643081814
+            },
+            "used": {
+              "display": "89.0%",
+              "tone": "attention",
+              "value": 88.97718291264027
+            }
+          },
+          "device_id": "I3JLKILKQTAC",
+          "label": "initech-mac-3",
+          "refs": [
+            "initech-003/I3JLKILKQTAC@2026-06-12T10:57:00Z#memory"
+          ]
+        }
+      ],
+      "title": "High memory (>=85% used)",
+      "total_rows": 1
+    },
     "trace_id": "replay-initech-003-memory_pressure"
   },
   "meta": {
@@ -160,7 +234,7 @@
     {
       "data": {
         "claims": 1,
-        "evidence": 1,
+        "evidence": 8,
         "outcome": "answer",
         "reason_code": null
       },

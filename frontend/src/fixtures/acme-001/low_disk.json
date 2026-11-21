@@ -18,6 +18,7 @@
     "clarification": null,
     "coverage": {
       "excluded": {},
+      "excluded_devices": [],
       "missing_latest": [],
       "population": 10,
       "stale": []
@@ -53,11 +54,22 @@
       }
     ],
     "explanation": null,
+    "follow_ups": [
+      {
+        "label": "Show their 7-day trend",
+        "request": "Which devices have had under 10% free disk space for most of the last 7 days?"
+      },
+      {
+        "label": "What should we do about these?",
+        "request": "What should we do about these devices?"
+      }
+    ],
     "headline": "2 of 10 devices have under 10% disk space free",
     "notes": [],
     "outcome": "answer",
     "proposal": null,
     "reason_code": null,
+    "repeat_of": null,
     "scope": {
       "as_of": "2026-06-12T11:00:00Z",
       "calculation": "2 distinct devices across 1 claim; at most 1 supporting reading is cited per device",
@@ -65,7 +77,93 @@
       "population": 10,
       "rule": "primary volume free space < 10% at the latest snapshot"
     },
+    "scope_line": {
+      "as_of": "2026-06-12T11:00:00Z",
+      "basis": "latest snapshot per device",
+      "checked": 10,
+      "company_name": "Acme",
+      "matched": 2,
+      "not_checked": 0,
+      "ok": 8,
+      "ok_label": "healthy"
+    },
     "suggested_actions": [],
+    "summary": "Both are under 10% free, the lowest at 2.0%.",
+    "table": {
+      "columns": [
+        {
+          "key": "device",
+          "kind": "device",
+          "label": "Device"
+        },
+        {
+          "key": "free",
+          "kind": "percent",
+          "label": "Free"
+        },
+        {
+          "key": "space",
+          "kind": "text",
+          "label": "Free space"
+        }
+      ],
+      "default_sort": {
+        "direction": "asc",
+        "key": "free"
+      },
+      "rows": [
+        {
+          "cells": {
+            "device": {
+              "display": "acme-macbook-4",
+              "tone": null,
+              "value": "acme-macbook-4"
+            },
+            "free": {
+              "display": "2.0%",
+              "tone": "attention",
+              "value": 2.0000000000436557
+            },
+            "space": {
+              "display": "10.2 GiB of 512.0 GiB",
+              "tone": null,
+              "value": 10995116278
+            }
+          },
+          "device_id": "MT7PJB7N5LRE",
+          "label": "acme-macbook-4",
+          "refs": [
+            "acme-001/MT7PJB7N5LRE@2026-06-12T08:39:00Z#disk"
+          ]
+        },
+        {
+          "cells": {
+            "device": {
+              "display": "acme-thinkpad-8",
+              "tone": null,
+              "value": "acme-thinkpad-8"
+            },
+            "free": {
+              "display": "2.6%",
+              "tone": "attention",
+              "value": 2.5897921902469534
+            },
+            "space": {
+              "display": "26.5 GiB of 1.0 TiB",
+              "tone": null,
+              "value": 28475066267
+            }
+          },
+          "device_id": "8NM23J95R5I6",
+          "label": "acme-thinkpad-8",
+          "refs": [
+            "acme-001/8NM23J95R5I6@2026-06-12T09:02:00Z#disk"
+          ]
+        }
+      ],
+      "title": "Low disk (<10% free)",
+      "total_rows": 2
+    },
     "trace_id": "replay-acme-001-low_disk"
   },
   "meta": {
@@ -174,7 +272,7 @@
     {
       "data": {
         "claims": 1,
-        "evidence": 2,
+        "evidence": 24,
         "outcome": "answer",
         "reason_code": null
       },

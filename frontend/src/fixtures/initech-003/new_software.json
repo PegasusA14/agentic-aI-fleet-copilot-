@@ -31,6 +31,7 @@
     "clarification": null,
     "coverage": {
       "excluded": {},
+      "excluded_devices": [],
       "missing_latest": [],
       "population": 7,
       "stale": []
@@ -91,11 +92,13 @@
       }
     ],
     "explanation": null,
+    "follow_ups": [],
     "headline": "3 new installs on 3 of 7 devices in the last 30 days (not in the common set)",
     "notes": [],
     "outcome": "answer",
     "proposal": null,
     "reason_code": null,
+    "repeat_of": null,
     "scope": {
       "as_of": "2026-06-12T11:00:00Z",
       "calculation": "3 distinct devices across 2 claims; at most 2 supporting readings are cited per device",
@@ -103,7 +106,160 @@
       "population": 7,
       "rule": "software newly installed in the last 30 days: not in the common set and first seen after the device's first snapshot in the window. The common set is the apps on every device at its first snapshot in the window: 1Password, Google Chrome, Slack, Visual Studio Code, Zoom"
     },
+    "scope_line": {
+      "as_of": "2026-06-12T11:00:00Z",
+      "basis": "last 30 days of snapshots",
+      "checked": 7,
+      "company_name": "Initech",
+      "matched": 3,
+      "not_checked": 0,
+      "ok": null,
+      "ok_label": ""
+    },
     "suggested_actions": [],
+    "summary": "UTorrent on two devices and TeamViewer on one device.",
+    "table": {
+      "columns": [
+        {
+          "key": "device",
+          "kind": "device",
+          "label": "Device"
+        },
+        {
+          "key": "app",
+          "kind": "text",
+          "label": "App"
+        },
+        {
+          "key": "version",
+          "kind": "version",
+          "label": "Version"
+        },
+        {
+          "key": "first_seen",
+          "kind": "date",
+          "label": "First seen"
+        },
+        {
+          "key": "status",
+          "kind": "pill",
+          "label": "Status"
+        }
+      ],
+      "default_sort": {
+        "direction": "desc",
+        "key": "first_seen"
+      },
+      "rows": [
+        {
+          "cells": {
+            "app": {
+              "display": "uTorrent",
+              "tone": null,
+              "value": "uTorrent"
+            },
+            "device": {
+              "display": "initech-dell-1",
+              "tone": null,
+              "value": "initech-dell-1"
+            },
+            "first_seen": {
+              "display": "2026-06-02",
+              "tone": null,
+              "value": "2026-06-02T10:45:00Z"
+            },
+            "status": {
+              "display": "Installed",
+              "tone": "neutral",
+              "value": 1
+            },
+            "version": {
+              "display": "3.6",
+              "tone": null,
+              "value": "3.6"
+            }
+          },
+          "device_id": "W2656QDAE2ZJ",
+          "label": "initech-dell-1",
+          "refs": [
+            "initech-003/W2656QDAE2ZJ@2026-06-02T10:45:00Z#software[uTorrent]",
+            "initech-003/W2656QDAE2ZJ@2026-06-12T09:48:00Z#software[uTorrent]"
+          ]
+        },
+        {
+          "cells": {
+            "app": {
+              "display": "uTorrent",
+              "tone": null,
+              "value": "uTorrent"
+            },
+            "device": {
+              "display": "initech-mac-3",
+              "tone": null,
+              "value": "initech-mac-3"
+            },
+            "first_seen": {
+              "display": "2026-05-29",
+              "tone": null,
+              "value": "2026-05-29T10:52:00Z"
+            },
+            "status": {
+              "display": "Installed",
+              "tone": "neutral",
+              "value": 1
+            },
+            "version": {
+              "display": "3.6",
+              "tone": null,
+              "value": "3.6"
+            }
+          },
+          "device_id": "I3JLKILKQTAC",
+          "label": "initech-mac-3",
+          "refs": [
+            "initech-003/I3JLKILKQTAC@2026-05-29T10:52:00Z#software[uTorrent]",
+            "initech-003/I3JLKILKQTAC@2026-06-12T10:57:00Z#software[uTorrent]"
+          ]
+        },
+        {
+          "cells": {
+            "app": {
+              "display": "TeamViewer",
+              "tone": null,
+              "value": "TeamViewer"
+            },
+            "device": {
+              "display": "initech-macbook-6",
+              "tone": null,
+              "value": "initech-macbook-6"
+            },
+            "first_seen": {
+              "display": "2026-05-21",
+              "tone": null,
+              "value": "2026-05-21T09:43:00Z"
+            },
+            "status": {
+              "display": "Installed",
+              "tone": "neutral",
+              "value": 1
+            },
+            "version": {
+              "display": "15.5",
+              "tone": null,
+              "value": "15.5"
+            }
+          },
+          "device_id": "DARFCP0BQM2G",
+          "label": "initech-macbook-6",
+          "refs": [
+            "initech-003/DARFCP0BQM2G@2026-05-21T09:43:00Z#software[TeamViewer]",
+            "initech-003/DARFCP0BQM2G@2026-06-12T10:31:00Z#software[TeamViewer]"
+          ]
+        }
+      ],
+      "title": "New software (30 d)",
+      "total_rows": 3
+    },
     "trace_id": "replay-initech-003-new_software"
   },
   "meta": {

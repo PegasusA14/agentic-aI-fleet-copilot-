@@ -28,6 +28,7 @@
     "clarification": null,
     "coverage": {
       "excluded": {},
+      "excluded_devices": [],
       "missing_latest": [],
       "population": 10,
       "stale": []
@@ -113,11 +114,18 @@
       }
     ],
     "explanation": null,
+    "follow_ups": [
+      {
+        "label": "What should we do about these?",
+        "request": "What should we do about these devices?"
+      }
+    ],
     "headline": "2 of 10 devices breached free disk space under 10% in the last 7 days (2 sustained)",
     "notes": [],
     "outcome": "answer",
     "proposal": null,
     "reason_code": null,
+    "repeat_of": null,
     "scope": {
       "as_of": "2026-06-12T11:00:00Z",
       "calculation": "2 distinct devices across 1 claim; at most 6 supporting readings are cited per device",
@@ -125,7 +133,118 @@
       "population": 10,
       "rule": "primary volume free space < 10% over the last 7 days"
     },
+    "scope_line": {
+      "as_of": "2026-06-12T11:00:00Z",
+      "basis": "last 7 days of snapshots",
+      "checked": 10,
+      "company_name": "Acme",
+      "matched": 2,
+      "not_checked": 0,
+      "ok": 8,
+      "ok_label": "healthy"
+    },
     "suggested_actions": [],
+    "summary": "Two are sustained.",
+    "table": {
+      "columns": [
+        {
+          "key": "device",
+          "kind": "device",
+          "label": "Device"
+        },
+        {
+          "key": "pattern",
+          "kind": "pill",
+          "label": "Pattern"
+        },
+        {
+          "key": "breached",
+          "kind": "text",
+          "label": "Breached"
+        },
+        {
+          "key": "latest",
+          "kind": "percent",
+          "label": "Free now"
+        }
+      ],
+      "default_sort": {
+        "direction": "desc",
+        "key": "pattern"
+      },
+      "rows": [
+        {
+          "cells": {
+            "breached": {
+              "display": "7 of 7 snapshots",
+              "tone": null,
+              "value": 7
+            },
+            "device": {
+              "display": "acme-thinkpad-8",
+              "tone": null,
+              "value": "acme-thinkpad-8"
+            },
+            "latest": {
+              "display": "2.6%",
+              "tone": null,
+              "value": 2.5897921902469534
+            },
+            "pattern": {
+              "display": "Sustained",
+              "tone": "attention",
+              "value": 5
+            }
+          },
+          "device_id": "8NM23J95R5I6",
+          "label": "acme-thinkpad-8",
+          "refs": [
+            "acme-001/8NM23J95R5I6@2026-06-06T08:49:00Z#disk",
+            "acme-001/8NM23J95R5I6@2026-06-07T10:35:00Z#disk",
+            "acme-001/8NM23J95R5I6@2026-06-08T11:06:00Z#disk",
+            "acme-001/8NM23J95R5I6@2026-06-10T08:39:00Z#disk",
+            "acme-001/8NM23J95R5I6@2026-06-11T08:32:00Z#disk",
+            "acme-001/8NM23J95R5I6@2026-06-12T09:02:00Z#disk"
+          ]
+        },
+        {
+          "cells": {
+            "breached": {
+              "display": "7 of 7 snapshots",
+              "tone": null,
+              "value": 7
+            },
+            "device": {
+              "display": "acme-macbook-4",
+              "tone": null,
+              "value": "acme-macbook-4"
+            },
+            "latest": {
+              "display": "2.0%",
+              "tone": null,
+              "value": 2.0000000000436557
+            },
+            "pattern": {
+              "display": "Sustained",
+              "tone": "attention",
+              "value": 5
+            }
+          },
+          "device_id": "MT7PJB7N5LRE",
+          "label": "acme-macbook-4",
+          "refs": [
+            "acme-001/MT7PJB7N5LRE@2026-06-06T08:53:00Z#disk",
+            "acme-001/MT7PJB7N5LRE@2026-06-07T10:01:00Z#disk",
+            "acme-001/MT7PJB7N5LRE@2026-06-08T10:42:00Z#disk",
+            "acme-001/MT7PJB7N5LRE@2026-06-10T09:13:00Z#disk",
+            "acme-001/MT7PJB7N5LRE@2026-06-11T09:58:00Z#disk",
+            "acme-001/MT7PJB7N5LRE@2026-06-12T08:39:00Z#disk"
+          ]
+        }
+      ],
+      "title": "Disk trend (7 d)",
+      "total_rows": 2
+    },
     "trace_id": "replay-acme-001-disk_trend"
   },
   "meta": {
@@ -236,7 +355,7 @@
     {
       "data": {
         "claims": 1,
-        "evidence": 12,
+        "evidence": 26,
         "outcome": "answer",
         "reason_code": null
       },

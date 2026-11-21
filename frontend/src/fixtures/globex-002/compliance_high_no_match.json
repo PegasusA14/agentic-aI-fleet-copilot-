@@ -5,6 +5,7 @@
     "clarification": null,
     "coverage": {
       "excluded": {},
+      "excluded_devices": [],
       "missing_latest": [],
       "population": 8,
       "stale": []
@@ -12,11 +13,13 @@
     "entity_lists": [],
     "evidence": [],
     "explanation": null,
+    "follow_ups": [],
     "headline": "No devices matched (8 evaluated)",
     "notes": [],
     "outcome": "no_match",
     "proposal": null,
     "reason_code": "no_matching_records",
+    "repeat_of": null,
     "scope": {
       "as_of": "2026-06-12T11:00:00Z",
       "calculation": null,
@@ -24,7 +27,19 @@
       "population": 8,
       "rule": "failing check at the latest snapshot, severity=high"
     },
+    "scope_line": {
+      "as_of": "2026-06-12T11:00:00Z",
+      "basis": "latest snapshot per device",
+      "checked": 8,
+      "company_name": "Globex",
+      "matched": 0,
+      "not_checked": 0,
+      "ok": 8,
+      "ok_label": "passing"
+    },
     "suggested_actions": [],
+    "summary": "",
+    "table": null,
     "trace_id": "replay-globex-002-compliance_high_no_match"
   },
   "meta": {

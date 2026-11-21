@@ -17,6 +17,7 @@
     "clarification": null,
     "coverage": {
       "excluded": {},
+      "excluded_devices": [],
       "missing_latest": [],
       "population": 8,
       "stale": []
@@ -47,11 +48,13 @@
       }
     ],
     "explanation": null,
+    "follow_ups": [],
     "headline": "1 new install on 1 of 8 devices in the last 30 days (not in the common set)",
     "notes": [],
     "outcome": "answer",
     "proposal": null,
     "reason_code": null,
+    "repeat_of": null,
     "scope": {
       "as_of": "2026-06-12T11:00:00Z",
       "calculation": "1 distinct device across 1 claim; at most 2 supporting readings are cited per device",
@@ -59,7 +62,90 @@
       "population": 8,
       "rule": "software newly installed in the last 30 days: not in the common set and first seen after the device's first snapshot in the window. The common set is the apps on every device at its first snapshot in the window: 1Password, Google Chrome, Slack, Visual Studio Code, Zoom"
     },
+    "scope_line": {
+      "as_of": "2026-06-12T11:00:00Z",
+      "basis": "last 30 days of snapshots",
+      "checked": 8,
+      "company_name": "Globex",
+      "matched": 1,
+      "not_checked": 0,
+      "ok": null,
+      "ok_label": ""
+    },
     "suggested_actions": [],
+    "summary": "UTorrent on one device.",
+    "table": {
+      "columns": [
+        {
+          "key": "device",
+          "kind": "device",
+          "label": "Device"
+        },
+        {
+          "key": "app",
+          "kind": "text",
+          "label": "App"
+        },
+        {
+          "key": "version",
+          "kind": "version",
+          "label": "Version"
+        },
+        {
+          "key": "first_seen",
+          "kind": "date",
+          "label": "First seen"
+        },
+        {
+          "key": "status",
+          "kind": "pill",
+          "label": "Status"
+        }
+      ],
+      "default_sort": {
+        "direction": "desc",
+        "key": "first_seen"
+      },
+      "rows": [
+        {
+          "cells": {
+            "app": {
+              "display": "uTorrent",
+              "tone": null,
+              "value": "uTorrent"
+            },
+            "device": {
+              "display": "globex-macbook-4",
+              "tone": null,
+              "value": "globex-macbook-4"
+            },
+            "first_seen": {
+              "display": "2026-05-20",
+              "tone": null,
+              "value": "2026-05-20T09:10:00Z"
+            },
+            "status": {
+              "display": "Installed",
+              "tone": "neutral",
+              "value": 1
+            },
+            "version": {
+              "display": "3.6",
+              "tone": null,
+              "value": "3.6"
+            }
+          },
+          "device_id": "Q1AFVLH3YV33",
+          "label": "globex-macbook-4",
+          "refs": [
+            "globex-002/Q1AFVLH3YV33@2026-05-20T09:10:00Z#software[uTorrent]",
+            "globex-002/Q1AFVLH3YV33@2026-06-12T08:34:00Z#software[uTorrent]"
+          ]
+        }
+      ],
+      "title": "New software (30 d)",
+      "total_rows": 1
+    },
     "trace_id": "replay-globex-002-new_software"
   },
   "meta": {

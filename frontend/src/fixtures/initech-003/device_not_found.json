@@ -7,11 +7,13 @@
     "entity_lists": [],
     "evidence": [],
     "explanation": null,
+    "follow_ups": [],
     "headline": "I can't find that in your fleet.",
     "notes": [],
     "outcome": "denied",
     "proposal": null,
     "reason_code": "not_found",
+    "repeat_of": null,
     "scope": {
       "as_of": "2026-06-12T11:00:00Z",
       "calculation": null,
@@ -19,7 +21,10 @@
       "population": null,
       "rule": null
     },
+    "scope_line": null,
     "suggested_actions": [],
+    "summary": "",
+    "table": null,
     "trace_id": "replay-initech-003-device_not_found"
   },
   "meta": {

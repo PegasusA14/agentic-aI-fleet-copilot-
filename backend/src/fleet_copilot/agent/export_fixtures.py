@@ -2,7 +2,8 @@
 
 Each fixture is the output of the real tool layer and the deterministic composer, run as one tenant
 over the real dataset: `execute()` -> `compose()` -> `Composition.to_envelope()`. Nothing is hand-written
-data. The trace of every real (`tools`) scenario is the trace of a real scripted `AgentService` turn, and the
+data. A live list answer also carries code-only `suggested_actions`, which the graph adds after the prose is
+verified; the fixtures leave them out. The trace of every real (`tools`) scenario is the trace of a real scripted `AgentService` turn, and the
 `proposal` fixture is the whole envelope and trace of one: a scripted propose plan and `propose_action` call
 against a temporary actions database (the eligibility, parameters, evidence and wording are the real code's).
 A few outcomes cannot occur without a live model or an outage, so those are built from the same parts and
@@ -26,7 +27,7 @@ from langgraph.checkpoint.memory import InMemorySaver
 from fleet_copilot.agent import outcomes
 from fleet_copilot.agent.compose import compose
 from fleet_copilot.agent.context import AgentContext
-from fleet_copilot.agent.identity import Identity
+from fleet_copilot.agent.identity import DEMO_IDENTITIES, Identity
 from fleet_copilot.agent.llm import (
     Explanation,
     Plan,
@@ -53,6 +54,8 @@ DEFAULT_OUT = REPO_ROOT / "frontend" / "src" / "fixtures"
 # A device that belongs to another tenant: every tenant is refused it in the same words.
 _FOREIGN_DEVICE = {"acme-001": "4SEFDLPTKXAM", "globex-002": "1LYSSFD074BB"}
 _FOREIGN_FALLBACK = "4SEFDLPTKXAM"
+
+_COMPANY_NAMES = {i.company_id: i.company_name for i in DEMO_IDENTITIES.values()}
 
 ToolCall = tuple[str, dict[str, Any]]
 
@@ -398,7 +401,12 @@ def _build(
         return envelope, records
     records = [execute(tool, _fill(args, foreign_id), ctx) for tool, args in scenario.calls]
     composition = compose(records, resolve=repo.resolve)
-    envelope = composition.to_envelope(company_id=tenant, as_of=ctx.as_of, trace_id=trace_id)
+    envelope = composition.to_envelope(
+        company_id=tenant,
+        as_of=ctx.as_of,
+        trace_id=trace_id,
+        company_name=ctx.company_name,
+    )
     return envelope, records
 
 
@@ -440,6 +448,7 @@ def export_all(out_dir: Path) -> None:
                 company_id=tenant,
                 actor_id=f"admin-{tenant.split('-')[0]}",
                 as_of=as_of,
+                company_name=_COMPANY_NAMES.get(tenant, ""),
             )
             foreign_id = _FOREIGN_DEVICE.get(tenant, _FOREIGN_FALLBACK)
             conn = connect(db_path, read_only=True)

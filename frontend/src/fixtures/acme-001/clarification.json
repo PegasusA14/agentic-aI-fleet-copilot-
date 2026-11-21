@@ -15,11 +15,13 @@
     "entity_lists": [],
     "evidence": [],
     "explanation": null,
+    "follow_ups": [],
     "headline": "Which check should I run?",
     "notes": [],
     "outcome": "clarification",
     "proposal": null,
     "reason_code": null,
+    "repeat_of": null,
     "scope": {
       "as_of": "2026-06-12T11:00:00Z",
       "calculation": null,
@@ -27,7 +29,10 @@
       "population": null,
       "rule": null
     },
+    "scope_line": null,
     "suggested_actions": [],
+    "summary": "",
+    "table": null,
     "trace_id": "replay-acme-001-clarification"
   },
   "meta": {

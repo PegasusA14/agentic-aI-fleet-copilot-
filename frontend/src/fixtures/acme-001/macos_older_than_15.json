@@ -28,6 +28,26 @@
           "M4XVHUV1MEPZ"
         ]
       },
+      "excluded_devices": [
+        {
+          "device_id": "M4XVHUV1MEPZ",
+          "label": "acme-dell-9",
+          "reason": "out_of_scope",
+          "reason_text": "Windows 10, not a Mac"
+        },
+        {
+          "device_id": "9MXJVZ1I0DKA",
+          "label": "acme-thinkpad-10",
+          "reason": "out_of_scope",
+          "reason_text": "Windows 10, not a Mac"
+        },
+        {
+          "device_id": "8NM23J95R5I6",
+          "label": "acme-thinkpad-8",
+          "reason": "out_of_scope",
+          "reason_text": "Windows 10, not a Mac"
+        }
+      ],
       "missing_latest": [],
       "population": 7,
       "stale": []
@@ -83,6 +103,16 @@
       }
     ],
     "explanation": null,
+    "follow_ups": [
+      {
+        "label": "Look at the 3 devices not checked",
+        "request": "Which devices were not checked, and why?"
+      },
+      {
+        "label": "What should we do about these?",
+        "request": "What should we do about these devices?"
+      }
+    ],
     "headline": "4 of 7 macOS devices run a version older than macOS 15",
     "notes": [
       "3 devices are out of scope for this check: 8NM23J95R5I6, 9MXJVZ1I0DKA, M4XVHUV1MEPZ."
@@ -90,6 +120,7 @@
     "outcome": "answer",
     "proposal": null,
     "reason_code": null,
+    "repeat_of": null,
     "scope": {
       "as_of": "2026-06-12T11:00:00Z",
       "calculation": "4 distinct devices across 1 claim; at most 1 supporting reading is cited per device",
@@ -97,7 +128,141 @@
       "population": 7,
       "rule": "macOS devices with version < 15"
     },
+    "scope_line": {
+      "as_of": "2026-06-12T11:00:00Z",
+      "basis": "latest snapshot per device",
+      "checked": 7,
+      "company_name": "Acme",
+      "matched": 4,
+      "not_checked": 3,
+      "ok": 3,
+      "ok_label": "up to date"
+    },
     "suggested_actions": [],
+    "summary": "One is on 13.6 and three on 14.5.",
+    "table": {
+      "columns": [
+        {
+          "key": "device",
+          "kind": "device",
+          "label": "Device"
+        },
+        {
+          "key": "macos",
+          "kind": "version",
+          "label": "macOS"
+        },
+        {
+          "key": "behind",
+          "kind": "pill",
+          "label": "Behind 15"
+        }
+      ],
+      "default_sort": {
+        "direction": "asc",
+        "key": "macos"
+      },
+      "rows": [
+        {
+          "cells": {
+            "behind": {
+              "display": "2 major behind",
+              "tone": "attention",
+              "value": 2
+            },
+            "device": {
+              "display": "acme-macbook-1",
+              "tone": null,
+              "value": "acme-macbook-1"
+            },
+            "macos": {
+              "display": "13.6",
+              "tone": null,
+              "value": "13.6"
+            }
+          },
+          "device_id": "7VP16KHV88LM",
+          "label": "acme-macbook-1",
+          "refs": [
+            "acme-001/7VP16KHV88LM@2026-06-12T10:41:00Z#os"
+          ]
+        },
+        {
+          "cells": {
+            "behind": {
+              "display": "1 major behind",
+              "tone": "neutral",
+              "value": 1
+            },
+            "device": {
+              "display": "acme-macbook-2",
+              "tone": null,
+              "value": "acme-macbook-2"
+            },
+            "macos": {
+              "display": "14.5",
+              "tone": null,
+              "value": "14.5"
+            }
+          },
+          "device_id": "1LYSSFD074BB",
+          "label": "acme-macbook-2",
+          "refs": [
+            "acme-001/1LYSSFD074BB@2026-06-12T09:47:00Z#os"
+          ]
+        },
+        {
+          "cells": {
+            "behind": {
+              "display": "1 major behind",
+              "tone": "neutral",
+              "value": 1
+            },
+            "device": {
+              "display": "acme-macbook-4",
+              "tone": null,
+              "value": "acme-macbook-4"
+            },
+            "macos": {
+              "display": "14.5",
+              "tone": null,
+              "value": "14.5"
+            }
+          },
+          "device_id": "MT7PJB7N5LRE",
+          "label": "acme-macbook-4",
+          "refs": [
+            "acme-001/MT7PJB7N5LRE@2026-06-12T08:39:00Z#os"
+          ]
+        },
+        {
+          "cells": {
+            "behind": {
+              "display": "1 major behind",
+              "tone": "neutral",
+              "value": 1
+            },
+            "device": {
+              "display": "acme-macbook-6",
+              "tone": null,
+              "value": "acme-macbook-6"
+            },
+            "macos": {
+              "display": "14.5",
+              "tone": null,
+              "value": "14.5"
+            }
+          },
+          "device_id": "XSU9UUDGU6AC",
+          "label": "acme-macbook-6",
+          "refs": [
+            "acme-001/XSU9UUDGU6AC@2026-06-12T09:52:00Z#os"
+          ]
+        }
+      ],
+      "title": "macOS older than 15",
+      "total_rows": 4
+    },
     "trace_id": "replay-acme-001-macos_older_than_15"
   },
   "meta": {
@@ -207,7 +372,7 @@
     {
       "data": {
         "claims": 1,
-        "evidence": 4,
+        "evidence": 24,
         "outcome": "answer",
         "reason_code": null
       },

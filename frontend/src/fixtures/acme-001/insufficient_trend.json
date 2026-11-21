@@ -18,6 +18,68 @@
           "XSU9UUDGU6AC"
         ]
       },
+      "excluded_devices": [
+        {
+          "device_id": "M4XVHUV1MEPZ",
+          "label": "acme-dell-9",
+          "reason": "insufficient_history",
+          "reason_text": "Only 2 snapshots in the window"
+        },
+        {
+          "device_id": "DLT35MHGTH2D",
+          "label": "acme-mac-5",
+          "reason": "insufficient_history",
+          "reason_text": "Only 1 snapshot in the window"
+        },
+        {
+          "device_id": "7VP16KHV88LM",
+          "label": "acme-macbook-1",
+          "reason": "insufficient_history",
+          "reason_text": "Only 1 snapshot in the window"
+        },
+        {
+          "device_id": "1LYSSFD074BB",
+          "label": "acme-macbook-2",
+          "reason": "insufficient_history",
+          "reason_text": "Only 1 snapshot in the window"
+        },
+        {
+          "device_id": "DSYPSES7SKBB",
+          "label": "acme-macbook-3",
+          "reason": "insufficient_history",
+          "reason_text": "Only 1 snapshot in the window"
+        },
+        {
+          "device_id": "MT7PJB7N5LRE",
+          "label": "acme-macbook-4",
+          "reason": "insufficient_history",
+          "reason_text": "Only 1 snapshot in the window"
+        },
+        {
+          "device_id": "XSU9UUDGU6AC",
+          "label": "acme-macbook-6",
+          "reason": "insufficient_history",
+          "reason_text": "Only 2 snapshots in the window"
+        },
+        {
+          "device_id": "Q3VUITEGQ400",
+          "label": "acme-macbook-7",
+          "reason": "insufficient_history",
+          "reason_text": "Only 2 snapshots in the window"
+        },
+        {
+          "device_id": "9MXJVZ1I0DKA",
+          "label": "acme-thinkpad-10",
+          "reason": "insufficient_history",
+          "reason_text": "Only 1 snapshot in the window"
+        },
+        {
+          "device_id": "8NM23J95R5I6",
+          "label": "acme-thinkpad-8",
+          "reason": "insufficient_history",
+          "reason_text": "Only 1 snapshot in the window"
+        }
+      ],
       "missing_latest": [],
       "population": 10,
       "stale": []
@@ -25,6 +87,12 @@
     "entity_lists": [],
     "evidence": [],
     "explanation": null,
+    "follow_ups": [
+      {
+        "label": "Look at the 10 devices not checked",
+        "request": "Which devices were not checked, and why?"
+      }
+    ],
     "headline": "There are not enough snapshots in that window to report a trend.",
     "notes": [
       "10 devices have fewer than 3 snapshots in the window, so no trend is reported: 1LYSSFD074BB, 7VP16KHV88LM, 8NM23J95R5I6, 9MXJVZ1I0DKA, DLT35MHGTH2D, DSYPSES7SKBB, M4XVHUV1MEPZ, MT7PJB7N5LRE, Q3VUITEGQ400, XSU9UUDGU6AC."
@@ -32,6 +100,7 @@
     "outcome": "insufficient_data",
     "proposal": null,
     "reason_code": "insufficient_history",
+    "repeat_of": null,
     "scope": {
       "as_of": "2026-06-12T11:00:00Z",
       "calculation": null,
@@ -39,7 +108,19 @@
       "population": 10,
       "rule": "memory used >= 85% over the last 1 days"
     },
+    "scope_line": {
+      "as_of": "2026-06-12T11:00:00Z",
+      "basis": "last 1 days of snapshots",
+      "checked": 0,
+      "company_name": "Acme",
+      "matched": 0,
+      "not_checked": 10,
+      "ok": 0,
+      "ok_label": "healthy"
+    },
     "suggested_actions": [],
+    "summary": "",
+    "table": null,
     "trace_id": "replay-acme-001-insufficient_trend"
   },
   "meta": {

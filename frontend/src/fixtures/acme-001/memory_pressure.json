@@ -16,6 +16,7 @@
     "clarification": null,
     "coverage": {
       "excluded": {},
+      "excluded_devices": [],
       "missing_latest": [],
       "population": 10,
       "stale": []
@@ -41,11 +42,22 @@
       }
     ],
     "explanation": null,
+    "follow_ups": [
+      {
+        "label": "Show their 7-day trend",
+        "request": "Which devices have had memory use at or above 85% for most of the last 7 days?"
+      },
+      {
+        "label": "What should we do about these?",
+        "request": "What should we do about these devices?"
+      }
+    ],
     "headline": "1 of 10 devices use at least 85% of memory",
     "notes": [],
     "outcome": "answer",
     "proposal": null,
     "reason_code": null,
+    "repeat_of": null,
     "scope": {
       "as_of": "2026-06-12T11:00:00Z",
       "calculation": "1 distinct device across 1 claim; at most 1 supporting reading is cited per device",
@@ -53,7 +65,69 @@
       "population": 10,
       "rule": "memory used >= 85% at the latest snapshot"
     },
+    "scope_line": {
+      "as_of": "2026-06-12T11:00:00Z",
+      "basis": "latest snapshot per device",
+      "checked": 10,
+      "company_name": "Acme",
+      "matched": 1,
+      "not_checked": 0,
+      "ok": 9,
+      "ok_label": "healthy"
+    },
     "suggested_actions": [],
+    "summary": "It is at 99.0% used.",
+    "table": {
+      "columns": [
+        {
+          "key": "device",
+          "kind": "device",
+          "label": "Device"
+        },
+        {
+          "key": "used",
+          "kind": "percent",
+          "label": "Used"
+        },
+        {
+          "key": "memory",
+          "kind": "text",
+          "label": "Memory in use"
+        }
+      ],
+      "default_sort": {
+        "direction": "desc",
+        "key": "used"
+      },
+      "rows": [
+        {
+          "cells": {
+            "device": {
+              "display": "acme-dell-9",
+              "tone": null,
+              "value": "acme-dell-9"
+            },
+            "memory": {
+              "display": "15.8 GiB of 16.0 GiB",
+              "tone": null,
+              "value": 17008070492
+            },
+            "used": {
+              "display": "99.0%",
+              "tone": "attention",
+              "value": 98.99999999906868
+            }
+          },
+          "device_id": "M4XVHUV1MEPZ",
+          "label": "acme-dell-9",
+          "refs": [
+            "acme-001/M4XVHUV1MEPZ@2026-06-12T11:00:00Z#memory"
+          ]
+        }
+      ],
+      "title": "High memory (>=85% used)",
+      "total_rows": 1
+    },
     "trace_id": "replay-acme-001-memory_pressure"
   },
   "meta": {
@@ -160,7 +234,7 @@
     {
       "data": {
         "claims": 1,
-        "evidence": 1,
+        "evidence": 14,
         "outcome": "answer",
         "reason_code": null
       },

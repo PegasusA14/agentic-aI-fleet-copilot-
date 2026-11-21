@@ -15,6 +15,50 @@
           "XZYK11QTPWEC"
         ]
       },
+      "excluded_devices": [
+        {
+          "device_id": "W2656QDAE2ZJ",
+          "label": "initech-dell-1",
+          "reason": "insufficient_history",
+          "reason_text": "Only 2 snapshots in the window"
+        },
+        {
+          "device_id": "2MAN6T4DJD95",
+          "label": "initech-dell-5",
+          "reason": "insufficient_history",
+          "reason_text": "Only 1 snapshot in the window"
+        },
+        {
+          "device_id": "I3JLKILKQTAC",
+          "label": "initech-mac-3",
+          "reason": "insufficient_history",
+          "reason_text": "Only 1 snapshot in the window"
+        },
+        {
+          "device_id": "RLD7WV7J82SH",
+          "label": "initech-mac-4",
+          "reason": "insufficient_history",
+          "reason_text": "Only 1 snapshot in the window"
+        },
+        {
+          "device_id": "SPKRRDF0L786",
+          "label": "initech-macbook-2",
+          "reason": "insufficient_history",
+          "reason_text": "Only 2 snapshots in the window"
+        },
+        {
+          "device_id": "DARFCP0BQM2G",
+          "label": "initech-macbook-6",
+          "reason": "insufficient_history",
+          "reason_text": "Only 1 snapshot in the window"
+        },
+        {
+          "device_id": "XZYK11QTPWEC",
+          "label": "initech-macbook-7",
+          "reason": "insufficient_history",
+          "reason_text": "Only 1 snapshot in the window"
+        }
+      ],
       "missing_latest": [],
       "population": 7,
       "stale": []
@@ -22,6 +66,12 @@
     "entity_lists": [],
     "evidence": [],
     "explanation": null,
+    "follow_ups": [
+      {
+        "label": "Look at the 7 devices not checked",
+        "request": "Which devices were not checked, and why?"
+      }
+    ],
     "headline": "There are not enough snapshots in that window to report a trend.",
     "notes": [
       "7 devices have fewer than 3 snapshots in the window, so no trend is reported: 2MAN6T4DJD95, DARFCP0BQM2G, I3JLKILKQTAC, RLD7WV7J82SH, SPKRRDF0L786, W2656QDAE2ZJ, XZYK11QTPWEC."
@@ -29,6 +79,7 @@
     "outcome": "insufficient_data",
     "proposal": null,
     "reason_code": "insufficient_history",
+    "repeat_of": null,
     "scope": {
       "as_of": "2026-06-12T11:00:00Z",
       "calculation": null,
@@ -36,7 +87,19 @@
       "population": 7,
       "rule": "memory used >= 85% over the last 1 days"
     },
+    "scope_line": {
+      "as_of": "2026-06-12T11:00:00Z",
+      "basis": "last 1 days of snapshots",
+      "checked": 0,
+      "company_name": "Initech",
+      "matched": 0,
+      "not_checked": 7,
+      "ok": 0,
+      "ok_label": "healthy"
+    },
     "suggested_actions": [],
+    "summary": "",
+    "table": null,
     "trace_id": "replay-initech-003-insufficient_trend"
   },
   "meta": {

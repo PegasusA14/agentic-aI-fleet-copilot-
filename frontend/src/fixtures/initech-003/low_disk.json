@@ -18,6 +18,7 @@
     "clarification": null,
     "coverage": {
       "excluded": {},
+      "excluded_devices": [],
       "missing_latest": [],
       "population": 7,
       "stale": []
@@ -53,11 +54,22 @@
       }
     ],
     "explanation": null,
+    "follow_ups": [
+      {
+        "label": "Show their 7-day trend",
+        "request": "Which devices have had under 10% free disk space for most of the last 7 days?"
+      },
+      {
+        "label": "What should we do about these?",
+        "request": "What should we do about these devices?"
+      }
+    ],
     "headline": "2 of 7 devices have under 10% disk space free",
     "notes": [],
     "outcome": "answer",
     "proposal": null,
     "reason_code": null,
+    "repeat_of": null,
     "scope": {
       "as_of": "2026-06-12T11:00:00Z",
       "calculation": "2 distinct devices across 1 claim; at most 1 supporting reading is cited per device",
@@ -65,7 +77,93 @@
       "population": 7,
       "rule": "primary volume free space < 10% at the latest snapshot"
     },
+    "scope_line": {
+      "as_of": "2026-06-12T11:00:00Z",
+      "basis": "latest snapshot per device",
+      "checked": 7,
+      "company_name": "Initech",
+      "matched": 2,
+      "not_checked": 0,
+      "ok": 5,
+      "ok_label": "healthy"
+    },
     "suggested_actions": [],
+    "summary": "Both are under 10% free, the lowest at 2.0%.",
+    "table": {
+      "columns": [
+        {
+          "key": "device",
+          "kind": "device",
+          "label": "Device"
+        },
+        {
+          "key": "free",
+          "kind": "percent",
+          "label": "Free"
+        },
+        {
+          "key": "space",
+          "kind": "text",
+          "label": "Free space"
+        }
+      ],
+      "default_sort": {
+        "direction": "asc",
+        "key": "free"
+      },
+      "rows": [
+        {
+          "cells": {
+            "device": {
+              "display": "initech-macbook-6",
+              "tone": null,
+              "value": "initech-macbook-6"
+            },
+            "free": {
+              "display": "2.0%",
+              "tone": "attention",
+              "value": 2.0000000000436557
+            },
+            "space": {
+              "display": "20.5 GiB of 1.0 TiB",
+              "tone": null,
+              "value": 21990232556
+            }
+          },
+          "device_id": "DARFCP0BQM2G",
+          "label": "initech-macbook-6",
+          "refs": [
+            "initech-003/DARFCP0BQM2G@2026-06-12T10:31:00Z#disk"
+          ]
+        },
+        {
+          "cells": {
+            "device": {
+              "display": "initech-mac-4",
+              "tone": null,
+              "value": "initech-mac-4"
+            },
+            "free": {
+              "display": "2.0%",
+              "tone": "attention",
+              "value": 2.0000000000436557
+            },
+            "space": {
+              "display": "5.1 GiB of 256.0 GiB",
+              "tone": null,
+              "value": 5497558139
+            }
+          },
+          "device_id": "RLD7WV7J82SH",
+          "label": "initech-mac-4",
+          "refs": [
+            "initech-003/RLD7WV7J82SH@2026-06-12T08:50:00Z#disk"
+          ]
+        }
+      ],
+      "title": "Low disk (<10% free)",
+      "total_rows": 2
+    },
     "trace_id": "replay-initech-003-low_disk"
   },
   "meta": {
@@ -174,7 +272,7 @@
     {
       "data": {
         "claims": 1,
-        "evidence": 2,
+        "evidence": 16,
         "outcome": "answer",
         "reason_code": null
       },

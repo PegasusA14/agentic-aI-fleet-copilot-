@@ -24,6 +24,7 @@
     "clarification": null,
     "coverage": {
       "excluded": {},
+      "excluded_devices": [],
       "missing_latest": [],
       "population": 8,
       "stale": []
@@ -89,11 +90,13 @@
       }
     ],
     "explanation": null,
+    "follow_ups": [],
     "headline": "5 devices grouped by model",
     "notes": [],
     "outcome": "answer",
     "proposal": null,
     "reason_code": null,
+    "repeat_of": null,
     "scope": {
       "as_of": "2026-06-12T11:00:00Z",
       "calculation": "5 distinct devices across 1 claim; at most 1 supporting reading is cited per device",
@@ -101,7 +104,165 @@
       "population": 8,
       "rule": "devices matching os=macOS"
     },
+    "scope_line": {
+      "as_of": "2026-06-12T11:00:00Z",
+      "basis": "latest snapshot per device",
+      "checked": 8,
+      "company_name": "Globex",
+      "matched": 5,
+      "not_checked": 0,
+      "ok": null,
+      "ok_label": ""
+    },
     "suggested_actions": [],
+    "summary": "Five devices run four different OS versions.",
+    "table": {
+      "columns": [
+        {
+          "key": "device",
+          "kind": "device",
+          "label": "Device"
+        },
+        {
+          "key": "os",
+          "kind": "text",
+          "label": "OS"
+        },
+        {
+          "key": "model",
+          "kind": "text",
+          "label": "Model"
+        }
+      ],
+      "default_sort": {
+        "direction": "asc",
+        "key": "device"
+      },
+      "rows": [
+        {
+          "cells": {
+            "device": {
+              "display": "globex-macbook-1",
+              "tone": null,
+              "value": "globex-macbook-1"
+            },
+            "model": {
+              "display": "MacBook Pro",
+              "tone": null,
+              "value": "MacBook Pro"
+            },
+            "os": {
+              "display": "macOS 15.4",
+              "tone": null,
+              "value": "macOS 15.4"
+            }
+          },
+          "device_id": "DXUCJ272DCYX",
+          "label": "globex-macbook-1",
+          "refs": [
+            "globex-002/DXUCJ272DCYX@2026-06-12T08:47:00Z#os"
+          ]
+        },
+        {
+          "cells": {
+            "device": {
+              "display": "globex-macbook-2",
+              "tone": null,
+              "value": "globex-macbook-2"
+            },
+            "model": {
+              "display": "MacBook Air",
+              "tone": null,
+              "value": "MacBook Air"
+            },
+            "os": {
+              "display": "macOS 15.4",
+              "tone": null,
+              "value": "macOS 15.4"
+            }
+          },
+          "device_id": "IZ6K51CBZR8F",
+          "label": "globex-macbook-2",
+          "refs": [
+            "globex-002/IZ6K51CBZR8F@2026-06-12T09:30:00Z#os"
+          ]
+        },
+        {
+          "cells": {
+            "device": {
+              "display": "globex-macbook-3",
+              "tone": null,
+              "value": "globex-macbook-3"
+            },
+            "model": {
+              "display": "MacBook Air",
+              "tone": null,
+              "value": "MacBook Air"
+            },
+            "os": {
+              "display": "macOS 13.6",
+              "tone": null,
+              "value": "macOS 13.6"
+            }
+          },
+          "device_id": "4SEFDLPTKXAM",
+          "label": "globex-macbook-3",
+          "refs": [
+            "globex-002/4SEFDLPTKXAM@2026-06-12T08:34:00Z#os"
+          ]
+        },
+        {
+          "cells": {
+            "device": {
+              "display": "globex-macbook-4",
+              "tone": null,
+              "value": "globex-macbook-4"
+            },
+            "model": {
+              "display": "MacBook Air",
+              "tone": null,
+              "value": "MacBook Air"
+            },
+            "os": {
+              "display": "macOS 15.3",
+              "tone": null,
+              "value": "macOS 15.3"
+            }
+          },
+          "device_id": "Q1AFVLH3YV33",
+          "label": "globex-macbook-4",
+          "refs": [
+            "globex-002/Q1AFVLH3YV33@2026-06-12T08:34:00Z#os"
+          ]
+        },
+        {
+          "cells": {
+            "device": {
+              "display": "globex-macbook-5",
+              "tone": null,
+              "value": "globex-macbook-5"
+            },
+            "model": {
+              "display": "MacBook Pro",
+              "tone": null,
+              "value": "MacBook Pro"
+            },
+            "os": {
+              "display": "macOS 14.5",
+              "tone": null,
+              "value": "macOS 14.5"
+            }
+          },
+          "device_id": "QPZSXKINA7GP",
+          "label": "globex-macbook-5",
+          "refs": [
+            "globex-002/QPZSXKINA7GP@2026-06-12T10:04:00Z#os"
+          ]
+        }
+      ],
+      "title": "Matching devices",
+      "total_rows": 5
+    },
     "trace_id": "replay-globex-002-inventory_by_model"
   },
   "meta": {
