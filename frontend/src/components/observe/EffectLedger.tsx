@@ -1,6 +1,7 @@
 import { EFFECT_TABLES } from "../../lib/audit";
 import { TENANTS, tenantName } from "../../lib/fixtures";
 import type { Transport } from "../../lib/transport";
+import { Count } from "../Count";
 import { useLoad } from "./useLoad";
 
 interface EffectLedgerProps {
@@ -69,10 +70,12 @@ export function EffectLedger({ transport, nonce, onSessionEnded }: EffectLedgerP
                   <th scope="row">{EFFECT_TABLES[table] ?? table.replaceAll("_", " ")}</th>
                   {companies.map((id) => (
                     <td key={id} className="obs__num">
-                      {row[id] ?? 0}
+                      <Count value={row[id] ?? 0} />
                     </td>
                   ))}
-                  <td className="obs__num obs__total">{total}</td>
+                  <td className="obs__num obs__total">
+                    <Count value={total} />
+                  </td>
                 </tr>
               );
             })}

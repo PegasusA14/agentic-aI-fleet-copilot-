@@ -1,7 +1,8 @@
-import { act, render, screen, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { getFixture } from "../lib/fixtures";
+import { setReducedMotion } from "../test/motion";
 import { Thread, type TurnData } from "./Thread";
 
 const LOW = getFixture("acme-001", "low_disk");
@@ -38,7 +39,7 @@ describe("Thread", () => {
       <Thread turns={[turn({ id: "1", events: LOW.trace })]} onAsk={() => {}} onOpenEvidence={() => {}} onOpenTrace={() => {}} />,
     );
     expect(container.querySelector(".working")).toBeNull();
-    expect(container.querySelector(".spinner")).toBeNull();
+    expect(container.querySelector(".dotmatrix")).toBeNull();
   });
 
   it("announces 'Reply ready.' and the first sentence once, when a running turn finishes", () => {
@@ -163,5 +164,51 @@ describe("Thread scrolling", () => {
     expect(scroll).toHaveBeenCalledTimes(1);
     expect(scroll).toHaveBeenCalledWith({ block: "end", behavior: "auto" });
     expect(scroll.mock.contexts[0]).toHaveAccessibleName("Question: Q2");
+  });
+});
+
+describe("Thread motion", () => {
+  afterEach(() => setReducedMotion(true));
+  const handlers = { onAsk: vi.fn(), onOpenEvidence: vi.fn(), onOpenTrace: vi.fn() };
+
+  it("shows the dot-matrix loader while a turn runs and none once the answer has landed", async () => {
+    setReducedMotion(false);
+    const running = [turn({ id: "1", status: "working", envelope: undefined, fresh: true })];
+    const { container, rerender } = render(<Thread turns={running} {...handlers} />);
+    expect(container.querySelector(".dotmatrix")).not.toBeNull();
+    rerender(<Thread turns={[turn({ id: "1", fresh: true })]} {...handlers} />);
+    // The loader fades for 160 ms, then the answer arrives in its place.
+    await waitFor(() => expect(container.querySelector(".dotmatrix")).toBeNull(), { timeout: 2000 });
+    expect(await screen.findByRole("article")).toHaveTextContent(LOW.envelope.headline);
+    expect(container.querySelector(".working")).toBeNull();
+  });
+
+  it("swaps at once under reduced motion: no loader the moment the answer is there", () => {
+    setReducedMotion(true);
+    const running = [turn({ id: "1", status: "working", envelope: undefined, fresh: true })];
+    const { container, rerender } = render(<Thread turns={running} {...handlers} />);
+    expect(container.querySelector(".dotmatrix")).toHaveAttribute("data-still");
+    rerender(<Thread turns={[turn({ id: "1", fresh: true })]} {...handlers} />);
+    expect(container.querySelector(".dotmatrix")).toBeNull();
+    expect(screen.getByRole("article")).toBeInTheDocument();
+  });
+
+  it("brings a new question in with a fade and a 6px rise, but not a reopened one", () => {
+    setReducedMotion(false);
+    const { container } = render(
+      <Thread turns={[turn({ id: "1", fresh: true }), turn({ id: "2", question: "Older question" })]} {...handlers} />,
+    );
+    const bubbles = container.querySelectorAll<HTMLElement>(".msg--user");
+    expect(bubbles[0].style.opacity).toBe("0");
+    expect(bubbles[0].style.transform).toContain("translateY(6px)");
+    expect(bubbles[1].style.opacity).not.toBe("0");
+  });
+
+  it("does not move a new question under reduced motion", () => {
+    setReducedMotion(true);
+    const { container } = render(<Thread turns={[turn({ id: "1", fresh: true })]} {...handlers} />);
+    const bubble = container.querySelector<HTMLElement>(".msg--user") as HTMLElement;
+    expect(bubble.style.opacity).not.toBe("0");
+    expect(bubble.style.transform).not.toContain("translateY");
   });
 });

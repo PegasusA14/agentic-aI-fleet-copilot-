@@ -31,15 +31,10 @@ export function TopBar({
         ) : null}
         <span className="brand">
           <span className="brand__mark" aria-hidden="true">
-            <svg width="18" height="18" viewBox="0 0 32 32">
-              <path
-                d="M7 22c3-9 6-9 9-3s5 5 9-4"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="3"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-              />
+            {/* A crisp square in the accent colour, with one small solid square inside: a device in the fleet. */}
+            <svg width="20" height="20" viewBox="0 0 20 20" shapeRendering="crispEdges">
+              <rect x="1" y="1" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="2" />
+              <rect x="5" y="11" width="4" height="4" fill="currentColor" />
             </svg>
           </span>
           <span className="brand__word">Fleet Copilot</span>

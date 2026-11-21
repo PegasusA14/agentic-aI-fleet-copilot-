@@ -1,9 +1,12 @@
 import { ArrowLeft } from "lucide-react";
+import { motion } from "motion/react";
 import { useCallback, useEffect, useState } from "react";
 import { ApiError, UNREACHABLE } from "../lib/api";
+import { GLIDE, usePrefersReducedMotion } from "../lib/motion";
 import { actionSentence } from "../lib/proposals";
 import type { Transport } from "../lib/transport";
 import type { ProposalCard } from "../lib/types";
+import { Count, CountedText } from "./Count";
 import { ProposalView } from "./ProposalView";
 
 interface ApprovalsViewProps {
@@ -25,12 +28,23 @@ function count(n: number): string {
   return `${n} ${n === 1 ? "proposal" : "proposals"} awaiting your decision`;
 }
 
+/** The count line; the number ticks when a decision changes it. */
+function WaitingCount({ n }: { n: number }) {
+  if (n === 0) return <>{count(0)}</>;
+  return (
+    <CountedText text={count(n)}>
+      <Count value={n} /> {n === 1 ? "proposal" : "proposals"} awaiting your decision
+    </CountedText>
+  );
+}
+
 /** Everything in this company waiting for a person: the same card as in the thread, decided in place. */
 export function ApprovalsView({ transport, onOpenEvidence, onDecided, onSessionEnded }: ApprovalsViewProps) {
   const [load, setLoad] = useState<Load>({ state: "loading" });
   /** Status of each card as decisions came back; the list itself is only fetched once per visit. */
   const [settled, setSettled] = useState<Record<string, ProposalCard["status"]>>({});
   const [attempt, setAttempt] = useState(0);
+  const reduce = usePrefersReducedMotion();
 
   useEffect(() => {
     let alive = true;
@@ -94,11 +108,11 @@ export function ApprovalsView({ transport, onOpenEvidence, onDecided, onSessionE
       ) : (
         <>
           <p className="approvals__count" aria-live="polite">
-            {count(waiting)}
+            <WaitingCount n={waiting} />
           </p>
           <ul className="approvals__list" aria-label="Pending proposals">
             {load.cards.map((card) => (
-              <li key={card.proposal_id}>
+              <motion.li key={card.proposal_id} layout={reduce ? false : "position"} transition={GLIDE}>
                 <ProposalView
                   proposal={card}
                   decide={transport}
@@ -106,7 +120,7 @@ export function ApprovalsView({ transport, onOpenEvidence, onDecided, onSessionE
                   onDecided={decided}
                   onSessionEnded={onSessionEnded}
                 />
-              </li>
+              </motion.li>
             ))}
           </ul>
         </>

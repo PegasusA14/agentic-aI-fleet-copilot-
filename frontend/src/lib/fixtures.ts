@@ -60,6 +60,20 @@ export function fleetSize(tenantId: string): number | null {
   return getFixture(tenantId, "low_disk").envelope.coverage?.population ?? null;
 }
 
+/**
+ * Devices with a current finding in the replayed fleet: low disk, high memory or worn battery, read from the stored
+ * answers to those questions. Replay only; a live session has no such list on the client, so the pulse stays neutral there.
+ */
+export function fleetFindings(tenantId: string): string[] {
+  const flagged = new Set<string>();
+  for (const scenario of ["low_disk", "memory_pressure", "battery_wear"]) {
+    for (const list of getFixture(tenantId, scenario).envelope.entity_lists) {
+      for (const item of list.items) flagged.add(item.device_id);
+    }
+  }
+  return [...flagged].sort();
+}
+
 /** The pinned "now" of the dataset, as carried by the answers themselves. */
 export function datasetAsOf(): string {
   return getFixture(TENANTS[0].id, "low_disk").envelope.scope.as_of;

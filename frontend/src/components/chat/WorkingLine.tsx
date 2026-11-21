@@ -1,4 +1,7 @@
+import { motion } from "motion/react";
+import { CROSSFADE, usePrefersReducedMotion } from "../../lib/motion";
 import type { TraceEvent } from "../../lib/types";
+import { DotMatrix } from "../DotMatrix";
 
 const START = "Reading your question…";
 
@@ -16,6 +19,7 @@ const STEP_WORDS: Partial<Record<TraceEvent["kind"], string>> = {
 
 /** One plain line while a turn runs. A step with no words of its own keeps the line before it. */
 export function WorkingLine({ events }: { events: TraceEvent[] }) {
+  const reduce = usePrefersReducedMotion();
   let words = START;
   for (let i = events.length - 1; i >= 0; i--) {
     const found = STEP_WORDS[events[i].kind];
@@ -25,11 +29,18 @@ export function WorkingLine({ events }: { events: TraceEvent[] }) {
     }
   }
   return (
-    <p className="working" role="status">
-      <span className="spinner" aria-hidden="true" />
+    <motion.p
+      className="working"
+      role="status"
+      initial={reduce ? false : { opacity: 0 }}
+      animate={{ opacity: 1 }}
+      exit={reduce ? undefined : { opacity: 0 }}
+      transition={CROSSFADE}
+    >
+      <DotMatrix still={reduce} />
       <span key={words} className="working__step">
         {words}
       </span>
-    </p>
+    </motion.p>
   );
 }

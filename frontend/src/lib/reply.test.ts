@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { getFixture } from "./fixtures";
-import { PROPOSAL_LEAD, firstSentence, replyOf } from "./reply";
+import { PROPOSAL_LEAD, firstSentence, leadCount, replyOf } from "./reply";
 
 const PROPOSAL = getFixture("acme-001", "proposal").envelope;
 const LOW_DISK = getFixture("acme-001", "low_disk").envelope;
@@ -29,5 +29,32 @@ describe("firstSentence", () => {
     expect(firstSentence("Reply one. Reply two.")).toBe("Reply one.");
     expect(firstSentence("2 of 10 devices have under 10% disk space free")).toBe("2 of 10 devices have under 10% disk space free");
     expect(firstSentence("Is it 10.5 GiB? Yes.")).toBe("Is it 10.5 GiB?");
+  });
+});
+
+describe("leadCount", () => {
+  it("reads N and M from a headline that opens 'N of M'", () => {
+    expect(leadCount("2 of 10 devices have under 10% disk space free")).toEqual({
+      kind: "of",
+      n: 2,
+      m: 10,
+      rest: " devices have under 10% disk space free",
+    });
+  });
+
+  it("reads N from a headline that opens 'N actions'", () => {
+    expect(leadCount("3 actions are suggested")).toEqual({ kind: "actions", n: 3, rest: " actions are suggested" });
+    expect(leadCount("1 action is suggested")).toEqual({ kind: "actions", n: 1, rest: " action is suggested" });
+  });
+
+  it.each([
+    "7 devices grouped by model",
+    "Nearly 2 of 10 devices",
+    "2 of ten devices",
+    "2 of 10devices",
+    "12 actionable items",
+    "",
+  ])("leaves %j as plain text", (text) => {
+    expect(leadCount(text)).toBeNull();
   });
 });

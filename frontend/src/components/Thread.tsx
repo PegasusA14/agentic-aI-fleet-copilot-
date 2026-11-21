@@ -1,4 +1,6 @@
+import { motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
+import { CROSSFADE, ENTER, Presence, usePrefersReducedMotion } from "../lib/motion";
 import { firstSentence, replyOf } from "../lib/reply";
 import type { AnswerEnvelope, ProposalCard, TraceEvent } from "../lib/types";
 import { AssistantMessage } from "./chat/AssistantMessage";
@@ -37,8 +39,17 @@ interface TurnViewProps {
 }
 
 function FailureMessage({ turn, onAsk }: { turn: TurnData; onAsk: (question: string) => void }) {
+  const reduce = usePrefersReducedMotion();
   return (
-    <article className="msg msg--assistant" data-outcome="tool_error" aria-label="Copilot reply">
+    <motion.article
+      className="msg msg--assistant"
+      data-outcome="tool_error"
+      aria-label="Copilot reply"
+      initial={reduce ? false : { opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={ENTER}
+      exit={reduce ? undefined : { opacity: 0, transition: CROSSFADE }}
+    >
       <div className="msg__state">
         <StateMark outcome="tool_error" />
       </div>
@@ -49,7 +60,7 @@ function FailureMessage({ turn, onAsk }: { turn: TurnData; onAsk: (question: str
           Ask again
         </button>
       </div>
-    </article>
+    </motion.article>
   );
 }
 
@@ -91,25 +102,29 @@ function TurnView({ turn, last, busy, onOpenEvidence, onOpenTrace, onAsk, decide
       data-fresh={turn.fresh || undefined}
       aria-label={`Question: ${turn.question}`}
     >
-      <UserMessage text={turn.question} />
-      {turn.status === "done" && turn.envelope ? (
-        <AssistantMessage
-          envelope={turn.envelope}
-          note={turn.note}
-          busy={busy}
-          onOpenEvidence={(refs) => onOpenEvidence(turn, refs)}
-          onOpenTrace={() => onOpenTrace(turn)}
-          onAsk={onAsk}
-          decide={decide}
-          reopened={!turn.fresh}
-          onDecided={onDecided}
-          onSessionEnded={onSessionEnded}
-        />
-      ) : turn.status === "failed" ? (
-        <FailureMessage turn={turn} onAsk={onAsk} />
-      ) : (
-        <WorkingLine events={turn.events} />
-      )}
+      <UserMessage text={turn.question} fresh={turn.fresh} />
+      {/* The working line fades out, then the answer arrives; each is its own keyed child so the swap is a cross-fade. */}
+      <Presence mode="wait">
+        {turn.status === "done" && turn.envelope ? (
+          <AssistantMessage
+            key="answer"
+            envelope={turn.envelope}
+            note={turn.note}
+            busy={busy}
+            onOpenEvidence={(refs) => onOpenEvidence(turn, refs)}
+            onOpenTrace={() => onOpenTrace(turn)}
+            onAsk={onAsk}
+            decide={decide}
+            reopened={!turn.fresh}
+            onDecided={onDecided}
+            onSessionEnded={onSessionEnded}
+          />
+        ) : turn.status === "failed" ? (
+          <FailureMessage key="failed" turn={turn} onAsk={onAsk} />
+        ) : (
+          <WorkingLine key="working" events={turn.events} />
+        )}
+      </Presence>
       <div className="sr-only" role="status" aria-live="polite">
         {announcement}
       </div>

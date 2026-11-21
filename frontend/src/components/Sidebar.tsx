@@ -1,7 +1,10 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import { ClipboardCheck, Plus, ScrollText, Trash2, X } from "lucide-react";
+import { motion } from "motion/react";
 import { useEffect, useRef, useState } from "react";
 import { groupConversations } from "../lib/conversations";
+import { GLIDE, usePrefersReducedMotion } from "../lib/motion";
+import { Count } from "./Count";
 import type { ConversationSummary } from "../lib/transport";
 
 export type SidebarView = "chat" | "approvals" | "audit";
@@ -41,9 +44,12 @@ interface RowProps {
 }
 
 function Row({ item, active, confirming, busy, failed, onOpen, onAskDelete, onCancel, onConfirm }: RowProps) {
+  const reduce = usePrefersReducedMotion();
+  /** Rows glide to their new place when one above is added or removed; the first render does not animate. */
+  const glide = { layout: reduce ? (false as const) : ("position" as const), transition: GLIDE };
   if (confirming) {
     return (
-      <li className="convo convo--confirm">
+      <motion.li className="convo convo--confirm" {...glide}>
         <div
           role="group"
           aria-label={`Delete ${item.title}?`}
@@ -69,11 +75,11 @@ function Row({ item, active, confirming, busy, failed, onOpen, onAskDelete, onCa
             </p>
           ) : null}
         </div>
-      </li>
+      </motion.li>
     );
   }
   return (
-    <li className="convo" data-active={active}>
+    <motion.li className="convo" data-active={active} {...glide}>
       <button type="button" className="convo__open" aria-current={active ? "true" : undefined} onClick={onOpen}>
         <span className="convo__title">{item.title}</span>
       </button>
@@ -86,7 +92,7 @@ function Row({ item, active, confirming, busy, failed, onOpen, onAskDelete, onCa
       >
         <Trash2 size={15} aria-hidden="true" />
       </button>
-    </li>
+    </motion.li>
   );
 }
 
@@ -145,7 +151,8 @@ export function Sidebar(props: SidebarProps) {
         New chat
       </button>
 
-      <div className="sidebar__history">
+      {/* A scroll container: told to Motion so rows gliding inside it are measured against its scroll. */}
+      <motion.div className="sidebar__history" layoutScroll>
         {props.conversations === null ? (
           props.loadFailed ? (
             <div className="sidebar__note">
@@ -189,7 +196,7 @@ export function Sidebar(props: SidebarProps) {
             </section>
           ))
         )}
-      </div>
+      </motion.div>
 
       <div className="sidebar__links">
         <a
@@ -203,7 +210,7 @@ export function Sidebar(props: SidebarProps) {
           <span aria-hidden="true">Approvals</span>
           {props.pending ? (
             <span className="pill__count" aria-hidden="true">
-              {props.pending}
+              <Count value={props.pending} />
             </span>
           ) : null}
         </a>

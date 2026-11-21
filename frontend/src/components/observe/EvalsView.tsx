@@ -13,6 +13,7 @@ import {
   tallyState,
 } from "../../lib/evals";
 import type { EvalCase, EvalRun, EvalTally, Transport } from "../../lib/transport";
+import { Tally } from "../Count";
 import { MarkDot } from "../StateMark";
 import { TraceTimeline } from "./TraceTimeline";
 import { useLoad } from "./useLoad";
@@ -55,7 +56,7 @@ function TallyCell({ tally }: { tally: EvalTally | undefined }) {
       <span className="evals__tally">
         <EvalMark state={tallyState(tally)} />
         <span className="evals__count">
-          {tally.passed}/{tally.total}
+          <Tally passed={tally.passed} total={tally.total} />
         </span>
       </span>
     </td>
@@ -75,7 +76,7 @@ function SuiteCell({ suite, tally }: { suite: string; tally: EvalTally | undefin
           <EvalIcon state={state} />
         </span>
         <span className="evals__count">
-          {tally.passed}/{tally.total}
+          <Tally passed={tally.passed} total={tally.total} />
         </span>
       </span>
     </td>

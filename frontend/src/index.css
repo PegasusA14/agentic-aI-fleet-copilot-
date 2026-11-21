@@ -215,12 +215,13 @@ input {
   color: var(--solid);
 }
 
+/* The mark: a crisp square in the accent colour, drawn in the SVG (no gradient, no glow). */
 .brand__mark {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   display: grid;
   place-items: center;
-  color: var(--solid);
+  color: var(--accent);
 }
 
 .pill {
@@ -352,6 +353,87 @@ button.pill:disabled {
 
 .nowrap {
   white-space: nowrap;
+}
+
+/* The fleet pulse: one dot per device, a mono count beneath. Lit dots (a current finding) are the accent colour and breathe. */
+.pulse {
+  --pulse-dot: 10px;
+  margin-top: 28px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 12px;
+}
+
+.pulse__grid {
+  display: grid;
+  gap: 6px;
+  grid-auto-rows: var(--pulse-dot);
+}
+
+.pulse__dot {
+  display: block;
+  width: var(--pulse-dot);
+  height: var(--pulse-dot);
+}
+
+.pulse__core {
+  display: block;
+  width: 100%;
+  height: 100%;
+  border-radius: 1px;
+  background: var(--line-strong);
+}
+
+.pulse__dot[data-lit] .pulse__core {
+  background: var(--accent);
+  animation: pulse-breathe 2400ms ease-in-out infinite;
+}
+
+@keyframes pulse-breathe {
+  0%,
+  100% {
+    opacity: 0.6;
+  }
+  50% {
+    opacity: 1;
+  }
+}
+
+.pulse__label {
+  margin: 0;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-family: var(--mono);
+  font-size: 0.71875rem;
+  font-weight: 500;
+  line-height: 1.3;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--ink-2);
+}
+
+.pulse__label::before {
+  content: "";
+  width: 7px;
+  height: 8px;
+  flex: none;
+  background: var(--accent);
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .pulse__dot[data-lit] .pulse__core {
+    animation: none;
+  }
+}
+
+/* Ticking numbers (@number-flow/react): tabular, no fade at the edges of the roll, the surrounding text's own size and colour. */
+number-flow-react {
+  --number-flow-mask-height: 0px;
+  font-variant-numeric: tabular-nums;
+  font-kerning: none;
 }
 
 .suggestions {
@@ -952,15 +1034,7 @@ button.pill:disabled {
   min-width: 0;
 }
 
-/* Only a turn asked in this session arrives with motion; a reopened conversation is simply there. */
-.turn[data-fresh] .msg__bubble {
-  animation: rise 240ms var(--ease-out);
-}
-
-.turn[data-fresh] .msg--assistant {
-  animation: rise 280ms var(--ease-out);
-}
-
+/* A turn asked in this session arrives with Motion (opacity and a 6px rise); a reopened conversation is simply there. */
 .msg__lead {
   margin: 0;
   font-size: 1rem;
@@ -1028,21 +1102,56 @@ button.pill:disabled {
   animation: rise 220ms var(--ease-out);
 }
 
-.spinner {
-  width: 14px;
-  height: 14px;
+/* The 3 by 8 dot matrix: dots light up in the accent colour in a sweep, square by square. Opacity only, on the compositor. */
+.dotmatrix {
+  --dot: 5px;
+  display: inline-grid;
+  grid-template-columns: repeat(8, var(--dot));
+  grid-auto-rows: var(--dot);
+  gap: 3px;
   flex: none;
-  border-radius: 50%;
-  border: 2px solid var(--line-strong);
-  border-top-color: var(--accent);
-  animation: spin 800ms linear infinite;
 }
 
-@keyframes spin {
-  to {
-    transform: rotate(360deg);
+.dotmatrix__dot {
+  position: relative;
+  display: block;
+  border-radius: 1px;
+  background: var(--line-strong);
+}
+
+.dotmatrix__dot::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: var(--accent);
+  opacity: 0;
+  animation: dot-sweep 1500ms ease-in-out infinite;
+  animation-delay: inherit;
+}
+
+@keyframes dot-sweep {
+  0%,
+  100% {
+    opacity: 0;
+  }
+  22% {
+    opacity: 1;
+  }
+  55% {
+    opacity: 0;
   }
 }
+
+/* Reduced motion: the same grid at rest, a diagonal band lit and nothing moving. */
+.dotmatrix[data-still] .dotmatrix__dot::after {
+  animation: none;
+}
+
+.dotmatrix[data-still] .dotmatrix__dot[data-lit]::after {
+  opacity: 1;
+}
+
 
 /* A state is a mono label with a coloured dot; the words say it, the dot repeats it. */
 .mark {
@@ -1248,20 +1357,12 @@ button.pill:disabled {
   transform: rotate(90deg);
 }
 
-/* The panel folds open and shut on its own height: rows 0fr to 1fr, so no height is measured. */
+/* The panel's body folds open and shut with Motion (height and opacity); closed, the panel is inert and holds nothing. */
 .details__panel {
   align-self: stretch;
-  display: grid;
-  grid-template-rows: 0fr;
-  transition: grid-template-rows 200ms var(--ease-out);
-}
-
-.details__panel[data-open="true"] {
-  grid-template-rows: 1fr;
 }
 
 .details__clip {
-  min-height: 0;
   overflow: hidden;
 }
 
@@ -2032,14 +2133,6 @@ a.link-btn {
   border: 1px solid var(--line-strong);
   border-radius: var(--r-panel);
   box-shadow: var(--shadow-float);
-  animation: slide 360ms var(--ease-out);
-}
-
-@keyframes slide {
-  from {
-    opacity: 0;
-    transform: translateX(24px);
-  }
 }
 
 .drawer__head {
@@ -2517,10 +2610,6 @@ p.evidence__raw {
     animation-duration: 0.01ms !important;
     animation-iteration-count: 1 !important;
     transition-duration: 0.01ms !important;
-  }
-  .spinner {
-    animation: none;
-    border-top-color: var(--line-strong);
   }
 }
 

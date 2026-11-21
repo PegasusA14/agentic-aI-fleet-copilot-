@@ -12,7 +12,7 @@ import { TopBar } from "./components/TopBar";
 import { Thread, type TurnData } from "./components/Thread";
 import { ApiError, UNREACHABLE } from "./lib/api";
 import { adviseFixtures } from "./lib/fixtureAdvise";
-import { datasetAsOf, fixturesFor, tenantName } from "./lib/fixtures";
+import { datasetAsOf, fixturesFor, fleetFindings, fleetSize, tenantName } from "./lib/fixtures";
 import { chooseTransport, type ConversationSummary, type Session, type StoredConversation, type Transport } from "./lib/transport";
 import { useMediaQuery } from "./lib/useMediaQuery";
 import type { AnswerEnvelope, EvidenceItem } from "./lib/types";
@@ -385,6 +385,26 @@ export default function App({ transport: given }: AppProps) {
     (refs: string[], subject: string) => setDrawer({ turnId: "", tab: "evidence", refs, proposal: { subject } }),
     [],
   );
+  /** Live sessions carry no fleet size of their own: the largest population any answer has evaluated is the best the client knows. */
+  const [seenFleet, setSeenFleet] = useState<{ company: string; size: number } | null>(null);
+  const company = session?.company_id ?? null;
+  useEffect(() => {
+    if (!company) return;
+    const best = Math.max(0, ...turns.map((turn) => turn.envelope?.coverage?.population ?? 0));
+    if (best > 0) setSeenFleet((prev) => (prev && prev.company === company && prev.size >= best ? prev : { company, size: best }));
+  }, [turns, company]);
+  /** The home pulse: one dot per device. Replay knows the fleet and its findings; live knows only what answers have shown; otherwise nothing is drawn. */
+  const fleet = useMemo(() => {
+    if (!company) return { size: null };
+    if (transport.mode === "fixtures") {
+      try {
+        return { size: fleetSize(company), flagged: fleetFindings(company) };
+      } catch {
+        return { size: null }; // a company the replay has no fixtures for
+      }
+    }
+    return { size: seenFleet && seenFleet.company === company ? seenFleet.size : null };
+  }, [company, transport.mode, seenFleet]);
   const running = turns.some((turn) => turn.status === "working");
   const docked = turns.length > 0;
 
@@ -483,7 +503,7 @@ export default function App({ transport: given }: AppProps) {
                 onOpenTrace={(turn) => setDrawer({ turnId: turn.id, tab: "trace", refs: [] })}
               />
             ) : (
-              <Hero asOf={asOf} />
+              <Hero asOf={asOf} fleet={fleet} />
             )}
           </div>
           <motion.div layout="position" transition={DOCK} className="stage__composer">

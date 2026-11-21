@@ -1,10 +1,11 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { getFixture } from "../../lib/fixtures";
 import type { ApprovalResult } from "../../lib/transport";
 import type { AnswerEnvelope, EntityList, ProposalCard } from "../../lib/types";
 import type { Decide } from "../ProposalView";
+import { setReducedMotion } from "../../test/motion";
 import { AssistantMessage } from "./AssistantMessage";
 
 const envelopeOf = (scenario: string): AnswerEnvelope => getFixture("acme-001", scenario).envelope;
@@ -362,5 +363,67 @@ describe("a proposal in the thread", () => {
     await decideNow();
     expect(await screen.findByText("Not executed: the simulated action failed.")).toBeInTheDocument();
     expect(cardMark()).toHaveAttribute("data-tone", "alert");
+  });
+});
+
+describe("a reply's motion and ticking numbers", () => {
+  afterEach(() => setReducedMotion(true));
+
+  it("reads a code-written count once, as the whole sentence, with the numbers set to tick", () => {
+    const { container } = setup(LOW_DISK);
+    const lead = container.querySelector(".msg__lead") as HTMLElement;
+    expect(screen.getByText("2 of 10 devices have under 10% disk space free")).toHaveClass("sr-only");
+    expect(lead.querySelector("[aria-hidden='true']")).not.toBeNull();
+    expect(lead.textContent).toContain("2");
+  });
+
+  it("never parses the model's explanation for a count", () => {
+    const explained = { ...LOW_DISK, explanation: "2 of 10 laptops are nearly full." };
+    const { container } = setup(explained);
+    const lead = container.querySelector(".msg__lead") as HTMLElement;
+    expect(lead.textContent).toBe("2 of 10 laptops are nearly full.");
+    expect(lead.querySelector(".sr-only")).toBeNull();
+  });
+
+  it("never parses a clarifying question for a count", () => {
+    const asking = envelopeOf("clarification");
+    const { container } = setup({ ...asking, clarification: { ...asking.clarification!, question: "2 of 3 matched. Which one?" } });
+    expect((container.querySelector(".msg__lead") as HTMLElement).querySelector(".sr-only")).toBeNull();
+  });
+
+  it("arrives with an opacity and a 6px rise when it was asked in this session", () => {
+    setReducedMotion(false);
+    const { container } = setup(LOW_DISK, { reopened: false });
+    const article = container.querySelector("article") as HTMLElement;
+    expect(article.style.opacity).toBe("0");
+    expect(article.style.transform).toContain("translateY(6px)");
+  });
+
+  it("is simply there when it was reopened from history", () => {
+    setReducedMotion(false);
+    const { container } = setup(LOW_DISK, { reopened: true });
+    const article = container.querySelector("article") as HTMLElement;
+    expect(article.style.opacity).not.toBe("0");
+    expect(article.style.transform).not.toContain("translateY(6px)");
+  });
+
+  it("does not move under reduced motion, even when asked in this session", () => {
+    setReducedMotion(true);
+    const { container } = setup(LOW_DISK, { reopened: false });
+    const article = container.querySelector("article") as HTMLElement;
+    expect(article.style.opacity).not.toBe("0");
+    expect(article.style.transform).not.toContain("translateY(6px)");
+  });
+
+  it("folds Details open and shut with its body leaving only after the exit has played", async () => {
+    setReducedMotion(false);
+    const { user } = setup(LOW_DISK);
+    const toggle = screen.getByRole("button", { name: "Details" });
+    await user.click(toggle);
+    expect(await screen.findByText("Evaluated")).toBeInTheDocument();
+    await user.click(toggle);
+    const panel = document.getElementById(toggle.getAttribute("aria-controls") as string) as HTMLElement;
+    expect(panel).toHaveAttribute("inert");
+    await waitFor(() => expect(screen.queryByText("Evaluated")).not.toBeInTheDocument(), { timeout: 2000 });
   });
 });

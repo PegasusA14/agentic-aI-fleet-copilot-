@@ -121,6 +121,18 @@ describe("the history sidebar", () => {
     expect(screen.getByRole("link", { name: "Audit" })).toHaveAttribute("href", "#/audit");
   });
 
+  it("shows the pending count in a ticking badge that is hidden from assistive technology (the link's name already says it)", () => {
+    const { rerender } = setup({ pending: 3 });
+    const badge = document.querySelector(".pill__count") as HTMLElement;
+    expect(badge).toHaveAttribute("aria-hidden", "true");
+    expect(badge).toHaveTextContent("3");
+    rerender(
+      <Sidebar conversations={LIST} activeId={null} pending={12} view="chat" now={NOW} narrow={false} drawerOpen={false}
+        onNew={() => {}} onOpen={() => {}} onDelete={async () => {}} onRetry={() => {}} onDrawerChange={() => {}} />,
+    );
+    expect(document.querySelector(".pill__count")).toHaveTextContent("12");
+  });
+
   it("names approvals plainly when none are pending", () => {
     setup({ pending: 0 });
     expect(screen.getByRole("link", { name: "Approvals" })).toBeInTheDocument();

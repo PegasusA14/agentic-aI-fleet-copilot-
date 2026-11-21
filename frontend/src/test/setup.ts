@@ -7,7 +7,8 @@ afterEach(() => cleanup());
 if (!window.matchMedia) {
   window.matchMedia = (query: string) =>
     ({
-      matches: false,
+      // Tests run without motion unless one asks for it (see motion.ts in this folder), so nothing waits on an animation.
+      matches: query.includes("prefers-reduced-motion"),
       media: query,
       onchange: null,
       addEventListener: () => {},

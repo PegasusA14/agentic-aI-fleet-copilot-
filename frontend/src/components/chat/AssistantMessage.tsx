@@ -1,8 +1,11 @@
 import { FileSearch, ListTree } from "lucide-react";
+import { motion } from "motion/react";
 import { useId, useState } from "react";
 import { EXCLUDED_TEXT, REASON_TEXT, plural } from "../../lib/format";
-import { replyOf } from "../../lib/reply";
+import { CROSSFADE, ENTER, FOLD_IN, FOLD_OUT, Presence, usePrefersReducedMotion } from "../../lib/motion";
+import { leadCount, replyOf } from "../../lib/reply";
 import type { AnswerEnvelope, EntityList, ProposalCard } from "../../lib/types";
+import { Count, CountedText } from "../Count";
 import { ProposalView, type Decide } from "../ProposalView";
 import { StateMark } from "../StateMark";
 import { SuggestionChips, focusComposer } from "./SuggestionChips";
@@ -22,6 +25,29 @@ interface AssistantMessageProps {
   /** The answer was stored in an earlier session: its proposal may have been decided since. */
   reopened?: boolean;
   onSessionEnded?: () => void;
+}
+
+/** The reply's opening words. When the composer wrote a count into them ("2 of 10 …"), the numbers tick; the rest stays text. */
+function Lead({ text, counted, fresh, withList }: { text: string; counted: boolean; fresh: boolean; withList: boolean }) {
+  const count = counted ? leadCount(text) : null;
+  return (
+    <p className="msg__lead" data-with-list={withList || undefined}>
+      {count ? (
+        <CountedText text={text}>
+          <Count value={count.n} countUp={fresh} />
+          {count.kind === "of" ? (
+            <>
+              {" of "}
+              <Count value={count.m} />
+            </>
+          ) : null}
+          {count.rest}
+        </CountedText>
+      ) : (
+        text
+      )}
+    </p>
+  );
 }
 
 /** One claim reads as a sentence; several read as a list. */
@@ -126,8 +152,8 @@ export function AssistantMessage({
   onSessionEnded,
 }: AssistantMessageProps) {
   const detailsId = useId();
+  const reduce = usePrefersReducedMotion();
   const [open, setOpen] = useState(false);
-  const [opened, setOpened] = useState(false);
   /** What the person decided, once they have: the reply then stops saying the proposal waits. */
   const [decision, setDecision] = useState<ProposalCard["status"] | null>(null);
   const { outcome } = envelope;
@@ -147,16 +173,29 @@ export function AssistantMessage({
   }
 
   return (
-    <article className="msg msg--assistant" data-outcome={outcome} aria-label="Copilot reply">
+    <motion.article
+      className="msg msg--assistant"
+      data-outcome={outcome}
+      aria-label="Copilot reply"
+      // A reply asked for in this session arrives; one reopened from history is simply there.
+      initial={reopened || reduce ? false : { opacity: 0, y: 6 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={ENTER}
+      exit={reduce ? undefined : { opacity: 0, transition: CROSSFADE }}
+    >
       {markShown ? (
         <div className="msg__state">
           <StateMark outcome={outcome} />
         </div>
       ) : null}
 
-      <p className="msg__lead" data-with-list={claimsInReply || undefined}>
-        {lead}
-      </p>
+      <Lead
+        text={lead}
+        // Only the composer's own headline is read for a count, never the model's explanation or a question.
+        counted={!explanation && !clarification}
+        fresh={!reopened && !reduce}
+        withList={claimsInReply}
+      />
 
       {claimsInReply ? <Claims claims={envelope.claims} /> : null}
 
@@ -205,38 +244,43 @@ export function AssistantMessage({
           className="details__toggle"
           aria-expanded={open}
           aria-controls={detailsId}
-          onClick={() => {
-            setOpened(true);
-            setOpen((value) => !value);
-          }}
+          onClick={() => setOpen((value) => !value)}
         >
           Details
         </button>
-        {/* Closed, the panel is folded to nothing and inert; its content mounts on first open and stays for the close. */}
+        {/* The panel is always here for the toggle to name; its body folds in and out, inert and hidden once closed. */}
         <div className="details__panel" id={detailsId} data-open={open} inert={!open} aria-hidden={!open}>
-          <div className="details__clip">
-            {opened ? (
-              <div className="details__body">
-                {!claimsInReply && envelope.claims.length > 0 ? <Claims claims={envelope.claims} /> : null}
-                <Facts envelope={envelope} />
-                {note ? <p className="details__note">Simulated example. {note}</p> : null}
-                <div className="details__actions">
-                  {envelope.evidence.length > 0 ? (
-                    <button type="button" className="link-btn" onClick={() => onOpenEvidence()}>
-                      <FileSearch size={15} aria-hidden="true" />
-                      Evidence ({envelope.evidence.length})
+          <Presence>
+            {open ? (
+              <motion.div
+                key="body"
+                className="details__clip"
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: "auto", opacity: 1, transition: FOLD_IN }}
+                exit={{ height: 0, opacity: 0, transition: FOLD_OUT }}
+              >
+                <div className="details__body">
+                  {!claimsInReply && envelope.claims.length > 0 ? <Claims claims={envelope.claims} /> : null}
+                  <Facts envelope={envelope} />
+                  {note ? <p className="details__note">Simulated example. {note}</p> : null}
+                  <div className="details__actions">
+                    {envelope.evidence.length > 0 ? (
+                      <button type="button" className="link-btn" onClick={() => onOpenEvidence()}>
+                        <FileSearch size={15} aria-hidden="true" />
+                        Evidence ({envelope.evidence.length})
+                      </button>
+                    ) : null}
+                    <button type="button" className="link-btn" onClick={onOpenTrace}>
+                      <ListTree size={15} aria-hidden="true" />
+                      Show work
                     </button>
-                  ) : null}
-                  <button type="button" className="link-btn" onClick={onOpenTrace}>
-                    <ListTree size={15} aria-hidden="true" />
-                    Show work
-                  </button>
+                  </div>
                 </div>
-              </div>
+              </motion.div>
             ) : null}
-          </div>
+          </Presence>
         </div>
       </div>
-    </article>
+    </motion.article>
   );
 }

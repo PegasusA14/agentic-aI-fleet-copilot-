@@ -1,5 +1,7 @@
 import { Check } from "lucide-react";
+import { motion } from "motion/react";
 import { useState } from "react";
+import { GLIDE, usePrefersReducedMotion } from "../../lib/motion";
 import type { SuggestedAction } from "../../types/AnswerEnvelope";
 
 /** After a pick the composer takes focus, so a disabled chip does not drop the keyboard onto the page. */
@@ -21,6 +23,7 @@ const keyOf = (action: SuggestedAction) => `${action.action_type}:${action.devic
 
 export function SuggestionChips({ actions, busy, onAsk, withReason = false }: SuggestionChipsProps) {
   /** The suggestions already asked for, so a person can see where they have been. They stay reachable. */
+  const reduce = usePrefersReducedMotion();
   const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
   if (actions.length === 0) return null;
   return (
@@ -28,8 +31,12 @@ export function SuggestionChips({ actions, busy, onAsk, withReason = false }: Su
       {actions.map((action) => {
         const used = picked.has(keyOf(action));
         return (
-          <button
+          <motion.button
             key={keyOf(action)}
+            // The chips glide when one is added, removed or grows a tick; a press scales them (the transform is Motion's).
+            layout={reduce ? false : "position"}
+            transition={GLIDE}
+            whileTap={reduce ? undefined : { scale: 0.98 }}
             type="button"
             className="chip chip--action"
             disabled={busy}
@@ -47,7 +54,7 @@ export function SuggestionChips({ actions, busy, onAsk, withReason = false }: Su
             </span>
             <span className="chip__device">{action.target_label}</span>
             {withReason ? <span className="chip__reason">{action.reason}</span> : null}
-          </button>
+          </motion.button>
         );
       })}
     </div>

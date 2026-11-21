@@ -1,7 +1,9 @@
 import * as Dialog from "@radix-ui/react-dialog";
 import { X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { motion } from "motion/react";
+import { Fragment, useEffect, useRef, useState } from "react";
 import { ApiError } from "../lib/api";
+import { FOLD_IN, FOLD_OUT, Presence, usePrefersReducedMotion } from "../lib/motion";
 import { OUTCOMES } from "../lib/outcomes";
 import type { EvidenceValue, TraceView } from "../lib/transport";
 import { formatValue, KIND_WORD } from "../lib/trace";
@@ -68,6 +70,7 @@ export function EvidenceDrawer({
   loadTrace,
   onSessionEnded,
 }: EvidenceDrawerProps) {
+  const reduce = usePrefersReducedMotion();
   const firstFocused = useRef<HTMLLIElement | null>(null);
   const [raw, setRaw] = useState<Record<string, Raw>>({});
   const requested = useRef(new Set<string>());
@@ -118,93 +121,114 @@ export function EvidenceDrawer({
 
   return (
     <Dialog.Root open={open} onOpenChange={(next) => !next && onClose()}>
-      <Dialog.Portal>
-        <Dialog.Overlay className="overlay" />
-        <Dialog.Content className="drawer" aria-describedby="drawer-desc">
-          <div className="drawer__head">
-            <div>
-              <Dialog.Title className="drawer__title">Evidence and work</Dialog.Title>
-              <Dialog.Description className="drawer__desc" id="drawer-desc">
-                {readings
-                  ? (subject ?? "Cited readings")
-                  : envelope
-                    ? `${OUTCOMES[envelope.outcome].word} · ${envelope.trace_id}`
-                    : "Nothing selected"}
-              </Dialog.Description>
-            </div>
-            <Dialog.Close className="icon-btn" aria-label="Close">
-              <X size={18} aria-hidden="true" />
-            </Dialog.Close>
-          </div>
-
-          <div className="tabs" role="tablist" aria-label="Drawer sections">
-            {tabs.map((name) => (
-              <button
-                key={name}
-                id={`tab-${name}`}
-                type="button"
-                role="tab"
-                className="tab"
-                aria-selected={tab === name}
-                aria-controls={`panel-${name}`}
-                onClick={() => onTab(name)}
-              >
-                {name === "evidence" ? `Evidence (${evidence.length})` : `Trace (${steps.length})`}
-              </button>
-            ))}
-          </div>
-
-          <div className="drawer__body" role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
-            {tab === "evidence" ? (
-              evidence.length === 0 ? (
-                <p className="empty">This answer cites no readings.</p>
-              ) : (
-                <ul className="evidence-list" aria-label="Cited readings">
-                  {evidence.map((item) => {
-                    const focused = focusRefs.includes(item.ref);
-                    const attach = focused && !attached;
-                    if (attach) attached = true;
-                    return (
-                      <li
-                        key={item.ref}
-                        className="evidence"
-                        data-focused={focused}
-                        ref={attach ? firstFocused : undefined}
-                      >
-                        <div className="evidence__label">{item.label}</div>
-                        <div className="evidence__value">{item.value}</div>
-                        <code className="evidence__ref mono">{item.ref}</code>
-                        {raw[item.ref] ? <RawReading raw={raw[item.ref]} /> : null}
-                      </li>
-                    );
-                  })}
-                </ul>
-              )
-            ) : (
-              <ol className="trace-list" aria-label="Steps taken">
-                {steps.map((event) => (
-                  <li key={event.seq} className="trace">
-                    <span className="trace__seq">{event.seq}</span>
+      {/* Kept mounted so the drawer can animate out; Presence removes it once it has. */}
+      <Dialog.Portal forceMount>
+        <Presence>
+          {open ? (
+            <Fragment key="drawer">
+              <Dialog.Overlay forceMount asChild>
+                <motion.div
+                  className="overlay"
+                  initial={reduce ? false : { opacity: 0 }}
+                  animate={{ opacity: 1, transition: FOLD_IN }}
+                  exit={reduce ? undefined : { opacity: 0, transition: FOLD_OUT }}
+                />
+              </Dialog.Overlay>
+              <Dialog.Content forceMount asChild aria-describedby="drawer-desc">
+                <motion.div
+                  className="drawer"
+                  initial={reduce ? false : { opacity: 0, x: 16 }}
+                  animate={{ opacity: 1, x: 0, transition: FOLD_IN }}
+                  exit={reduce ? undefined : { opacity: 0, x: 16, transition: FOLD_OUT }}
+                >
+                  <div className="drawer__head">
                     <div>
-                      <span className="trace__kind">{KIND_WORD[event.kind]}</span>
-                      <p className="trace__summary">{event.summary}</p>
-                      {Object.keys(event.data).length > 0 ? (
-                        <dl className="trace__data">
-                          {Object.entries(event.data).map(([key, value]) => (
-                            <div key={key} style={{ display: "contents" }}>
-                              <dt>{key}</dt>
-                              <dd>{formatValue(value)}</dd>
-                            </div>
-                          ))}
-                        </dl>
-                      ) : null}
+                      <Dialog.Title className="drawer__title">Evidence and work</Dialog.Title>
+                      <Dialog.Description className="drawer__desc" id="drawer-desc">
+                        {readings
+                          ? (subject ?? "Cited readings")
+                          : envelope
+                            ? `${OUTCOMES[envelope.outcome].word} · ${envelope.trace_id}`
+                            : "Nothing selected"}
+                      </Dialog.Description>
                     </div>
-                  </li>
-                ))}
-              </ol>
-            )}
-          </div>
-        </Dialog.Content>
+                    <Dialog.Close className="icon-btn" aria-label="Close">
+                      <X size={18} aria-hidden="true" />
+                    </Dialog.Close>
+                  </div>
+
+                  <div className="tabs" role="tablist" aria-label="Drawer sections">
+                    {tabs.map((name) => (
+                      <button
+                        key={name}
+                        id={`tab-${name}`}
+                        type="button"
+                        role="tab"
+                        className="tab"
+                        aria-selected={tab === name}
+                        aria-controls={`panel-${name}`}
+                        onClick={() => onTab(name)}
+                      >
+                        {name === "evidence" ? `Evidence (${evidence.length})` : `Trace (${steps.length})`}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="drawer__body" role="tabpanel" id={`panel-${tab}`} aria-labelledby={`tab-${tab}`}>
+                    {tab === "evidence" ? (
+                      evidence.length === 0 ? (
+                        <p className="empty">This answer cites no readings.</p>
+                      ) : (
+                        <ul className="evidence-list" aria-label="Cited readings">
+                          {evidence.map((item) => {
+                            const focused = focusRefs.includes(item.ref);
+                            const attach = focused && !attached;
+                            if (attach) attached = true;
+                            return (
+                              <li
+                                key={item.ref}
+                                className="evidence"
+                                data-focused={focused}
+                                ref={attach ? firstFocused : undefined}
+                              >
+                                <div className="evidence__label">{item.label}</div>
+                                <div className="evidence__value">{item.value}</div>
+                                <code className="evidence__ref mono">{item.ref}</code>
+                                {raw[item.ref] ? <RawReading raw={raw[item.ref]} /> : null}
+                              </li>
+                            );
+                          })}
+                        </ul>
+                      )
+                    ) : (
+                      <ol className="trace-list" aria-label="Steps taken">
+                        {steps.map((event) => (
+                          <li key={event.seq} className="trace">
+                            <span className="trace__seq">{event.seq}</span>
+                            <div>
+                              <span className="trace__kind">{KIND_WORD[event.kind]}</span>
+                              <p className="trace__summary">{event.summary}</p>
+                              {Object.keys(event.data).length > 0 ? (
+                                <dl className="trace__data">
+                                  {Object.entries(event.data).map(([key, value]) => (
+                                    <div key={key} style={{ display: "contents" }}>
+                                      <dt>{key}</dt>
+                                      <dd>{formatValue(value)}</dd>
+                                    </div>
+                                  ))}
+                                </dl>
+                              ) : null}
+                            </div>
+                          </li>
+                        ))}
+                      </ol>
+                    )}
+                  </div>
+                </motion.div>
+              </Dialog.Content>
+            </Fragment>
+          ) : null}
+        </Presence>
       </Dialog.Portal>
     </Dialog.Root>
   );

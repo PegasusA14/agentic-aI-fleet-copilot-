@@ -39,6 +39,13 @@ describe("sign-in and company boundary", () => {
     expect(within(screen.getByRole("group", { name: "Suggested questions" })).getAllByRole("button")).toHaveLength(3);
   });
 
+  it("draws the fleet pulse on home: a dot per device in the signed-in company, none for another company's", async () => {
+    await signInAs("Globex");
+    expect(await screen.findByRole("img", { name: /^8 devices in your fleet/ })).toBeInTheDocument();
+    expect(document.querySelectorAll(".pulse__dot")).toHaveLength(8);
+    expect(document.querySelector(".pulse__label")).toHaveTextContent(/8\s*devices/i);
+  });
+
   it("answers only from the signed-in company's data", async () => {
     const user = await signInAs("Globex");
     await ask(user, "Which devices are low on disk space?");
