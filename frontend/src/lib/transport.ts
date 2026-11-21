@@ -172,6 +172,30 @@ export interface EvalRunDetail extends EvalRun {
   cases: EvalCase[];
 }
 
+/** One row of the history list: what the sidebar shows for a past conversation. */
+export interface ConversationSummary {
+  conversation_id: string;
+  /** The first question, trimmed to a line. */
+  title: string;
+  /** When the last answer landed, as ISO UTC. Wall-clock time, not the dataset's as-of. */
+  updated_at: string;
+  turns: number;
+}
+
+export interface StoredTurn {
+  seq: number;
+  question: string;
+  envelope: AnswerEnvelope;
+  trace_id: string;
+  created_at: string;
+}
+
+export interface StoredConversation {
+  conversation_id: string;
+  title: string;
+  turns: StoredTurn[];
+}
+
 export interface Transport {
   /** "live" talks to the API; "fixtures" is the offline replay with simulated decisions. */
   readonly mode: "live" | "fixtures";
@@ -181,6 +205,12 @@ export interface Transport {
   session(): Promise<Session | null>;
   signOut(): Promise<void>;
   newConversation(): Promise<{ conversation_id: string }>;
+  /** This admin's past conversations, most recently active first. */
+  conversations(limit?: number): Promise<ConversationSummary[]>;
+  /** One past conversation with its answered turns. Rejects with a 404 `ApiError` when it is not this admin's. */
+  conversation(id: string): Promise<StoredConversation>;
+  /** Forgets a conversation and its stored turns. Rejects with a 404 `ApiError` when it is not this admin's. */
+  deleteConversation(id: string): Promise<void>;
   /** Streams trace steps through `onTrace`, then resolves with the answer. Rejects with `ApiError`. */
   ask(
     conversationId: string,
@@ -220,6 +250,9 @@ export const liveTransport: Transport = {
   },
   signOut: () => del("/api/session"),
   newConversation: () => postJson("/api/conversations"),
+  conversations: (limit) => getJson("/api/conversations", { limit: limit?.toString() }),
+  conversation: (id) => getJson(`/api/conversations/${enc(id)}`),
+  deleteConversation: (id) => del(`/api/conversations/${enc(id)}`),
   async ask(conversationId, question, onTrace) {
     const response = await send("/api/chat", {
       method: "POST",
@@ -268,6 +301,25 @@ const EFFECT_TABLE: Record<string, string> = {
   upgrade_order: "upgrade_orders",
   employee_notification: "employee_notifications",
 };
+
+interface FixtureConversation {
+  summary: ConversationSummary;
+  actor_id: string;
+  company_id: string;
+  turns: StoredTurn[];
+}
+
+const TITLE_MAX_CHARS = 60;
+
+/** The first question on one line, at most 60 characters, cut at a word boundary (as the server does). */
+function makeTitle(question: string): string {
+  const text = question.split(/\s+/).filter(Boolean).join(" ");
+  if (text.length <= TITLE_MAX_CHARS) return text;
+  const head = text.slice(0, TITLE_MAX_CHARS);
+  if (text[TITLE_MAX_CHARS] === " ") return head;
+  const cut = head.lastIndexOf(" ");
+  return cut > 0 ? head.slice(0, cut) : head;
+}
 
 interface FixtureProposal {
   card: ProposalCard;
@@ -323,6 +375,8 @@ export function fixtureTransport(stepMs = 380): Transport {
   const proposals = new Map<string, FixtureProposal>();
   const audit: AuditEntry[] = [];
   const turns: ObservedTurn[] = [];
+  /** Most recently active first, like the server's list. */
+  const chats: FixtureConversation[] = [];
   const traces = new Map<string, TraceEvent[]>();
   const effects: EffectCounts = Object.fromEntries(
     Object.values(EFFECT_TABLE).map((table) => [table, {}]),
@@ -418,6 +472,36 @@ export function fixtureTransport(stepMs = 380): Transport {
     audit[0].trace_id = envelope.trace_id;
   }
 
+  function mine(user: string, company: string): FixtureConversation[] {
+    return chats.filter((c) => c.actor_id === user && c.company_id === company);
+  }
+
+  /** Files an answered turn under its conversation and moves that conversation to the top of the list. */
+  function record(conversationId: string, question: string, envelope: AnswerEnvelope, user: string, company: string) {
+    const at = chats.findIndex(
+      (c) => c.summary.conversation_id === conversationId && c.actor_id === user && c.company_id === company,
+    );
+    const stamp = nowZ();
+    const chat: FixtureConversation =
+      at >= 0
+        ? chats.splice(at, 1)[0]
+        : {
+            summary: { conversation_id: conversationId, title: makeTitle(question), updated_at: stamp, turns: 0 },
+            actor_id: user,
+            company_id: company,
+            turns: [],
+          };
+    chat.turns.push({
+      seq: chat.turns.length,
+      question,
+      envelope: structuredClone(envelope),
+      trace_id: envelope.trace_id,
+      created_at: stamp,
+    });
+    chat.summary = { ...chat.summary, updated_at: stamp, turns: chat.turns.length };
+    chats.unshift(chat);
+  }
+
   return {
     mode: "fixtures",
     async demoUsers() {
@@ -442,6 +526,26 @@ export function fixtureTransport(stepMs = 380): Transport {
       who("admin");
       return { conversation_id: `fixture-${++conversations}` };
     },
+    async conversations(limit = 50) {
+      const { user, session } = who("admin");
+      return mine(user, session.company_id)
+        .slice(0, limit)
+        .map((chat) => ({ ...chat.summary }));
+    },
+    async conversation(id) {
+      const { user, session } = who("admin");
+      const chat = mine(user, session.company_id).find((c) => c.summary.conversation_id === id);
+      if (!chat) throw notFound();
+      return structuredClone({ conversation_id: id, title: chat.summary.title, turns: chat.turns });
+    },
+    async deleteConversation(id) {
+      const { user, session } = who("admin");
+      const at = chats.findIndex(
+        (c) => c.summary.conversation_id === id && c.actor_id === user && c.company_id === session.company_id,
+      );
+      if (at < 0) throw notFound();
+      chats.splice(at, 1);
+    },
     async ask(conversationId, question, onTrace) {
       const { user, session } = who("admin");
       const started = Date.now();
@@ -464,6 +568,7 @@ export function fixtureTransport(stepMs = 380): Transport {
         model_mode: "fixtures",
       });
       remember(envelope, user);
+      record(conversationId, question, envelope, user, session.company_id);
       return envelope;
     },
     async evidence(ref) {

@@ -196,3 +196,31 @@ describe("liveTransport proposals", () => {
     expect(fetchMock.mock.calls[1][1].credentials).toBe("same-origin");
   });
 });
+
+describe("liveTransport conversation history", () => {
+  it("lists with a limit, reads one by id and deletes one", async () => {
+    const summaries = [{ conversation_id: "c1", title: "Low disk", updated_at: "2026-11-21T10:00:00Z", turns: 2 }];
+    fetchMock.mockResolvedValueOnce(json(summaries));
+    await expect(liveTransport.conversations(30)).resolves.toEqual(summaries);
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/conversations?limit=30");
+
+    const stored = { conversation_id: "c 1", title: "Low disk", turns: [] };
+    fetchMock.mockResolvedValueOnce(json(stored));
+    await expect(liveTransport.conversation("c 1")).resolves.toEqual(stored);
+    expect(fetchMock.mock.calls[1][0]).toBe("/api/conversations/c%201");
+
+    fetchMock.mockResolvedValueOnce(new Response(null, { status: 204 }));
+    await expect(liveTransport.deleteConversation("c1")).resolves.toBeUndefined();
+    expect(fetchMock.mock.calls[2][0]).toBe("/api/conversations/c1");
+    expect(fetchMock.mock.calls[2][1].method).toBe("DELETE");
+  });
+
+  it("lists without a query when no limit is given, and surfaces a 404 on reopen", async () => {
+    fetchMock.mockResolvedValueOnce(json([]));
+    await liveTransport.conversations();
+    expect(fetchMock.mock.calls[0][0]).toBe("/api/conversations");
+    fetchMock.mockResolvedValueOnce(json({ detail: "not found" }, 404));
+    const error = await rejection(liveTransport.conversation("gone"));
+    expect(error.status).toBe(404);
+  });
+});

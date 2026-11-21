@@ -41,6 +41,7 @@ function fake(overrides: Partial<Transport> = {}): Transport {
     session: vi.fn(async () => null),
     signOut: vi.fn(async () => {}),
     newConversation: vi.fn(async () => ({ conversation_id: "conv-1" })),
+    conversations: vi.fn(async () => []),
     ask: vi.fn(async (_id: string, _q: string, onTrace: (e: (typeof STEPS)[number]) => void) => {
       for (const event of FIXTURE.trace) onTrace(event);
       return ENVELOPE;
@@ -144,7 +145,7 @@ describe("streamed chat", () => {
     expect(screen.queryByRole("list", { name: "Working" })).not.toBeInTheDocument();
   });
 
-  it("keeps one conversation per session and starts a fresh one from the rail", async () => {
+  it("keeps one conversation per session and starts a fresh one from New chat", async () => {
     const newConversation = vi
       .fn()
       .mockResolvedValueOnce({ conversation_id: "conv-1" })
@@ -158,13 +159,94 @@ describe("streamed chat", () => {
     expect(newConversation).toHaveBeenCalledTimes(1);
     expect(transport.ask).toHaveBeenLastCalledWith("conv-1", "And which have old macOS?", expect.any(Function));
 
-    await user.click(screen.getByRole("button", { name: "New question" }));
+    await user.click(screen.getByRole("button", { name: "New chat" }));
     expect(screen.queryByRole("article")).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Ask your fleet anything." })).toBeInTheDocument();
     await ask(user, "Which devices are low on disk space?");
     await screen.findByRole("heading", { name: ENVELOPE.headline });
     expect(newConversation).toHaveBeenCalledTimes(2);
     expect(transport.ask).toHaveBeenLastCalledWith("conv-2", expect.any(String), expect.any(Function));
+  });
+
+  it("loads the history after sign-in and reloads it after each answered turn", async () => {
+    const summary = (n: number) => ({
+      conversation_id: "conv-1",
+      title: "Which devices are low on disk space?",
+      updated_at: new Date().toISOString(),
+      turns: n,
+    });
+    const conversations = vi.fn().mockResolvedValueOnce([]).mockResolvedValue([summary(1)]);
+    const transport = fake({ conversations });
+    const user = await signedInApp(transport);
+    expect(await screen.findByText("Your conversations will appear here.")).toBeInTheDocument();
+    await ask(user, "Which devices are low on disk space?");
+    const nav = screen.getByRole("navigation", { name: "Conversation history" });
+    const item = await within(nav).findByRole("button", { name: "Which devices are low on disk space?" });
+    expect(item).toHaveAttribute("aria-current", "true");
+    expect(conversations).toHaveBeenCalledTimes(2);
+  });
+
+  it("reopens a stored conversation and sends the next question into the same conversation id", async () => {
+    const stored = {
+      conversation_id: "old-7",
+      title: "Which devices are low on disk space?",
+      turns: [
+        { seq: 0, question: "Which devices are low on disk space?", envelope: ENVELOPE, trace_id: ENVELOPE.trace_id, created_at: "2026-11-20T10:00:00Z" },
+      ],
+    };
+    const list = [{ conversation_id: "old-7", title: stored.title, updated_at: new Date().toISOString(), turns: 1 }];
+    const conversation = vi.fn(async () => stored);
+    const transport = fake({ conversations: vi.fn(async () => list), conversation });
+    const user = await signedInApp(transport);
+    const nav = screen.getByRole("navigation", { name: "Conversation history" });
+    await user.click(await within(nav).findByRole("button", { name: stored.title }));
+    expect(conversation).toHaveBeenCalledWith("old-7");
+    expect(await screen.findByRole("heading", { name: ENVELOPE.headline })).toBeInTheDocument();
+    expect(transport.newConversation).not.toHaveBeenCalled();
+    await ask(user, "And which have old macOS?");
+    await waitFor(() => expect(screen.getAllByRole("article")).toHaveLength(2));
+    expect(transport.ask).toHaveBeenLastCalledWith("old-7", "And which have old macOS?", expect.any(Function));
+    expect(transport.newConversation).not.toHaveBeenCalled();
+  });
+
+  it("says so, and refreshes the list, when a conversation to reopen is gone", async () => {
+    const list = [{ conversation_id: "old-7", title: "Gone chat", updated_at: new Date().toISOString(), turns: 1 }];
+    const conversations = vi.fn().mockResolvedValueOnce(list).mockResolvedValue([]);
+    const conversation = vi.fn().mockRejectedValue(new ApiError(404, "not found"));
+    const user = await signedInApp(fake({ conversations, conversation }));
+    const nav = screen.getByRole("navigation", { name: "Conversation history" });
+    await user.click(await within(nav).findByRole("button", { name: "Gone chat" }));
+    expect(await screen.findByRole("status")).toHaveTextContent("That conversation is no longer available.");
+    expect(await within(nav).findByText("Your conversations will appear here.")).toBeInTheDocument();
+  });
+
+  it("deletes through the transport and drops the row", async () => {
+    const list = [{ conversation_id: "old-7", title: "Old chat", updated_at: new Date().toISOString(), turns: 1 }];
+    const deleteConversation = vi.fn(async () => {});
+    const user = await signedInApp(fake({ conversations: vi.fn(async () => list), deleteConversation }));
+    const nav = screen.getByRole("navigation", { name: "Conversation history" });
+    await user.click(await within(nav).findByRole("button", { name: "Delete conversation: Old chat" }));
+    await user.click(within(nav).getByRole("button", { name: "Delete" }));
+    expect(deleteConversation).toHaveBeenCalledWith("old-7");
+    expect(await within(nav).findByText("Your conversations will appear here.")).toBeInTheDocument();
+  });
+
+  it("keeps the row and says so when the server refuses the delete", async () => {
+    const list = [{ conversation_id: "old-7", title: "Old chat", updated_at: new Date().toISOString(), turns: 1 }];
+    const deleteConversation = vi.fn().mockRejectedValue(new ApiError(500, "boom"));
+    const user = await signedInApp(fake({ conversations: vi.fn(async () => list), deleteConversation }));
+    const nav = screen.getByRole("navigation", { name: "Conversation history" });
+    await user.click(await within(nav).findByRole("button", { name: "Delete conversation: Old chat" }));
+    await user.click(within(nav).getByRole("button", { name: "Delete" }));
+    expect(await within(nav).findByRole("alert")).toHaveTextContent("Could not delete that conversation.");
+    await user.click(within(nav).getByRole("button", { name: "Cancel" }));
+    expect(within(nav).getByRole("button", { name: "Old chat" })).toBeInTheDocument();
+  });
+
+  it("ends the session when the history read is refused with a 401", async () => {
+    const conversations = vi.fn().mockRejectedValue(new ApiError(401, "sign in first"));
+    await signedInApp(fake({ conversations }));
+    expect(await screen.findByText("Your session ended. Sign in again.")).toBeInTheDocument();
   });
 
   it("puts a 422 under the composer in the server's words and leaves no empty turn", async () => {

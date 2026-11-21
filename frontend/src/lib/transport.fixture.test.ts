@@ -197,3 +197,84 @@ describe("chooseTransport", () => {
     vi.unstubAllEnvs();
   });
 });
+
+describe("fixtureTransport conversation history", () => {
+  it("lists nothing before a first answer, then the conversation titled by its first question", async () => {
+    const t = await signedIn();
+    expect(await t.conversations()).toEqual([]);
+    const { conversation_id } = await t.newConversation();
+    expect(await t.conversations()).toEqual([]);
+    await t.ask(conversation_id, "Which devices are low on disk space?", () => {});
+    const listed = await t.conversations();
+    expect(listed).toHaveLength(1);
+    expect(listed[0]).toMatchObject({ conversation_id, title: "Which devices are low on disk space?", turns: 1 });
+    expect(listed[0].updated_at).toMatch(/^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\dZ$/);
+  });
+
+  it("returns the stored turns in order and keeps the first question as the title", async () => {
+    const t = await signedIn();
+    const { conversation_id } = await t.newConversation();
+    const first = await t.ask(conversation_id, "Which devices are low on disk space?", () => {});
+    const second = await t.ask(conversation_id, "Which laptops show battery wear?", () => {});
+    const stored = await t.conversation(conversation_id);
+    expect(stored.title).toBe("Which devices are low on disk space?");
+    expect(stored.turns.map((turn) => turn.seq)).toEqual([0, 1]);
+    expect(stored.turns.map((turn) => turn.question)).toEqual([
+      "Which devices are low on disk space?",
+      "Which laptops show battery wear?",
+    ]);
+    expect(stored.turns[0].envelope).toEqual(first);
+    expect(stored.turns[1].trace_id).toBe(second.trace_id);
+    expect((await t.conversations())[0].turns).toBe(2);
+  });
+
+  it("lists the most recently active conversation first", async () => {
+    const t = await signedIn();
+    const a = (await t.newConversation()).conversation_id;
+    const b = (await t.newConversation()).conversation_id;
+    await t.ask(a, "Which devices are low on disk space?", () => {});
+    await t.ask(b, "Which laptops show battery wear?", () => {});
+    expect((await t.conversations()).map((c) => c.conversation_id)).toEqual([b, a]);
+    await t.ask(a, "Which devices need attention?", () => {});
+    expect((await t.conversations()).map((c) => c.conversation_id)).toEqual([a, b]);
+    expect(await t.conversations(1)).toHaveLength(1);
+  });
+
+  it("trims a long first question to 60 characters at a word boundary", async () => {
+    const t = await signedIn();
+    const { conversation_id } = await t.newConversation();
+    await t.ask(conversation_id, `Which devices are low on disk space ${"right now ".repeat(10)}`, () => {});
+    const [listed] = await t.conversations();
+    expect(listed.title.length).toBeLessThanOrEqual(60);
+    expect(listed.title).toMatch(/\w$/);
+  });
+
+  it("deletes a conversation and then answers 404 for it, as for any unknown id", async () => {
+    const t = await signedIn();
+    const { conversation_id } = await t.newConversation();
+    await t.ask(conversation_id, "Which devices are low on disk space?", () => {});
+    await t.deleteConversation(conversation_id);
+    expect(await t.conversations()).toEqual([]);
+    expect((await rejection(t.conversation(conversation_id))).status).toBe(404);
+    expect((await rejection(t.deleteConversation("never-existed"))).status).toBe(404);
+  });
+
+  it("keeps each company's history to itself", async () => {
+    const t = await signedIn("admin-acme");
+    const { conversation_id } = await t.newConversation();
+    await t.ask(conversation_id, "Which devices are low on disk space?", () => {});
+    await t.signIn("admin-globex");
+    expect(await t.conversations()).toEqual([]);
+    expect((await rejection(t.conversation(conversation_id))).status).toBe(404);
+    expect((await rejection(t.deleteConversation(conversation_id))).status).toBe(404);
+    await t.signIn("admin-acme");
+    expect(await t.conversations()).toHaveLength(1);
+  });
+
+  it("refuses history to a signed-out caller and to the operator", async () => {
+    const t = fixtureTransport(0);
+    expect((await rejection(t.conversations())).status).toBe(401);
+    await t.signIn("operator", "pass");
+    expect((await rejection(t.conversations())).status).toBe(403);
+  });
+});

@@ -7,13 +7,14 @@ import { Composer } from "./components/Composer";
 import { EvidenceDrawer, type DrawerTab } from "./components/EvidenceDrawer";
 import { Hero, Suggestions } from "./components/Home";
 import { ObserveView } from "./components/observe/ObserveView";
-import { Rail } from "./components/Rail";
+import { Sidebar } from "./components/Sidebar";
 import { SignIn } from "./components/SignIn";
 import { TopBar } from "./components/TopBar";
 import { Thread, type TurnData } from "./components/Thread";
 import { ApiError, UNREACHABLE } from "./lib/api";
 import { datasetAsOf, fixturesFor, tenantName } from "./lib/fixtures";
-import { chooseTransport, type Session, type Transport } from "./lib/transport";
+import { chooseTransport, type ConversationSummary, type Session, type StoredConversation, type Transport } from "./lib/transport";
+import { useMediaQuery } from "./lib/useMediaQuery";
 import type { AnswerEnvelope, EvidenceItem } from "./lib/types";
 import { parseRef } from "./lib/format";
 
@@ -27,6 +28,11 @@ const MAX_QUESTION_CHARS = 2000;
 const EMPTY_QUESTION = "Ask a question about your devices.";
 const LONG_QUESTION = `Questions are limited to ${MAX_QUESTION_CHARS} characters.`;
 const DATASET_UNAVAILABLE = "The dataset is not available. Run make load-data, then try again.";
+const CHAT_HASH = "#/";
+/** Under this width the history sidebar becomes a drawer that the top bar's menu button opens. */
+const NARROW_QUERY = "(max-width: 960px)";
+const CONVERSATION_GONE = "That conversation is no longer available.";
+const CONVERSATION_UNREADABLE = "That conversation could not be opened. Try again.";
 
 interface DrawerState {
   turnId: string;
@@ -91,6 +97,13 @@ export default function App({ transport: given }: AppProps) {
   const [generation, setGeneration] = useState(0);
   /** Proposals waiting for a decision; null until the first count arrives. */
   const [pending, setPending] = useState<number | null>(null);
+  /** The history list for the sidebar; null until it has loaded. */
+  const [history, setHistory] = useState<ConversationSummary[] | null>(null);
+  const [historyFailed, setHistoryFailed] = useState(false);
+  /** The conversation the thread continues, once it has an id. */
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [drawerOpen, setDrawerOpen] = useState(false);
+  const narrow = useMediaQuery(NARROW_QUERY);
   const hash = useHash();
 
   const epoch = useRef(0);
@@ -98,6 +111,10 @@ export default function App({ transport: given }: AppProps) {
   const turnSeq = useRef(0);
   const inFlight = useRef(false);
   const countSeq = useRef(0);
+  const historySeq = useRef(0);
+  const openSeq = useRef(0);
+  /** Bumped only when the session ends, so a turn that outlives "New chat" still refreshes the list but one that outlives sign-out does not. */
+  const sessionEpoch = useRef(0);
 
   useEffect(() => {
     let alive = true;
@@ -135,6 +152,7 @@ export default function App({ transport: given }: AppProps) {
     turnSeq.current = 0;
     inFlight.current = false;
     setTurns([]);
+    setActiveId(null);
     setDrawer(null);
     setComposerError(null);
     setRestore(null);
@@ -147,7 +165,13 @@ export default function App({ transport: given }: AppProps) {
       resetConversation();
       clearRouteHash();
       countSeq.current += 1;
+      historySeq.current += 1;
+      openSeq.current += 1;
+      sessionEpoch.current += 1;
       setPending(null);
+      setHistory(null);
+      setHistoryFailed(false);
+      setDrawerOpen(false);
       setSession(null);
       setNotice(why);
     },
@@ -167,10 +191,34 @@ export default function App({ transport: given }: AppProps) {
     })();
   }, [transport, endSession]);
 
+  /** Re-reads the history list. A failed read keeps the list already shown; the sidebar only says so when it has none. */
+  const refreshHistory = useCallback(() => {
+    const mine = ++historySeq.current;
+    void (async () => {
+      try {
+        const list = await transport.conversations();
+        if (mine !== historySeq.current) return;
+        setHistory(list);
+        setHistoryFailed(false);
+      } catch (error) {
+        if (mine !== historySeq.current) return;
+        if (error instanceof ApiError && error.status === 401) endSession(SESSION_ENDED);
+        else setHistoryFailed(true);
+      }
+    })();
+  }, [transport, endSession]);
+
   const isAdmin = session?.role === "admin";
   useEffect(() => {
-    if (isAdmin) refreshPending();
-  }, [isAdmin, refreshPending]);
+    if (isAdmin) {
+      refreshPending();
+      refreshHistory();
+    }
+  }, [isAdmin, refreshPending, refreshHistory]);
+
+  useEffect(() => {
+    if (!narrow) setDrawerOpen(false);
+  }, [narrow]);
 
   const patchTurn = useCallback((id: string, change: (turn: TurnData) => TurnData) => {
     setTurns((prev) => prev.map((turn) => (turn.id === id ? change(turn) : turn)));
@@ -188,6 +236,7 @@ export default function App({ transport: given }: AppProps) {
       }
       inFlight.current = true;
       const mine = epoch.current;
+      const mineSession = sessionEpoch.current;
       const live = () => epoch.current === mine;
       const id = String(++turnSeq.current);
       setBanner(null);
@@ -202,6 +251,7 @@ export default function App({ transport: given }: AppProps) {
             const created = await transport.newConversation();
             if (!live()) return;
             conversation.current = created.conversation_id;
+            setActiveId(created.conversation_id);
           }
           const envelope = await transport.ask(conversation.current, question, (event) => {
             if (!live()) return;
@@ -211,6 +261,8 @@ export default function App({ transport: given }: AppProps) {
                 : { ...turn, events: [...turn.events, event] },
             );
           });
+          // The server keeps the turn even when the reader has moved on, so the list refreshes either way.
+          if (sessionEpoch.current === mineSession) refreshHistory();
           if (!live()) return;
           const note = transport.mode === "fixtures" ? fixtureNote(envelope) : undefined;
           patchTurn(id, (turn) => ({ ...turn, status: "done", envelope, note }));
@@ -236,7 +288,72 @@ export default function App({ transport: given }: AppProps) {
         }
       })();
     },
-    [session, transport, patchTurn, endSession, refreshPending],
+    [session, transport, patchTurn, endSession, refreshPending, refreshHistory],
+  );
+
+  const goToChat = useCallback(() => {
+    if (window.location.hash === APPROVALS_HASH || window.location.hash === AUDIT_HASH) {
+      window.location.hash = CHAT_HASH;
+    }
+  }, []);
+
+  const newChat = useCallback(() => {
+    resetConversation();
+    goToChat();
+  }, [resetConversation, goToChat]);
+
+  /** Shows a stored conversation's turns with the thread's own rendering; the next question continues it. */
+  const openConversation = useCallback(
+    (id: string) => {
+      goToChat();
+      if (id === conversation.current && turnSeq.current > 0) return;
+      const mine = ++openSeq.current;
+      void (async () => {
+        let stored: StoredConversation;
+        try {
+          stored = await transport.conversation(id);
+        } catch (error) {
+          if (mine !== openSeq.current) return;
+          const status = error instanceof ApiError ? error.status : 0;
+          if (status === 401) return endSession(SESSION_ENDED);
+          if (status === 404) refreshHistory();
+          setBanner(status === 404 ? CONVERSATION_GONE : CONVERSATION_UNREADABLE);
+          return;
+        }
+        if (mine !== openSeq.current) return;
+        resetConversation();
+        conversation.current = id;
+        turnSeq.current = stored.turns.length;
+        setActiveId(id);
+        setTurns(
+          stored.turns.map((turn) => ({
+            id: String(turn.seq + 1),
+            question: turn.question,
+            events: [],
+            status: "done" as const,
+            envelope: turn.envelope,
+            note: transport.mode === "fixtures" ? fixtureNote(turn.envelope) : undefined,
+          })),
+        );
+      })();
+    },
+    [transport, goToChat, resetConversation, endSession, refreshHistory],
+  );
+
+  /** Rejects when the conversation could not be deleted, so the sidebar can say so. */
+  const deleteConversation = useCallback(
+    async (id: string) => {
+      try {
+        await transport.deleteConversation(id);
+      } catch (error) {
+        const status = error instanceof ApiError ? error.status : 0;
+        if (status === 401) return endSession(SESSION_ENDED);
+        if (status !== 404) throw error; // already gone is as good as deleted
+      }
+      setHistory((list) => list && list.filter((item) => item.conversation_id !== id));
+      if (conversation.current === id) resetConversation();
+    },
+    [transport, endSession, resetConversation],
   );
 
   async function signOut() {
@@ -321,16 +438,28 @@ export default function App({ transport: given }: AppProps) {
   return (
     <MotionConfig reducedMotion="user">
       <Aurora docked={docked || onSubview} streaming={running} />
-      <div className="app" data-rail={docked && !onSubview}>
+      <div className="app" data-sidebar="true">
         <TopBar
           companyName={tenantName(session.company_id)}
           asOf={asOf}
           replay={transport.mode === "fixtures"}
           onSignOut={signOut}
-          approvals={{ pending, active: onApprovals }}
-          audit={{ active: onAudit }}
+          onMenu={narrow ? () => setDrawerOpen(true) : undefined}
         />
-        {docked && !onSubview ? <Rail turns={turns} onNew={resetConversation} /> : null}
+        <Sidebar
+          conversations={history}
+          loadFailed={historyFailed}
+          activeId={activeId}
+          pending={pending}
+          view={onApprovals ? "approvals" : onAudit ? "audit" : "chat"}
+          narrow={narrow}
+          drawerOpen={drawerOpen}
+          onDrawerChange={setDrawerOpen}
+          onNew={newChat}
+          onOpen={openConversation}
+          onDelete={deleteConversation}
+          onRetry={refreshHistory}
+        />
         {onApprovals ? (
           <main className="stage" data-view="approvals">
             <ApprovalsView

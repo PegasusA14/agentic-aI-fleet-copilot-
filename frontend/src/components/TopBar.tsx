@@ -1,4 +1,4 @@
-import { Building2, ClipboardCheck, Eye, LogOut, ScrollText } from "lucide-react";
+import { Building2, Eye, LogOut, Menu } from "lucide-react";
 import { formatAsOf } from "../lib/format";
 
 interface TopBarProps {
@@ -9,10 +9,8 @@ interface TopBarProps {
   /** "fixtures" answers are replayed from stored output; the bar says so. */
   replay?: boolean;
   onSignOut?: () => void;
-  /** An admin's entry to the approvals view: `pending` is null until the count is known. */
-  approvals?: { pending: number | null; active: boolean };
-  /** An admin's entry to the audit trail. */
-  audit?: { active: boolean };
+  /** Under 960px the history sidebar is a drawer; this is the button that opens it. */
+  onMenu?: () => void;
 }
 
 export function TopBar({
@@ -21,12 +19,16 @@ export function TopBar({
   asOf,
   replay = false,
   onSignOut,
-  approvals,
-  audit,
+  onMenu,
 }: TopBarProps) {
   return (
     <header className="topbar">
       <div className="topbar__left">
+        {onMenu ? (
+          <button type="button" className="menu-btn" aria-label="Open menu" aria-haspopup="dialog" onClick={onMenu}>
+            <Menu size={18} aria-hidden="true" />
+          </button>
+        ) : null}
         <span className="brand">
           <span className="brand__mark" aria-hidden="true">
             <svg width="18" height="18" viewBox="0 0 32 32">
@@ -71,32 +73,6 @@ export function TopBar({
               {asOf.slice(0, 10)}
             </span>
           </span>
-        ) : null}
-        {approvals ? (
-          <a
-            className="pill"
-            href="#/approvals"
-            aria-current={approvals.active ? "page" : undefined}
-            aria-label={approvals.pending ? `Approvals, ${approvals.pending} pending` : "Approvals"}
-          >
-            <ClipboardCheck size={16} aria-hidden="true" />
-            <span className="pill--hide-sm" aria-hidden="true">
-              Approvals
-            </span>
-            {approvals.pending ? (
-              <span className="pill__count" aria-hidden="true">
-                {approvals.pending}
-              </span>
-            ) : null}
-          </a>
-        ) : null}
-        {audit ? (
-          <a className="pill" href="#/audit" aria-current={audit.active ? "page" : undefined} aria-label="Audit">
-            <ScrollText size={16} aria-hidden="true" />
-            <span className="pill--hide-sm" aria-hidden="true">
-              Audit
-            </span>
-          </a>
         ) : null}
         {onSignOut ? (
           <button

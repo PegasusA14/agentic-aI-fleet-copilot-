@@ -1,6 +1,6 @@
-import { render, screen, within } from "@testing-library/react";
+import { render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
-import { beforeEach, describe, expect, it } from "vitest";
+import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import App from "./App";
 import { fixtureTransport } from "./lib/transport";
 import { AnswerSheet } from "./components/AnswerSheet";
@@ -56,7 +56,7 @@ describe("the working thread", () => {
     expect(within(sheet).getByText("Answer")).toBeInTheDocument();
     expect(within(sheet).getByText(/Evaluated/)).toBeInTheDocument();
     expect(within(sheet).getByRole("list", { name: /low disk/i })).toBeInTheDocument();
-    expect(screen.getByRole("navigation", { name: "This session" })).toBeInTheDocument();
+    expect(screen.getByRole("navigation", { name: "Conversation history" })).toBeInTheDocument();
   });
 
   it("opens the cited readings for a claim and the trace of the work", async () => {
@@ -121,28 +121,36 @@ describe("navigation", () => {
     window.location.hash = "";
   });
 
-  it("keeps Approvals and Audit in the top bar only, and New question in the rail only", async () => {
+  it("keeps Approvals and Audit in the sidebar and leaves the top bar to brand, company, as-of and Switch company", async () => {
     const user = await signInAs("Acme");
     await ask(user, "Which devices are low on disk space?");
     await screen.findByRole("heading", { name: "2 of 10 devices have under 10% disk space free" });
     const bar = screen.getByRole("banner");
-    const rail = screen.getByRole("navigation", { name: "This session" });
-    expect(within(bar).getByRole("link", { name: "Approvals" })).toBeInTheDocument();
-    expect(within(bar).getByRole("link", { name: "Audit" })).toBeInTheDocument();
-    expect(within(bar).queryByRole("button", { name: /new conversation/i })).not.toBeInTheDocument();
-    expect(screen.queryByRole("button", { name: /new conversation/i })).not.toBeInTheDocument();
-    expect(within(rail).queryByRole("link", { name: /approvals/i })).not.toBeInTheDocument();
-    expect(within(rail).queryByRole("link", { name: /audit/i })).not.toBeInTheDocument();
+    const sidebar = screen.getByRole("navigation", { name: "Conversation history" });
+    expect(within(bar).queryByRole("link")).not.toBeInTheDocument();
+    expect(within(bar).getByLabelText("Company: Acme")).toBeInTheDocument();
+    expect(within(bar).getByRole("button", { name: "Switch company" })).toBeInTheDocument();
+    expect(within(sidebar).getByRole("link", { name: "Approvals" })).toBeInTheDocument();
+    expect(within(sidebar).getByRole("link", { name: "Audit" })).toBeInTheDocument();
+    expect(within(sidebar).getByRole("button", { name: "New chat" })).toBeInTheDocument();
     expect(screen.getAllByRole("link", { name: "Approvals" })).toHaveLength(1);
     expect(screen.getAllByRole("link", { name: "Audit" })).toHaveLength(1);
-    expect(within(rail).getByRole("button", { name: "New question" })).toBeInTheDocument();
   });
 
-  it("starts over from the rail: no thread, a fresh home", async () => {
+  it("shows the sidebar on the home state too, with Approvals and Audit reachable", async () => {
+    await signInAs("Acme");
+    const sidebar = screen.getByRole("navigation", { name: "Conversation history" });
+    expect(screen.getByRole("heading", { name: "Ask your fleet anything." })).toBeInTheDocument();
+    expect(within(sidebar).getByRole("link", { name: "Approvals" })).toHaveAttribute("href", "#/approvals");
+    expect(within(sidebar).getByRole("link", { name: "Audit" })).toHaveAttribute("href", "#/audit");
+    expect(await within(sidebar).findByText("Your conversations will appear here.")).toBeInTheDocument();
+  });
+
+  it("starts over from New chat: no thread, a fresh home", async () => {
     const user = await signInAs("Acme");
     await ask(user, "Which devices are low on disk space?");
     await screen.findByRole("heading", { name: "2 of 10 devices have under 10% disk space free" });
-    await user.click(screen.getByRole("button", { name: "New question" }));
+    await user.click(screen.getByRole("button", { name: "New chat" }));
     expect(screen.queryByRole("article")).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Ask your fleet anything." })).toBeInTheDocument();
   });
@@ -150,9 +158,140 @@ describe("navigation", () => {
   it("sits the approvals and audit views on the quiet working ground", async () => {
     const user = await signInAs("Acme");
     expect(document.querySelector(".aurora")).toHaveAttribute("data-docked", "false");
-    await user.click(within(screen.getByRole("banner")).getByRole("link", { name: "Audit" }));
+    await user.click(within(screen.getByRole("navigation", { name: "Conversation history" })).getByRole("link", { name: "Audit" }));
     expect(await screen.findByRole("heading", { name: "Audit" })).toBeInTheDocument();
     expect(document.querySelector(".aurora")).toHaveAttribute("data-docked", "true");
+  });
+});
+
+describe("conversation history", () => {
+  beforeEach(() => {
+    window.location.hash = "";
+  });
+
+  const sidebar = () => screen.getByRole("navigation", { name: "Conversation history" });
+  const LOW_DISK = "Which devices are low on disk space?";
+
+  it("lists an answered conversation under Today, marks it open, and refreshes after each turn", async () => {
+    const user = await signInAs("Acme");
+    await ask(user, LOW_DISK);
+    const item = await within(sidebar()).findByRole("button", { name: LOW_DISK });
+    expect(item).toHaveAttribute("aria-current", "true");
+    expect(within(sidebar()).getByRole("list", { name: "Today" })).toContainElement(item);
+    await ask(user, "Which laptops show battery wear?");
+    await screen.findAllByRole("article");
+    await waitFor(() => expect(within(sidebar()).getAllByRole("button", { name: LOW_DISK })).toHaveLength(1));
+    expect(within(sidebar()).getAllByRole("button", { name: LOW_DISK })).toHaveLength(1);
+  });
+
+  it("reopens a stored conversation with its turns, and the next question continues it", async () => {
+    const transport = fixtureTransport(0);
+    const user = userEvent.setup();
+    render(<App transport={transport} />);
+    await user.click(await screen.findByRole("button", { name: /Acme/ }));
+    await ask(user, LOW_DISK);
+    await screen.findByRole("heading", { name: "2 of 10 devices have under 10% disk space free" });
+    await user.click(screen.getByRole("button", { name: "New chat" }));
+    await ask(user, "Which laptops show battery wear?");
+    await screen.findAllByRole("article");
+    expect(await transport.conversations()).toHaveLength(2);
+
+    await user.click(await within(sidebar()).findByRole("button", { name: LOW_DISK }));
+    expect(await screen.findByRole("heading", { name: "2 of 10 devices have under 10% disk space free" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: LOW_DISK, level: 2 })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Which laptops show battery wear?", level: 2 })).not.toBeInTheDocument();
+    expect(within(sidebar()).getByRole("button", { name: LOW_DISK })).toHaveAttribute("aria-current", "true");
+
+    await ask(user, "Which devices need attention?");
+    await screen.findByRole("button", { name: "Outdated macOS" });
+    const listed = await transport.conversations();
+    expect(listed).toHaveLength(2);
+    expect(listed[0].title).toBe(LOW_DISK);
+    expect(listed[0].turns).toBe(2);
+  });
+
+  it("opens a conversation from the approvals view by going back to the chat", async () => {
+    const user = await signInAs("Acme");
+    await ask(user, LOW_DISK);
+    await user.click(within(sidebar()).getByRole("link", { name: "Audit" }));
+    expect(await screen.findByRole("heading", { name: "Audit" })).toBeInTheDocument();
+    await user.click(within(sidebar()).getByRole("button", { name: LOW_DISK }));
+    expect(await screen.findByLabelText(/ask a question about your fleet/i)).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Audit" })).not.toBeInTheDocument();
+  });
+
+  it("deletes a conversation after a confirmation, and an open one returns to a fresh home", async () => {
+    const transport = fixtureTransport(0);
+    const user = userEvent.setup();
+    render(<App transport={transport} />);
+    await user.click(await screen.findByRole("button", { name: /Acme/ }));
+    await ask(user, LOW_DISK);
+    await screen.findByRole("heading", { name: "2 of 10 devices have under 10% disk space free" });
+    await user.click(await within(sidebar()).findByRole("button", { name: `Delete conversation: ${LOW_DISK}` }));
+    await user.click(within(sidebar()).getByRole("button", { name: "Cancel" }));
+    expect(await transport.conversations()).toHaveLength(1);
+    await user.click(within(sidebar()).getByRole("button", { name: `Delete conversation: ${LOW_DISK}` }));
+    await user.click(within(sidebar()).getByRole("button", { name: "Delete" }));
+    expect(await within(sidebar()).findByText("Your conversations will appear here.")).toBeInTheDocument();
+    expect(await transport.conversations()).toEqual([]);
+    expect(screen.getByRole("heading", { name: "Ask your fleet anything." })).toBeInTheDocument();
+    expect(screen.queryByRole("article")).not.toBeInTheDocument();
+  });
+
+  it("keeps each company's history to itself", async () => {
+    const transport = fixtureTransport(0);
+    const user = userEvent.setup();
+    render(<App transport={transport} />);
+    await user.click(await screen.findByRole("button", { name: /Acme/ }));
+    await ask(user, LOW_DISK);
+    await within(sidebar()).findByRole("button", { name: LOW_DISK });
+    await user.click(screen.getByRole("button", { name: /switch company/i }));
+    await user.click(await screen.findByRole("button", { name: /Globex/ }));
+    expect(await within(sidebar()).findByText("Your conversations will appear here.")).toBeInTheDocument();
+    expect(within(sidebar()).queryByRole("button", { name: LOW_DISK })).not.toBeInTheDocument();
+  });
+});
+
+describe("the sidebar drawer on small screens", () => {
+  const original = window.matchMedia;
+  beforeEach(() => {
+    window.location.hash = "";
+    window.matchMedia = ((query: string) =>
+      ({
+        matches: true,
+        media: query,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }) as unknown as MediaQueryList) as typeof window.matchMedia;
+  });
+  afterEach(() => {
+    window.matchMedia = original;
+  });
+
+  it("hides the sidebar behind a menu button, opens it as a dialog and closes it on Escape", async () => {
+    const user = await signInAs("Acme");
+    expect(screen.queryByRole("navigation", { name: "Conversation history" })).not.toBeInTheDocument();
+    const menu = within(screen.getByRole("banner")).getByRole("button", { name: "Open menu" });
+    await user.click(menu);
+    const dialog = await screen.findByRole("dialog", { name: "Menu" });
+    expect(within(dialog).getByRole("link", { name: "Approvals" })).toBeInTheDocument();
+    expect(within(dialog).getByRole("link", { name: "Audit" })).toBeInTheDocument();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+  });
+
+  it("reopens a conversation from the drawer and closes it", async () => {
+    const user = await signInAs("Acme");
+    await ask(user, "Which devices are low on disk space?");
+    await screen.findByRole("heading", { name: "2 of 10 devices have under 10% disk space free" });
+    await user.click(screen.getByRole("button", { name: "Open menu" }));
+    await user.click(await screen.findByRole("button", { name: "New chat" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.queryByRole("article")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "Open menu" }));
+    await user.click(await screen.findByRole("button", { name: "Which devices are low on disk space?" }));
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(await screen.findByRole("heading", { name: "2 of 10 devices have under 10% disk space free" })).toBeInTheDocument();
   });
 });
 
@@ -163,19 +302,19 @@ describe("approvals", () => {
 
   it("counts pending proposals in the navigation and clears the count after a decision", async () => {
     const user = await signInAs("Acme");
-    const bar = screen.getByRole("banner");
-    expect(within(bar).getByRole("link", { name: "Approvals" })).toBeInTheDocument();
+    const sidebar = screen.getByRole("navigation", { name: "Conversation history" });
+    expect(within(sidebar).getByRole("link", { name: "Approvals" })).toBeInTheDocument();
     await ask(user, "Open a ticket for the first one");
-    expect(await within(bar).findByRole("link", { name: "Approvals, 1 pending" })).toBeInTheDocument();
+    expect(await within(sidebar).findByRole("link", { name: "Approvals, 1 pending" })).toBeInTheDocument();
     await user.click(await screen.findByRole("button", { name: "Reject" }));
-    expect(await within(bar).findByRole("link", { name: "Approvals" })).toBeInTheDocument();
+    expect(await within(sidebar).findByRole("link", { name: "Approvals" })).toBeInTheDocument();
   });
 
   it("opens the approvals view from the navigation and decides from there", async () => {
     const user = await signInAs("Acme");
     await ask(user, "Open a ticket for the first one");
-    const bar = screen.getByRole("banner");
-    await user.click(await within(bar).findByRole("link", { name: "Approvals, 1 pending" }));
+    const sidebar = screen.getByRole("navigation", { name: "Conversation history" });
+    await user.click(await within(sidebar).findByRole("link", { name: "Approvals, 1 pending" }));
     expect(window.location.hash).toBe("#/approvals");
     expect(await screen.findByRole("heading", { name: "Approvals" })).toBeInTheDocument();
     expect(screen.queryByLabelText(/ask a question about your fleet/i)).not.toBeInTheDocument();
