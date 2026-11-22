@@ -374,7 +374,9 @@
         "evidence_ok": true,
         "explanation_shown": false,
         "model_prose": true,
-        "problems": []
+        "problems": [],
+        "reply_chars": 0,
+        "reply_dropped": 0
       },
       "kind": "verify",
       "latency_ms": null,
