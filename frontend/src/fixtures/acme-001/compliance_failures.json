@@ -891,7 +891,7 @@
         "explanation_shown": true,
         "model_prose": true,
         "problems": [],
-        "reply_chars": 0,
+        "reply_chars": 98,
         "reply_dropped": 0
       },
       "kind": "verify",

@@ -94,7 +94,7 @@ SCENARIOS: tuple[Scenario, ...] = (
         "tools",
         "Check the latest free disk space against the low-disk rule.",
         (("low_disk_devices", {}),),
-        reply='{lead} has the least room left, so I would start there.\n\nThe others on the list can wait a little longer, and I can open a ticket for any of them if you want.',
+        reply="{lead} has the least room left, so I would start there.\n\nThe storage upgrades below are only suggestions, and you approve each one before it is ordered.",
     ),
     Scenario(
         "macos_older_than_15",
@@ -103,7 +103,7 @@ SCENARIOS: tuple[Scenario, ...] = (
         "tools",
         "List macOS devices below version 15; Windows devices are out of scope.",
         (("macos_version_check", {}),),
-        reply='{lead} is first in the table. Windows devices are left out, as the version rule only covers Macs.',
+        reply="{lead} is first in the table. Windows devices are left out, as the version rule only covers Macs.",
     ),
     Scenario(
         "compliance_failures",
@@ -112,7 +112,7 @@ SCENARIOS: tuple[Scenario, ...] = (
         "tools",
         "List devices with any failing compliance check at the latest snapshot.",
         (("compliance_failures_now", {}),),
-        reply='The table shows each failing check next to its device, and {lead} is the first one listed.',
+        reply="The table shows each failing check next to its device, and {lead} is the first one listed.",
     ),
     Scenario(
         "compliance_high_no_match",
@@ -129,7 +129,7 @@ SCENARIOS: tuple[Scenario, ...] = (
         "tools",
         "Check memory use at the latest snapshot against the memory rule.",
         (("memory_pressure_now", {}),),
-        reply='{lead} is the device using the most memory right now.',
+        reply="{lead} is the device using the most memory right now.",
     ),
     Scenario(
         "disk_trend",
@@ -154,7 +154,7 @@ SCENARIOS: tuple[Scenario, ...] = (
         "tools",
         "Look for battery wear signals over the last 30 days.",
         (("trend", {"metric": "battery"}),),
-        reply='{lead} shows the clearest wear signal over the last month, so it is the one to watch first.',
+        reply="{lead} shows the clearest wear signal over the last month, so it is the one to watch first.",
     ),
     Scenario(
         "fleet_health",
@@ -163,7 +163,7 @@ SCENARIOS: tuple[Scenario, ...] = (
         "tools",
         "Rank what needs attention across battery, disk, memory and compliance.",
         (("fleet_health", {}),),
-        reply='These are ranked by urgency, with {lead} first.',
+        reply="These are ranked by urgency, with {lead} first.",
     ),
     Scenario(
         "inventory_by_model",

@@ -6,7 +6,7 @@
     "coverage": null,
     "entity_lists": [],
     "evidence": [],
-    "explanation": "Done. I've dropped that note, so I'll list every kind of device again.",
+    "explanation": "Done.",
     "follow_ups": [],
     "headline": "Happy to help with your fleet.",
     "insights": [],
@@ -18,7 +18,7 @@
     "proposal": null,
     "reason_code": null,
     "repeat_of": null,
-    "reply": "Done. I've dropped that note, so I'll list every kind of device again.",
+    "reply": "Done.",
     "scope": {
       "as_of": "2026-06-12T11:00:00Z",
       "calculation": null,
@@ -105,7 +105,12 @@
         "evidence_ok": true,
         "explanation_shown": true,
         "model_prose": true,
-        "problems": []
+        "problems": [
+          "reply:claim_word@1",
+          "reply:dropped=1"
+        ],
+        "reply_chars": 5,
+        "reply_dropped": 1
       },
       "kind": "verify",
       "latency_ms": null,

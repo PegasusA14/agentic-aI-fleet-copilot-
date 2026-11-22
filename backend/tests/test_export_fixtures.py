@@ -79,7 +79,9 @@ def test_scripted_replies_are_kept_by_the_graph_and_stay_plain_text(exported):
             envelope = load(exported, tenant, scenario.name)["envelope"]
             if scenario.name == "battery_wear" and not envelope["reply"]:
                 continue  # this company has no battery wear answer to speak about
-            assert envelope["reply"], f"{tenant}/{scenario.name}: the reply was dropped by verification"
+            assert envelope["reply"], (
+                f"{tenant}/{scenario.name}: the reply was dropped by verification"
+            )
             assert "<" not in envelope["reply"] and "**" not in envelope["reply"]
 
 

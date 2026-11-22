@@ -103,7 +103,7 @@
         "value": "5.1 GiB free of 256.0 GiB (2.0% free)"
       }
     ],
-    "explanation": "initech-macbook-6 has the least room left, so I would start there.\n\nThe others on the list can wait a little longer, and I can open a ticket for any of them if you want.",
+    "explanation": "initech-macbook-6 has the least room left, so I would start there.\n\nThe storage upgrades below are only suggestions, and you approve each one before it is ordered.",
     "follow_ups": [
       {
         "label": "Show their 7-day trend",
@@ -124,7 +124,7 @@
     "proposal": null,
     "reason_code": null,
     "repeat_of": null,
-    "reply": "initech-macbook-6 has the least room left, so I would start there.\n\nThe others on the list can wait a little longer, and I can open a ticket for any of them if you want.",
+    "reply": "initech-macbook-6 has the least room left, so I would start there.\n\nThe storage upgrades below are only suggestions, and you approve each one before it is ordered.",
     "scope": {
       "as_of": "2026-06-12T11:00:00Z",
       "calculation": "2 distinct devices across 1 claim; at most 1 supporting reading is cited per device",
@@ -375,7 +375,7 @@
         "explanation_shown": true,
         "model_prose": true,
         "problems": [],
-        "reply_chars": 0,
+        "reply_chars": 163,
         "reply_dropped": 0
       },
       "kind": "verify",
