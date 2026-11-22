@@ -17,7 +17,7 @@
         "value": "screen_lock: fail (medium severity)"
       }
     ],
-    "explanation": null,
+    "explanation": "That ticket proposal is ready for your review, and it stays pending until you approve it.",
     "follow_ups": [],
     "headline": "Proposed: open a remediation ticket for initech-dell-5. It waits for your approval; nothing has changed yet.",
     "insights": [],
@@ -49,6 +49,7 @@
     },
     "reason_code": null,
     "repeat_of": null,
+    "reply": "That ticket proposal is ready for your review, and it stays pending until you approve it.",
     "scope": {
       "as_of": "2026-06-12T11:00:00Z",
       "calculation": null,
@@ -148,14 +149,25 @@
     },
     {
       "data": {
+        "ok": true
+      },
+      "kind": "explain",
+      "latency_ms": null,
+      "seq": 5,
+      "summary": "Model wrote a reply",
+      "tool": null,
+      "trace_id": "replay-initech-003-proposal"
+    },
+    {
+      "data": {
         "evidence_ok": true,
-        "explanation_shown": false,
-        "model_prose": false,
+        "explanation_shown": true,
+        "model_prose": true,
         "problems": []
       },
       "kind": "verify",
       "latency_ms": null,
-      "seq": 5,
+      "seq": 6,
       "summary": "Checked the answer against the evidence",
       "tool": null,
       "trace_id": "replay-initech-003-proposal"
@@ -169,7 +181,7 @@
       },
       "kind": "respond",
       "latency_ms": null,
-      "seq": 6,
+      "seq": 7,
       "summary": "Answer ready",
       "tool": null,
       "trace_id": "replay-initech-003-proposal"

@@ -10,7 +10,7 @@ from model_support import FakeChatModel
 
 from fleet_copilot.agent.chat_gateway import ChatGateway, ModelUnavailable
 from fleet_copilot.agent.gateways import build_gateway, build_live_gateway
-from fleet_copilot.agent.llm import ContentFiltered, Explanation, Plan
+from fleet_copilot.agent.llm import ContentFiltered, Plan, Reply
 from fleet_copilot.agent.providers import ADAPTERS, ProviderAdapter
 from fleet_copilot.agent.tools import TOOLS
 from fleet_copilot.config import ModelSettings
@@ -509,29 +509,29 @@ def test_a_reasoning_model_on_either_step_is_built_without_temperature(tmp_path)
 @pytest.mark.parametrize("method", ["explain", "reply"])
 async def test_explain_uses_the_reply_model_and_plan_and_act_the_main_one(method):
     main = FakeChatModel([PLAN, AIMessage("looked"), PLAN])
-    reply = FakeChatModel([Explanation(headline="Done.")])
+    reply = FakeChatModel([Reply(text="Done.")])
     gw = ChatGateway(main, reply_model=reply)
     await gw.plan(MESSAGES)
     await gw.act(MESSAGES)
     result = await getattr(gw, method)(MESSAGES)
-    assert result.headline == "Done."
+    assert result.text == "Done."
     assert [label for label, _ in main.calls] == ["Plan", "act"]
-    assert [label for label, _ in reply.calls] == ["Explanation"]
+    assert [label for label, _ in reply.calls] == ["Reply"]
     assert reply.bound_tools is None
 
 
 async def test_explain_uses_the_main_model_without_a_reply_model():
-    main = FakeChatModel([Explanation(headline="Done.")])
+    main = FakeChatModel([Reply(text="Done.")])
     await ChatGateway(main).explain(MESSAGES)
-    assert [label for label, _ in main.calls] == ["Explanation"]
+    assert [label for label, _ in main.calls] == ["Reply"]
 
 
 async def test_the_reply_model_gets_the_same_retries_and_error_mapping(adapter):
     request = httpx.Request("POST", "https://example.invalid")
     main = FakeChatModel([])
-    reply = FakeChatModel([openai.APITimeoutError(request=request), Explanation(headline="Done.")])
+    reply = FakeChatModel([openai.APITimeoutError(request=request), Reply(text="Done.")])
     gw, slept = gateway(main, adapter, reply_model=reply)
-    assert (await gw.explain(MESSAGES)).headline == "Done."
+    assert (await gw.explain(MESSAGES)).text == "Done."
     assert len(slept) == 1 and main.calls == []
 
     refused = status_error(openai.BadRequestError, 400, body={"code": "content_filter"})

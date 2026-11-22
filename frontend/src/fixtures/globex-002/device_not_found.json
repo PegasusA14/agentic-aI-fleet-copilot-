@@ -18,6 +18,7 @@
     "proposal": null,
     "reason_code": "not_found",
     "repeat_of": null,
+    "reply": "",
     "scope": {
       "as_of": "2026-06-12T11:00:00Z",
       "calculation": null,

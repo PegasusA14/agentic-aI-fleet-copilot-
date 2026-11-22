@@ -687,3 +687,67 @@ def test_data_unavailable_is_valid_for_unsupported_only():
     assert unsupported().reason_code == "data_unavailable"
     with pytest.raises(ValidationError, match="not valid"):
         envelope(outcome="denied", claims=[], evidence=[], reason_code="data_unavailable")
+
+
+# ---- conversational mode: the chat outcome and the reply ---------------------------------------------
+
+
+def chat(**overrides):
+    return envelope(outcome="chat", claims=[], evidence=[], **overrides)
+
+
+def test_a_chat_outcome_is_words_only_and_has_no_reason():
+    assert chat(reply="Happy to help.").reply == "Happy to help."
+    with pytest.raises(ValidationError, match="must not carry a reason_code"):
+        chat(reason_code="off_topic")
+    with pytest.raises(ValidationError, match="must not carry claims or evidence"):
+        envelope(outcome="chat")
+    with pytest.raises(ValidationError, match="must not carry list-answer presentation"):
+        chat(summary="a summary")
+    with pytest.raises(ValidationError, match="must not carry list-answer presentation"):
+        chat(repeat_of="t-0")
+
+
+def test_a_chat_outcome_may_carry_an_explanation_like_an_answer():
+    assert chat(explanation="same text", reply="same text").explanation == "same text"
+
+
+@pytest.mark.parametrize("reason", ["not_eligible", "insufficient_evidence", "already_done"])
+def test_a_refused_action_may_carry_a_reply_but_never_an_explanation(reason):
+    refusal = {"outcome": "denied", "claims": [], "evidence": [], "reason_code": reason}
+    assert envelope(**refusal, reply="Here is what that means.").reply
+    with pytest.raises(ValidationError, match="must not carry an explanation"):
+        envelope(**refusal, explanation="free text")
+
+
+def test_a_missing_data_refusal_may_carry_a_reply():
+    refusal = {
+        "outcome": "unsupported",
+        "claims": [],
+        "evidence": [],
+        "reason_code": "data_unavailable",
+    }
+    assert envelope(**refusal, reply="That is not recorded.").reply
+
+
+@pytest.mark.parametrize(
+    ("outcome", "reason"),
+    [
+        ("denied", "not_found"),
+        ("denied", "other_company"),
+        ("denied", "prompt_injection"),
+        ("denied", "too_many_pending"),
+        ("unsupported", "off_topic"),
+        ("unsupported", "unsupported_action"),
+        ("tool_error", "tool_failure"),
+    ],
+)
+def test_a_fixed_text_refusal_never_carries_a_reply(outcome, reason):
+    with pytest.raises(ValidationError, match="must not carry a reply"):
+        envelope(outcome=outcome, claims=[], evidence=[], reason_code=reason, reply="model words")
+
+
+def test_a_reply_is_empty_by_default_and_capped():
+    assert envelope().reply == ""
+    with pytest.raises(ValidationError):
+        envelope(reply="x" * 1501)

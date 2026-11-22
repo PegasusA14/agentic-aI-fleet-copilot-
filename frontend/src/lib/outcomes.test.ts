@@ -63,3 +63,11 @@ describe("reasonWords", () => {
     expect(reasonWords("some_new_code")).toBe("some new code");
   });
 });
+
+describe("the chat outcome", () => {
+  it("is a plain reply, not a refusal or a failure", () => {
+    const style = outcomeStyle("chat", null);
+    expect(style.word).toBe("Reply");
+    expect(style.tone).toBe("neutral");
+  });
+});

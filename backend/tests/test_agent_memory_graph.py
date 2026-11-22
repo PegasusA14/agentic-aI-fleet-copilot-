@@ -208,14 +208,16 @@ async def test_a_note_in_an_answering_turn_is_kept_and_shown_to_the_next_plan_as
     assert (await held(service, ACME_ADMIN)).notes == [mem.Note(text=NOTE, turn=1)]
 
 
-async def test_a_pure_note_on_a_chat_plan_is_kept_and_declined_as_off_topic_until_chat_is_wired(
-    real_db_path,
-):
-    llm = ScriptedLLM(plans=[Plan(intent="chat", remember=NOTE)])
+async def test_a_pure_note_on_a_chat_plan_is_kept_and_answered_as_chat(real_db_path):
+    llm = ScriptedLLM(
+        plans=[Plan(intent="chat", remember=NOTE)],
+        explains=[explanation(text="Understood, I will keep that in mind.")],
+    )
     service = make_service(real_db_path, llm)
     result = await ask(service, NOTE)
     envelope = result.envelope
-    assert (envelope.outcome, envelope.reason_code) == ("unsupported", "off_topic")
+    assert (envelope.outcome, envelope.reason_code) == ("chat", None)
+    assert envelope.reply == "Understood, I will keep that in mind."
     assert llm.calls_of("act") == [] and envelope.notes_count == 1
     assert [n.text for n in (await held(service, ACME_ADMIN)).notes] == [NOTE]
 
@@ -301,13 +303,18 @@ def test_the_plan_trims_and_caps_the_note_and_reads_forget_leniently():
 # ---- notes are the user's words, never evidence or arguments ----------------------------------------
 
 
-async def test_a_note_never_reaches_the_act_step_or_the_explanation(real_db_path):
+async def test_a_note_never_reaches_the_act_step_and_reaches_the_reply_only_as_you_said(
+    real_db_path,
+):
     llm = low_disk_turns(answer_plan(remember=NOTE), answer_plan())
     service = make_service(real_db_path, llm)
     await ask(service, "first")
     result = await ask(service, "second")
-    for kind in ("act", "explain"):
-        assert all(NOTE not in call.text for call in llm.calls_of(kind)), kind
+    assert all(NOTE not in call.text for call in llm.calls_of("act"))
+    # the reply step reads the user's note, inside the memory fence and labelled as theirs
+    talk = llm.calls_of("explain")[1].text
+    assert f"<memory>\nYou said: {NOTE} (turn 1)" in talk
+    assert talk.count(NOTE) == 1
     envelope = result.envelope.model_dump_json()
     assert NOTE not in envelope  # not in the answer's claims, evidence or notes
 

@@ -44,7 +44,7 @@ async def ask(service, question, identity=ACME_ADMIN, conversation="c1"):
 # ---- repeat detection --------------------------------------------------------------------------
 
 
-async def test_the_same_question_twice_marks_the_second_answer_and_skips_its_explanation(
+async def test_the_same_question_twice_marks_the_second_answer_and_says_so_in_one_line(
     real_db_path,
 ):
     llm = scripted(LOW, LOW)
@@ -54,16 +54,18 @@ async def test_the_same_question_twice_marks_the_second_answer_and_skips_its_exp
 
     assert first.envelope.repeat_of is None
     assert second.envelope.repeat_of == first.envelope.trace_id == "t1"
-    assert len(llm.calls_of("explain")) == 1  # the model explained the answer once, in total
-    assert llm.remaining["explain"] == 1
-    # the code-written headline stands, the explanation is empty, the facts are the same
+    # the talk step still runs on a repeat, with a code-written hint to say so briefly
+    assert len(llm.calls_of("explain")) == 2
+    assert "Repeat note: this is the same result as turn 1;" in llm.calls_of("explain")[1].text
+    assert "Repeat note" not in llm.calls_of("explain")[0].text
+    # the code-written headline stands, the scripted reply was empty, the facts are the same
     assert second.envelope.headline == "2 of your 10 devices are under 10% free disk space."
     assert second.envelope.explanation is None
     assert [c.model_dump() for c in second.envelope.claims] == [
         c.model_dump() for c in first.envelope.claims
     ]
     assert second.envelope.table == first.envelope.table
-    assert "explain" not in kinds(second) and "verify" in kinds(second)
+    assert "explain" in kinds(second) and "verify" in kinds(second)
     compose_event = next(e for e in second.trace if e.kind == "compose")
     assert compose_event.data["repeat"] is True
 
@@ -75,7 +77,8 @@ async def test_a_third_ask_still_points_at_the_original_answer(real_db_path):
     await ask(service, "low disk?")
     third = await ask(service, "low disk?")
     assert third.envelope.repeat_of == "t1"
-    assert len(llm.calls_of("explain")) == 1
+    assert len(llm.calls_of("explain")) == 3
+    assert "same result as turn 1;" in llm.calls_of("explain")[2].text
 
 
 async def test_an_answer_in_between_does_not_hide_the_repeat(real_db_path):
@@ -86,7 +89,7 @@ async def test_an_answer_in_between_does_not_hide_the_repeat(real_db_path):
     again = await ask(service, "low disk?")
     assert other.envelope.repeat_of is None
     assert again.envelope.repeat_of == first.envelope.trace_id
-    assert len(llm.calls_of("explain")) == 2
+    assert len(llm.calls_of("explain")) == 3
 
 
 async def test_a_reworded_question_that_makes_the_same_calls_is_a_repeat(real_db_path):
@@ -206,17 +209,19 @@ async def test_a_low_disk_answer_carries_what_recommend_returns_for_the_listed_d
     assert_clean(result, llm)
 
 
-async def test_suggestions_never_reach_the_model(real_db_path):
+async def test_suggestions_reach_only_the_reply_step_and_only_as_code_wrote_them(real_db_path):
     llm = scripted(LOW)
     result = await ask(make_service(real_db_path, llm), "low disk?")
     assert result.envelope.suggested_actions
-    seen = "\n".join(call.text for call in llm.calls)
+    # planning and gathering never see them
+    seen = "\n".join(call.text for call in llm.calls if call.kind != "explain")
     for suggestion in result.envelope.suggested_actions:
-        assert suggestion.label not in seen
-        assert suggestion.reason not in seen
-    # the explain facts are exactly what a list answer's draft carries: no suggestions
-    (explain,) = llm.calls_of("explain")
-    assert '"suggested_actions"' not in explain.text and "suggested_actions" not in explain.text
+        assert suggestion.label not in seen and suggestion.reason not in seen
+    # the reply step reads each next step with its reason, so it can only offer what code suggested
+    (talk,) = llm.calls_of("explain")
+    assert '"suggested_actions"' in talk.text
+    for suggestion in result.envelope.suggested_actions:
+        assert suggestion.label in talk.text and suggestion.reason in talk.text
 
 
 async def test_the_model_calls_and_inputs_match_a_run_without_suggestions(real_db_path):
@@ -297,3 +302,22 @@ def test_the_composition_facts_ignore_the_presentation_fields():
     plain = Composition("answer", None, fallback_headline="x")
     with_ui = Composition("answer", None, fallback_headline="x", summary="Two are low.")
     assert plain.facts() == with_ui.facts()
+
+
+async def test_a_repeat_keeps_repeat_of_and_shows_the_one_short_line_the_model_wrote(real_db_path):
+    llm = ScriptedLLM(
+        plans=[answer_plan(), answer_plan()],
+        acts=[tool_calls_message(LOW), final_message(), tool_calls_message(LOW), final_message()],
+        explains=[
+            explanation(text="Two laptops are close to full."),
+            explanation(text="Same as before."),
+        ],
+    )
+    service = make_service(real_db_path, llm)
+    first = await ask(service, "low disk?")
+    second = await ask(service, "low disk?")
+    assert second.envelope.repeat_of == first.envelope.trace_id
+    assert (
+        second.envelope.reply == "Same as before."
+        and second.envelope.explanation == "Same as before."
+    )

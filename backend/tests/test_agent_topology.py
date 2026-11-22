@@ -13,7 +13,7 @@ STAGES = {
     "tools",
     "collect",
     "compose",
-    "explain",
+    "talk",
     "verify",
     "respond",
     "__end__",
@@ -24,6 +24,7 @@ EDGES = {
     ("plan", "reference"),
     ("plan", "act"),
     ("plan", "respond"),
+    ("plan", "talk"),  # a chat turn, or a refusal that code declined for lack of data
     ("reference", "act"),
     ("reference", "respond"),
     ("act", "tools"),
@@ -31,10 +32,9 @@ EDGES = {
     ("act", "respond"),
     ("tools", "collect"),
     ("collect", "act"),
-    ("compose", "explain"),
-    ("compose", "verify"),  # a repeated answer skips the explanation
+    ("compose", "talk"),  # every composed turn passes the talk step; a repeat gets one short line
     ("compose", "respond"),
-    ("explain", "verify"),
+    ("talk", "verify"),
     ("verify", "respond"),
     ("respond", "__end__"),
 }
@@ -71,3 +71,14 @@ def test_no_model_facing_tool_schema_names_a_tenant_actor_or_the_runtime():
     for tool in TOOLS:
         properties = set(tool.tool_call_schema.model_json_schema()["properties"])
         assert not properties & FORBIDDEN_PARAMETERS, tool.name
+
+
+def test_the_talk_step_is_entered_only_from_plan_and_compose_and_leads_only_to_verify():
+    edges = {
+        (e.source, e.target) for e in build_graph(ScriptedLLM(), InMemorySaver()).get_graph().edges
+    }
+    assert {src for src, dst in edges if dst == "talk"} == {"plan", "compose"}
+    assert {dst for src, dst in edges if src == "talk"} == {"verify"}
+    # nothing reaches verify without passing the talk step, and verify is the only way to the response
+    # for a composed answer
+    assert {src for src, dst in edges if dst == "verify"} == {"talk"}

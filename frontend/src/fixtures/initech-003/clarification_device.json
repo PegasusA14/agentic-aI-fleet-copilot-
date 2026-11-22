@@ -44,6 +44,7 @@
     "proposal": null,
     "reason_code": null,
     "repeat_of": null,
+    "reply": "",
     "scope": {
       "as_of": "2026-06-12T11:00:00Z",
       "calculation": null,

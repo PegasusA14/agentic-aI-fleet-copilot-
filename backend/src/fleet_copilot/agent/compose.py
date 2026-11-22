@@ -10,7 +10,13 @@ from fleet_copilot.actions import guidance
 from fleet_copilot.actions.eligibility import display_hostname
 from fleet_copilot.agent import texts
 from fleet_copilot.agent.format import fmt_bytes, fmt_day, fmt_pct, fmt_signed_pct, fmt_ts, noun
-from fleet_copilot.agent.insights import battery_insight, estimates_of, insight_for, rank
+from fleet_copilot.agent.insights import (
+    battery_insight,
+    estimate_phrase,
+    estimates_of,
+    insight_for,
+    rank,
+)
 from fleet_copilot.agent.present import (
     GENERIC_EXCLUDED_TEXT,
     ScopeParts,
@@ -198,6 +204,98 @@ class Composition:
             alternatives=self.alternatives,
             insights=self.insights if self.outcome == "answer" else [],
         )
+
+
+MAX_TALK_ROWS = 20  # table rows, insights, not-checked devices and suggestions the reply step reads
+
+
+def talk_facts(draft: AnswerEnvelope, extras: dict | None = None) -> dict:
+    """Everything the reply step may read about this turn: code-written text only, kept compact.
+
+    Claims, table rows (label and display cells), insight findings with their numbers and estimates, the scope
+    counts, devices that were not checked and why, next steps with their reasons, the proposal card in a
+    line, and what a refused action needs. `extras` holds the next steps of a list answer, which are merged
+    into the envelope only after the reply is checked. Empty parts are left out, so a chat turn has no facts.
+    """
+    facts: dict = {}
+    if draft.outcome != "chat":
+        facts["headline"] = draft.headline
+    if draft.reason_code:
+        facts["refusal_reason"] = draft.reason_code
+    if draft.claims:
+        facts["claims"] = [c.text for c in draft.claims]
+    if draft.table is not None:
+        table = draft.table
+        shown = [column for column in table.columns if column.kind != "device"]
+        facts["table"] = {
+            "title": table.title,
+            "rows": [
+                {
+                    "device": row.label,
+                    **{
+                        column.label: row.cells[column.key].display
+                        for column in shown
+                        if column.key in row.cells and row.cells[column.key].display
+                    },
+                }
+                for row in table.rows[:MAX_TALK_ROWS]
+            ],
+            "total_rows": table.total_rows or len(table.rows),
+        }
+    if draft.insights:
+        facts["insights"] = [
+            {
+                "device": i.label,
+                "severity": i.severity.replace("_", " "),
+                "finding": i.finding,
+                "evidence": {pair.label: pair.value for pair in i.evidence_kv},
+                **({"estimate": phrase} if (phrase := estimate_phrase(i.projection)) else {}),
+            }
+            for i in draft.insights[:MAX_TALK_ROWS]
+        ]
+    if draft.scope_line is not None:
+        line = draft.scope_line
+        facts["scope"] = {
+            "checked": line.checked,
+            "matched": line.matched,
+            "not_checked": line.not_checked,
+            "basis": line.basis,
+            **({"others": f"{line.ok} {line.ok_label}"} if line.ok is not None else {}),
+        }
+    elif draft.coverage is not None:
+        facts["scope"] = {"population": draft.coverage.population}
+    if draft.coverage is not None and draft.coverage.excluded_devices:
+        facts["not_checked"] = [
+            {"device": d.label, "why": d.reason_text}
+            for d in draft.coverage.excluded_devices[:MAX_TALK_ROWS]
+        ]
+    if draft.notes:
+        facts["notes"] = list(draft.notes)
+    if draft.scope.rule:
+        facts["rule"] = draft.scope.rule
+    suggestions = list(draft.suggested_actions)
+    if extras and not suggestions:
+        try:
+            suggestions = [SuggestedAction.model_validate(s) for s in extras["suggested_actions"]]
+        except (KeyError, ValueError):
+            suggestions = []
+    if suggestions:
+        facts["suggested_actions"] = [
+            {"label": a.label, "reason": a.reason} for a in suggestions[: policy.MAX_SUGGESTIONS]
+        ]
+    if draft.proposal is not None:
+        card = draft.proposal
+        facts["proposal"] = {
+            "action": texts.ACTION_LABELS[card.action_type],
+            "device": card.target_label,
+            "details": dict(card.scope),
+            "status": card.status,
+        }
+    if draft.needs:
+        facts["needs"] = list(draft.needs)
+    if draft.alternatives:
+        facts["alternatives"] = [a.label for a in draft.alternatives]
+    return facts
 
 
 def evidence_text(path: str, value: dict) -> str:

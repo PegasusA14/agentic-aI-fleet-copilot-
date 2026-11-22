@@ -18,7 +18,7 @@ from typing import Any
 from langchain_core.messages import AIMessage, BaseMessage
 
 from fleet_copilot.agent import usage as model_usage
-from fleet_copilot.agent.llm import ContentFiltered, Explanation, LLMGateway, Plan
+from fleet_copilot.agent.llm import ContentFiltered, LLMGateway, Plan, Reply
 
 
 class CassetteMiss(Exception):
@@ -53,7 +53,7 @@ def _decode(kind: str, payload: dict[str, Any]) -> Any:
     if kind == "plan":
         return Plan.model_validate(payload)
     if kind == "explain":
-        return Explanation.model_validate(payload)
+        return Reply.model_validate(payload)
     return AIMessage(
         content="",
         tool_calls=[
@@ -169,5 +169,7 @@ class CassetteGateway:
     ) -> AIMessage:
         return await self._serve("act", messages, tools)
 
-    async def explain(self, messages: list[BaseMessage]) -> Explanation:
+    async def reply(self, messages: list[BaseMessage]) -> Reply:
         return await self._serve("explain", messages)
+
+    explain = reply  # the earlier name of the same step

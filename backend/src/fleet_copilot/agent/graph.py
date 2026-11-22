@@ -1,11 +1,13 @@
-"""The agent as an explicit LangGraph: scope -> plan -> (reference) -> act <-> tools -> compose -> explain -> verify -> respond.
+"""The agent as an explicit LangGraph: scope -> plan -> (reference) -> act <-> tools -> compose -> talk -> verify -> respond.
 
 Rules the graph enforces, whatever the model says:
   * tenant and actor come from `AgentContext`; no node or tool accepts them from the model;
   * follow-up references are resolved by code against the lists last shown, and the resolved device
     ids are injected into the tool calls, replacing any ids the model supplied;
   * tool rounds, calls per round and retries are bounded;
-  * claims, evidence and numbers come from the composer; model prose is shown only if it verifies.
+  * claims, evidence and numbers come from the composer; model prose is shown only if it verifies;
+  * the talk step (the model's conversational reply) never runs for a security refusal, and a chat turn
+    reaches it from the planner with no tools.
 Nodes are small and take what they need from state; `llm` is the only model dependency.
 """
 
@@ -31,7 +33,7 @@ from fleet_copilot.actions.service import ActionService, ProposalNotFound
 from fleet_copilot.actions.store import ActionStore
 from fleet_copilot.agent import memory as memory_module
 from fleet_copilot.agent import outcomes, texts
-from fleet_copilot.agent.compose import Resolver, compose, suggestion_evidence
+from fleet_copilot.agent.compose import Resolver, compose, suggestion_evidence, talk_facts
 from fleet_copilot.agent.context import AgentContext
 from fleet_copilot.agent.disambiguation import (
     company_typo_clarification,
@@ -49,6 +51,7 @@ from fleet_copilot.agent.focus import (
 )
 from fleet_copilot.agent.identity import Identity
 from fleet_copilot.agent.llm import (
+    MAX_PLANNED_TOOLS,
     ContentFiltered,
     LLMGateway,
     Plan,
@@ -58,9 +61,9 @@ from fleet_copilot.agent.llm import (
 from fleet_copilot.agent.present import ADVISABLE_TOOLS, relevant_to
 from fleet_copilot.agent.prompts import (
     act_messages,
-    explain_messages,
     plan_messages,
     plan_retry_message,
+    talk_messages,
 )
 from fleet_copilot.agent.records import ToolRecord, record_from_message, redact_tool_calls
 from fleet_copilot.agent.state import (
@@ -87,7 +90,13 @@ from fleet_copilot.agent.verify import (
     verify_evidence,
     verify_prose,
 )
-from fleet_copilot.contracts import AnswerEnvelope, EntityList, EvidenceItem, SuggestedAction
+from fleet_copilot.contracts import (
+    REPLY_REASONS,
+    AnswerEnvelope,
+    EntityList,
+    EvidenceItem,
+    SuggestedAction,
+)
 from fleet_copilot.data.loader import connect
 from fleet_copilot.repository import FleetRepository, NotFound, TenantContext
 
@@ -120,15 +129,112 @@ _STRICT_ACTION_WORDS = re.compile(
 )
 
 
+_WORD_TOKEN = re.compile(r"[a-z]+", re.IGNORECASE)
+# The two words a typo must not hide: approving a proposal and executing it are never something this agent does.
+_APPROVAL_WORDS = ("approve", "execute")
+
+
+def _within_one_edit(a: str, b: str) -> bool:
+    """True when `a` is `b` with one letter added, dropped, changed or swapped with its neighbour."""
+    if a == b:
+        return True
+    if abs(len(a) - len(b)) > 1:
+        return False
+    if len(a) == len(b):
+        wrong = [i for i in range(len(a)) if a[i] != b[i]]
+        if len(wrong) == 1:
+            return True
+        return (
+            len(wrong) == 2
+            and wrong[1] == wrong[0] + 1
+            and a[wrong[0]] == b[wrong[1]]
+            and a[wrong[1]] == b[wrong[0]]
+        )
+    short, long = (a, b) if len(a) < len(b) else (b, a)
+    i = 0
+    while i < len(short) and short[i] == long[i]:
+        i += 1
+    return short[i:] == long[i + 1 :]
+
+
+def typoed_approval(question: str) -> bool:
+    """True when a word of the question is "approve" or "execute" misspelled by one edit ("aprove", "exectue").
+
+    A correctly spelled word is not a typo: the action words above already catch it. Words under five letters
+    are skipped so short everyday words never match.
+    """
+    for token in _WORD_TOKEN.findall(question.lower()):
+        if len(token) < 5:
+            continue
+        for word in _APPROVAL_WORDS:
+            forms = (word, word + "d", word + "s", word[:-1] + "ing")
+            if token not in forms and any(_within_one_edit(token, form) for form in forms):
+                return True
+    return False
+
+
 def names_an_action(question: str, *, strict: bool = False) -> bool:
     """True when the user's question names a specific action the advice could be limited to.
 
     `strict` widens the set to every word that asks for something to be done; it decides whether a plan
-    that calls the question an unsupported action is believed.
+    that calls the question an unsupported action is believed. A misspelled "approve" or "execute" counts.
     """
     if strict:
-        return _STRICT_ACTION_WORDS.search(_CHECK_NAMES.sub(" ", question)) is not None
+        folded = _CHECK_NAMES.sub(" ", question)
+        return _STRICT_ACTION_WORDS.search(folded) is not None or typoed_approval(question)
     return _ACTION_WORDS.search(question) is not None
+
+
+# "every one of those", "all of them", "those three", "these": the user points at the whole list shown last.
+_BULK_REFERENCE = re.compile(r"\b(?:those|these|them)\b", re.IGNORECASE)
+# The action words a bulk follow-up carries, mapped to the action the advice is limited to.
+_ACTION_BY_WORD = (
+    (re.compile(r"replac|flag", re.IGNORECASE), "replacement_flag"),
+    (re.compile(r"ticket", re.IGNORECASE), "remediation_ticket"),
+    (re.compile(r"upgrad|order", re.IGNORECASE), "upgrade_order"),
+    (re.compile(r"notif|tell|messag|email|remind", re.IGNORECASE), "employee_notification"),
+)
+_MACOS_VERSION = re.compile(r"\bmac\s*os\w*\s*(?:x\s*)?\d", re.IGNORECASE)
+_COMPLIANCE_WORDS = re.compile(
+    r"complian|screen[\s_-]*lock|encrypt|up[\s_-]*to[\s_-]*date", re.IGNORECASE
+)
+_SUMMARY_WORDS = re.compile(
+    r"fleet[\s_-]*health|overall|summar|needs?\s+attention|across|everything", re.IGNORECASE
+)
+_BATTERY_WORDS = re.compile(r"\bbat\w{0,3}r(?:y|ies)\b", re.IGNORECASE)
+
+
+def bulk_action_type(question: str) -> str | None:
+    """The action a "do it for all of those" follow-up names, or None when it names none."""
+    for pattern, action in _ACTION_BY_WORD:
+        if pattern.search(question):
+            return action
+    return None
+
+
+def adjust_tools(plan: Plan, question: str) -> Plan:
+    """The plan with the tool list corrected where the question leaves no doubt which tool is meant.
+
+    A question that names a macOS version needs `macos_version_check`, and not the compliance check unless it
+    asks about compliance too; a battery question that asks for no summary uses `trend`, not `fleet_health`.
+    """
+    if plan.intent != "answer":
+        return plan
+    tools = list(plan.tools)
+    if _MACOS_VERSION.search(question):
+        if "macos_version_check" not in tools:
+            tools.insert(0, "macos_version_check")
+        if not _COMPLIANCE_WORDS.search(question):
+            tools = [t for t in tools if t != "compliance_failures_now"]
+    if (
+        _BATTERY_WORDS.search(question)
+        and not _SUMMARY_WORDS.search(question)
+        and "fleet_health" in tools
+    ):
+        tools = ["trend" if t == "fleet_health" else t for t in tools]
+        tools = list(dict.fromkeys(tools))
+    tools = tools[:MAX_PLANNED_TOOLS]
+    return plan if tools == plan.tools else plan.model_copy(update={"tools": tools})
 
 
 _TOOL_NAMES = frozenset(t.name for t in TOOLS)
@@ -588,6 +694,61 @@ def _planner_memory(state: TurnState) -> memory_module.ConversationMemory | None
     return None
 
 
+def _talks(draft: AnswerEnvelope) -> bool:
+    """Whether the talk step runs for this draft: answers, proposals, chat, and the refusals code declined for
+    lack of evidence or data. Never a security refusal, an off-topic one, a clarification or a failure."""
+    if draft.outcome in ("answer", "proposal", "chat"):
+        return True
+    return draft.outcome in ("denied", "unsupported") and draft.reason_code in REPLY_REASONS
+
+
+def _repeat_hint(draft: AnswerEnvelope, held: memory_module.ConversationMemory) -> str | None:
+    """What the talk step is told when this turn gives the same result as an earlier one, in code's words."""
+    if draft.repeat_of is None:
+        return None
+    number = next((t.turn for t in held.turns if t.trace_id == draft.repeat_of), None)
+    where = f"turn {number}" if number is not None else "an earlier turn"
+    return (
+        f"this is the same result as {where}; say so briefly in one short line and add nothing new."
+    )
+
+
+def _guard_plan(plan: Plan, question: str, focus: list[EntityList]) -> tuple[Plan, str, str] | None:
+    """A corrected plan, the trace summary and the change's name, or None when the plan stands.
+
+    Two misreads the planner makes on live runs, fixed by code. A misspelled approval ("aprove it now") that
+    the planner turned into a question is an unsupported action: nothing here approves anything. A bulk
+    follow-up ("mark every one of those laptops for replacement") after exactly one list is advice for that
+    list, not a question about which list is meant.
+    """
+    if plan.intent != "clarify":
+        return None
+    if typoed_approval(question):
+        return (
+            Plan(intent="unsupported", summary="", refusal_reason="unsupported_action"),
+            "The question asks for an approval in other words; answered as an unsupported action",
+            "clarify_to_unsupported_action",
+        )
+    if (
+        len(focus) == 1
+        and not plan.device_phrase
+        and _BULK_REFERENCE.search(question)
+        and names_an_action(question)
+    ):
+        action = bulk_action_type(question)
+        return (
+            Plan(
+                intent="advise",
+                summary="Advise on every device of the last list.",
+                reference=Reference(kind="all"),
+                action_type=action,  # type: ignore[arg-type]
+            ),
+            "The follow-up points at the one list shown last; answered with advice for it",
+            "clarify_to_advise",
+        )
+    return None
+
+
 def build_graph(llm: LLMGateway, checkpointer: Any):
     """Compile the agent graph around one model gateway and one checkpointer."""
 
@@ -651,6 +812,10 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
         except Exception as exc:  # model outage or unusable structured output
             emit("error", "Planning failed", data={"error": type(exc).__name__})
             return _failure(ctx)
+        guarded = _guard_plan(plan, state["question"], focus)
+        if guarded is not None:
+            plan = guarded[0]
+            emit("plan", guarded[1], data={"changed": guarded[2]})
         converted = False
         if (
             plan.intent == "unsupported"
@@ -668,6 +833,15 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
             converted = True
         before = plan.tools
         plan = without_summary_tool(plan)
+        adjusted = adjust_tools(plan, state["question"])
+        if adjusted.tools != plan.tools:
+            emit(
+                "plan",
+                "The question names its tool plainly; the planned tools were corrected",
+                data={"changed": "tools"},
+            )
+            plan = adjusted
+            before = plan.tools
         emit(
             "plan",
             "Planned the turn",
@@ -714,11 +888,11 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
                 question, options = checked if checked else (None, [])
                 update["envelope"] = _dump(outcomes.clarification(question, options, **kwargs))
         elif plan.intent == "chat":
-            # The talk step comes later; until then a message that is not about the fleet is declined as
-            # off topic, as before. Any note it carried has already been kept.
-            update["envelope"] = _dump(outcomes.refusal("off_topic", **kwargs))
+            # No tools and no lookup: the talk step answers from the conversation's memory and the
+            # capability card. Any note the message carried has already been kept.
+            update["draft"] = _dump(outcomes.chat(**kwargs))
         elif plan.intent in ("refuse", "unsupported") and plan.refusal_reason:
-            update["envelope"] = _dump(
+            refusal = _dump(
                 outcomes.refusal(
                     plan.refusal_reason,
                     missing_topic=plan.missing_topic,
@@ -726,6 +900,9 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
                     **kwargs,
                 )
             )
+            # Only "the data holds no such thing" gets a framing sentence from the talk step; every other
+            # refusal is final as written.
+            update["draft" if plan.refusal_reason in REPLY_REASONS else "envelope"] = refusal
         return update
 
     async def reference_node(state: TurnState, runtime: Runtime[AgentContext]) -> dict[str, Any]:
@@ -983,33 +1160,42 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
                 **({"repeat": True} if draft.repeat_of else {}),
             },
         )
-        if draft.outcome in ("denied", "tool_error"):
+        if draft.outcome == "tool_error" or (
+            draft.outcome == "denied" and draft.reason_code not in REPLY_REASONS
+        ):
             return {"envelope": _dump(draft)}
         return {"draft": _dump(draft), "extras": extras, "fingerprint": fingerprint}
 
-    async def explain_node(state: TurnState, runtime: Runtime[AgentContext]) -> dict[str, Any]:
+    async def talk_node(state: TurnState, runtime: Runtime[AgentContext]) -> dict[str, Any]:
         draft = AnswerEnvelope.model_validate(state["draft"])
-        if draft.outcome != "answer":
+        if not _talks(draft):
             return {"prose": None}
+        held = memory_module.load(state.get("memory"))
         started = time.perf_counter()
         try:
-            explanation = await llm.explain(
-                explain_messages(question=state["question"], facts=composition_of(draft).facts())
+            reply = await llm.reply(
+                talk_messages(
+                    state["question"],
+                    talk_facts(draft, state.get("extras")),
+                    memory_module.render(held),
+                    texts.CAPABILITY_CARD,
+                    _repeat_hint(draft, held),
+                )
             )
-        except Exception as exc:  # the answer is complete without prose
+        except Exception as exc:  # the answer is complete without a reply
             emit(
                 "explain",
-                "Explanation unavailable",
+                "Reply unavailable",
                 data={"ok": False, "error": type(exc).__name__},
             )
             return {"prose": None}
         emit(
             "explain",
-            "Model wrote an explanation",
+            "Model wrote a reply",
             data={"ok": True},
             latency_ms=_ms(started),
         )
-        return {"prose": explanation.model_dump(mode="json")}
+        return {"prose": reply.model_dump(mode="json")}
 
     async def verify_node(state: TurnState, runtime: Runtime[AgentContext]) -> dict[str, Any]:
         ctx = runtime.context
@@ -1031,7 +1217,7 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
         verdict = verify_prose(
             composition_of(draft),
             ctx.as_of,
-            explanation=prose.get("explanation"),
+            explanation=prose.get("text"),
         )
         emit(
             "verify",
@@ -1043,9 +1229,11 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
                 "problems": list(verdict.problems),
             },
         )
-        final = (merged or draft).model_copy(
-            update={"headline": verdict.headline, "explanation": verdict.explanation}
-        )
+        # The checked reply goes in `reply`. `explanation` carries the same text for the outcomes that may have one.
+        update: dict[str, Any] = {"headline": verdict.headline, "reply": verdict.explanation or ""}
+        if draft.outcome not in ("denied", "unsupported", "tool_error"):
+            update["explanation"] = verdict.explanation
+        final = (merged or draft).model_copy(update=update)
         return {"envelope": _dump(AnswerEnvelope.model_validate(final.model_dump()))}
 
     async def respond_node(state: TurnState, runtime: Runtime[AgentContext]) -> dict[str, Any]:
@@ -1082,6 +1270,8 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
     def after_plan(state: TurnState) -> str:
         if state.get("envelope"):
             return "respond"
+        if state.get("draft"):
+            return "talk"  # a chat turn, or a refusal that code declined for lack of data
         plan = state.get("plan") or {}
         # An advise turn always resolves its devices first: a named or pointed-at device, else the last answer's.
         return "reference" if plan.get("reference") or plan.get("intent") == "advise" else "act"
@@ -1097,8 +1287,7 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
     def after_compose(state: TurnState) -> str:
         if state.get("envelope"):
             return "respond"
-        # A repeated answer is not explained again: the code-written headline stands on its own.
-        return "verify" if (state.get("draft") or {}).get("repeat_of") else "explain"
+        return "talk"
 
     graph = StateGraph(TurnState, context_schema=AgentContext)
     graph.add_node("scope", scope)
@@ -1116,19 +1305,19 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
     )
     graph.add_node("collect", collect_node)
     graph.add_node("compose", compose_node)
-    graph.add_node("explain", explain_node)
+    graph.add_node("talk", talk_node)
     graph.add_node("verify", verify_node)
     graph.add_node("respond", respond_node)
 
     graph.add_edge(START, "scope")
     graph.add_edge("scope", "plan")
-    graph.add_conditional_edges("plan", after_plan, ["respond", "reference", "act"])
+    graph.add_conditional_edges("plan", after_plan, ["respond", "talk", "reference", "act"])
     graph.add_conditional_edges("reference", after_reference, ["respond", "act"])
     graph.add_conditional_edges("act", after_act, ["respond", "tools", "compose"])
     graph.add_edge("tools", "collect")
     graph.add_edge("collect", "act")
-    graph.add_conditional_edges("compose", after_compose, ["respond", "explain", "verify"])
-    graph.add_edge("explain", "verify")
+    graph.add_conditional_edges("compose", after_compose, ["respond", "talk"])
+    graph.add_edge("talk", "verify")
     graph.add_edge("verify", "respond")
     graph.add_edge("respond", END)
     return graph.compile(checkpointer=checkpointer)

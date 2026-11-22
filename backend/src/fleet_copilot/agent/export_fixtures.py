@@ -30,8 +30,8 @@ from fleet_copilot.agent.context import AgentContext
 from fleet_copilot.agent.graph import _list_suggestions, _with_extras
 from fleet_copilot.agent.identity import DEMO_IDENTITIES, Identity
 from fleet_copilot.agent.llm import (
-    Explanation,
     Plan,
+    Reply,
     ScriptedLLM,
     final_message,
     tool_calls_message,
@@ -331,14 +331,14 @@ async def live_trace(
 ) -> list[dict]:
     """The trace of one real, scripted `AgentService` turn for a `tools` scenario.
 
-    The scripted model plans, calls the scenario's tools and explains with the fixture's own headline,
+    The scripted model plans, calls the scenario's tools and replies with no text,
     so the trace has the kinds, tools and data keys a live turn produces.
     """
     calls = [(tool, _fill(args, foreign_id)) for tool, args in scenario.calls]
     llm = ScriptedLLM(
         plans=[Plan(intent="answer", summary=scenario.plan)],
         acts=[tool_calls_message(*calls), final_message()],
-        explains=[Explanation(headline=envelope.headline)],
+        explains=[Reply(text="")],
     )
     service = AgentService(db_path=db_path, gateway=llm, checkpointer=InMemorySaver())
     actor = f"admin-{tenant.split('-')[0]}"
@@ -363,12 +363,17 @@ def _golden_screen_lock_target(tenant: str) -> str:
     return failing[0]
 
 
+PROPOSAL_REPLY = (
+    "That ticket proposal is ready for your review, and it stays pending until you approve it."
+)
+
+
 async def live_proposal(
     scenario: Scenario, tenant: str, db_path: Path, actions_db: Path
 ) -> tuple[AnswerEnvelope, list[dict]]:
     """The envelope and trace of one real, scripted turn that proposes a remediation ticket.
 
-    The scripted model plans `propose` and calls `open_remediation_ticket`; the action service decides eligibility
+    The scripted model plans `propose`, calls `open_remediation_ticket` and replies with one line; the action service decides eligibility
     and writes the card, the evidence and the headline. Two things are normalised so the fixture is
     byte-identical between runs: the trace id is fixed through the service's `trace_id_factory`, and the
     proposal id (random per run) is replaced by `prop-<trace id>`. The payload hash is a pure function of the
@@ -380,6 +385,8 @@ async def live_proposal(
     llm = ScriptedLLM(
         plans=[Plan(intent="propose", summary=scenario.plan)],
         acts=[tool_calls_message(*calls), final_message()],
+        # The reply step reads the card's summary; this scripted line stands in for what it would write.
+        explains=[Reply(text=PROPOSAL_REPLY)],
     )
     service = AgentService(
         db_path=db_path,

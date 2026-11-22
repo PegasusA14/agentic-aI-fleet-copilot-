@@ -3,10 +3,10 @@ from langchain_core.messages import AIMessage, HumanMessage
 from pydantic import ValidationError
 
 from fleet_copilot.agent.llm import (
-    Explanation,
     Plan,
     PlanRejected,
     Reference,
+    Reply,
     ScriptedLLM,
     ScriptExhausted,
     final_message,
@@ -226,12 +226,22 @@ def test_well_formed_references_round_trip():
         Reference(kind="ordinal", index=0)
 
 
-def test_explanation_has_loose_hard_limits_and_verify_enforces_the_real_ones():
-    assert Explanation(headline="h").explanation is None
+def test_a_reply_has_a_loose_hard_limit_and_verify_enforces_the_real_ones():
+    assert Reply(text="Hello").text == "Hello" and Reply().text == ""
     with pytest.raises(ValidationError):
-        Explanation(headline="h" * 301)
-    with pytest.raises(ValidationError):
-        Explanation(headline="h", explanation="e" * 1501)
+        Reply(text="e" * 1501)
+
+
+def test_a_reply_reads_a_recorded_explanation_as_its_text():
+    # Responses recorded before replies existed carry `headline` and `explanation`: the explanation is the
+    # text, and the headline (code writes it) is dropped.
+    old = Reply.model_validate(
+        {"headline": "Two devices are low", "explanation": "Both are laptops."}
+    )
+    assert old.text == "Both are laptops."
+    assert Reply.model_validate({"headline": "h", "explanation": None}).text == ""
+    assert Reply.model_validate({"headline": "h"}).text == ""
+    assert Reply.model_validate({"text": "New", "explanation": "ignored"}).text == "New"
 
 
 # ---- the scripted gateway --------------------------------------------------------------------------
@@ -262,10 +272,10 @@ async def test_scripted_llm_raises_a_clear_error_when_exhausted():
 
 
 async def test_a_queued_exception_is_raised_to_simulate_an_outage():
-    llm = ScriptedLLM(explains=[RuntimeError("model down"), Explanation(headline="ok")])
+    llm = ScriptedLLM(explains=[RuntimeError("model down"), Reply(text="ok")])
     with pytest.raises(RuntimeError, match="model down"):
         await llm.explain([HumanMessage("a")])
-    assert (await llm.explain([HumanMessage("b")])).headline == "ok"
+    assert (await llm.reply([HumanMessage("b")])).text == "ok"
 
 
 def test_tool_call_helpers_build_valid_messages_with_unique_ids():

@@ -19,7 +19,7 @@ from langchain_core.messages import AIMessage, BaseMessage
 
 from fleet_copilot import policy
 from fleet_copilot.agent import usage
-from fleet_copilot.agent.llm import ContentFiltered, Explanation, Plan, PlanRejected
+from fleet_copilot.agent.llm import ContentFiltered, Plan, PlanRejected, Reply
 from fleet_copilot.agent.providers import ADAPTERS, DEFAULT_PROVIDER, ProviderAdapter
 from fleet_copilot.agent.tools import TOOLS
 
@@ -55,9 +55,7 @@ class ChatGateway:
         self._plan = model.with_structured_output(Plan, method="function_calling")
         # The reply step may run on its own model; every other step, and every call, is handled alike.
         self._reply_model = reply_model or model
-        self._explain = self._reply_model.with_structured_output(
-            Explanation, method="function_calling"
-        )
+        self._explain = self._reply_model.with_structured_output(Reply, method="function_calling")
         self._tools = tools
         self._model = model
         self._act = model.bind_tools(tools)
@@ -116,11 +114,11 @@ class ChatGateway:
             raise ModelUnavailable("bad_model_message")
         return result
 
-    async def explain(self, messages: list[BaseMessage]) -> Explanation:
+    async def reply(self, messages: list[BaseMessage]) -> Reply:
         """The reply step: uses the reply model when there is one, else the main model."""
         result = await self._call(self._explain, messages)
-        if not isinstance(result, Explanation):
+        if not isinstance(result, Reply):
             raise ModelUnavailable("bad_structured_output")
         return result
 
-    reply = explain  # the name the conversational reply step will use
+    explain = reply  # the earlier name of the same step

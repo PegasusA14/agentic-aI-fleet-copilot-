@@ -5,8 +5,8 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage, Tool
 
 from fleet_copilot.agent.cassette import CassetteGateway, CassetteMiss, call_key
 from fleet_copilot.agent.llm import (
-    Explanation,
     Plan,
+    Reply,
     ScriptedLLM,
     final_message,
     tool_calls_message,
@@ -14,7 +14,7 @@ from fleet_copilot.agent.llm import (
 
 MESSAGES = [SystemMessage("rules"), HumanMessage("which devices are low on disk?")]
 PLAN = Plan(intent="answer", summary="look it up", window_days=7)
-EXPLANATION = Explanation(headline="Two devices are low", explanation=None)
+EXPLANATION = Reply(text="Two devices are low")
 
 
 def test_the_key_depends_on_kind_and_content_only():
@@ -225,3 +225,25 @@ async def test_the_tool_limit_of_an_act_call_reaches_the_recording_model_but_not
     assert inner.calls_of("act")[0].tools == ("trend", "find_devices")
     # replayed without the limit: the same recorded line answers it
     assert (await CassetteGateway(path).act(MESSAGES)).tool_calls == []
+
+
+async def test_an_old_cassette_entry_with_an_explanation_replays_as_a_reply(tmp_path):
+    import json
+
+    path = tmp_path / "old.jsonl"
+    old = {"headline": "Two devices are low", "explanation": "Both are laptops."}
+    line = {"key": call_key("explain", MESSAGES), "kind": "explain", "response": old}
+    path.write_text(json.dumps(line) + "\n", encoding="utf-8")
+    replay = CassetteGateway(path)
+    assert await replay.reply(MESSAGES) == Reply(text="Both are laptops.")
+    assert await replay.explain(MESSAGES) == Reply(text="Both are laptops.")
+
+
+async def test_a_new_reply_is_recorded_as_text_and_replays(tmp_path):
+    import json
+
+    path = tmp_path / "new.jsonl"
+    inner = ScriptedLLM(explains=[Reply(text="Hello there.")])
+    assert (await CassetteGateway(path, inner=inner).reply(MESSAGES)).text == "Hello there."
+    assert json.loads(path.read_text().splitlines()[0])["response"] == {"text": "Hello there."}
+    assert (await CassetteGateway(path).reply(MESSAGES)).text == "Hello there."

@@ -7,12 +7,12 @@ from langchain_core.messages import AIMessage, HumanMessage
 from model_support import FakeChatModel
 
 from fleet_copilot.agent.chat_gateway import ChatGateway, ModelUnavailable
-from fleet_copilot.agent.llm import Explanation, Plan, PlanRejected
+from fleet_copilot.agent.llm import Plan, PlanRejected, Reply
 from fleet_copilot.agent.tools import TOOLS
 
 MESSAGES = [HumanMessage("hi")]
 PLAN = Plan(intent="answer", summary="look it up")
-EXPLANATION = Explanation(headline="Two devices are low")
+EXPLANATION = Reply(text="Two devices are low")
 
 
 def rate_limited() -> openai.RateLimitError:
@@ -45,7 +45,7 @@ async def test_plan_and_explain_use_function_calling_structured_output():
     assert await gw.explain(MESSAGES) == EXPLANATION
     assert {(s.__name__, m) for s, m in model.schemas} == {
         ("Plan", "function_calling"),
-        ("Explanation", "function_calling"),
+        ("Reply", "function_calling"),
     }
 
 

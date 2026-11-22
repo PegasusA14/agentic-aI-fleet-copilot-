@@ -7,7 +7,7 @@ from itertools import count
 from langgraph.checkpoint.memory import InMemorySaver
 
 from fleet_copilot.agent.identity import DEMO_IDENTITIES
-from fleet_copilot.agent.llm import Explanation, Plan, Reference, ScriptedLLM
+from fleet_copilot.agent.llm import Plan, Reference, Reply, ScriptedLLM
 from fleet_copilot.agent.service import AgentService, TurnResult
 
 ACME_ADMIN = DEMO_IDENTITIES["admin-acme"]
@@ -40,8 +40,8 @@ def follow_up_plan(kind="ordinal", index=1, list_hint=None, device_ref=None, **k
     return Plan(intent="answer", summary="follow-up", reference=ref, **kw)
 
 
-def explanation(headline="Two of 10 devices are low on disk", text=None) -> Explanation:
-    return Explanation(headline=headline, explanation=text)
+def explanation(headline="Two of 10 devices are low on disk", text=None) -> Reply:
+    return Reply(text=text or "")
 
 
 def kinds(result: TurnResult) -> list[str]:

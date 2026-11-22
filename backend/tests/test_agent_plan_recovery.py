@@ -116,7 +116,8 @@ async def test_a_missing_topic_gets_the_fixed_text_the_capability_line_and_alter
     real_db_path, topic, text
 ):
     plan = Plan(intent="unsupported", summary="s", missing_topic=topic)
-    llm = ScriptedLLM(plans=[plan])
+    words = "That is not something the data records, but I can look at disk or memory instead."
+    llm = ScriptedLLM(plans=[plan], explains=[explanation(text=words)])
     result = await ask(make_service(real_db_path, llm), "Which devices have a weak Wi-Fi signal?")
     envelope = result.envelope
     assert (envelope.outcome, envelope.reason_code) == ("unsupported", "data_unavailable")
@@ -126,7 +127,10 @@ async def test_a_missing_topic_gets_the_fixed_text_the_capability_line_and_alter
     assert not envelope.claims and not envelope.evidence and envelope.explanation is None
     labels = [a.label for a in envelope.alternatives]
     assert ("Memory pressure" in labels) == (topic == "performance")
-    assert not llm.calls_of("act") and not llm.calls_of("explain")
+    # the fixed text stays; the talk step only frames it in `reply`, and the facts it read are code's
+    assert not llm.calls_of("act") and len(llm.calls_of("explain")) == 1
+    assert envelope.reply == words
+    assert text in llm.calls_of("explain")[0].text
 
 
 async def test_the_model_cannot_word_a_missing_topic_refusal(real_db_path):

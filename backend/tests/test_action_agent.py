@@ -105,6 +105,7 @@ async def test_a_follow_up_ordinal_becomes_a_pending_proposal_for_the_injected_d
         actions_db,
         follow_up_propose(),
         [tool_calls_message(PROPOSE_TICKET), final_message()],
+        later_explains=[explanation(text="That one is ready for your decision.")],
     )
     first_device = listed_ids(listed.envelope)[0]
     result = await ask(service, ASK_TICKET)
@@ -131,9 +132,11 @@ async def test_a_follow_up_ordinal_becomes_a_pending_proposal_for_the_injected_d
     assert [p.proposal_id for p in proposals] == [card.proposal_id]
     assert effect_total(effects) == 0
     assert [a["event"] for a in audit] == ["proposal_created"]
-    assert len(llm.calls_of("explain")) == 1  # only the first (answer) turn explained
-    assert "explain" not in kinds(result)
-    assert kinds(result)[-3:] == ["compose", "verify", "respond"]
+    # the proposal turn is talked about too: the lead is conversational, the card stays code
+    assert len(llm.calls_of("explain")) == 2
+    assert kinds(result)[-4:] == ["compose", "explain", "verify", "respond"]
+    assert envelope.reply == "That one is ready for your decision."
+    assert envelope.explanation == envelope.reply
 
 
 async def test_the_model_sees_no_card_text_employee_or_refs(real_db_path, actions_db):
@@ -459,5 +462,5 @@ async def test_the_topology_has_no_new_nodes(real_db_path):
     service = make_service(real_db_path, llm)
     names = set(service._graph.get_graph().nodes) - {"__start__", "__end__"}
     assert names == {
-        "scope", "plan", "reference", "act", "tools", "collect", "compose", "explain", "verify", "respond",
+        "scope", "plan", "reference", "act", "tools", "collect", "compose", "talk", "verify", "respond",
     }  # fmt: skip

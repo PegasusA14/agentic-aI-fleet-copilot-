@@ -16,6 +16,7 @@ OutcomeType = Literal[
     "denied",
     "unsupported",
     "tool_error",
+    "chat",
 ]
 ActionType = Literal[
     "remediation_ticket", "replacement_flag", "upgrade_order", "employee_notification"
@@ -78,8 +79,17 @@ _VALID_REASONS: dict[str, frozenset[str]] = {
     "tool_error": frozenset({"tool_failure"}),
     "insufficient_data": frozenset({"insufficient_history", "step_limit"}),
     "no_match": frozenset({"no_matching_records"}),
+    "chat": frozenset(),  # a chat reply has no reason
 }
 _NO_FREE_TEXT = {"denied", "unsupported", "tool_error"}
+# Outcomes that carry no claims, evidence or list presentation. A chat reply is words only.
+_NO_CLAIMS = _NO_FREE_TEXT | {"chat"}
+# The refusals a conversational reply may frame: code declined for lack of evidence, or the data holds no
+# such thing. Every other refusal (a missing record, another company, an injected instruction) is fixed text.
+REPLY_REASONS = frozenset(
+    {"not_eligible", "insufficient_evidence", "already_done", "data_unavailable"}
+)
+MAX_REPLY_CHARS = 1500
 ColumnKind = Literal["device", "text", "number", "percent", "version", "pill", "date"]
 Tone = Literal["neutral", "attention", "ok"]
 MAX_TABLE_ROWS = 50
@@ -406,6 +416,9 @@ class AnswerEnvelope(_Model):
     suggested_actions: list[SuggestedAction] = Field(default_factory=list)
     reason_code: ReasonCode | None = None
     explanation: str | None = None
+    # The verified conversational text the model wrote for this turn. Empty when there is none (a fixed
+    # refusal, or a reply that did not pass the checks). `explanation` carries the same text where allowed.
+    reply: str = Field(default="", max_length=MAX_REPLY_CHARS)
     alternatives: list[Alternative] = Field(default_factory=list, max_length=4)
     # What would make a refused action possible, one line each, written by code from the eligibility rules.
     needs: list[Annotated[str, Field(min_length=1, max_length=MAX_NEED_CHARS)]] = Field(
@@ -435,9 +448,7 @@ class AnswerEnvelope(_Model):
             raise ValueError("proposal outcome requires a proposal")
         if self.outcome != "proposal" and self.proposal is not None:
             raise ValueError("only a proposal outcome may carry a proposal")
-        if self.outcome in ("denied", "unsupported", "tool_error") and (
-            self.claims or self.evidence or self.suggested_actions
-        ):
+        if self.outcome in _NO_CLAIMS and (self.claims or self.evidence or self.suggested_actions):
             raise ValueError(f"{self.outcome} outcome must not carry claims or evidence")
         if self.outcome == "answer" and not self.claims:
             raise ValueError("answer outcome requires at least one claim")
@@ -476,7 +487,7 @@ class AnswerEnvelope(_Model):
                 missing = [r for r in row.refs if r not in known]
                 if missing:
                     raise ValueError(f"table row cites refs without evidence: {missing}")
-        if self.outcome in _NO_FREE_TEXT and (
+        if self.outcome in _NO_CLAIMS and (
             self.summary or self.scope_line or self.follow_ups or self.repeat_of
         ):
             raise ValueError(f"{self.outcome} outcome must not carry list-answer presentation")
@@ -508,7 +519,7 @@ class AnswerEnvelope(_Model):
         if not needs_reason and self.reason_code is not None:
             raise ValueError(f"{self.outcome} outcome must not carry a reason_code")
         allowed = _VALID_REASONS.get(self.outcome)
-        if allowed is not None and self.reason_code not in allowed:
+        if self.reason_code is not None and allowed is not None and self.reason_code not in allowed:
             raise ValueError(
                 f"reason_code {self.reason_code} is not valid for a {self.outcome} outcome"
             )
@@ -516,6 +527,8 @@ class AnswerEnvelope(_Model):
             raise ValueError("only an other_company refusal may offer to switch company")
         if self.outcome in _NO_FREE_TEXT and self.explanation is not None:
             raise ValueError(f"{self.outcome} outcome must not carry an explanation")
+        if self.reply and not self._may_reply():
+            raise ValueError(f"a {self.outcome} outcome with this reason must not carry a reply")
         list_ids = [entity_list.list_id for entity_list in self.entity_lists]
         if len(list_ids) != len(set(list_ids)):
             raise ValueError("duplicate entity list ids")
@@ -524,6 +537,12 @@ class AnswerEnvelope(_Model):
             if any(item.device_id not in mentioned for item in entity_list.items):
                 raise ValueError("entity list references a device that no claim mentions")
         return self
+
+    def _may_reply(self) -> bool:
+        """A reply is for answers, proposals, chat and the code-declined refusals; never fixed security text."""
+        if self.outcome in ("denied", "unsupported"):
+            return self.reason_code in REPLY_REASONS
+        return self.outcome in ("answer", "proposal", "chat")
 
     def _check_ref(self, ref: str) -> None:
         """A reference must follow the evidence grammar and point into this envelope's own tenant."""

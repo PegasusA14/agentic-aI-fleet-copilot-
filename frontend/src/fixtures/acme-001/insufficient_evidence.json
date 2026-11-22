@@ -32,6 +32,7 @@
     "proposal": null,
     "reason_code": "not_eligible",
     "repeat_of": null,
+    "reply": "",
     "scope": {
       "as_of": "2026-06-12T11:00:00Z",
       "calculation": null,
@@ -130,6 +131,32 @@
     },
     {
       "data": {
+        "error": "ScriptExhausted",
+        "ok": false
+      },
+      "kind": "explain",
+      "latency_ms": null,
+      "seq": 5,
+      "summary": "Reply unavailable",
+      "tool": null,
+      "trace_id": "replay-acme-001-insufficient_evidence"
+    },
+    {
+      "data": {
+        "evidence_ok": true,
+        "explanation_shown": false,
+        "model_prose": false,
+        "problems": []
+      },
+      "kind": "verify",
+      "latency_ms": null,
+      "seq": 6,
+      "summary": "Checked the answer against the evidence",
+      "tool": null,
+      "trace_id": "replay-acme-001-insufficient_evidence"
+    },
+    {
+      "data": {
         "claims": 0,
         "evidence": 0,
         "outcome": "denied",
@@ -137,7 +164,7 @@
       },
       "kind": "respond",
       "latency_ms": null,
-      "seq": 5,
+      "seq": 7,
       "summary": "Answer ready",
       "tool": null,
       "trace_id": "replay-acme-001-insufficient_evidence"

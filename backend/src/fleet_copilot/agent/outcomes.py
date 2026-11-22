@@ -142,3 +142,13 @@ def action_refusal(
         needs=list(needs),
         alternatives=list(alternatives),
     )
+
+
+def chat(*, company_id: str, as_of: datetime, trace_id: str) -> AnswerEnvelope:
+    """A conversational turn that needs no fleet lookup. The headline is fixed; the reply step adds the words."""
+    return AnswerEnvelope(
+        outcome="chat",
+        trace_id=trace_id,
+        headline=texts.CHAT_HEADLINE,
+        scope=_scope(company_id, as_of),
+    )

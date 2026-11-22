@@ -164,7 +164,15 @@ export type Notes = string[];
 export type NotesCount = number;
 export type OfferSwitchCompany = boolean;
 export type Outcome =
-  "answer" | "no_match" | "insufficient_data" | "clarification" | "proposal" | "denied" | "unsupported" | "tool_error";
+  | "answer"
+  | "no_match"
+  | "insufficient_data"
+  | "clarification"
+  | "proposal"
+  | "denied"
+  | "unsupported"
+  | "tool_error"
+  | "chat";
 export type ActionType = "remediation_ticket" | "replacement_flag" | "upgrade_order" | "employee_notification";
 export type CompanyId = string;
 /**
@@ -198,6 +206,7 @@ export type ReasonCode =
     )
   | null;
 export type RepeatOf = string | null;
+export type Reply = string;
 export type AsOf = string;
 export type Calculation = string | null;
 export type CompanyId1 = string;
@@ -280,6 +289,7 @@ export interface AnswerEnvelope {
   proposal: ProposalCard | null;
   reason_code: ReasonCode;
   repeat_of: RepeatOf;
+  reply: Reply;
   scope: ScopeInfo;
   scope_line: ScopeLine | null;
   suggested_actions: SuggestedActions;

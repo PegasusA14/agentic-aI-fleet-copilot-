@@ -18,6 +18,7 @@ export const OUTCOMES: Record<Outcome, OutcomeStyle> = {
   proposal: { word: "Proposal for your decision", tone: "action", mark: "review" },
   denied: { word: "Not found", tone: "denied", mark: "lock" },
   unsupported: { word: "Not something I can do", tone: "neutral", mark: "hollow" },
+  chat: { word: "Reply", tone: "neutral", mark: "hollow" },
   tool_error: { word: "Lookup failed", tone: "alert", mark: "alert" },
 };
 

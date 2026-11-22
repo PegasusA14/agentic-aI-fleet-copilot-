@@ -12,6 +12,24 @@ OFF_TOPIC = "I can only answer questions about this company's managed devices."
 CAPABILITY_NOTE = (
     "I can answer from hardware, OS, memory, disk, battery, installed software and compliance data."
 )
+# The capability card: what the assistant can and cannot do, written once here. The reply step reads it
+# for small talk and capability questions, so it never describes the assistant from memory of its own.
+CAPABILITY_CARD = (
+    "What the data holds: each device's hardware and model, OS and OS version, memory, primary disk space, "
+    "battery health, installed software and three compliance checks (screen lock, OS up to date, disk "
+    "encryption), as readings taken over time for this one company. "
+    "Questions it answers: lists such as low disk, memory pressure, devices behind on OS updates or failing a "
+    "compliance check, newly installed software and hardware inventory by model; trends over a window for "
+    "disk, memory, battery and compliance; ranked insights with hedged estimates; an overall fleet health "
+    "summary; and what to do next for the devices on screen. "
+    "Actions: four, each only a proposal that a person must approve before anything happens: open a "
+    "remediation ticket, flag a device for replacement, order a memory or storage upgrade, and notify the "
+    "assigned employee. One device per proposal. "
+    "What it cannot see: network and Wi-Fi quality, device location, CPU load or speed, what users do on a "
+    "device, and peripherals such as monitors and printers."
+)
+# What a chat turn shows as its headline; the reply the model wrote goes under it.
+CHAT_HEADLINE = "Happy to help with your fleet."
 _NOT_RECORDED = "aren't something the fleet data records."
 # Fixed wording for a question about data the telemetry does not contain, by the planner's `missing_topic`.
 MISSING_TOPIC_TEXT = {

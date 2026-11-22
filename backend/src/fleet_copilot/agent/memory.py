@@ -27,6 +27,7 @@ MAX_FACT_ROWS = 10  # devices kept per turn
 MAX_FACT_CELLS = 4  # cells (or insight values) kept per device
 MAX_FACT_REFS = 6
 MAX_PROPOSALS_PER_TURN = 4
+MAX_REPLY_KEPT = 400  # characters of a turn's reply kept in memory
 GONE = "unknown"  # status of a remembered proposal the action service no longer knows
 _NUMBER = re.compile(r"\d[\d,]*(?:\.\d+)?")
 
@@ -59,6 +60,8 @@ class TurnMemory(_Model):
     reason_code: str | None = None
     headline: str = ""
     summary: str = ""
+    # What the assistant said under the headline (the checked reply), cut to `MAX_REPLY_KEPT` characters.
+    reply: str = ""
     key_facts: list[KeyFact] = Field(default_factory=list)
     proposals: list[RememberedProposal] = Field(default_factory=list)
     trace_id: str = ""
@@ -168,6 +171,7 @@ def remember_turn(
         reason_code=envelope.reason_code,
         headline=envelope.headline,
         summary=envelope.summary,
+        reply=_one_line(envelope.reply, MAX_REPLY_KEPT),
         key_facts=key_facts_of(envelope),
         proposals=proposals[:MAX_PROPOSALS_PER_TURN],
         trace_id=trace_id,
@@ -244,6 +248,8 @@ def _detail(turn: TurnMemory) -> list[str]:
         lines.append(f"  Answer: {turn.headline}")
     if turn.summary:
         lines.append(f"  Summary: {turn.summary}")
+    if turn.reply:
+        lines.append(f"  Assistant reply: {turn.reply}")
     if turn.key_facts:
         lines.append("  Devices: " + ", ".join(_facts_line(fact) for fact in turn.key_facts))
     for proposal in turn.proposals:
@@ -303,7 +309,7 @@ def memory_facts(memory: ConversationMemory) -> dict[str, frozenset[str]]:
     ids: set[str] = set()
     refs: set[str] = set()
     for turn in memory.turns:
-        texts = [turn.headline, turn.summary]
+        texts = [turn.headline, turn.summary, turn.reply]
         for fact in turn.key_facts:
             labels.add(fact.label)
             ids.add(fact.device_id)

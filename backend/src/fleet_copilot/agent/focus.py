@@ -111,6 +111,9 @@ def resolve_reference(
     hint = _hint_words(reference.list_hint or "")
     if hint:
         hinted = [el for el in focus if _matches(el, hint)]
+        if not hinted and reference.kind == "all" and len(focus) == 1:
+            # "All of those laptops" after one list: the words describe the devices, they do not pick a list.
+            hinted = list(focus)
         if not hinted:
             return NeedsClarification(
                 texts.WHICH_LIST, tuple(el.title for el in focus)[:_MAX_OPTIONS]

@@ -101,6 +101,7 @@
     "proposal": null,
     "reason_code": null,
     "repeat_of": null,
+    "reply": "",
     "scope": {
       "as_of": "2026-06-12T11:00:00Z",
       "calculation": "5 distinct devices across 1 claim; at most 1 supporting reading is cited per device",
@@ -361,7 +362,7 @@
       "kind": "explain",
       "latency_ms": null,
       "seq": 5,
-      "summary": "Model wrote an explanation",
+      "summary": "Model wrote a reply",
       "tool": null,
       "trace_id": "replay-globex-002-inventory_by_model"
     },

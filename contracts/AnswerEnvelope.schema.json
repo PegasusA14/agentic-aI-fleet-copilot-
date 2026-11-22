@@ -1217,7 +1217,8 @@
         "proposal",
         "denied",
         "unsupported",
-        "tool_error"
+        "tool_error",
+        "chat"
       ],
       "title": "Outcome",
       "type": "string"
@@ -1272,6 +1273,12 @@
       ],
       "default": null,
       "title": "Repeat Of"
+    },
+    "reply": {
+      "default": "",
+      "maxLength": 1500,
+      "title": "Reply",
+      "type": "string"
     },
     "scope": {
       "$ref": "#/$defs/ScopeInfo"
@@ -1332,6 +1339,7 @@
     "suggested_actions",
     "reason_code",
     "explanation",
+    "reply",
     "alternatives",
     "needs",
     "offer_switch_company",

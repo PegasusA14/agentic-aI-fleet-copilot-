@@ -55,6 +55,7 @@ ToolName = Literal[
 MAX_PLANNED_TOOLS = 4
 
 _MAX_SUMMARY = 300
+_MAX_REPLY_RAW = 1500  # the model may write this much; verification cuts a reply to the policy caps
 _MAX_OPTIONS = 6
 _MAX_OPTION_LENGTH = 80
 _SECURITY_REASONS = ("cross_tenant", "other_company", "prompt_injection")
@@ -288,15 +289,23 @@ def plan_problems(exc: BaseException) -> list[str] | None:
     return None
 
 
-class Explanation(BaseModel):
-    """Model-written prose. It is verified against code-written facts before it is shown."""
+class Reply(BaseModel):
+    """The model's conversational reply. It is verified against code-written facts before it is shown."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(extra="ignore")
 
-    # Not used: the headline is always the one code writes. The field stays optional so recorded model
-    # responses that carry one still load.
-    headline: str | None = Field(default=None, max_length=300)
-    explanation: str | None = Field(default=None, max_length=1500)
+    text: str = Field(default="", max_length=_MAX_REPLY_RAW)
+
+    @model_validator(mode="before")
+    @classmethod
+    def _read_old_entries(cls, data: object) -> object:
+        """A recorded response from before replies existed has `headline` and `explanation`: the
+        explanation is the text, and the headline (code writes the headline) is dropped."""
+        if isinstance(data, dict) and "text" not in data and "explanation" in data:
+            return {"text": data["explanation"] or ""}
+        if isinstance(data, dict) and data.get("text") is None:
+            return {**data, "text": ""}
+        return data
 
 
 class ContentFiltered(Exception):
@@ -321,7 +330,9 @@ class LLMGateway(Protocol):
         """One evidence-gathering step. `tools` names the only tools the model may call; None is all of them."""
         ...
 
-    async def explain(self, messages: list[BaseMessage]) -> Explanation: ...
+    async def reply(self, messages: list[BaseMessage]) -> Reply:
+        """The conversational reply step (the call kind recorded in traces and cassettes is "explain")."""
+        ...
 
 
 # ---- scripted gateway for tests and replay ---------------------------------------------------------
@@ -374,7 +385,7 @@ class ScriptedLLM:
         *,
         plans: Sequence[Plan | Exception] = (),
         acts: Sequence[AIMessage | Exception] = (),
-        explains: Sequence[Explanation | Exception] = (),
+        explains: Sequence[Reply | Exception] = (),
     ) -> None:
         self._queues: dict[str, deque[Any]] = {
             "plan": deque(plans),
@@ -417,5 +428,7 @@ class ScriptedLLM:
     ) -> AIMessage:
         return self._next("act", messages, tools)
 
-    async def explain(self, messages: list[BaseMessage]) -> Explanation:
+    async def reply(self, messages: list[BaseMessage]) -> Reply:
         return self._next("explain", messages)
+
+    explain = reply  # the earlier name of the same step

@@ -13,8 +13,8 @@ from fleet_copilot.agent.export_fixtures import (
 )
 from fleet_copilot.agent.identity import DEMO_IDENTITIES
 from fleet_copilot.agent.llm import (
-    Explanation,
     Plan,
+    Reply,
     ScriptedLLM,
     final_message,
     tool_calls_message,
@@ -168,7 +168,7 @@ async def test_fixture_traces_have_the_shape_of_a_live_scripted_turn(exported, r
             llm = ScriptedLLM(
                 plans=[Plan(intent="answer", summary=scenario.plan)],
                 acts=[tool_calls_message(*calls), final_message()],
-                explains=[Explanation(headline=fixture["envelope"]["headline"])],
+                explains=[Reply(text="")],
             )
             live = await make_service(real_db_path, llm).run_turn(
                 identity, "c1", scenario.question.replace("{foreign_id}", foreign_id)
@@ -214,11 +214,11 @@ def test_the_proposal_is_a_real_pending_remediation_ticket_in_every_tenant(expor
         assert envelope.claims == [] and envelope.entity_lists == []
 
 
-def test_the_proposal_trace_is_a_real_turn_that_proposes_without_explaining(exported):
+def test_the_proposal_trace_is_a_real_turn_that_proposes_and_replies(exported):
     for tenant in TENANTS:
         trace = load(exported, tenant, "proposal")["trace"]
         kinds = [e["kind"] for e in trace]
-        assert "explain" not in kinds and "plan" in kinds and kinds[-1] == "respond"
+        assert "explain" in kinds and "plan" in kinds and kinds[-1] == "respond"
         calls = [
             e for e in trace if e["kind"] == "tool_call" and e["tool"] == "open_remediation_ticket"
         ]
