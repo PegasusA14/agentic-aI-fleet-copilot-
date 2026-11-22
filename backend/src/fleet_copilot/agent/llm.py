@@ -19,6 +19,7 @@ from pydantic import (
 )
 
 from fleet_copilot import policy
+from fleet_copilot.agent.memory import clean_note
 from fleet_copilot.contracts import ActionType
 
 RefusalReason = Literal[
@@ -53,7 +54,6 @@ ToolName = Literal[
 ]
 MAX_PLANNED_TOOLS = 4
 
-_INTENTS = ("answer", "clarify", "refuse", "unsupported", "propose", "advise")
 _MAX_SUMMARY = 300
 _MAX_OPTIONS = 6
 _MAX_OPTION_LENGTH = 80
@@ -97,6 +97,13 @@ def _word(value: object) -> str | None:
     return text or None
 
 
+def _flag(value: object) -> bool:
+    """A model-written yes/no: true, or the word "true" or "yes"; anything else is no."""
+    if isinstance(value, str):
+        return value.strip().lower() in ("true", "yes")
+    return value is True
+
+
 def _planned_tools(value: object) -> list[str]:
     """The known tool names of a model-written list, in order, once each and at most four.
 
@@ -120,7 +127,7 @@ class Plan(BaseModel):
 
     model_config = ConfigDict(extra="ignore")
 
-    intent: Literal["answer", "clarify", "refuse", "unsupported", "propose", "advise"]
+    intent: Literal["answer", "clarify", "refuse", "unsupported", "propose", "advise", "chat"]
     summary: str = Field(default="", max_length=_MAX_SUMMARY)
     window_days: int | None = Field(default=None, ge=1, le=policy.MAX_WINDOW_DAYS)
     reference: Reference | None = None
@@ -141,6 +148,11 @@ class Plan(BaseModel):
     # The tools the planner expects to need (an `answer` or `propose` plan; empty otherwise). The act step
     # binds these, plus the two device lookups, instead of every tool.
     tools: list[ToolName] = Field(default_factory=list, max_length=MAX_PLANNED_TOOLS)
+    # A preference or context statement the user just made ("I only care about laptops"), kept as a note for
+    # the rest of the conversation. Plain text of at most 200 characters; code drops anything else.
+    remember: str | None = Field(default=None, max_length=policy.MEMORY_NOTE_CHARS)
+    # The user asked to forget the last note ("forget that").
+    forget: bool = False
 
     @model_validator(mode="before")
     @classmethod
@@ -212,6 +224,8 @@ class Plan(BaseModel):
             if intent in ("answer", "propose") or intent is None
             else []
         )
+        repaired["remember"] = clean_note(repaired.get("remember"))
+        repaired["forget"] = _flag(repaired.get("forget"))
         question = repaired.get("clarification_question")
         if intent == "clarify" and (question is None or not str(question).strip()):
             repaired["clarification_question"] = None
@@ -238,7 +252,7 @@ class Plan(BaseModel):
                 "an unsupported plan needs a refusal_reason that is not a security one"
             )
         if (
-            self.intent in ("answer", "clarify", "propose", "advise")
+            self.intent in ("answer", "clarify", "propose", "advise", "chat")
             and self.refusal_reason is not None
         ):
             raise ValueError("refusal_reason is only valid for refuse or unsupported plans")

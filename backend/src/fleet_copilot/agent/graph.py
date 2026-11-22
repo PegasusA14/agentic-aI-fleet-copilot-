@@ -27,6 +27,9 @@ from langgraph.runtime import Runtime
 
 from fleet_copilot import policy
 from fleet_copilot.actions.eligibility import display_hostname
+from fleet_copilot.actions.service import ActionService, ProposalNotFound
+from fleet_copilot.actions.store import ActionStore
+from fleet_copilot.agent import memory as memory_module
 from fleet_copilot.agent import outcomes, texts
 from fleet_copilot.agent.compose import Resolver, compose, suggestion_evidence
 from fleet_copilot.agent.context import AgentContext
@@ -44,6 +47,7 @@ from fleet_copilot.agent.focus import (
     focus_summary,
     resolve_reference,
 )
+from fleet_copilot.agent.identity import Identity
 from fleet_copilot.agent.llm import (
     ContentFiltered,
     LLMGateway,
@@ -209,6 +213,42 @@ def _plan_fallback(ctx: AgentContext, problems: list[str], started: float) -> di
             )
         ),
     }
+
+
+def _status_lookup(ctx: AgentContext) -> Callable[[str], str | None] | None:
+    """Read a proposal's current status from the action service, as this tenant; None when there is no store.
+
+    Read-only: it only calls `ActionService.get`. A proposal the service does not know (or that belongs to
+    another company) reads as gone.
+    """
+    if ctx.actions_db_path is None:
+        return None
+    service = ActionService(fleet_db=ctx.db_path, store=ActionStore(ctx.actions_db_path))
+    identity = Identity(ctx.company_id, ctx.actor_id, "")
+
+    def lookup(proposal_id: str) -> str | None:
+        try:
+            return service.get(identity, proposal_id).status
+        except ProposalNotFound:
+            return None
+
+    return lookup
+
+
+def _refreshed(state: TurnState, ctx: AgentContext) -> dict[str, Any]:
+    """The memory update for the start of a turn: remembered proposals read at their live status."""
+    held = memory_module.load(state.get("memory"))
+    if not any(turn.proposals for turn in held.turns):
+        return {}
+    try:
+        lookup = _status_lookup(ctx)
+        if lookup is None:
+            return {}
+        current = memory_module.refresh_proposals(held, lookup)
+    except Exception as exc:  # the remembered status stays as it was; the turn goes on
+        emit("error", "Reading proposal status failed", data={"error": type(exc).__name__})
+        return {}
+    return {} if current == held else {"memory": memory_module.dump(current)}
 
 
 def inject_focus(name: str, args: ToolCall, focus_ids: list[str] | None) -> ToolCall:
@@ -516,12 +556,45 @@ def _with_extras(draft: AnswerEnvelope, extras: dict[str, Any]) -> AnswerEnvelop
         return None
 
 
+def _apply_notes(plan: Plan, held: memory_module.ConversationMemory) -> dict[str, Any]:
+    """The memory update for what the user asked to remember or forget this turn (none when neither).
+
+    Never for a refused or unsupported question, so a hostile message cannot plant a note. The trace
+    carries counts only, never the note.
+    """
+    if not plan.remember and not plan.forget:
+        return {}
+    kept = memory_module.forget_last_note(held) if plan.forget else held
+    current = memory_module.add_note(kept, plan.remember) if plan.remember else kept
+    emit(
+        "memory",
+        "Updated the notes for this conversation",
+        data={
+            "remembered": current.notes != kept.notes,
+            "forgot": kept.notes != held.notes,
+            "notes": len(current.notes),
+            "turns": len(current.turns),
+        },
+    )
+    return {"memory": memory_module.dump(current)}
+
+
+def _planner_memory(state: TurnState) -> memory_module.ConversationMemory | None:
+    """The memory the planner reads. A conversation saved before memory existed has only `history`, so it
+    keeps reading that until its first turn is remembered."""
+    held = memory_module.load(state.get("memory"))
+    if held.turns or held.notes or not state.get("history"):
+        return held
+    return None
+
+
 def build_graph(llm: LLMGateway, checkpointer: Any):
     """Compile the agent graph around one model gateway and one checkpointer."""
 
     async def scope(state: TurnState, runtime: Runtime[AgentContext]) -> dict[str, Any]:
         emit("scope", "Turn started", data={"company_id": runtime.context.company_id})
         return {
+            **_refreshed(state, runtime.context),
             "turn_messages": [RemoveMessage(id=REMOVE_ALL_MESSAGES)],
             "plan": None,
             "focus_ids": None,
@@ -549,6 +622,7 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
             history=state.get("history") or [],
             focus_lines=focus_summary(focus),
             company_name=ctx.company_name,
+            memory=_planner_memory(state),
         )
         repaired = False
         try:
@@ -625,6 +699,8 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
         update: dict[str, Any] = {"plan": plan.model_dump(mode="json")}
         kwargs = {"company_id": ctx.company_id, "as_of": ctx.as_of, "trace_id": ctx.trace_id}
         scoped = _company_scope_envelope(plan, state["question"], ctx)
+        if scoped is None and plan.intent not in ("refuse", "unsupported"):
+            update.update(_apply_notes(plan, memory_module.load(state.get("memory"))))
         if scoped is not None:
             update["envelope"] = _dump(scoped)
         elif plan.intent == "clarify":
@@ -637,6 +713,10 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
                 )
                 question, options = checked if checked else (None, [])
                 update["envelope"] = _dump(outcomes.clarification(question, options, **kwargs))
+        elif plan.intent == "chat":
+            # The talk step comes later; until then a message that is not about the fleet is declined as
+            # off topic, as before. Any note it carried has already been kept.
+            update["envelope"] = _dump(outcomes.refusal("off_topic", **kwargs))
         elif plan.intent in ("refuse", "unsupported") and plan.refusal_reason:
             update["envelope"] = _dump(
                 outcomes.refusal(
@@ -980,7 +1060,15 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
                 "evidence": len(envelope.evidence),
             },
         )
+        held = memory_module.remember_turn(
+            memory_module.load(state.get("memory")),
+            envelope,
+            state["question"],
+            envelope.trace_id,
+        )
+        envelope = envelope.model_copy(update={"notes_count": len(held.notes)})
         return {
+            "memory": memory_module.dump(held),
             "history": next_history(
                 state.get("history"),
                 state["question"],

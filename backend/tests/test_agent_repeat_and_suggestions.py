@@ -135,7 +135,9 @@ def test_the_fingerprint_depends_on_what_was_answered_not_on_the_words(real_db_p
     )
 
 
-async def test_the_planner_still_sees_only_question_outcome_and_headline(real_db_path):
+async def test_the_planner_sees_the_earlier_turn_but_never_its_fingerprint_or_trace_id(
+    real_db_path,
+):
     llm = scripted(LOW, MEMORY)
     service = make_service(real_db_path, llm)
     first = await ask(service, "low disk?")
@@ -147,7 +149,7 @@ async def test_the_planner_still_sees_only_question_outcome_and_headline(real_db
     assert set(entry) == {"question", "outcome", "headline", "fingerprint", "trace_id"}
     assert entry["trace_id"] == first.envelope.trace_id
     second_plan_text = llm.calls_of("plan")[1].text
-    assert "low disk? | answer |" in second_plan_text
+    assert "Turn 1 | answer | asked: low disk?" in second_plan_text
     assert entry["fingerprint"] not in "\n".join(call.text for call in llm.calls)
     assert first.envelope.trace_id not in second_plan_text
 

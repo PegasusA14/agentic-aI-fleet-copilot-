@@ -26,6 +26,7 @@
     "notes": [
       "The latest battery reading does not report Service Recommended; at least 3 consecutive readings are needed."
     ],
+    "notes_count": 0,
     "offer_switch_company": false,
     "outcome": "denied",
     "proposal": null,

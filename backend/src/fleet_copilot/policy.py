@@ -44,7 +44,11 @@ MODEL_CALL_TIMEOUT_S = 30.0  # one attempt at one model call
 MODEL_ATTEMPTS = 3  # attempts per model call (rate limit, timeout, connection and 5xx errors only)
 MODEL_BACKOFF_S = (1.0, 3.0)  # pause before the 2nd and 3rd attempt
 MAX_QUESTION_CHARS = 2000  # longest question a turn accepts
-MAX_HISTORY_TURNS = 6  # earlier turns the planner may see
+MAX_HISTORY_TURNS = 6  # earlier turns the act step may see
+MEMORY_MAX_TURNS = 30  # turns a conversation's memory keeps
+MEMORY_MAX_NOTES = 10  # things the user asked the assistant to remember in one conversation
+MEMORY_NOTE_CHARS = 200  # longest note, and longest question kept in memory
+MEMORY_MAX_CHARS = 6000  # most characters of memory shown to the planner
 MAX_HEADLINE_CHARS = (
     160  # longest headline the answer text may have (headlines are written by code)
 )

@@ -19,6 +19,7 @@
         "explain",
         "verify",
         "respond",
+        "memory",
         "error"
       ],
       "title": "Kind",

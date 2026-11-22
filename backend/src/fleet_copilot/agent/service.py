@@ -17,6 +17,7 @@ from typing import Any
 from langgraph.checkpoint.sqlite.aio import AsyncSqliteSaver
 
 from fleet_copilot import policy
+from fleet_copilot.agent import memory as memory_module
 from fleet_copilot.agent import outcomes
 from fleet_copilot.agent.context import AgentContext
 from fleet_copilot.agent.graph import RECURSION_LIMIT, build_graph
@@ -156,6 +157,36 @@ class AgentService:
         thread = thread_id(identity, conversation_id)
         async with self._conversation_lock(thread):
             await self._checkpointer.adelete_thread(thread)
+
+    async def notes(self, identity: Identity, conversation_id: str) -> list[dict[str, Any]]:
+        """What this conversation was asked to remember, oldest first: `index` (to forget it), `text`, `turn`.
+
+        Read from the conversation's checkpoint, so only the signed-in admin's own conversation answers.
+        """
+        thread = thread_id(identity, conversation_id)
+        async with self._conversation_lock(thread):
+            state = await self._graph.aget_state({"configurable": {"thread_id": thread}})
+        held = memory_module.load(state.values.get("memory"))
+        return [
+            {"index": index, "text": note.text, "turn": note.turn}
+            for index, note in enumerate(held.notes)
+        ]
+
+    async def forget_note(self, identity: Identity, conversation_id: str, index: int) -> bool:
+        """Remove one note (by the `index` `notes` lists). False when there is no such note."""
+        thread = thread_id(identity, conversation_id)
+        config: dict[str, Any] = {"configurable": {"thread_id": thread}}
+        async with self._conversation_lock(thread):
+            state = await self._graph.aget_state(config)
+            held = memory_module.load(state.values.get("memory"))
+            try:
+                kept = memory_module.forget_note(held, index)
+            except IndexError:
+                return False
+            await self._graph.aupdate_state(
+                config, {"memory": memory_module.dump(kept)}, as_node="respond"
+            )
+        return True
 
     def _record(
         self,

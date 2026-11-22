@@ -1197,6 +1197,12 @@
       "title": "Notes",
       "type": "array"
     },
+    "notes_count": {
+      "default": 0,
+      "minimum": 0,
+      "title": "Notes Count",
+      "type": "integer"
+    },
     "offer_switch_company": {
       "default": false,
       "title": "Offer Switch Company",
@@ -1334,7 +1340,8 @@
     "scope_line",
     "follow_ups",
     "repeat_of",
-    "insights"
+    "insights",
+    "notes_count"
   ],
   "title": "AnswerEnvelope",
   "type": "object"

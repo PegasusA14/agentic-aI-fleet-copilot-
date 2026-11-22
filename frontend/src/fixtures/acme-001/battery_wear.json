@@ -721,6 +721,7 @@
       "The telemetry has no design capacity, so a battery health percentage cannot be computed; capacity change is relative to each device's own first reading in the window.",
       "1 laptop had no battery reading in the latest snapshot (the newest earlier reading was used): MT7PJB7N5LRE."
     ],
+    "notes_count": 0,
     "offer_switch_company": false,
     "outcome": "answer",
     "proposal": null,

@@ -161,6 +161,7 @@ export type Why = string;
  */
 export type Needs = [] | [string] | [string, string] | [string, string, string] | [string, string, string, string];
 export type Notes = string[];
+export type NotesCount = number;
 export type OfferSwitchCompany = boolean;
 export type Outcome =
   "answer" | "no_match" | "insufficient_data" | "clarification" | "proposal" | "denied" | "unsupported" | "tool_error";
@@ -273,6 +274,7 @@ export interface AnswerEnvelope {
   insights: Insights;
   needs: Needs;
   notes: Notes;
+  notes_count: NotesCount;
   offer_switch_company: OfferSwitchCompany;
   outcome: Outcome;
   proposal: ProposalCard | null;

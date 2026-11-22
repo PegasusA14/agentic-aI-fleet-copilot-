@@ -20,6 +20,7 @@
     "notes": [
       "The telemetry has no design capacity, so a battery health percentage cannot be computed; capacity change is relative to each device's own first reading in the window."
     ],
+    "notes_count": 0,
     "offer_switch_company": false,
     "outcome": "no_match",
     "proposal": null,

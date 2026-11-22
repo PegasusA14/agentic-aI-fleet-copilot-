@@ -1,6 +1,6 @@
 """Graph state. Values are plain JSON-friendly types (dicts, strings) so any checkpointer can store them.
 
-`history` and `focus` persist across the turns of one conversation. Everything else is reset by the
+`history`, `focus` and `memory` persist across the turns of one conversation. Everything else is reset by the
 `scope` node at the start of each turn.
 """
 
@@ -28,6 +28,8 @@ class TurnState(TypedDict, total=False):
     # persistent
     history: list[dict[str, str]]
     focus: list[dict[str, Any]]
+    # A `ConversationMemory` dump (agent/memory.py): the turns so far and the user's notes.
+    memory: dict[str, Any]
     # per turn
     question: str
     turn_messages: Annotated[list[AnyMessage], add_messages]

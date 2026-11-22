@@ -578,7 +578,7 @@ async def test_another_company_using_the_same_conversation_id_cannot_see_the_foc
     assert "MT7PJB7N5LRE" not in stolen.envelope.model_dump_json()
     plan_call = llm.calls_of("plan")[1].text
     assert "low disk?" not in plan_call and "MT7PJB7N5LRE" not in plan_call
-    assert "<history>\n(none)\n</history>" in plan_call
+    assert "<memory>\n(none)\n</memory>" in plan_call
 
 
 # ---- the envelope is always valid ----------------------------------------------------------------

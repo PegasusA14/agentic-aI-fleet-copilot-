@@ -497,6 +497,7 @@ def test_every_graph_stage_has_a_trace_kind():
         "explain",
         "verify",
         "respond",
+        "memory",
         "error",
     }
     assert stages == set(get_args(TraceKind))

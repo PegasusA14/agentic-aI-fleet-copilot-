@@ -225,6 +225,11 @@ def _next_to_ascii_digit(text: str, index: int) -> bool:
     return ("0" <= before <= "9" and before != "") or ("0" <= after <= "9" and after != "")
 
 
+def has_markup(text: str) -> bool:
+    """True if `text` could render as markup, a link or an address."""
+    return _MARKUP.search(text) is not None
+
+
 def bad_chars(text: str) -> bool:
     """True if `text` has a character outside what a plain sentence needs.
 

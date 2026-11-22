@@ -11,6 +11,7 @@ export type Kind =
   | "explain"
   | "verify"
   | "respond"
+  | "memory"
   | "error";
 export type LatencyMs = number | null;
 export type Seq = number;

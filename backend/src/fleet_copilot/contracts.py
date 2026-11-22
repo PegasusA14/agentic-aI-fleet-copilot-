@@ -34,6 +34,7 @@ TraceKind = Literal[
     "explain",
     "verify",
     "respond",
+    "memory",
     "error",
 ]
 ReasonCode = Literal[
@@ -421,6 +422,8 @@ class AnswerEnvelope(_Model):
     repeat_of: str | None = None
     # Ranked, code-written findings per device (an answer outcome only), at most MAX_INSIGHTS.
     insights: list[Insight] = Field(default_factory=list, max_length=MAX_INSIGHTS)
+    # How many notes this conversation holds after the turn (things the user asked to be remembered).
+    notes_count: int = Field(default=0, ge=0)
 
     @model_validator(mode="after")
     def _outcome_payloads(self) -> AnswerEnvelope:

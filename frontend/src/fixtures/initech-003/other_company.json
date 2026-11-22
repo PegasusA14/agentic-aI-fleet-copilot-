@@ -14,6 +14,7 @@
     "notes": [
       "I can't read or act on another company's devices from this session. To look at a different company, switch to it first."
     ],
+    "notes_count": 0,
     "offer_switch_company": true,
     "outcome": "denied",
     "proposal": null,

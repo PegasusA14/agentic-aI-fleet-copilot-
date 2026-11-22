@@ -11,6 +11,7 @@ export const KIND_WORD: Record<TraceEvent["kind"], string> = {
   explain: "Explain",
   verify: "Check",
   respond: "Response",
+  memory: "Memory",
   error: "Error",
 };
 

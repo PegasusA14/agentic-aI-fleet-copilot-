@@ -80,6 +80,39 @@ async def delete_conversation(conversation_id: str, request: Request) -> Respons
     return Response(status_code=204)
 
 
+def _own_conversation(request: Request, identity: Identity, conversation_id: str) -> None:
+    """404 unless this admin has this conversation: unknown, malformed, another tenant's and another
+    admin's all look the same."""
+    stored = None
+    if valid_conversation_id(conversation_id):
+        stored = request.app.state.conversations.get(
+            identity.company_id, identity.actor_id, conversation_id
+        )
+    if stored is None:
+        raise HTTPException(404, "not found")
+
+
+@router.get("/conversations/{conversation_id}/notes")
+async def list_notes(
+    conversation_id: str, request: Request, identity: Annotated[Identity, Depends(require_admin)]
+) -> list[dict[str, Any]]:
+    _own_conversation(request, identity, conversation_id)
+    return await request.app.state.service.notes(identity, conversation_id)
+
+
+@router.delete("/conversations/{conversation_id}/notes/{index}", status_code=204)
+async def delete_note(
+    conversation_id: str,
+    index: int,
+    request: Request,
+    identity: Annotated[Identity, Depends(require_admin)],
+) -> Response:
+    _own_conversation(request, identity, conversation_id)
+    if not await request.app.state.service.forget_note(identity, conversation_id, index):
+        raise HTTPException(404, "not found")
+    return Response(status_code=204)
+
+
 @router.post("/chat")
 async def chat(
     body: ChatRequest, request: Request, identity: Annotated[Identity, Depends(require_admin)]
