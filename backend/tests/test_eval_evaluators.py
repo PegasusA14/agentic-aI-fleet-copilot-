@@ -422,9 +422,9 @@ def test_only_tool_call_steps_count_as_calls_not_results_or_blocked_attempts():
 
 def test_tools_not_called_fails_naming_the_forbidden_tool_that_ran():
     trace = tool_trace("trend", "open_remediation_ticket")
-    check = run({"tools_not_called": ["open_remediation_ticket", "device_history"]}, answer(), trace=trace)[
-        0
-    ]
+    check = run(
+        {"tools_not_called": ["open_remediation_ticket", "device_history"]}, answer(), trace=trace
+    )[0]
     assert check.name == "tools_not_called" and not check.passed
     assert "open_remediation_ticket" in check.detail and "device_history" not in check.detail
     assert run({"tools_not_called": ["device_history"]}, answer(), trace=trace)[0].passed

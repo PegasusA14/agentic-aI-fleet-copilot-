@@ -33,6 +33,7 @@
       "payload_hash": "989ad25ac63140aa55779104be4b158b3c367c6a31a445e69d2bd38bdaed243f",
       "proposal_id": "prop-replay-globex-002-proposal",
       "rationale": "screen_lock reports fail with medium severity at the latest reading (2026-06-12); the first failing reading in the last 30 days is 2026-06-05.",
+      "risk": "Affects only globex-thinkpad-6 in globex-002. Simulated: nothing leaves this system. The decision is recorded in Audit.",
       "scope": {
         "check_id": "screen_lock",
         "device": "CUXW0BQSV1B7",
@@ -98,7 +99,6 @@
     {
       "data": {
         "args": {
-          "action_type": "remediation_ticket",
           "check_id": "screen_lock",
           "device_id": "applied"
         }
@@ -106,8 +106,8 @@
       "kind": "tool_call",
       "latency_ms": null,
       "seq": 2,
-      "summary": "Calling propose_action",
-      "tool": "propose_action",
+      "summary": "Calling open_remediation_ticket",
+      "tool": "open_remediation_ticket",
       "trace_id": "replay-globex-002-proposal"
     },
     {
@@ -119,8 +119,8 @@
       "kind": "tool_result",
       "latency_ms": null,
       "seq": 3,
-      "summary": "propose_action returned",
-      "tool": "propose_action",
+      "summary": "open_remediation_ticket returned",
+      "tool": "open_remediation_ticket",
       "trace_id": "replay-globex-002-proposal"
     },
     {

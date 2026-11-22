@@ -70,6 +70,7 @@ export type ExpectedEffect = string;
 export type PayloadHash = string;
 export type ProposalId = string;
 export type Rationale = string;
+export type Risk = string;
 export type Status = "pending" | "approved" | "rejected" | "executed" | "failed" | "uncertain" | "invalidated";
 export type TargetDeviceId = string;
 export type TargetLabel = string;
@@ -241,6 +242,7 @@ export interface ProposalCard {
   payload_hash: PayloadHash;
   proposal_id: ProposalId;
   rationale: Rationale;
+  risk: Risk;
   scope: Scope;
   status: Status;
   target_device_id: TargetDeviceId;

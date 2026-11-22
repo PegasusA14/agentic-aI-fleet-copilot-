@@ -115,10 +115,12 @@ entry; all of that is written by code from the eligibility result.
 
 ### The four actions
 
-The model has one tool, `propose_action(action_type, device_id, check_id?, component?, topic?)`. It proposes ONE
-action for ONE device and works only when the planner classed the turn as `propose`; on any other turn it is an
-input error. At most one proposal is made per turn (extra calls in the same message are dropped), and a request
-that resolves to several devices ("flag all of them") is refused as `unsupported_action`. Eligibility is decided
+The model has four action tools, `create_upgrade_order(device_id, component)`,
+`open_remediation_ticket(device_id, check_id)`, `flag_device_for_replacement(device_id)` and
+`notify_employee(device_id, topic, employee_id?, check_id?)`. Each proposes ONE action for ONE device through
+one shared runner and works only when the planner classed the turn as `propose`; on any other turn it is an
+input error. At most one proposal is made per turn across all four tools (extra calls in the same message are
+dropped), and a request that resolves to several devices ("flag all of them") is refused as `unsupported_action`. Eligibility is decided
 in `actions/eligibility.py` from the signed-in company's own data, as of the dataset's pinned time. A latest
 reading older than `STALE_HOURS` (48 h) before that time is `insufficient_evidence`.
 
@@ -139,6 +141,13 @@ An action that is not eligible is not proposed. The answer is `denied` with reas
 does not support it) or `insufficient_evidence` (a parameter is missing, there are too few readings, or the
 latest one is stale), a fixed headline and a code-written note saying why. An unknown device, or one that belongs
 to another company, is the same uniform `not_found` as everywhere else. Every refusal is written to the audit log.
+
+`notify_employee` may be given an `employee_id`, but only as a claim: the recipient is always the employee on the
+company's own device record, and a different id is refused as the same uniform `not_found` (and audited), whatever
+else is true of the device. Every new proposal card also carries a code-written `risk` line, for example "Affects
+only acme-macbook-2 in Acme. Simulated: nothing leaves this system. The decision is recorded in Audit." It is not
+part of the payload hash: it is built only from fields the hash already covers (action, device, company), so the
+approver signs nothing less, and cards stored before the field existed still load with an empty `risk`.
 
 ### Proposals, approval and execution
 
@@ -348,7 +357,7 @@ only as complete as the provider's response. If Azure omits it for a call, that 
 Two `expect` keys score the tools a turn ran, read from the turn's `tool_call` trace steps:
 
 - `"tools_called": ["low_disk_devices"]`: each named tool must appear among the turn's tool calls.
-- `"tools_not_called": ["propose_action"]`: none of the named tools may appear. `"tools_not_called": "*"` means the
+- `"tools_not_called": ["open_remediation_ticket"]`: none of the named tools may appear. `"tools_not_called": "*"` means the
   turn runs no tool at all (a refusal, an off-topic question, "approve it" in chat).
 
 Names are validated when the scenarios load, against the live tool list (`agent/tools.py` `TOOLS`), so a renamed or

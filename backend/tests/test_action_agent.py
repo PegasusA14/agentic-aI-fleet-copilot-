@@ -14,7 +14,6 @@ from graph_support import (
 
 from fleet_copilot.actions.store import ActionStore
 from fleet_copilot.agent import texts
-from fleet_copilot.agent.tools import PROPOSAL_TOOLS
 from fleet_copilot.agent.llm import (
     Plan,
     Reference,
@@ -22,6 +21,7 @@ from fleet_copilot.agent.llm import (
     final_message,
     tool_calls_message,
 )
+from fleet_copilot.agent.tools import PROPOSAL_TOOLS
 from fleet_copilot.data.loader import connect
 from fleet_copilot.evidence import EvidenceRef
 from fleet_copilot.repository import FleetRepository, TenantContext
@@ -300,7 +300,11 @@ async def test_a_proposal_tool_on_an_answer_plan_is_an_input_error(real_db_path,
     assert result.envelope.claims  # still composed from the read tool
     proposals, effects, audit = state_of(actions_db)
     assert proposals == [] and effect_total(effects) == 0 and audit == []
-    results = [e for e in result.trace if e.kind == "tool_result" and e.tool == "flag_device_for_replacement"]
+    results = [
+        e
+        for e in result.trace
+        if e.kind == "tool_result" and e.tool == "flag_device_for_replacement"
+    ]
     assert [e.data["status"] for e in results] == ["invalid_input"]
 
 
@@ -440,7 +444,9 @@ async def test_the_trace_shows_enumerated_action_arguments_and_hides_the_device(
         [tool_calls_message(PROPOSE_TICKET), final_message()],
     )
     result = await ask(service, ASK_TICKET)
-    call = next(e for e in result.trace if e.kind == "tool_call" and e.tool == "open_remediation_ticket")
+    call = next(
+        e for e in result.trace if e.kind == "tool_call" and e.tool == "open_remediation_ticket"
+    )
     assert call.data["args"] == {
         "device_id": "applied",
         "check_id": "screen_lock",

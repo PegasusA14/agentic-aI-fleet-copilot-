@@ -560,7 +560,12 @@ def notify_employee(
     never supplied. `employee_id` is optional; when given it must be that assigned employee, otherwise the
     device is reported as not found. `check_id` only picks the check for topic failing_check. Use only when the
     user asks for such an action, and call it once."""
-    args = {"device_id": device_id, "topic": topic, "employee_id": employee_id, "check_id": check_id}
+    args = {
+        "device_id": device_id,
+        "topic": topic,
+        "employee_id": employee_id,
+        "check_id": check_id,
+    }
     return _propose("notify_employee", args, runtime)
 
 

@@ -28,9 +28,7 @@ def flag_turn():
     return (
         _named_plan(ACME_FLAG_DEVICE),
         [
-            tool_calls_message(
-                ("flag_device_for_replacement", {"device_id": "x"})
-            ),
+            tool_calls_message(("flag_device_for_replacement", {"device_id": "x"})),
             final_message(),
         ],
     )

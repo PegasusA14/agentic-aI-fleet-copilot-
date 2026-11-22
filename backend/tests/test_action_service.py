@@ -1,7 +1,7 @@
 import json
-from contextlib import closing
 import shutil
 import sqlite3
+from contextlib import closing
 from datetime import UTC, datetime
 
 import pytest
@@ -148,7 +148,9 @@ def test_a_new_card_carries_a_code_written_risk_note_naming_the_device_and_compa
 
 
 def test_the_notification_risk_note_says_who_receives_the_message(svc):
-    got = propose(svc, "employee_notification", "MT7PJB7N5LRE", topic="low_disk", company_name="Acme")
+    got = propose(
+        svc, "employee_notification", "MT7PJB7N5LRE", topic="low_disk", company_name="Acme"
+    )
     assert isinstance(got, Proposed)
     assert "the message goes only to its assigned employee" in got.card.risk
     assert len(got.card.risk) <= 200

@@ -171,6 +171,7 @@ export function upgradeFixture(tenantId: string, name: string): Fixture | null {
     payload_hash: fixtureHash(JSON.stringify(scope) + tenantId),
     proposal_id: `prop-${traceId}`,
     rationale: `${d.reading} in the latest reading.`,
+    risk: `Affects only ${d.label} in ${tenantId}. Simulated: nothing leaves this system. The decision is recorded in Audit.`,
     scope,
     status: "pending",
     target_device_id: d.device_id,
@@ -208,7 +209,7 @@ export function upgradeFixture(tenantId: string, name: string): Fixture | null {
       note: NOTE,
     },
     envelope,
-    trace: trace(traceId, "propose", "propose_action", 0),
+    trace: trace(traceId, "propose", "create_upgrade_order", 0),
   };
 }
 
