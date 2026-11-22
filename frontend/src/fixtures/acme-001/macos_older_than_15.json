@@ -185,49 +185,49 @@
       {
         "action_type": "remediation_ticket",
         "device_id": "7VP16KHV88LM",
-        "label": "Open a remediation ticket (os_up_to_date)",
+        "label": "Open an OS update ticket for acme-macbook-1",
         "reason": "acme-macbook-1: os_up_to_date reports fail with medium severity at the latest reading (2026-06-12); the first failing reading in the last 30 days is 2026-05-14.",
         "refs": [
           "acme-001/7VP16KHV88LM@2026-06-12T10:41:00Z#compliance[os_up_to_date]",
           "acme-001/7VP16KHV88LM@2026-05-14T11:09:00Z#compliance[os_up_to_date]"
         ],
-        "request": "Open a remediation ticket for os_up_to_date on acme-macbook-1",
+        "request": "Open a remediation ticket for the OS update check on acme-macbook-1",
         "target_label": "acme-macbook-1"
       },
       {
         "action_type": "remediation_ticket",
         "device_id": "1LYSSFD074BB",
-        "label": "Open a remediation ticket (os_up_to_date)",
+        "label": "Open an OS update ticket for acme-macbook-2",
         "reason": "acme-macbook-2: os_up_to_date reports fail with medium severity at the latest reading (2026-06-12); the first failing reading in the last 30 days is 2026-05-14.",
         "refs": [
           "acme-001/1LYSSFD074BB@2026-06-12T09:47:00Z#compliance[os_up_to_date]",
           "acme-001/1LYSSFD074BB@2026-05-14T09:54:00Z#compliance[os_up_to_date]"
         ],
-        "request": "Open a remediation ticket for os_up_to_date on acme-macbook-2",
+        "request": "Open a remediation ticket for the OS update check on acme-macbook-2",
         "target_label": "acme-macbook-2"
       },
       {
         "action_type": "remediation_ticket",
         "device_id": "MT7PJB7N5LRE",
-        "label": "Open a remediation ticket (os_up_to_date)",
+        "label": "Open an OS update ticket for acme-macbook-4",
         "reason": "acme-macbook-4: os_up_to_date reports fail with medium severity at the latest reading (2026-06-12); the first failing reading in the last 30 days is 2026-05-14.",
         "refs": [
           "acme-001/MT7PJB7N5LRE@2026-06-12T08:39:00Z#compliance[os_up_to_date]",
           "acme-001/MT7PJB7N5LRE@2026-05-14T11:14:00Z#compliance[os_up_to_date]"
         ],
-        "request": "Open a remediation ticket for os_up_to_date on acme-macbook-4",
+        "request": "Open a remediation ticket for the OS update check on acme-macbook-4",
         "target_label": "acme-macbook-4"
       },
       {
         "action_type": "remediation_ticket",
         "device_id": "XSU9UUDGU6AC",
-        "label": "Open a remediation ticket (os_up_to_date)",
+        "label": "Open an OS update ticket for acme-macbook-6",
         "reason": "acme-macbook-6: os_up_to_date reports fail with medium severity at the latest reading (2026-06-12); the first failing reading in the last 30 days is 2026-05-14.",
         "refs": [
           "acme-001/XSU9UUDGU6AC@2026-06-12T09:52:00Z#compliance[os_up_to_date]",
           "acme-001/XSU9UUDGU6AC@2026-05-14T09:11:00Z#compliance[os_up_to_date]"
         ],
-        "request": "Open a remediation ticket for os_up_to_date on acme-macbook-6",
+        "request": "Open a remediation ticket for the OS update check on acme-macbook-6",
         "target_label": "acme-macbook-6"
       }
     ],

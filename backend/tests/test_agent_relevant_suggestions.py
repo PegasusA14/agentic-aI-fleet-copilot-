@@ -12,6 +12,7 @@ from graph_support import (
     make_service,
 )
 
+from fleet_copilot.actions.recommend import check_name
 from fleet_copilot.agent.context import AgentContext
 from fleet_copilot.agent.llm import Plan, ScriptedLLM, final_message, tool_calls_message
 from fleet_copilot.agent.present import SUBJECT_ACTIONS
@@ -109,7 +110,7 @@ async def test_a_macos_answer_offers_only_os_up_to_date_tickets(real_db_path, id
     )
     assert envelope.suggested_actions
     assert {s.action_type for s in envelope.suggested_actions} == {"remediation_ticket"}
-    assert all("(os_up_to_date)" in s.label for s in envelope.suggested_actions)
+    assert all("OS update ticket" in s.label for s in envelope.suggested_actions)
 
 
 async def test_the_initech_macos_answer_has_no_storage_upgrade_and_no_screen_lock_ticket(
@@ -125,7 +126,7 @@ async def test_the_initech_macos_answer_has_no_storage_upgrade_and_no_screen_loc
         "XZYK11QTPWEC",
     }
     assert not any(
-        "storage" in s.label or "screen_lock" in s.label for s in envelope.suggested_actions
+        "storage" in s.label or "screen lock" in s.label for s in envelope.suggested_actions
     )
     assert not any(s.action_type == "employee_notification" for s in envelope.suggested_actions)
 
@@ -140,7 +141,7 @@ async def test_a_compliance_answer_offers_tickets_for_the_checks_it_lists(real_d
     assert envelope.suggested_actions
     assert {s.action_type for s in envelope.suggested_actions} == {"remediation_ticket"}
     for s in envelope.suggested_actions:
-        assert any(f"({check})" in s.label for check in shown), (s.label, shown)
+        assert any(f"{check_name(check)} ticket" in s.label for check in shown), (s.label, shown)
 
 
 async def test_a_one_check_compliance_answer_offers_only_that_checks_tickets(real_db_path):
@@ -151,7 +152,7 @@ async def test_a_one_check_compliance_answer_offers_only_that_checks_tickets(rea
     )
     assert envelope.suggested_actions
     assert all(
-        s.action_type == "remediation_ticket" and "(screen_lock)" in s.label
+        s.action_type == "remediation_ticket" and "screen lock ticket" in s.label
         for s in envelope.suggested_actions
     )
 
@@ -164,7 +165,7 @@ async def test_a_compliance_trend_offers_tickets_for_its_check(real_db_path):
     )
     assert envelope.suggested_actions
     assert all(
-        s.action_type == "remediation_ticket" and "(screen_lock)" in s.label
+        s.action_type == "remediation_ticket" and "screen lock ticket" in s.label
         for s in envelope.suggested_actions
     )
 

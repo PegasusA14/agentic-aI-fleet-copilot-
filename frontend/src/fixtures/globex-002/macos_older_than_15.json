@@ -141,25 +141,25 @@
       {
         "action_type": "remediation_ticket",
         "device_id": "4SEFDLPTKXAM",
-        "label": "Open a remediation ticket (os_up_to_date)",
+        "label": "Open an OS update ticket for globex-macbook-3",
         "reason": "globex-macbook-3: os_up_to_date reports fail with medium severity at the latest reading (2026-06-12); the first failing reading in the last 30 days is 2026-05-14.",
         "refs": [
           "globex-002/4SEFDLPTKXAM@2026-06-12T08:34:00Z#compliance[os_up_to_date]",
           "globex-002/4SEFDLPTKXAM@2026-05-14T11:00:00Z#compliance[os_up_to_date]"
         ],
-        "request": "Open a remediation ticket for os_up_to_date on globex-macbook-3",
+        "request": "Open a remediation ticket for the OS update check on globex-macbook-3",
         "target_label": "globex-macbook-3"
       },
       {
         "action_type": "remediation_ticket",
         "device_id": "QPZSXKINA7GP",
-        "label": "Open a remediation ticket (os_up_to_date)",
+        "label": "Open an OS update ticket for globex-macbook-5",
         "reason": "globex-macbook-5: os_up_to_date reports fail with medium severity at the latest reading (2026-06-12); the first failing reading in the last 30 days is 2026-05-14.",
         "refs": [
           "globex-002/QPZSXKINA7GP@2026-06-12T10:04:00Z#compliance[os_up_to_date]",
           "globex-002/QPZSXKINA7GP@2026-05-14T10:46:00Z#compliance[os_up_to_date]"
         ],
-        "request": "Open a remediation ticket for os_up_to_date on globex-macbook-5",
+        "request": "Open a remediation ticket for the OS update check on globex-macbook-5",
         "target_label": "globex-macbook-5"
       }
     ],

@@ -32,13 +32,31 @@ _TOPIC_PHRASE = {
     "battery_service": "its battery service recommendation",
 }
 
+# What a person calls each compliance check ("an OS update ticket"). Unknown ids read as their own words.
+_CHECK_NAME = {
+    "os_up_to_date": "OS update",
+    "screen_lock": "screen lock",
+    "disk_encryption": "disk encryption",
+}
+
+
+def check_name(check_id: str) -> str:
+    return _CHECK_NAME.get(check_id, check_id.replace("_", " "))
+
+
+def _a(phrase: str) -> str:
+    """`a screen lock`, `an OS update`: the article by sound, treating a leading capital acronym as spoken letters."""
+    first = phrase[:1]
+    spoken_vowel = first.lower() in "aeiou" or (phrase[:2].isupper() and first in "FHLMNORSX")
+    return f"{'an' if spoken_vowel else 'a'} {phrase}"
+
 
 @dataclass(frozen=True)
 class Suggestion:
     action_type: ActionType
     device_id: str
     target_label: str  # hostname
-    label: str  # chip text, e.g. "Order a storage upgrade (1 TiB → 2 TiB)"
+    label: str  # chip text, e.g. "Order a storage upgrade (1 TiB → 2 TiB) for acme-macbook-4"
     reason: str  # code-written from eligibility, numbers from data
     refs: tuple[str, ...]  # tenant evidence refs, from eligibility
     params: dict[str, str]  # canonical, from eligibility
@@ -64,19 +82,19 @@ def _suggestion(got: Eligible, label: str, request: str) -> Suggestion:
 
 
 def _ticket(got: Eligible) -> Suggestion:
-    check_id = got.params["check_id"]
+    name = check_name(got.params["check_id"])
     host = got.target_label
     return _suggestion(
         got,
-        f"Open a remediation ticket ({check_id})",
-        f"Open a remediation ticket for {check_id} on {host}",
+        f"Open {_a(name)} ticket for {host}",
+        f"Open a remediation ticket for the {name} check on {host}",
     )
 
 
 def _replacement(got: Eligible) -> Suggestion:
     return _suggestion(
         got,
-        "Flag for replacement (battery service recommended)",
+        f"Flag {got.target_label} for replacement",
         f"Flag {got.target_label} for replacement",
     )
 
@@ -85,18 +103,24 @@ def _upgrade(got: Eligible) -> Suggestion:
     p = got.params
     return _suggestion(
         got,
-        f"Order a {p['component']} upgrade ({p['current']} → {p['target']})",
+        f"Order a {p['component']} upgrade ({p['current']} → {p['target']}) for {got.target_label}",
         f"Order a {p['component']} upgrade for {got.target_label}",
     )
 
 
 def _notification(got: Eligible, check_id: str | None) -> Suggestion:
     topic = got.params["topic"]
-    phrase = f"its failing {check_id} check" if topic == "failing_check" else _TOPIC_PHRASE[topic]
+    host = got.target_label
+    if topic == "failing_check" and check_id is not None:
+        phrase = f"its failing {check_name(check_id)} check"
+        about = f"{_a('failing ' + check_name(check_id))} check"
+    else:
+        phrase = _TOPIC_PHRASE[topic]
+        about = "battery service" if topic == "battery_service" else phrase
     return _suggestion(
         got,
-        f"Notify the employee ({phrase})",
-        f"Send the employee of {got.target_label} a notification about {phrase}",
+        f"Notify the owner of {host} about {about}",
+        f"Send the employee of {host} a notification about {phrase}",
     )
 
 

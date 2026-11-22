@@ -107,7 +107,7 @@
       {
         "action_type": "upgrade_order",
         "device_id": "M4XVHUV1MEPZ",
-        "label": "Order a memory upgrade (16 GiB → 32 GiB)",
+        "label": "Order a memory upgrade (16 GiB → 32 GiB) for acme-dell-9",
         "reason": "acme-dell-9: Memory use at or above 85% on 7 of 7 readings in the last 7 days; the latest reading is 99.0% used. Current memory size is 16 GiB.",
         "refs": [
           "acme-001/M4XVHUV1MEPZ@2026-06-06T09:19:00Z#memory",

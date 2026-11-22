@@ -182,73 +182,73 @@
       {
         "action_type": "remediation_ticket",
         "device_id": "4SEFDLPTKXAM",
-        "label": "Open a remediation ticket (os_up_to_date)",
+        "label": "Open an OS update ticket for globex-macbook-3",
         "reason": "globex-macbook-3: os_up_to_date reports fail with medium severity at the latest reading (2026-06-12); the first failing reading in the last 30 days is 2026-05-14.",
         "refs": [
           "globex-002/4SEFDLPTKXAM@2026-06-12T08:34:00Z#compliance[os_up_to_date]",
           "globex-002/4SEFDLPTKXAM@2026-05-14T11:00:00Z#compliance[os_up_to_date]"
         ],
-        "request": "Open a remediation ticket for os_up_to_date on globex-macbook-3",
+        "request": "Open a remediation ticket for the OS update check on globex-macbook-3",
         "target_label": "globex-macbook-3"
       },
       {
         "action_type": "remediation_ticket",
         "device_id": "CUXW0BQSV1B7",
-        "label": "Open a remediation ticket (os_up_to_date)",
+        "label": "Open an OS update ticket for globex-thinkpad-6",
         "reason": "globex-thinkpad-6: os_up_to_date reports fail with medium severity at the latest reading (2026-06-12); the first failing reading in the last 30 days is 2026-05-14.",
         "refs": [
           "globex-002/CUXW0BQSV1B7@2026-06-12T10:47:00Z#compliance[os_up_to_date]",
           "globex-002/CUXW0BQSV1B7@2026-05-14T11:14:00Z#compliance[os_up_to_date]"
         ],
-        "request": "Open a remediation ticket for os_up_to_date on globex-thinkpad-6",
+        "request": "Open a remediation ticket for the OS update check on globex-thinkpad-6",
         "target_label": "globex-thinkpad-6"
       },
       {
         "action_type": "remediation_ticket",
         "device_id": "CUXW0BQSV1B7",
-        "label": "Open a remediation ticket (screen_lock)",
+        "label": "Open a screen lock ticket for globex-thinkpad-6",
         "reason": "globex-thinkpad-6: screen_lock reports fail with medium severity at the latest reading (2026-06-12); the first failing reading in the last 30 days is 2026-06-05.",
         "refs": [
           "globex-002/CUXW0BQSV1B7@2026-06-12T10:47:00Z#compliance[screen_lock]",
           "globex-002/CUXW0BQSV1B7@2026-06-05T09:11:00Z#compliance[screen_lock]"
         ],
-        "request": "Open a remediation ticket for screen_lock on globex-thinkpad-6",
+        "request": "Open a remediation ticket for the screen lock check on globex-thinkpad-6",
         "target_label": "globex-thinkpad-6"
       },
       {
         "action_type": "remediation_ticket",
         "device_id": "Q1AFVLH3YV33",
-        "label": "Open a remediation ticket (os_up_to_date)",
+        "label": "Open an OS update ticket for globex-macbook-4",
         "reason": "globex-macbook-4: os_up_to_date reports fail with medium severity at the latest reading (2026-06-12); the first failing reading in the last 30 days is 2026-05-14.",
         "refs": [
           "globex-002/Q1AFVLH3YV33@2026-06-12T08:34:00Z#compliance[os_up_to_date]",
           "globex-002/Q1AFVLH3YV33@2026-05-14T10:18:00Z#compliance[os_up_to_date]"
         ],
-        "request": "Open a remediation ticket for os_up_to_date on globex-macbook-4",
+        "request": "Open a remediation ticket for the OS update check on globex-macbook-4",
         "target_label": "globex-macbook-4"
       },
       {
         "action_type": "remediation_ticket",
         "device_id": "QPZSXKINA7GP",
-        "label": "Open a remediation ticket (os_up_to_date)",
+        "label": "Open an OS update ticket for globex-macbook-5",
         "reason": "globex-macbook-5: os_up_to_date reports fail with medium severity at the latest reading (2026-06-12); the first failing reading in the last 30 days is 2026-05-14.",
         "refs": [
           "globex-002/QPZSXKINA7GP@2026-06-12T10:04:00Z#compliance[os_up_to_date]",
           "globex-002/QPZSXKINA7GP@2026-05-14T10:46:00Z#compliance[os_up_to_date]"
         ],
-        "request": "Open a remediation ticket for os_up_to_date on globex-macbook-5",
+        "request": "Open a remediation ticket for the OS update check on globex-macbook-5",
         "target_label": "globex-macbook-5"
       },
       {
         "action_type": "remediation_ticket",
         "device_id": "JRZSGXVMKE6M",
-        "label": "Open a remediation ticket (screen_lock)",
+        "label": "Open a screen lock ticket for globex-thinkpad-8",
         "reason": "globex-thinkpad-8: screen_lock reports fail with medium severity at the latest reading (2026-06-12); the first failing reading in the last 30 days is 2026-05-30.",
         "refs": [
           "globex-002/JRZSGXVMKE6M@2026-06-12T10:46:00Z#compliance[screen_lock]",
           "globex-002/JRZSGXVMKE6M@2026-05-30T11:27:00Z#compliance[screen_lock]"
         ],
-        "request": "Open a remediation ticket for screen_lock on globex-thinkpad-8",
+        "request": "Open a remediation ticket for the screen lock check on globex-thinkpad-8",
         "target_label": "globex-thinkpad-8"
       }
     ],

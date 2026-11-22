@@ -178,49 +178,49 @@
       {
         "action_type": "remediation_ticket",
         "device_id": "SPKRRDF0L786",
-        "label": "Open a remediation ticket (os_up_to_date)",
+        "label": "Open an OS update ticket for initech-macbook-2",
         "reason": "initech-macbook-2: os_up_to_date reports fail with medium severity at the latest reading (2026-06-12); the first failing reading in the last 30 days is 2026-05-14.",
         "refs": [
           "initech-003/SPKRRDF0L786@2026-06-12T10:13:00Z#compliance[os_up_to_date]",
           "initech-003/SPKRRDF0L786@2026-05-14T10:23:00Z#compliance[os_up_to_date]"
         ],
-        "request": "Open a remediation ticket for os_up_to_date on initech-macbook-2",
+        "request": "Open a remediation ticket for the OS update check on initech-macbook-2",
         "target_label": "initech-macbook-2"
       },
       {
         "action_type": "remediation_ticket",
         "device_id": "XZYK11QTPWEC",
-        "label": "Open a remediation ticket (os_up_to_date)",
+        "label": "Open an OS update ticket for initech-macbook-7",
         "reason": "initech-macbook-7: os_up_to_date reports fail with medium severity at the latest reading (2026-06-12); the first failing reading in the last 30 days is 2026-05-14.",
         "refs": [
           "initech-003/XZYK11QTPWEC@2026-06-12T10:36:00Z#compliance[os_up_to_date]",
           "initech-003/XZYK11QTPWEC@2026-05-14T09:40:00Z#compliance[os_up_to_date]"
         ],
-        "request": "Open a remediation ticket for os_up_to_date on initech-macbook-7",
+        "request": "Open a remediation ticket for the OS update check on initech-macbook-7",
         "target_label": "initech-macbook-7"
       },
       {
         "action_type": "remediation_ticket",
         "device_id": "DARFCP0BQM2G",
-        "label": "Open a remediation ticket (os_up_to_date)",
+        "label": "Open an OS update ticket for initech-macbook-6",
         "reason": "initech-macbook-6: os_up_to_date reports fail with medium severity at the latest reading (2026-06-12); the first failing reading in the last 30 days is 2026-05-14.",
         "refs": [
           "initech-003/DARFCP0BQM2G@2026-06-12T10:31:00Z#compliance[os_up_to_date]",
           "initech-003/DARFCP0BQM2G@2026-05-14T09:53:00Z#compliance[os_up_to_date]"
         ],
-        "request": "Open a remediation ticket for os_up_to_date on initech-macbook-6",
+        "request": "Open a remediation ticket for the OS update check on initech-macbook-6",
         "target_label": "initech-macbook-6"
       },
       {
         "action_type": "remediation_ticket",
         "device_id": "RLD7WV7J82SH",
-        "label": "Open a remediation ticket (os_up_to_date)",
+        "label": "Open an OS update ticket for initech-mac-4",
         "reason": "initech-mac-4: os_up_to_date reports fail with medium severity at the latest reading (2026-06-12); the first failing reading in the last 30 days is 2026-05-14.",
         "refs": [
           "initech-003/RLD7WV7J82SH@2026-06-12T08:50:00Z#compliance[os_up_to_date]",
           "initech-003/RLD7WV7J82SH@2026-05-14T09:33:00Z#compliance[os_up_to_date]"
         ],
-        "request": "Open a remediation ticket for os_up_to_date on initech-mac-4",
+        "request": "Open a remediation ticket for the OS update check on initech-mac-4",
         "target_label": "initech-mac-4"
       }
     ],

@@ -71,8 +71,8 @@ def test_sustained_low_disk_devices_get_storage_upgrades(real_conn, as_of, uncap
             if s.params["component"] == "storage"
         ]
         assert upgrade.params == {"component": "storage", "current": current, "target": target}
-        assert upgrade.label == f"Order a storage upgrade ({current} → {target})"
         hostname = upgrade.target_label
+        assert upgrade.label == f"Order a storage upgrade ({current} → {target}) for {hostname}"
         assert upgrade.request == f"Order a storage upgrade for {hostname}"
         assert hostname in upgrade.reason
         assert upgrade.reason.rstrip().endswith(".")
@@ -94,6 +94,7 @@ def test_the_notification_is_for_the_strongest_current_finding(real_conn, as_of,
     assert note.params["topic"] == "battery_service"
     assert note.request.startswith("Send")
     assert note.target_label in note.request
+    assert note.label == f"Notify the owner of {note.target_label} about battery service"
 
 
 def test_a_low_disk_device_without_battery_findings_is_notified_about_low_disk(
@@ -113,10 +114,10 @@ def test_memory_pressure_device_gets_a_memory_upgrade_and_a_replacement_flag(
     (mem,) = [s for s in of_type(out, "upgrade_order") if s.params["component"] == "memory"]
     assert mem.device_id == "M4XVHUV1MEPZ"
     assert (mem.params["current"], mem.params["target"]) == ("16 GiB", "32 GiB")
-    assert mem.label == "Order a memory upgrade (16 GiB → 32 GiB)"
+    assert mem.label == f"Order a memory upgrade (16 GiB → 32 GiB) for {mem.target_label}"
     (flag,) = of_type(out, "replacement_flag")
     assert flag.device_id == "M4XVHUV1MEPZ"
-    assert flag.label == "Flag for replacement (battery service recommended)"
+    assert flag.label == f"Flag {flag.target_label} for replacement"
     assert flag.request == f"Flag {flag.target_label} for replacement"
     assert raw_latest["M4XVHUV1MEPZ"]["battery"]["condition"] == "Service Recommended"
 
@@ -145,15 +146,18 @@ def test_a_ticket_per_currently_failing_check_with_the_data_severity(
                 if c["check_id"] == check_id
             )
             assert ticket.params["severity"] == severity
-            assert check_id in ticket.label
-            assert check_id in ticket.request
-            assert ticket.target_label in ticket.request
+            name = rec.check_name(check_id)
+            assert check_id not in ticket.label and check_id not in ticket.request
+            assert ticket.label.endswith(f"{name} ticket for {ticket.target_label}")
+            assert ticket.request == (
+                f"Open a remediation ticket for the {name} check on {ticket.target_label}"
+            )
 
 
 def test_a_device_with_nothing_eligible_yields_nothing():
     row = make_row(device="CALM", battery=None)
     repo = FleetRepository(make_conn([row]), TenantContext("acme-001", "recommend-test"))
-    as_of = dataset_as_of(repo._conn)  # noqa: SLF001
+    as_of = dataset_as_of(repo._conn)
     assert rec.recommend(repo, as_of, ["CALM"]) == []
 
 
@@ -254,7 +258,7 @@ def test_failing_high_severity_checks_come_first():
         ),
     ]
     repo = FleetRepository(make_conn(rows), TenantContext("acme-001", "recommend-test"))
-    out = rec.recommend(repo, dataset_as_of(repo._conn), ["D1"])  # noqa: SLF001
+    out = rec.recommend(repo, dataset_as_of(repo._conn), ["D1"])
     assert [(s.action_type, s.params.get("check_id")) for s in out[:2]] == [
         ("remediation_ticket", "disk_encryption"),
         ("remediation_ticket", "screen_lock"),
@@ -284,10 +288,31 @@ def test_battery_service_ranks_below_failing_high_but_above_checks():
         for day in (8, 9, 10, 11, 12)
     ]
     repo = FleetRepository(make_conn(rows), TenantContext("acme-001", "recommend-test"))
-    out = rec.recommend(repo, dataset_as_of(repo._conn), ["D2"])  # noqa: SLF001
+    out = rec.recommend(repo, dataset_as_of(repo._conn), ["D2"])
     kinds = [(s.action_type, s.params.get("check_id")) for s in out]
     assert kinds[:3] == [
         ("remediation_ticket", "disk_encryption"),
         ("replacement_flag", None),
         ("remediation_ticket", "screen_lock"),
     ]
+
+
+def test_chip_labels_are_human_and_distinct_for_each_check():
+    assert rec.check_name("os_up_to_date") == "OS update"
+    assert rec._a("OS update") == "an OS update"
+    assert rec._a("screen lock") == "a screen lock"
+    assert rec._a("disk encryption") == "a disk encryption"
+    assert rec._a("failing OS update") == "a failing OS update"
+    assert rec.check_name("new_thing") == "new thing"
+
+
+def test_a_device_failing_two_checks_gets_two_different_ticket_labels(real_conn, as_of, uncapped):
+    repo = repo_for(real_conn)
+    out = rec.recommend(repo, as_of, sorted(ACME["devices"]))
+    tickets = of_type(out, "remediation_ticket")
+    by_device: dict[str, list[str]] = {}
+    for t in tickets:
+        by_device.setdefault(t.device_id, []).append(t.label)
+    for labels in by_device.values():
+        assert len(labels) == len(set(labels))
+    assert all("(" not in t.label and "_" not in t.label for t in tickets)

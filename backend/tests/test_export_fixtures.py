@@ -304,7 +304,7 @@ _SUBJECT_STEPS = {
         s["action_type"] == "upgrade_order" and "memory upgrade" in s["label"]
     ),
     "macos_older_than_15": lambda s: (
-        s["action_type"] == "remediation_ticket" and "(os_up_to_date)" in s["label"]
+        s["action_type"] == "remediation_ticket" and "OS update ticket" in s["label"]
     ),
     "compliance_failures": lambda s: s["action_type"] == "remediation_ticket",
     "battery_wear": lambda s: (

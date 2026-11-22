@@ -119,7 +119,7 @@
       {
         "action_type": "upgrade_order",
         "device_id": "JRZSGXVMKE6M",
-        "label": "Order a memory upgrade (16 GiB → 32 GiB)",
+        "label": "Order a memory upgrade (16 GiB → 32 GiB) for globex-thinkpad-8",
         "reason": "globex-thinkpad-8: Memory use at or above 85% on 8 of 8 readings in the last 7 days; the latest reading is 88.8% used. Current memory size is 16 GiB.",
         "refs": [
           "globex-002/JRZSGXVMKE6M@2026-06-05T11:03:00Z#memory",

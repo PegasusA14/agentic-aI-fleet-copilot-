@@ -218,73 +218,73 @@
       {
         "action_type": "remediation_ticket",
         "device_id": "DARFCP0BQM2G",
-        "label": "Open a remediation ticket (os_up_to_date)",
+        "label": "Open an OS update ticket for initech-macbook-6",
         "reason": "initech-macbook-6: os_up_to_date reports fail with medium severity at the latest reading (2026-06-12); the first failing reading in the last 30 days is 2026-05-14.",
         "refs": [
           "initech-003/DARFCP0BQM2G@2026-06-12T10:31:00Z#compliance[os_up_to_date]",
           "initech-003/DARFCP0BQM2G@2026-05-14T09:53:00Z#compliance[os_up_to_date]"
         ],
-        "request": "Open a remediation ticket for os_up_to_date on initech-macbook-6",
+        "request": "Open a remediation ticket for the OS update check on initech-macbook-6",
         "target_label": "initech-macbook-6"
       },
       {
         "action_type": "remediation_ticket",
         "device_id": "I3JLKILKQTAC",
-        "label": "Open a remediation ticket (os_up_to_date)",
+        "label": "Open an OS update ticket for initech-mac-3",
         "reason": "initech-mac-3: os_up_to_date reports fail with medium severity at the latest reading (2026-06-12); the first failing reading in the last 30 days is 2026-05-14.",
         "refs": [
           "initech-003/I3JLKILKQTAC@2026-06-12T10:57:00Z#compliance[os_up_to_date]",
           "initech-003/I3JLKILKQTAC@2026-05-14T09:19:00Z#compliance[os_up_to_date]"
         ],
-        "request": "Open a remediation ticket for os_up_to_date on initech-mac-3",
+        "request": "Open a remediation ticket for the OS update check on initech-mac-3",
         "target_label": "initech-mac-3"
       },
       {
         "action_type": "remediation_ticket",
         "device_id": "RLD7WV7J82SH",
-        "label": "Open a remediation ticket (os_up_to_date)",
+        "label": "Open an OS update ticket for initech-mac-4",
         "reason": "initech-mac-4: os_up_to_date reports fail with medium severity at the latest reading (2026-06-12); the first failing reading in the last 30 days is 2026-05-14.",
         "refs": [
           "initech-003/RLD7WV7J82SH@2026-06-12T08:50:00Z#compliance[os_up_to_date]",
           "initech-003/RLD7WV7J82SH@2026-05-14T09:33:00Z#compliance[os_up_to_date]"
         ],
-        "request": "Open a remediation ticket for os_up_to_date on initech-mac-4",
+        "request": "Open a remediation ticket for the OS update check on initech-mac-4",
         "target_label": "initech-mac-4"
       },
       {
         "action_type": "remediation_ticket",
         "device_id": "SPKRRDF0L786",
-        "label": "Open a remediation ticket (os_up_to_date)",
+        "label": "Open an OS update ticket for initech-macbook-2",
         "reason": "initech-macbook-2: os_up_to_date reports fail with medium severity at the latest reading (2026-06-12); the first failing reading in the last 30 days is 2026-05-14.",
         "refs": [
           "initech-003/SPKRRDF0L786@2026-06-12T10:13:00Z#compliance[os_up_to_date]",
           "initech-003/SPKRRDF0L786@2026-05-14T10:23:00Z#compliance[os_up_to_date]"
         ],
-        "request": "Open a remediation ticket for os_up_to_date on initech-macbook-2",
+        "request": "Open a remediation ticket for the OS update check on initech-macbook-2",
         "target_label": "initech-macbook-2"
       },
       {
         "action_type": "remediation_ticket",
         "device_id": "SPKRRDF0L786",
-        "label": "Open a remediation ticket (screen_lock)",
+        "label": "Open a screen lock ticket for initech-macbook-2",
         "reason": "initech-macbook-2: screen_lock reports fail with medium severity at the latest reading (2026-06-12); the first failing reading in the last 30 days is 2026-05-26.",
         "refs": [
           "initech-003/SPKRRDF0L786@2026-06-12T10:13:00Z#compliance[screen_lock]",
           "initech-003/SPKRRDF0L786@2026-05-26T09:13:00Z#compliance[screen_lock]"
         ],
-        "request": "Open a remediation ticket for screen_lock on initech-macbook-2",
+        "request": "Open a remediation ticket for the screen lock check on initech-macbook-2",
         "target_label": "initech-macbook-2"
       },
       {
         "action_type": "remediation_ticket",
         "device_id": "W2656QDAE2ZJ",
-        "label": "Open a remediation ticket (os_up_to_date)",
+        "label": "Open an OS update ticket for initech-dell-1",
         "reason": "initech-dell-1: os_up_to_date reports fail with medium severity at the latest reading (2026-06-12); the first failing reading in the last 30 days is 2026-05-14.",
         "refs": [
           "initech-003/W2656QDAE2ZJ@2026-06-12T09:48:00Z#compliance[os_up_to_date]",
           "initech-003/W2656QDAE2ZJ@2026-05-14T10:42:00Z#compliance[os_up_to_date]"
         ],
-        "request": "Open a remediation ticket for os_up_to_date on initech-dell-1",
+        "request": "Open a remediation ticket for the OS update check on initech-dell-1",
         "target_label": "initech-dell-1"
       }
     ],

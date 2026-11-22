@@ -747,7 +747,7 @@
       {
         "action_type": "replacement_flag",
         "device_id": "8NM23J95R5I6",
-        "label": "Flag for replacement (battery service recommended)",
+        "label": "Flag acme-thinkpad-8 for replacement",
         "reason": "acme-thinkpad-8: The last 21 battery readings, from 2026-05-23 to 2026-06-12, report the condition Service Recommended.",
         "refs": [
           "acme-001/8NM23J95R5I6@2026-05-23T09:01:00Z#battery",
@@ -763,7 +763,7 @@
       {
         "action_type": "replacement_flag",
         "device_id": "M4XVHUV1MEPZ",
-        "label": "Flag for replacement (battery service recommended)",
+        "label": "Flag acme-dell-9 for replacement",
         "reason": "acme-dell-9: The last 20 battery readings, from 2026-05-24 to 2026-06-12, report the condition Service Recommended.",
         "refs": [
           "acme-001/M4XVHUV1MEPZ@2026-05-24T10:05:00Z#battery",
@@ -779,7 +779,7 @@
       {
         "action_type": "replacement_flag",
         "device_id": "7VP16KHV88LM",
-        "label": "Flag for replacement (battery service recommended)",
+        "label": "Flag acme-macbook-1 for replacement",
         "reason": "acme-macbook-1: The last 14 battery readings, from 2026-05-30 to 2026-06-12, report the condition Service Recommended.",
         "refs": [
           "acme-001/7VP16KHV88LM@2026-05-30T09:16:00Z#battery",
@@ -795,7 +795,7 @@
       {
         "action_type": "employee_notification",
         "device_id": "8NM23J95R5I6",
-        "label": "Notify the employee (its battery service recommendation)",
+        "label": "Notify the owner of acme-thinkpad-8 about battery service",
         "reason": "acme-thinkpad-8: The latest battery reading (2026-06-12) reports the condition Service Recommended.",
         "refs": [
           "acme-001/8NM23J95R5I6@2026-06-12T09:02:00Z#battery"
@@ -806,7 +806,7 @@
       {
         "action_type": "employee_notification",
         "device_id": "M4XVHUV1MEPZ",
-        "label": "Notify the employee (its battery service recommendation)",
+        "label": "Notify the owner of acme-dell-9 about battery service",
         "reason": "acme-dell-9: The latest battery reading (2026-06-12) reports the condition Service Recommended.",
         "refs": [
           "acme-001/M4XVHUV1MEPZ@2026-06-12T11:00:00Z#battery"
@@ -817,7 +817,7 @@
       {
         "action_type": "employee_notification",
         "device_id": "7VP16KHV88LM",
-        "label": "Notify the employee (its battery service recommendation)",
+        "label": "Notify the owner of acme-macbook-1 about battery service",
         "reason": "acme-macbook-1: The latest battery reading (2026-06-12) reports the condition Service Recommended.",
         "refs": [
           "acme-001/7VP16KHV88LM@2026-06-12T10:41:00Z#battery"

@@ -107,7 +107,7 @@
       {
         "action_type": "upgrade_order",
         "device_id": "I3JLKILKQTAC",
-        "label": "Order a memory upgrade (8 GiB → 16 GiB)",
+        "label": "Order a memory upgrade (8 GiB → 16 GiB) for initech-mac-3",
         "reason": "initech-mac-3: Memory use at or above 85% on 7 of 7 readings in the last 7 days; the latest reading is 89.0% used. Current memory size is 8 GiB.",
         "refs": [
           "initech-003/I3JLKILKQTAC@2026-06-06T08:38:00Z#memory",

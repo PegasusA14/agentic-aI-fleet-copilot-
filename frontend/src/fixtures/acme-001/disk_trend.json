@@ -160,7 +160,7 @@
       {
         "action_type": "upgrade_order",
         "device_id": "8NM23J95R5I6",
-        "label": "Order a storage upgrade (1 TiB → 2 TiB)",
+        "label": "Order a storage upgrade (1 TiB → 2 TiB) for acme-thinkpad-8",
         "reason": "acme-thinkpad-8: Free space below 10% on 7 of 7 readings in the last 7 days; the latest reading is 2.6% free. Current storage size is 1 TiB.",
         "refs": [
           "acme-001/8NM23J95R5I6@2026-06-06T08:49:00Z#disk",
@@ -176,7 +176,7 @@
       {
         "action_type": "upgrade_order",
         "device_id": "MT7PJB7N5LRE",
-        "label": "Order a storage upgrade (512 GiB → 1 TiB)",
+        "label": "Order a storage upgrade (512 GiB → 1 TiB) for acme-macbook-4",
         "reason": "acme-macbook-4: Free space below 10% on 7 of 7 readings in the last 7 days; the latest reading is 2.0% free. Current storage size is 512 GiB.",
         "refs": [
           "acme-001/MT7PJB7N5LRE@2026-06-06T08:53:00Z#disk",
@@ -192,7 +192,7 @@
       {
         "action_type": "employee_notification",
         "device_id": "8NM23J95R5I6",
-        "label": "Notify the employee (low disk space)",
+        "label": "Notify the owner of acme-thinkpad-8 about low disk space",
         "reason": "acme-thinkpad-8: Free space on the primary volume is 2.6% at the latest reading (2026-06-12); the rule is below 10%.",
         "refs": [
           "acme-001/8NM23J95R5I6@2026-06-12T09:02:00Z#disk"
@@ -203,7 +203,7 @@
       {
         "action_type": "employee_notification",
         "device_id": "MT7PJB7N5LRE",
-        "label": "Notify the employee (low disk space)",
+        "label": "Notify the owner of acme-macbook-4 about low disk space",
         "reason": "acme-macbook-4: Free space on the primary volume is 2.0% at the latest reading (2026-06-12); the rule is below 10%.",
         "refs": [
           "acme-001/MT7PJB7N5LRE@2026-06-12T08:39:00Z#disk"

@@ -160,7 +160,7 @@
       {
         "action_type": "upgrade_order",
         "device_id": "E4V0SB5I0MYU",
-        "label": "Order a storage upgrade (512 GiB → 1 TiB)",
+        "label": "Order a storage upgrade (512 GiB → 1 TiB) for globex-dell-7",
         "reason": "globex-dell-7: Free space below 10% on 8 of 8 readings in the last 7 days; the latest reading is 2.4% free. Current storage size is 512 GiB.",
         "refs": [
           "globex-002/E4V0SB5I0MYU@2026-06-05T11:26:00Z#disk",
@@ -176,7 +176,7 @@
       {
         "action_type": "upgrade_order",
         "device_id": "JRZSGXVMKE6M",
-        "label": "Order a storage upgrade (1 TiB → 2 TiB)",
+        "label": "Order a storage upgrade (1 TiB → 2 TiB) for globex-thinkpad-8",
         "reason": "globex-thinkpad-8: Free space below 10% on 8 of 8 readings in the last 7 days; the latest reading is 2.0% free. Current storage size is 1 TiB.",
         "refs": [
           "globex-002/JRZSGXVMKE6M@2026-06-05T11:03:00Z#disk",
@@ -192,7 +192,7 @@
       {
         "action_type": "employee_notification",
         "device_id": "E4V0SB5I0MYU",
-        "label": "Notify the employee (low disk space)",
+        "label": "Notify the owner of globex-dell-7 about low disk space",
         "reason": "globex-dell-7: Free space on the primary volume is 2.4% at the latest reading (2026-06-12); the rule is below 10%.",
         "refs": [
           "globex-002/E4V0SB5I0MYU@2026-06-12T08:54:00Z#disk"
@@ -203,7 +203,7 @@
       {
         "action_type": "employee_notification",
         "device_id": "JRZSGXVMKE6M",
-        "label": "Notify the employee (low disk space)",
+        "label": "Notify the owner of globex-thinkpad-8 about low disk space",
         "reason": "globex-thinkpad-8: Free space on the primary volume is 2.0% at the latest reading (2026-06-12); the rule is below 10%.",
         "refs": [
           "globex-002/JRZSGXVMKE6M@2026-06-12T10:46:00Z#disk"
