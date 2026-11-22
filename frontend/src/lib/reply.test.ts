@@ -15,12 +15,34 @@ describe("replyOf", () => {
     expect(replyOf(PROPOSAL, "rejected").lead).toBe("Rejected: no action was taken.");
   });
 
-  it("leads with the explanation when there is one, and says so", () => {
-    expect(replyOf({ ...LOW_DISK, explanation: "Two laptops are nearly full." })).toEqual({
-      lead: "Two laptops are nearly full.",
-      explanation: "Two laptops are nearly full.",
-    });
-    expect(replyOf(LOW_DISK)).toEqual({ lead: LOW_DISK.headline, explanation: null });
+  it("always leads an answer with the composer's headline, even when the model wrote an explanation", () => {
+    const explained = { ...LOW_DISK, summary: "", explanation: "Two laptops are nearly full. They need more storage." };
+    expect(replyOf(explained).lead).toBe(LOW_DISK.headline);
+    expect(replyOf(explained).headline).toBe(true);
+    expect(replyOf(LOW_DISK)).toMatchObject({ lead: LOW_DISK.headline, explanation: null, headline: true });
+  });
+
+  it("puts one sentence under the headline: the summary, else the first sentence of the explanation", () => {
+    expect(replyOf(LOW_DISK).support).toBe(LOW_DISK.summary);
+    const explained = { ...LOW_DISK, summary: "", explanation: "Two laptops are nearly full. They need more storage." };
+    expect(replyOf(explained).support).toBe("Two laptops are nearly full.");
+    expect(replyOf(explained).explanation).toBe("Two laptops are nearly full. They need more storage.");
+    expect(replyOf({ ...explained, explanation: null }).support).toBeNull();
+  });
+
+  it("prefers the code-written summary to the model's explanation", () => {
+    const both = { ...LOW_DISK, explanation: "Something the model said." };
+    expect(replyOf(both).support).toBe(LOW_DISK.summary);
+  });
+
+  it("adds no second sentence when the explanation only repeats the headline", () => {
+    const echo = { ...LOW_DISK, summary: "", explanation: LOW_DISK.headline };
+    expect(replyOf(echo).support).toBeNull();
+  });
+
+  it("gives a clarification or a pending proposal no supporting sentence", () => {
+    expect(replyOf(PROPOSAL).support).toBeNull();
+    expect(replyOf(PROPOSAL, "rejected").support).toBeNull();
   });
 });
 
@@ -40,6 +62,23 @@ describe("leadCount", () => {
       m: 10,
       rest: " devices have under 10% disk space free",
     });
+  });
+
+  it("reads '4 of your 5 …' and keeps the words between the two numbers", () => {
+    expect(leadCount("4 of your 5 Macs are behind macOS 15.")).toEqual({
+      kind: "of",
+      n: 4,
+      m: 5,
+      joiner: " of your ",
+      rest: " Macs are behind macOS 15.",
+    });
+    expect(leadCount("3 of the 8 laptops")).toMatchObject({ n: 3, m: 8, joiner: " of the " });
+  });
+
+  it("never ticks an identifier or a version", () => {
+    expect(leadCount("14.5 of 15 is the version")).toBeNull();
+    expect(leadCount("4 of your 5.2 Macs")).toBeNull();
+    expect(leadCount("MT7PJB7N5LRE has 2 of 10")).toBeNull();
   });
 
   it("reads N from a headline that opens 'N actions'", () => {
