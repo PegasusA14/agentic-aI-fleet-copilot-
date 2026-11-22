@@ -3,6 +3,7 @@ import { motion } from "motion/react";
 import { useEffect, useId, useMemo, useRef, useState } from "react";
 import { copyText, notesFor, numberEvidence, scopeLineText, sortRows, type SortState } from "../../lib/answerTable";
 import { EXCLUDED_TEXT, plural, reasonWords } from "../../lib/format";
+import { unplacedActions } from "../../lib/insights";
 import { CROSSFADE, ENTER, FOLD_IN, FOLD_OUT, Presence, usePrefersReducedMotion } from "../../lib/motion";
 import { leadCount, replyOf } from "../../lib/reply";
 import { refusalKind } from "../../lib/refusal";
@@ -14,6 +15,7 @@ import { AnswerDisclosures, HOT_MS, type HotSource } from "./AnswerDisclosures";
 import { AnswerTable } from "./AnswerTable";
 import { ClarificationCard } from "./ClarificationCard";
 import { RefusalCard } from "./RefusalCard";
+import { InsightList } from "./InsightList";
 import { RepeatCard } from "./RepeatCard";
 import { ReplyTools } from "./ReplyTools";
 import { AlternativeChips, NextSteps, focusComposer } from "./SuggestionChips";
@@ -197,9 +199,11 @@ export function AssistantMessage({
   const suggestions = envelope.suggested_actions ?? [];
   const followUps = envelope.follow_ups ?? [];
   /** A list answer carries a table: the table, its scope line and the disclosures say what the claim sentence listed. */
-  const hasTable = Boolean(table) && outcome === "answer";
+  const hasInsights = outcome === "answer" && envelope.insights.length > 0;
+  /** An insight answer is a list of finding cards; it reads like a list answer everywhere else: no Details, compact next steps. */
+  const hasTable = (Boolean(table) && outcome === "answer") || hasInsights;
   /** An advice reply says each action in its claims and chips. A list answer may carry suggestions too, and keeps its table. */
-  const isAdvice = suggestions.length > 0 && !table;
+  const isAdvice = suggestions.length > 0 && !table && !hasInsights;
   /** The reply carries the claims only when nothing else already says them: no table, no explanation, no chips that name each action. */
   const claimsInReply = !hasTable && !explanation && !envelope.proposal && !isAdvice && envelope.claims.length > 0;
   const lists = isAdvice || hasTable ? [] : envelope.entity_lists;
@@ -243,7 +247,7 @@ export function AssistantMessage({
 
   const nextSteps = (
     <NextSteps
-      actions={suggestions}
+      actions={hasInsights ? unplacedActions(envelope.insights, suggestions) : suggestions}
       followUps={followUps}
       busy={busy}
       onAsk={onAsk}
@@ -294,7 +298,21 @@ export function AssistantMessage({
 
           {claimsInReply ? <Claims claims={envelope.claims} /> : null}
 
-          {hasTable && table ? (
+          {hasInsights ? (
+            <InsightList
+              envelope={envelope}
+              numbered={numbered}
+              note={note}
+              open={folds}
+              onOpen={(which, value) => setFolds((now) => ({ ...now, [which]: value }))}
+              hot={hot}
+              rowId={rowId}
+              onOpenTrace={onOpenTrace}
+              busy={busy}
+              onAsk={onAsk}
+              reopened={reopened}
+            />
+          ) : hasTable && table ? (
             <>
               <AnswerTable
                 table={table}

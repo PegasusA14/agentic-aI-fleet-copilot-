@@ -32,6 +32,23 @@ describe("routeQuestion", () => {
     }
   });
 
+  it("sends battery and fleet-health questions to the insight answers", () => {
+    for (const tenant of TENANTS) {
+      for (const question of [
+        "Which batteries are approaching end-of-life?",
+        "Which laptop batteries are wearing out?",
+        "Show the 30-day battery history of acme-thinkpad-8",
+      ]) {
+        expect(scenario(tenant.id, question)).toBe("battery_wear");
+      }
+      for (const question of ["Give me a fleet health summary", "What needs attention?", "fleet health summary"]) {
+        expect(scenario(tenant.id, question)).toBe("fleet_health");
+      }
+    }
+    expect(routeQuestion("acme-001", "Which batteries are approaching end-of-life?").envelope.insights.length).toBeGreaterThan(0);
+    expect(routeQuestion("acme-001", "What needs attention?").envelope.insights.length).toBeGreaterThan(0);
+  });
+
   it("answers each shorter home-screen suggestion with the real answer it stands for", () => {
     const expected = ["low_disk", "macos_older_than_15", "compliance_failures"];
     HOME_SUGGESTIONS.forEach((question, i) => {

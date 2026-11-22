@@ -1,5 +1,5 @@
 import { ListTree } from "lucide-react";
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, type ReactNode } from "react";
 import { plural } from "../../lib/format";
 import { usePrefersReducedMotion } from "../../lib/motion";
 import { readingValue, type NumberedEvidence } from "../../lib/answerTable";
@@ -59,10 +59,12 @@ interface AnswerDisclosuresProps {
   hot: HotSource | null;
   rowId: (n: number) => string;
   onOpenTrace: () => void;
+  /** A fold that leads the others in the same card (an insight answer's "Everything else"). */
+  first?: ReactNode;
 }
 
 /** Evidence, Not checked and How I got this: three folds under a list answer, one hairline card. */
-export function AnswerDisclosures({ envelope, numbered, note, open, onOpen, hot, rowId, onOpenTrace }: AnswerDisclosuresProps) {
+export function AnswerDisclosures({ envelope, numbered, note, open, onOpen, hot, rowId, onOpenTrace, first }: AnswerDisclosuresProps) {
   const { scope, coverage } = envelope;
   const excluded = coverage?.excluded_devices ?? [];
   const notChecked = Math.max(envelope.scope_line?.not_checked ?? 0, excluded.length);
@@ -70,6 +72,7 @@ export function AnswerDisclosures({ envelope, numbered, note, open, onOpen, hot,
   const missing = coverage?.missing_latest.length ?? 0;
   return (
     <div className="discs">
+      {first}
       {numbered.length > 0 ? (
         <Disclosure
           title="Evidence"

@@ -3,6 +3,15 @@ import { type Fixture, fixturesFor, getFixture } from "./fixtures";
 
 export const FALLBACK_SCENARIO = "clarification";
 
+/**
+ * Words a stored scenario answers beyond the keywords it was recorded with: the insight answers, asked the ways people ask.
+ * "batteries" does not contain "battery", so the plural and the end-of-life wording are named here.
+ */
+const ALSO_ANSWERS: Record<string, string[]> = {
+  battery_wear: ["batteries", "end-of-life", "end of life", "battery health", "battery history"],
+  fleet_health: ["what needs attention", "health summary", "how is the fleet", "fleet status"],
+};
+
 function normalise(text: string): string {
   return text.toLowerCase().replace(/\s+/g, " ").trim();
 }
@@ -23,7 +32,8 @@ export function routeQuestion(tenantId: string, question: string): Fixture {
   if (advice) return advice;
   let best: { fixture: Fixture; score: number } | null = null;
   for (const fixture of fixturesFor(tenantId)) {
-    const score = fixture.meta.keywords.reduce(
+    const words = [...fixture.meta.keywords, ...(ALSO_ANSWERS[fixture.meta.scenario] ?? [])];
+    const score = words.reduce(
       (sum, keyword) => (text.includes(keyword.toLowerCase()) ? sum + keyword.length : sum),
       0,
     );

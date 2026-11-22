@@ -220,10 +220,15 @@ export function tableAsText(table: AnswerTable, rows: Row[] = table.rows): strin
   return lines.join("\n");
 }
 
+/** An insight answer as text: one line per finding, most urgent first. */
+function insightsAsText(envelope: AnswerEnvelope): string {
+  return envelope.insights.map((insight) => `${insight.severity === "act_soon" ? "Act soon" : insight.severity === "watch" ? "Watch" : "OK"}: ${insight.finding}`).join("\n");
+}
+
 /** What the Copy button puts on the clipboard: the headline, the supporting sentence, then the table as the person sees it. */
 export function copyText(envelope: AnswerEnvelope, rows?: Row[]): string {
   const head = [envelope.headline, envelope.summary].map((s) => s?.trim()).filter(Boolean).join("\n");
-  const body = envelope.table ? tableAsText(envelope.table, rows) : "";
+  const body = envelope.insights.length > 0 ? insightsAsText(envelope) : envelope.table ? tableAsText(envelope.table, rows) : "";
   return [head, body].filter(Boolean).join("\n\n");
 }
 
