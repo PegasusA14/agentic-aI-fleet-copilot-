@@ -20,7 +20,7 @@ from typing import Any
 from pydantic import BaseModel, ConfigDict, Field
 
 from fleet_copilot import policy
-from fleet_copilot.agent.verify import bad_chars, has_markup
+from fleet_copilot.agent.verify import bad_chars, has_markup, stated_month_days
 from fleet_copilot.contracts import AnswerEnvelope
 
 MAX_FACT_ROWS = 10  # devices kept per turn
@@ -303,11 +303,13 @@ def render(
 
 def memory_facts(memory: ConversationMemory) -> dict[str, frozenset[str]]:
     """What the remembered turns state, for checking later prose against: `numbers`, `labels` (hostnames),
-    `ids` (device and proposal ids) and `refs`. Notes are the user's words, not facts, so they add nothing."""
+    `ids` (device and proposal ids), `refs` and `dates` (calendar days as "jun 12"). Notes are the user's
+    words, not facts, so they add nothing."""
     numbers: set[str] = set()
     labels: set[str] = set()
     ids: set[str] = set()
     refs: set[str] = set()
+    dates: set[str] = set()
     for turn in memory.turns:
         texts = [turn.headline, turn.summary, turn.reply]
         for fact in turn.key_facts:
@@ -320,9 +322,11 @@ def memory_facts(memory: ConversationMemory) -> dict[str, frozenset[str]]:
             ids.update((proposal.proposal_id, proposal.device_id))
         for text in texts:
             numbers.update(_NUMBER.findall(text))
+            dates.update(f"{month} {day}" for month, day in stated_month_days(text))
     return {
         "numbers": frozenset(numbers),
         "labels": frozenset(labels),
         "ids": frozenset(ids),
         "refs": frozenset(refs),
+        "dates": frozenset(dates),
     }

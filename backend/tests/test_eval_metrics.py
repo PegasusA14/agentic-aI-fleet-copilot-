@@ -43,6 +43,7 @@ def case(
     tools=(),
     planned=(),
     answered=(),
+    replies=(),
 ):
     return CaseResult(
         instance_id=name,
@@ -60,6 +61,7 @@ def case(
         planned=tuple(tuple(t) for t in planned),
         answered=tuple(answered),
         refusal_turns=tuple(refusal_turns),
+        replies=tuple(replies),
     )
 
 
@@ -209,6 +211,9 @@ def line_for(**overrides):
         "citation_precision": {"valid": 152, "total": 152, "rate": 1.0},
         "refusal_accuracy": {"passed": 67, "total": 68, "rate": 0.9853},
         "plan_tool_agreement": {"agreed": 30, "total": 30, "rate": 1.0},
+        "reply_kept_rate": {"kept": 45, "total": 50, "rate": 0.9},
+        "sentences_dropped_per_reply": {"dropped": 12, "replies": 50, "mean": 0.24},
+        "reply_length_chars": {"replies": 45, "mean": 312},
         "latency_ms": {"p50": 41, "p95": 120, "turns": 300},
         "tokens": None,
     }
@@ -219,9 +224,54 @@ def line_for(**overrides):
 def test_the_metrics_block_reads_as_one_line():
     assert metrics.format_metrics(line_for(), replay=True) == (
         "tenant leaks: 0 · approval bypasses: 0 · citation precision: 152/152 (100%) · "
-        "refusal accuracy: 67/68 (98.5%) · plan-tool agreement: 30/30 (100%) · latency p50/p95: 41/120 ms (replay) · "
-        "tokens: n/a (cassette has no usage)"
+        "refusal accuracy: 67/68 (98.5%) · plan-tool agreement: 30/30 (100%) · "
+        "reply kept rate: 45/50 (90%) · sentences dropped per reply: 0.24 · mean reply length: 312 chars · "
+        "latency p50/p95: 41/120 ms (replay) · tokens: n/a (cassette has no usage)"
     )
+
+
+def talk(*, shown=True, dropped=0, chars=0, ran=True):
+    return {"ran": ran, "shown": shown, "dropped": dropped, "chars": chars}
+
+
+def test_reply_metrics_count_only_the_turns_where_the_talk_step_ran():
+    cases = [
+        case(
+            "a.x#1",
+            replies=[talk(chars=300), talk(dropped=2, chars=500), talk(shown=False, dropped=1)],
+        ),
+        case("a.x#2", replies=[talk(ran=False, shown=False), talk(dropped=0, chars=100)]),
+    ]
+    got = metrics.compute(cases)
+    assert got["reply_kept_rate"] == {"kept": 3, "total": 4, "rate": 0.75}
+    assert got["sentences_dropped_per_reply"] == {"dropped": 3, "replies": 4, "mean": 0.75}
+    assert got["reply_length_chars"] == {"replies": 3, "mean": 300}
+
+
+def test_reply_metrics_are_unmeasured_when_no_reply_was_written():
+    got = metrics.compute([case(replies=[talk(ran=False, shown=False)]), case()])
+    assert got["reply_kept_rate"] == {"kept": 0, "total": 0, "rate": None}
+    assert got["sentences_dropped_per_reply"]["mean"] is None
+    assert got["reply_length_chars"] == {"replies": 0, "mean": None}
+    text = metrics.format_metrics(
+        line_for(
+            **{
+                k: got[k]
+                for k in ("reply_kept_rate", "sentences_dropped_per_reply", "reply_length_chars")
+            }
+        ),
+        replay=True,
+    )
+    assert "reply kept rate: n/a (nothing to measure)" in text
+    assert "sentences dropped per reply: n/a (no replies)" in text
+    assert "mean reply length: n/a (no replies)" in text
+
+
+def test_a_metrics_dict_without_the_reply_figures_still_formats():
+    old = line_for()
+    for key in ("reply_kept_rate", "sentences_dropped_per_reply", "reply_length_chars"):
+        del old[key]
+    assert "reply kept rate: n/a" in metrics.format_metrics(old, replay=True)
 
 
 def test_live_latency_and_missing_usage_are_worded_for_a_live_run():

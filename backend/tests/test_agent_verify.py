@@ -1,4 +1,5 @@
 import dataclasses
+import re
 from datetime import UTC, datetime
 
 import pytest
@@ -12,9 +13,11 @@ from fleet_copilot.agent.verify import (
     check_prose,
     claim_problems,
     composition_of,
+    dropped_count,
     known_ids,
     known_labels,
     number_tokens,
+    parse_reply_problems,
     sentence_count,
     verify_clarification,
     verify_evidence,
@@ -144,7 +147,7 @@ def test_an_explanation_with_a_hiding_character_is_dropped_and_the_headline_stay
     verdict = verify_prose(comp, as_of, explanation=text)
     assert verdict.headline == comp.fallback_headline
     assert verdict.explanation is None
-    assert "explanation:bad_chars" in verdict.problems
+    assert "reply:bad_chars@0" in verdict.problems
     assert all(char not in p for p in verdict.problems)
 
 
@@ -229,7 +232,7 @@ def test_an_ungrounded_explanation_is_dropped_but_the_code_headline_stands(low_d
     verdict = verify_prose(comp, as_of, explanation="Fix them by 99 tomorrow.")
     assert verdict.headline == comp.fallback_headline
     assert verdict.explanation is None
-    assert verdict.problems == ("explanation:number",)
+    assert verdict.problems == ("reply:number@0", "reply:dropped=1", "reply:fallback")
 
 
 def test_no_model_prose_means_the_code_headline_and_no_explanation(low_disk):
@@ -249,7 +252,11 @@ def test_a_number_written_with_a_thousands_separator_is_accepted_by_value(low_di
     verdict = verify_prose(with_cycles, as_of, explanation=wording)
     assert verdict.problems == ()
     assert verdict.explanation == wording
-    assert verify_prose(comp, as_of, explanation=wording).problems == ("explanation:number",)
+    assert verify_prose(comp, as_of, explanation=wording).problems == (
+        "reply:number@0",
+        "reply:dropped=1",
+        "reply:fallback",
+    )
 
 
 PROBE_EXPLANATION = "Everything is healthy and none of your devices need attention."
@@ -260,7 +267,7 @@ def test_qualitative_claims_that_contradict_the_answer_are_rejected(low_disk):
     verdict = verify_prose(comp, as_of, explanation=PROBE_EXPLANATION)
     assert verdict.headline == comp.fallback_headline
     assert verdict.explanation is None
-    assert set(verdict.problems) == {"explanation:claim_word"}
+    assert verdict.problems == ("reply:claim_word@0", "reply:dropped=1", "reply:fallback")
 
 
 def test_a_model_headline_is_not_a_parameter_the_headline_is_always_the_code_headline(low_disk):
@@ -281,7 +288,7 @@ def test_reassurance_and_universal_words_are_rejected_on_an_answer(low_disk, wor
     explanation = f"Two of 10 devices are low, {word} problem here."
     verdict = verify_prose(comp, as_of, explanation=explanation)
     assert verdict.explanation is None
-    assert verdict.problems == ("explanation:claim_word",)
+    assert verdict.problems == ("reply:claim_word@0", "reply:dropped=1", "reply:fallback")
 
 
 @pytest.mark.parametrize(
@@ -297,7 +304,7 @@ def test_the_deny_list_sees_folded_look_alike_letters(low_disk, explanation):
     verdict = verify_prose(comp, as_of, explanation=explanation)
     assert verdict.headline == comp.fallback_headline
     assert verdict.explanation is None
-    assert "explanation:claim_word" in verdict.problems
+    assert "reply:claim_word@0" in verdict.problems
 
 
 def test_the_deny_list_matches_whole_words_only(low_disk):
@@ -485,7 +492,10 @@ def test_a_claim_citing_a_ref_that_is_not_shown_is_caught(low_disk, real_conn):
     assert "claim_without_evidence" in verify_evidence(tampered, repo_for(real_conn).resolve)
 
 
-# --- speculation, serials and length (T6) -------------------------------------------------------------
+# --- reply checking: facts, hedging, repair, caps -----------------------------------------------------
+
+LEAD = "acme-macbook-4 is lowest at 2.0% free."
+SECOND = "acme-thinkpad-8 follows at 2.6% free."
 
 
 def _explain(low_disk, text, **kwargs):
@@ -493,56 +503,153 @@ def _explain(low_disk, text, **kwargs):
     return verify_prose(comp, as_of, explanation=text, **kwargs)
 
 
+def rules(verdict):
+    """The rule codes in a verdict's trace, whatever sentence they hit."""
+    return {rule for rule, _ in parse_reply_problems(verdict.problems)}
+
+
 @pytest.mark.parametrize(
     ("text", "rule"),
     [
-        ("Low disk is probably the reason your fleet feels slow.", "causal"),
-        ("These devices will fail within days.", "predictive"),
-        ("Two devices are low because they are full.", "causal"),
-        ("This is due to a full disk.", "causal"),
-        ("It was caused by the update.", "causal"),
-        ("That is the reason why.", "causal"),
-        ("Low disk leads to trouble.", "causal"),
-        ("A full disk results in errors.", "causal"),
-        ("Low disk is why.", "causal"),
-        ("That explains it.", "causal"),
-        ("They will run out of space.", "predictive"),
-        ("The disk is going to fill.", "predictive"),
-        ("They are likely to fill.", "predictive"),
-        ("Expected to fill.", "predictive"),
-        ("More will follow soon.", "predictive"),
-        ("Full within weeks.", "predictive"),
-        ("Low disk may cause problems.", "predictive"),
-        ("Low disk could cause problems.", "predictive"),
-        ("Two devices are sluggish.", "experience"),
-        ("Two devices show slowness.", "experience"),
-        ("Two devices are laggy.", "experience"),
-        ("Two devices lag.", "experience"),
-        ("Two devices crash.", "experience"),
-        ("Two devices keep crashing.", "experience"),
-        ("Performance is down on two devices.", "experience"),
+        ("Low disk is probably the reason your fleet feels slow.", "unhedged_causal"),
+        ("Two devices are low because they are full.", "unhedged_causal"),
+        ("This is due to a full disk.", "unhedged_causal"),
+        ("It was caused by the update.", "unhedged_causal"),
+        ("That is the reason why.", "unhedged_causal"),
+        ("Low disk leads to trouble.", "unhedged_causal"),
+        ("A full disk results in errors.", "unhedged_causal"),
+        ("Low disk is why.", "unhedged_causal"),
+        ("That explains it.", "unhedged_causal"),
+        ("Two devices are sluggish.", "unhedged_experience"),
+        ("Two devices show slowness.", "unhedged_experience"),
+        ("Two devices are laggy.", "unhedged_experience"),
+        ("Two devices lag.", "unhedged_experience"),
+        ("Two devices crash.", "unhedged_experience"),
+        ("Two devices keep crashing.", "unhedged_experience"),
+        ("Performance is down on two devices.", "unhedged_experience"),
     ],
 )
-def test_speculative_prose_is_dropped_and_the_trace_names_the_rule(low_disk, text, rule):
-    verdict = _explain(low_disk, text)
-    assert verdict.explanation is None
-    assert f"explanation:{rule}" in verdict.problems
-    assert all(p.split(":")[1].isidentifier() for p in verdict.problems)  # codes, never prose
+def test_an_unhedged_cause_or_experience_sentence_is_dropped_and_the_trace_names_the_rule(
+    low_disk, text, rule
+):
+    verdict = _explain(low_disk, f"{LEAD} {text}")
+    assert verdict.explanation == LEAD  # the lead stays, the speculation goes
+    assert f"reply:{rule}@1" in verdict.problems and "reply:dropped=1" in verdict.problems
+    assert not any(text.split()[0] in p for p in verdict.problems)  # codes, never prose
 
 
-def test_the_two_audit_sentences_are_rejected(low_disk):
-    for text in (
-        "Low disk is probably the reason your fleet feels slow.",
+@pytest.mark.parametrize(
+    "text",
+    [
+        "Low disk could be the reason your fleet feels slow.",
+        "Two devices might be slow because they are full.",
+        "It may be due to a full disk.",
+        "Possibly it was caused by the update.",
+        "Perhaps that explains it.",
+        "One possible reason is that low disk leads to trouble.",
+        "A possible cause is a full disk, which results in errors.",
+        "A likely reason could be the full disk.",
+        "It's worth checking whether the disk is why.",
+        "Low free space can be a sign of laggy machines.",
+        "Low free space can indicate crashing apps.",
+        "Low disk may cause problems.",
+        "Low disk could cause problems.",
+        "This is worth checking because performance could suffer.",
+    ],
+)
+def test_a_hedged_cause_or_experience_sentence_is_kept(low_disk, text):
+    verdict = _explain(low_disk, f"{LEAD} {text}")
+    assert verdict.explanation == f"{LEAD} {text}"
+    assert verdict.problems == ()
+
+
+def test_hedges_are_matched_on_word_boundaries_in_any_case_and_may_the_month_is_no_hedge(low_disk):
+    assert verify.has_hedge("It COULD be.") and verify.has_hedge("it’s worth a look")
+    assert verify.has_hedge("It's  worth a look") and not verify.has_hedge("couldn't tell")
+    assert not verify.has_hedge("The mayor said so") and not verify.has_hedge("Seen on May 12")
+    assert verify.has_hedge("It may be so on May 12")
+    assert set(verify.HEDGES) >= {"could", "might", "may", "possibly", "perhaps", "worth checking"}
+    assert set(verify.HEDGES) >= {"one possible", "a possible", "it's worth", "can be a sign"}
+    assert "can indicate" in verify.HEDGES
+    # Unhedged, the same sentence is dropped: the hedge is the only difference.
+    assert _explain(low_disk, f"{LEAD} It is why.").explanation == LEAD
+    assert _explain(low_disk, f"{LEAD} It might be why.").explanation == f"{LEAD} It might be why."
+
+
+@pytest.mark.parametrize(
+    "text",
+    [
         "These devices will fail within days.",
+        "They will run out of space.",
+        "The disk is going to fill.",
+        "They are likely to fill.",
+        "Expected to fill.",
+        "More will follow soon.",
+        "Full within weeks.",
+        "It will likely fill up.",
+        "It will probably run out of room.",
+        "It will probably fail.",
+        "They probably fail first.",
+        "It will be full by Jun 20.",
+    ],
+)
+def test_a_predictive_sentence_is_dropped_even_when_it_is_hedged(low_disk, text):
+    for sentence in (
+        text,
+        f"It might be that {text[0].lower()}{text[1:]}",
+        f"Perhaps, but {text[0].lower()}{text[1:]}",
     ):
-        assert _explain(low_disk, text).explanation is None
+        verdict = _explain(low_disk, f"{LEAD} {sentence}")
+        assert verdict.explanation == LEAD, sentence
+        assert "predictive" in rules(verdict), sentence
+
+
+def test_a_likelihood_is_predictive_only_when_attached_to_a_future_event(low_disk):
+    assert verify.is_predictive("It will likely fail.") and verify.is_predictive("Probably fail.")
+    assert not verify.is_predictive("A likely reason could be the full disk.")
+    assert not verify.is_predictive("It is probably the same device.")
+    assert not verify.is_predictive("Two of 10 devices are low.")
+    assert verify.confident_claims("A likely reason could be the full disk.") == []
+    assert verify.confident_claims("It will likely fail.") == ["predictive"]
+
+
+def test_a_code_written_estimate_is_the_only_future_facing_phrase_allowed(low_disk):
+    estimate = "about 41 days left"
+    text = f"{LEAD} acme-macbook-4 has about 41 days left."
+    unknown = _explain(low_disk, text)
+    assert unknown.explanation == LEAD and rules(unknown) == {"number"}  # 41 is not grounded yet
+    ok = _explain(low_disk, text, estimates=[estimate])
+    assert ok.problems == () and ok.explanation == text
+    # A different future phrase is still dropped, and so is the estimate wrapped in a prediction.
+    for other in ("It will fail within days.", "It will run out within days."):
+        assert "predictive" in rules(_explain(low_disk, f"{LEAD} {other}", estimates=[estimate]))
+    soon = "empty within days"
+    assert _explain(low_disk, f"{LEAD} It is {soon}.", estimates=[soon]).problems == ()
+    assert "predictive" in rules(_explain(low_disk, f"{LEAD} It is {soon}.", estimates=["other"]))
+    # An estimate does not excuse a hedge-less cause in the same sentence.
+    assert "unhedged_causal" in rules(
+        _explain(low_disk, f"{LEAD} It is {soon} because it is full.", estimates=[soon])
+    )
+
+
+def test_a_composition_estimates_list_is_read_when_present(low_disk):
+    comp, as_of = low_disk
+    with_estimates = dataclasses.make_dataclass("C", [], bases=(type(comp),))(**vars(comp))
+    with_estimates.estimates = ["empty within days"]
+    text = f"{LEAD} It is empty within days."
+    assert verify_prose(with_estimates, as_of, explanation=text).problems == ()
+
+
+def test_the_strict_claim_check_still_judges_text_code_wrote(low_disk):
+    assert claim_problems("Low disk could be the reason.") == ["causal"]
+    assert claim_problems("Slower and slowly are inflections of slow.") == ["experience"]
+    assert claim_problems("Soonest, laggard, sloth, performant, reasons and explained.") == []
+    assert claim_problems("They will fail within days.") == ["predictive"]
 
 
 def test_speculation_is_matched_case_insensitively_on_word_boundaries(low_disk):
-    assert "explanation:causal" in _explain(low_disk, "BECAUSE of it.").problems
-    assert "explanation:causal" in _explain(low_disk, "Due   to it.").problems
-    assert claim_problems("Slower and slowly are inflections of slow.") == ["experience"]
-    assert claim_problems("Soonest, laggard, sloth, performant, reasons and explained.") == []
+    assert "unhedged_causal" in rules(_explain(low_disk, f"{LEAD} BECAUSE of it."))
+    assert "unhedged_causal" in rules(_explain(low_disk, f"{LEAD} Due   to it."))
     assert _explain(low_disk, "Two of 10 devices are low on disk.").problems == ()
 
 
@@ -551,104 +658,236 @@ def test_the_speculation_rules_apply_to_every_outcome(low_disk):
     no_match = dataclasses.replace(
         comp, outcome="no_match", fallback_headline="None of your 10 devices matched."
     )
-    assert (
-        "explanation:causal"
-        in verify_prose(
-            no_match, as_of, explanation="Nothing matched because of the filter."
-        ).problems
+    verdict = verify_prose(
+        no_match, as_of, explanation="None matched. Nothing matched because of the filter."
     )
+    assert verdict.explanation == "None matched."
+    assert "reply:unhedged_causal@1" in verdict.problems
 
 
-def test_a_code_written_estimate_is_the_only_future_facing_phrase_allowed(low_disk):
-    estimate = "about 41 days left"
-    text = "acme-macbook-4 has about 41 days left."
-    assert _explain(low_disk, text).problems == ("explanation:number",)  # 41 is not grounded yet
-    ok = _explain(low_disk, text, estimates=[estimate])
-    assert ok.problems == () and ok.explanation == text
-    # A different future phrase is still rejected, and so is the estimate wrapped in a prediction.
-    assert (
-        "explanation:predictive"
-        in _explain(low_disk, "It will fail within days.", estimates=[estimate]).problems
-    )
-    soon = "empty within days"
-    assert (
-        _explain(low_disk, "acme-macbook-4 is empty within days.", estimates=[soon]).problems == ()
-    )
-    assert (
-        "explanation:predictive"
-        in _explain(
-            low_disk, "acme-macbook-4 is empty within days.", estimates=["a different phrase"]
-        ).problems
-    )
-
-
-def test_a_composition_estimates_list_is_read_when_present(low_disk):
-    comp, as_of = low_disk
-    with_estimates = dataclasses.make_dataclass("C", [], bases=(type(comp),))(**vars(comp))
-    with_estimates.estimates = ["empty within days"]
-    assert (
-        verify_prose(
-            with_estimates, as_of, explanation="acme-macbook-4 is empty within days."
-        ).problems
-        == ()
-    )
-
-
-def test_a_device_serial_in_the_explanation_is_rejected_but_a_hostname_is_not(low_disk):
-    ok = _explain(low_disk, "acme-macbook-4 is lowest at 2.0% free.")
-    assert ok.problems == () and ok.explanation is not None
+def test_a_device_serial_in_the_reply_is_dropped_but_a_hostname_is_not(low_disk):
+    ok = _explain(low_disk, LEAD)
+    assert ok.problems == () and ok.explanation == LEAD
     for text in (
         "MT7PJB7N5LRE is lowest at 2.0% free.",
         "mt7pjb7n5lre is lowest at 2.0% free.",
         "acme-macbook-4 (8NM23J95R5I6) is low.",
     ):
-        verdict = _explain(low_disk, text)
-        assert verdict.explanation is None
-        assert "explanation:serial_in_prose" in verdict.problems
-    assert all("MT7P" not in p for p in _explain(low_disk, "MT7PJB7N5LRE.").problems)
+        verdict = _explain(low_disk, f"{LEAD} {text}")
+        assert verdict.explanation == LEAD
+        assert "reply:serial_in_prose@1" in verdict.problems
+    assert all("MT7P" not in p for p in _explain(low_disk, f"{LEAD} MT7PJB7N5LRE.").problems)
 
 
-def test_the_explanation_is_capped_at_two_sentences_and_280_characters(low_disk):
-    assert policy.MAX_EXPLANATION_SENTENCES == 2 and policy.MAX_EXPLANATION_CHARS == 280
+# -- the grounding set: this turn plus what the conversation remembered --------------------------------
+
+
+REMEMBERED = {
+    "numbers": frozenset({"77", "1,234"}),
+    "labels": frozenset({"acme-laptop-7"}),
+    "ids": frozenset({"7QWERTY12345"}),
+    "refs": frozenset(),
+    "dates": frozenset({"jun 3"}),
+}
+
+
+def test_a_remembered_number_hostname_and_date_are_accepted(low_disk):
+    text = f"{LEAD} Earlier, acme-laptop-7 was at 77 percent and 1,234 hours on Jun 3."
+    without = _explain(low_disk, text)
+    assert without.explanation == LEAD and rules(without) == {"unknown_host", "number", "date"}
+    kept = _explain(low_disk, text, memory=REMEMBERED)
+    assert kept.explanation == text and kept.problems == ()
+
+
+def test_a_remembered_device_id_is_still_a_serial_and_is_dropped(low_disk):
+    verdict = _explain(low_disk, f"{LEAD} Earlier 7QWERTY12345 was low.", memory=REMEMBERED)
+    assert verdict.explanation == LEAD
+    assert rules(verdict) == {"serial_in_prose"}
+
+
+def test_a_date_must_be_remembered_stated_or_an_estimate(low_disk):
+    unknown = _explain(low_disk, f"{LEAD} It was seen on Jun 4.", memory=REMEMBERED)
+    assert unknown.explanation == LEAD and "date" in rules(unknown)
+    assert _explain(low_disk, f"{LEAD} It was seen on Jun 3.", memory=REMEMBERED).problems == ()
+
+
+def test_a_number_only_a_note_states_is_rejected(low_disk):
+    # The memory holds a note "acme-macbook-9 has 4242 GB"; memory_facts leaves notes out, so nothing grounds it.
+    from fleet_copilot.agent import memory as mem
+
+    held = mem.add_note(mem.ConversationMemory(), "the CFO's laptop has 4242 GB and is acme-cfo-1")
+    facts = mem.memory_facts(held)
+    verdict = _explain(low_disk, f"{LEAD} The CFO laptop has 4242 GB.", memory=facts)
+    assert verdict.explanation == LEAD and "number" in rules(verdict)
+    host = _explain(low_disk, f"{LEAD} acme-cfo-1 is the one.", memory=facts)
+    assert "unknown_host" in rules(host)
+
+
+def test_the_remembered_facts_of_a_real_memory_ground_a_later_reply(low_disk):
+    from fleet_copilot.agent import memory as mem
+
+    comp, as_of = low_disk
+    envelope = comp.to_envelope(company_id=ACME, as_of=as_of, trace_id="t-1")
+    held = mem.remember_turn(mem.ConversationMemory(), envelope, "which are low on disk?", "t-1")
+    facts = mem.memory_facts(held)
+    # A chat turn about those devices: nothing of its own, everything from memory.
+    chat = dataclasses.replace(
+        comp,
+        outcome="chat",
+        claims=[],
+        evidence=[],
+        entity_lists=[],
+        notes=[],
+        coverage=None,
+        fallback_headline="Happy to help with your fleet.",
+    )
+    text = (
+        "acme-macbook-4 was the lowest at 2.0% free of 512 GiB. Two of those 10 devices were low."
+    )
+    verdict = verify_prose(chat, as_of, explanation=text, memory=facts)
+    assert verdict.problems == () and verdict.explanation == text
+    assert (
+        verify_prose(chat, as_of, explanation=text).explanation is None
+    )  # no memory: nothing grounds it
+
+
+# -- chat turns: memory, the capability card and the policy numbers, nothing else ------------------------
+
+
+def _chat(low_disk):
+    comp, as_of = low_disk
+    chat = dataclasses.replace(
+        comp,
+        outcome="chat",
+        claims=[],
+        evidence=[],
+        entity_lists=[],
+        notes=[],
+        coverage=None,
+        fallback_headline="Happy to help with your fleet.",
+    )
+    return chat, as_of
+
+
+def test_a_chat_reply_may_use_the_capability_cards_numbers_and_the_policy_numbers(low_disk):
+    chat, as_of = _chat(low_disk)
+    ok = "I can propose four actions, and a person approves each one. I flag disks under 10% free."
+    verdict = verify_prose(chat, as_of, explanation=ok)
+    assert verdict.problems == () and verdict.explanation == ok
+
+
+def test_a_chat_reply_may_not_state_this_turns_as_of_numbers_or_anything_else(low_disk):
+    chat, as_of = _chat(low_disk)
+    verdict = verify_prose(chat, as_of, explanation="I watch 37 devices for you. Hello!")
+    assert verdict.explanation is None  # the lead failed, so the fixed headline stands
+    assert verdict.problems[:2] == ("reply:number@0", "reply:dropped=1")
+    # the as-of date's numbers are not grounding on a chat turn
+    year = verify_prose(chat, as_of, explanation=f"Hello, it is {as_of.year}.")
+    assert "number" in rules(year)
+    # a hostname nobody remembered is not grounded either
+    assert "unknown_host" in rules(verify_prose(chat, as_of, explanation="Hi from acme-macbook-4."))
+
+
+def test_a_chat_reply_may_say_no_but_not_vouch_for_the_fleet(low_disk):
+    chat, as_of = _chat(low_disk)
+    assert verify_prose(chat, as_of, explanation="No, nothing was approved.").problems == ()
+    vouching = verify_prose(chat, as_of, explanation="Hello there. Everything is healthy.")
+    assert vouching.explanation == "Hello there." and "claim_word" in rules(vouching)
+
+
+# -- sentence-level repair --------------------------------------------------------------------------------
+
+
+def test_a_failing_sentence_is_dropped_and_the_rest_kept(low_disk):
+    text = f"{LEAD} It will fail soon. {SECOND} Call 999."
+    verdict = _explain(low_disk, text)
+    assert verdict.explanation == f"{LEAD} {SECOND}"
+    assert verdict.problems == (
+        "reply:predictive@1",
+        "reply:number@3",
+        "reply:dropped=2",
+    )
+
+
+def test_when_the_lead_fails_there_is_no_reply_at_all(low_disk):
+    verdict = _explain(low_disk, f"Everything is healthy. {LEAD} {SECOND}")
+    assert verdict.explanation is None
+    assert verdict.problems == ("reply:claim_word@0", "reply:dropped=1", "reply:fallback")
+    assert verdict.headline == low_disk[0].fallback_headline
+
+
+def test_when_every_sentence_fails_there_is_no_reply(low_disk):
+    verdict = _explain(low_disk, "It will fail soon. Call 999.")
+    assert verdict.explanation is None
+    assert verdict.problems[-2:] == ("reply:dropped=2", "reply:fallback")
+
+
+def test_paragraph_breaks_between_kept_sentences_survive(low_disk):
+    verdict = _explain(
+        low_disk, f"{LEAD}\n\nIt will fail soon. {SECOND}\n\nAnother point: 2 of 10."
+    )
+    assert verdict.explanation == f"{LEAD} {SECOND}\n\nAnother point: 2 of 10."
+
+
+def test_trace_problems_name_the_rule_and_the_index_never_the_text(low_disk):
+    text = "ZZZ9QQQ88XYZ has 4242 problems. Then Jun 9 was it. acme-laptop-9 is low."
+    verdict = _explain(low_disk, f"{LEAD} {text}")
+    assert all("4242" not in p and "ZZZ9" not in p and "acme" not in p for p in verdict.problems)
+    assert all(
+        re.fullmatch(r"reply:[a-z_]+@\d+|reply:dropped=\d+|reply:fallback|reply:trimmed", p)
+        for p in verdict.problems
+    )
+    assert {i for _, i in parse_reply_problems(verdict.problems)} == {1, 2, 3}
+    assert dropped_count(verdict.problems) == 3
+
+
+# -- the caps: 6 sentences, 900 characters ---------------------------------------------------------------
+
+
+def test_the_reply_caps_are_six_sentences_and_nine_hundred_characters():
+    assert (policy.MAX_REPLY_SENTENCES, policy.MAX_REPLY_CHARS) == (6, 900)
     assert sentence_count("One. Two!") == 2
     assert sentence_count("Two devices are at 2.6% free. Look at acme-macbook-4?") == 2
     assert sentence_count("A. B. C.") == 3
-    two = "acme-macbook-4 is lowest at 2.0% free. acme-thinkpad-8 follows at 2.6% free."
-    assert _explain(low_disk, two).problems == ()
-    exactly = "Two of 10 devices are low. " + "x" * (policy.MAX_EXPLANATION_CHARS - 27)
-    assert len(exactly) == policy.MAX_EXPLANATION_CHARS
+
+
+def test_six_sentences_fit_and_a_seventh_is_cut_with_a_trimmed_note(low_disk):
+    six = " ".join(f"Point {i} is about 2 of 10." for i in (1, 2, 1, 2, 1, 2))
+    assert sentence_count(six) == 6
+    assert _explain(low_disk, six).problems == ()
+    seven = f"{six} A seventh point is 2 of 10."
+    verdict = _explain(low_disk, seven)
+    assert verdict.explanation == six
+    assert verdict.problems == ("reply:trimmed",)
+
+
+def test_a_reply_over_nine_hundred_characters_is_cut_at_a_sentence_boundary(low_disk):
+    filler = "Two of 10 devices are low on disk, and " + "that is " * 20 + "all about disk."
+    sentences = [LEAD] + [filler.replace("all about", "about")] * 5
+    text = " ".join(sentences)
+    assert len(text) > policy.MAX_REPLY_CHARS
+    verdict = _explain(low_disk, text)
+    assert verdict.explanation is not None
+    assert len(verdict.explanation) <= policy.MAX_REPLY_CHARS
+    assert verdict.explanation.endswith(".") and verdict.problems == ("reply:trimmed",)
+    assert text.startswith(verdict.explanation)
+
+
+def test_a_reply_of_exactly_nine_hundred_characters_is_kept_whole(low_disk):
+    exactly = "Two of 10 devices are low. " + "x" * (policy.MAX_REPLY_CHARS - 27)
+    assert len(exactly) == policy.MAX_REPLY_CHARS
     assert _explain(low_disk, exactly).problems == ()
 
 
-def test_an_explanation_over_the_cap_is_cut_to_its_first_sentences_and_shown(low_disk):
-    two = "acme-macbook-4 is lowest at 2.0% free. acme-thinkpad-8 follows at 2.6% free."
-    three = two + " Both are under 10% free."
-    verdict = _explain(low_disk, three)
-    assert verdict.explanation == two
-    assert verdict.problems == (verify.EXPLANATION_TRIMMED,) == ("explanation:trimmed",)
-    four = three + " That is 2 of 10 devices."
-    assert _explain(low_disk, four).explanation == two
-
-
-def test_a_long_explanation_is_cut_at_a_sentence_boundary_within_the_character_cap(low_disk):
-    first = "acme-macbook-4 is lowest at 2.0% free."
-    long_second = " acme-thinkpad-8 follows at 2.6% free, " + "and " * 80 + "that is it."
-    verdict = _explain(low_disk, first + long_second)
-    assert verdict.explanation == first
-    assert verdict.problems == ("explanation:trimmed",)
-    assert len(verdict.explanation) <= policy.MAX_EXPLANATION_CHARS
-
-
-def test_a_single_sentence_over_the_character_cap_cannot_be_cut_and_is_dropped(low_disk):
-    text = "Two of 10 devices are low " + "x" * policy.MAX_EXPLANATION_CHARS + "."
+def test_a_single_sentence_over_the_character_cap_cannot_be_cut_and_there_is_no_reply(low_disk):
+    text = "Two of 10 devices are low " + "x" * policy.MAX_REPLY_CHARS + "."
     verdict = _explain(low_disk, text)
     assert verdict.explanation is None
-    assert verdict.problems == ("explanation:too_long",)
+    assert verdict.problems == ("reply:too_long@0", "reply:dropped=1", "reply:fallback")
 
 
-def test_an_over_long_explanation_that_also_breaks_another_rule_is_dropped_not_cut(low_disk):
-    # The first two sentences are fine, but the third carries an ungrounded number: nothing is trimmed.
-    text = "acme-macbook-4 is lowest at 2.0% free. acme-thinkpad-8 follows at 2.6% free. That is 37 now."
-    verdict = _explain(low_disk, text)
-    assert verdict.explanation is None
-    assert set(verdict.problems) == {"explanation:too_many_sentences", "explanation:number"}
+def test_dropping_a_sentence_can_make_room_so_nothing_is_trimmed(low_disk):
+    six_and_a_bad = " ".join(["Two of 10 are low."] * 6) + " It will fail soon."
+    verdict = _explain(low_disk, six_and_a_bad)
+    assert sentence_count(verdict.explanation) == 6
+    assert verdict.problems == ("reply:predictive@6", "reply:dropped=1")

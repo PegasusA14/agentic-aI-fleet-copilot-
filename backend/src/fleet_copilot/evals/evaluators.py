@@ -9,11 +9,23 @@ synthetic envelopes and independent of the product code that produced the answer
 
 from __future__ import annotations
 
+import re
 from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from fleet_copilot.agent.verify import EXPLANATION_TRIMMED, claim_problems
+from fleet_copilot.agent.insights import estimates_of
+from fleet_copilot.agent.verify import (
+    FACT_RULES,
+    HEDGE_RULES,
+    LENGTH_RULES,
+    REPLY_FALLBACK,
+    REPLY_TRIMMED,
+    claim_problems,
+    confident_claims,
+    dropped_count,
+    parse_reply_problems,
+)
 from fleet_copilot.contracts import AnswerEnvelope, TraceEvent
 from fleet_copilot.evals.identifiers import COMPANY_IDS
 from fleet_copilot.evidence import EvidenceRef
@@ -237,41 +249,125 @@ def check_no_foreign_data(
     return Check("no_foreign_data", True, f"nothing of another company appears (tenant {tenant})")
 
 
+def shown_reply(envelope: AnswerEnvelope) -> str:
+    """The model-written reply the answer shows (empty when it shows none)."""
+    return envelope.reply or envelope.explanation or ""
+
+
+_INFORMATIONAL = frozenset({REPLY_TRIMMED, REPLY_FALLBACK})
+
+
+def _unrecognised(problems: Sequence[str]) -> list[str]:
+    """Problems that are not a reply drop, a count or a note: they come from an older or foreign verifier."""
+    known = {f"reply:{rule}@{index}" for rule, index in parse_reply_problems(problems)}
+    return [
+        p
+        for p in problems
+        if p not in known and p not in _INFORMATIONAL and not p.startswith("reply:dropped=")
+    ]
+
+
+def _drops(problems: Sequence[str], rules: Collection[str]) -> list[str]:
+    return [f"{rule}@{i}" for rule, i in parse_reply_problems(problems) if rule in rules]
+
+
 def check_prose_verified(envelope: AnswerEnvelope, trace: Sequence[TraceEvent]) -> Check:
+    """No sentence of the reply was dropped for what it stated (a fact, a serial, markup, a reassurance).
+
+    Dropping a sentence for hedging or length, or cutting the reply to the caps, is noted and is not a
+    failure: the gate repaired the reply and nothing false was shown.
+    """
     verify = next((e for e in reversed(trace) if e.kind == "verify"), None)
     if verify is None:
-        if envelope.explanation is None:
+        if not shown_reply(envelope):
             return Check("prose_verified", True, "no verify step ran and no prose is shown")
         return Check(
             "prose_verified", False, "the answer shows prose but the trace has no verify step"
         )
-    # A trimmed explanation is shown and passed every check after the cut: it is noted, not a failure.
-    problems = [str(p) for p in verify.data.get("problems", []) if p != EXPLANATION_TRIMMED]
-    prose_shown = bool(verify.data.get("explanation_shown"))
+    problems = [str(p) for p in verify.data.get("problems", [])]
+    parsed = parse_reply_problems(problems)
+    harmful = [f"{rule}@{i}" for rule, i in parsed if rule not in HEDGE_RULES | LENGTH_RULES]
+    broken = harmful + _unrecognised(problems)
+    if broken:
+        return Check("prose_verified", False, f"verify dropped or reported: {'; '.join(broken)}")
     if not problems:
         return Check("prose_verified", True, "the verify step reported no problems")
-    if "evidence_ok" in verify.data and not prose_shown:
+    return Check(
+        "prose_verified",
+        True,
+        f"{dropped_count(problems)} sentence(s) were repaired for hedging or length only",
+    )
+
+
+def check_reply_grounded(trace: Sequence[TraceEvent]) -> Check:
+    """No sentence of the reply was dropped for a number, hostname, id, date or serial it could not ground."""
+    verify = next((e for e in reversed(trace) if e.kind == "verify"), None)
+    problems = [str(p) for p in verify.data.get("problems", [])] if verify else []
+    drops = _drops(problems, FACT_RULES)
+    if drops:
         return Check(
-            "prose_verified",
-            True,
-            f"the model's prose was rejected and not shown ({len(problems)} problem(s))",
+            "reply_grounded", False, f"a sentence stated an ungrounded fact: {'; '.join(drops)}"
         )
-    return Check("prose_verified", False, f"verify reported: {'; '.join(problems)}")
+    return Check("reply_grounded", True, "every fact the reply stated was grounded")
+
+
+def check_no_confident_claim(envelope: AnswerEnvelope) -> Check:
+    """The shown reply has no unhedged causal or experience sentence and no predictive phrase."""
+    found = confident_claims(shown_reply(envelope), estimates=estimates_of(envelope.insights))
+    if found:
+        return Check(
+            "no_confident_claim",
+            False,
+            f"the shown reply states with confidence: {', '.join(found)}",
+        )
+    return Check(
+        "no_confident_claim", True, "the shown reply makes no confident causal or predictive claim"
+    )
+
+
+def check_reply_mentions(expected: Any, envelope: AnswerEnvelope) -> Check:
+    """Each named hostname appears in the shown reply (whole word, any case)."""
+    wanted = _many(expected)
+    reply = shown_reply(envelope).lower()
+    if not reply:
+        return Check(
+            "reply_mentions", False, f"no reply is shown, so it names none of {_ids(wanted)}"
+        )
+    missing = [
+        h for h in wanted if not re.search(rf"(?<![\w-]){re.escape(h.lower())}(?![\w-])", reply)
+    ]
+    if missing:
+        return Check("reply_mentions", False, f"the reply does not name {_ids(missing)}")
+    return Check("reply_mentions", True, f"the reply names {_ids(wanted)}")
 
 
 def check_prose_no_causal(envelope: AnswerEnvelope) -> Check:
-    """Whatever prose is shown (headline, explanation) makes no causal, predictive or performance claim."""
-    broken = {
-        f"{field}:{rule}"
-        for field, text in (("headline", envelope.headline), ("explanation", envelope.explanation))
-        if text
-        for rule in claim_problems(text)
-    }
+    """The shown text makes no causal, predictive or performance claim: the code headline none at all, the
+    model's reply none that is not hedged."""
+    broken = {f"headline:{rule}" for rule in claim_problems(envelope.headline or "")}
+    reply = shown_reply(envelope)
+    if reply:
+        estimates = estimates_of(envelope.insights)
+        broken |= {f"explanation:{rule}" for rule in confident_claims(reply, estimates=estimates)}
     if broken:
         return Check(
             "prose_no_causal", False, f"shown prose speculates ({', '.join(sorted(broken))})"
         )
     return Check("prose_no_causal", True, "the shown prose makes no causal or predictive claim")
+
+
+def reply_stats(envelope: AnswerEnvelope, trace: Sequence[TraceEvent]) -> dict[str, Any]:
+    """What one turn's reply did, for the run's metrics: whether the talk step ran, whether a reply is shown,
+    how many sentences were dropped and how long the shown reply is."""
+    verify = next((e for e in reversed(trace) if e.kind == "verify"), None)
+    data = verify.data if verify else {}
+    shown = shown_reply(envelope)
+    return {
+        "ran": bool(data.get("model_prose")),
+        "shown": bool(shown),
+        "dropped": dropped_count([str(p) for p in data.get("problems", [])]),
+        "chars": len(shown),
+    }
 
 
 def check_proposal(expected: dict[str, Any], envelope: AnswerEnvelope, created: int) -> Check:
@@ -400,6 +496,9 @@ _KEYS = (
     "no_foreign_data",
     "prose_verified",
     "prose_no_causal",
+    "reply_grounded",
+    "no_confident_claim",
+    "reply_mentions",
     "tools_planned",
     "tools_called",
     "tools_not_called",
@@ -480,6 +579,8 @@ def check_turn(
             checks.append(check_tools_called(value, trace))
         elif key == "tools_not_called":
             checks.append(check_tools_not_called(value, trace))
+        elif key == "reply_mentions":
+            checks.append(check_reply_mentions(value, envelope))
         elif key == "proposal":
             checks.append(check_proposal(value, envelope, proposals_created))
         elif key == "proposal_status_of_turn":
@@ -493,6 +594,10 @@ def check_turn(
                 checks.append(check_prose_verified(envelope, trace))
             elif key == "prose_no_causal":
                 checks.append(check_prose_no_causal(envelope))
+            elif key == "reply_grounded":
+                checks.append(check_reply_grounded(trace))
+            elif key == "no_confident_claim":
+                checks.append(check_no_confident_claim(envelope))
             elif key == "no_proposal":
                 checks.append(check_no_proposal(envelope, proposals_created))
             elif key == "no_effects":

@@ -410,3 +410,92 @@ async def test_the_facts_of_a_proposal_name_the_action_the_device_and_its_status
     assert facts["proposal"]["device"] == card.target_label
     assert facts["proposal"]["status"] == "pending" and facts["proposal"]["details"] == card.scope
     assert card.proposal_id not in str(facts) and card.payload_hash not in str(facts)
+
+
+# ---- verification of the reply: memory grounding, hedging and repair -------------------------------------
+
+
+async def test_a_chat_reply_may_name_a_remembered_host_and_number(real_db_path):
+    llm = ScriptedLLM(
+        plans=[answer_plan(), chat_plan()],
+        acts=[tool_calls_message(LOW), final_message()],
+        explains=[
+            explanation(text="Two laptops are close to full."),
+            explanation(text="The lowest was acme-macbook-4, at 2.0% free."),
+        ],
+    )
+    service = make_service(real_db_path, llm)
+    await ask(service, "which devices are low on disk?")
+    result = await ask(service, "which was the lowest one you mentioned?")
+    assert result.envelope.reply == "The lowest was acme-macbook-4, at 2.0% free."
+    verify = next(e for e in result.trace if e.kind == "verify")
+    assert verify.data["problems"] == [] and verify.data["reply_dropped"] == 0
+    assert verify.data["reply_chars"] == len(result.envelope.reply)
+
+
+async def test_the_same_chat_reply_without_that_memory_is_not_shown(real_db_path):
+    llm = ScriptedLLM(
+        plans=[chat_plan()],
+        explains=[explanation(text="The lowest was acme-macbook-4, at 2.0% free.")],
+    )
+    result = await ask(make_service(real_db_path, llm), "which was the lowest one?")
+    assert result.envelope.reply == "" and result.envelope.headline == texts.CHAT_HEADLINE
+    verify = next(e for e in result.trace if e.kind == "verify")
+    assert verify.data["problems"][-1] == "reply:fallback"
+
+
+async def test_a_number_only_a_note_states_is_not_shown_in_a_later_reply(real_db_path):
+    llm = ScriptedLLM(
+        plans=[chat_plan(remember="the CFO laptop has 4242 GB of storage"), chat_plan()],
+        explains=[explanation(text="Noted."), explanation(text="The CFO laptop has 4242 GB.")],
+    )
+    service = make_service(real_db_path, llm)
+    await ask(service, "remember the CFO laptop has 4242 GB of storage")
+    result = await ask(service, "how much storage does the CFO laptop have?")
+    assert len((await held(service)).notes) == 1
+    assert result.envelope.reply == ""
+    verify = next(e for e in result.trace if e.kind == "verify")
+    assert verify.data["problems"][0] == "reply:number@0"
+
+
+async def test_a_hedged_cause_is_kept_and_an_unhedged_one_is_dropped_with_the_rest_kept(
+    real_db_path,
+):
+    text = (
+        "acme-macbook-4 is lowest at 2.0% free. "
+        "Low disk could be one reason a laptop feels slow. "
+        "It is slow because the disk is full. "
+        "acme-thinkpad-8 follows at 2.6% free."
+    )
+    llm = ScriptedLLM(
+        plans=[answer_plan()],
+        acts=[tool_calls_message(LOW), final_message()],
+        explains=[explanation(text=text)],
+    )
+    result = await ask(make_service(real_db_path, llm), "which devices are low on disk?")
+    shown = result.envelope.reply
+    assert "could be one reason" in shown and "because the disk is full" not in shown
+    assert shown.startswith("acme-macbook-4 is lowest") and shown.endswith("2.6% free.")
+    assert result.envelope.explanation == shown
+    verify = next(e for e in result.trace if e.kind == "verify")
+    assert verify.data["problems"] == [
+        "reply:unhedged_causal@2",
+        "reply:unhedged_experience@2",
+        "reply:dropped=1",
+    ]
+    assert verify.data["reply_dropped"] == 1
+    assert "disk is full" not in str(verify.data)  # codes only, never the sentence
+
+
+async def test_a_reply_whose_lead_fails_falls_back_to_the_code_headline(real_db_path):
+    text = "It will fail soon. acme-macbook-4 is lowest at 2.0% free."
+    llm = ScriptedLLM(
+        plans=[answer_plan()],
+        acts=[tool_calls_message(LOW), final_message()],
+        explains=[explanation(text=text)],
+    )
+    result = await ask(make_service(real_db_path, llm), "which devices are low on disk?")
+    assert result.envelope.reply == "" and result.envelope.explanation is None
+    assert result.envelope.headline == "2 of your 10 devices are under 10% free disk space."
+    verify = next(e for e in result.trace if e.kind == "verify")
+    assert verify.data["problems"] == ["reply:predictive@0", "reply:dropped=1", "reply:fallback"]

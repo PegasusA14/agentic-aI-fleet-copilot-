@@ -303,13 +303,13 @@ def test_prose_that_names_a_shared_app_and_its_version_passes_on_the_inventory(
     [
         (
             "uTorrent 3.7 appeared on 1LYSSFD074BB.",
-            "explanation:number",
+            "number",
         ),  # a version nobody reported
-        ("uTorrent 3.6 appeared on ZZZ9QQQ88XYZ.", "explanation:unknown_id"),
-        ("uTorrent 3.6 appeared on acme-laptop-9.", "explanation:unknown_host"),
-        ("uTorrent 3.6 appeared on 1LYSSFD074BB on 2026-05-27.", "explanation:number"),
-        ("There is no new software outside the common set.", "explanation:claim_word"),
-        ("uTorrent (see www.utorrent.example) is new.", "explanation:markup"),
+        ("uTorrent 3.6 appeared on ZZZ9QQQ88XYZ.", "unknown_id"),
+        ("uTorrent 3.6 appeared on acme-laptop-9.", "unknown_host"),
+        ("uTorrent 3.6 appeared on 1LYSSFD074BB on 2026-05-27.", "number"),
+        ("There is no new software outside the common set.", "claim_word"),
+        ("uTorrent (see www.utorrent.example) is new.", "markup"),
     ],
 )
 def test_prose_that_invents_a_version_a_device_or_a_date_is_replaced(
@@ -317,7 +317,7 @@ def test_prose_that_invents_a_version_a_device_or_a_date_is_replaced(
 ):
     comp = composed(real_db_path, real_conn, NEW)
     got = verdict(comp, real_conn, explanation=explanation)
-    assert code in got.problems and got.explanation is None
+    assert f"reply:{code}@0" in got.problems and got.explanation is None
 
 
 @pytest.mark.parametrize(
@@ -363,7 +363,7 @@ def test_prose_that_invents_a_version_a_device_or_a_date_is_replaced(
 def test_prose_may_not_label_software_as_risky_or_unapproved(real_db_path, real_conn, text):
     comp = composed(real_db_path, real_conn, NEW)
     got = verdict(comp, real_conn, explanation=text)
-    assert "explanation:judgment_word" in got.problems, text
+    assert "reply:judgment_word@0" in got.problems, text
     assert got.explanation is None
 
 
@@ -401,7 +401,7 @@ def test_a_mixed_answer_that_cites_software_still_gets_the_judgment_gate(real_db
         real_conn,
         explanation="acme-macbook-4 is at risk of running out of disk.",
     )
-    assert "explanation:judgment_word" in got.problems and got.explanation is None
+    assert "reply:judgment_word@0" in got.problems and got.explanation is None
 
 
 def test_every_app_named_in_an_inventory_claim_has_its_own_cited_ref():

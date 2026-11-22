@@ -52,7 +52,8 @@ async def test_model_prose_that_fails_verification_is_replaced_by_the_code_headl
     result = await ask(make_service(real_db_path, llm), "low disk?")
     assert "37" not in result.envelope.headline and result.envelope.explanation is None
     verify = next(e for e in result.trace if e.kind == "verify")
-    assert set(verify.data["problems"]) == {"explanation:unknown_id"}
+    assert verify.data["problems"] == ["reply:unknown_id@0", "reply:dropped=1", "reply:fallback"]
+    assert verify.data["reply_dropped"] == 1 and verify.data["reply_chars"] == 0
 
 
 async def test_a_model_headline_is_ignored_even_when_it_would_pass(real_db_path):
@@ -87,7 +88,11 @@ async def test_reassuring_prose_over_a_real_answer_is_replaced_in_the_user_visib
     assert envelope.headline == "2 of your 10 devices are under 10% free disk space."
     assert envelope.explanation is None
     verify = next(e for e in result.trace if e.kind == "verify")
-    assert set(verify.data["problems"]) == {"explanation:claim_word"}
+    assert set(verify.data["problems"]) == {
+        "reply:claim_word@0",
+        "reply:dropped=1",
+        "reply:fallback",
+    }
 
 
 async def test_a_model_outage_during_explain_still_gives_a_complete_answer(real_db_path):

@@ -29,6 +29,8 @@ _BOOLEAN_KEYS = (
     "no_foreign_data",
     "prose_verified",
     "prose_no_causal",
+    "reply_grounded",
+    "no_confident_claim",
     "no_proposal",
     "no_effects",
 )
@@ -49,6 +51,7 @@ _EXPECT_KEYS = frozenset(
         "tools_planned",
         "tools_called",
         "tools_not_called",
+        "reply_mentions",
         *_BOOLEAN_KEYS,
         *_DEVICE_SET_KEYS,
     }
@@ -287,6 +290,8 @@ def _check_expect(expect: Any, *, last: bool) -> None:
     for key in _BOOLEAN_KEYS:
         if key in expect and not isinstance(expect[key], bool):
             raise ScenarioError(f"expect.{key} must be true or false")
+    if "reply_mentions" in expect:
+        _check_hostnames(expect["reply_mentions"])
     if "proposal" in expect:
         _check_proposal(expect["proposal"])
     if "proposal_status_of_turn" in expect:
@@ -295,6 +300,16 @@ def _check_expect(expect: Any, *, last: bool) -> None:
         if not last:
             raise ScenarioError("decisions belong on the last turn of the case")
         _check_decisions(expect["decisions"])
+
+
+def _check_hostnames(value: Any) -> None:
+    """`reply_mentions` is a non-empty list of distinct hostnames the shown reply must name."""
+    if not isinstance(value, list) or not value:
+        raise ScenarioError("expect.reply_mentions must be a non-empty list of hostnames")
+    if not all(isinstance(h, str) and h.strip() for h in value):
+        raise ScenarioError("expect.reply_mentions must hold hostnames (non-empty text)")
+    if len({h.lower() for h in value}) != len(value):
+        raise ScenarioError("expect.reply_mentions lists the same hostname twice")
 
 
 def _check_tools(key: str, value: Any) -> None:

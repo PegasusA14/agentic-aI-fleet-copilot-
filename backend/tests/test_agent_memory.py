@@ -414,3 +414,11 @@ def test_the_act_prompt_keeps_the_short_history():
     )
     assert "- low disk? | answer | 2 of 10" in messages[1].content
     assert "<memory>" not in messages[1].content
+
+
+def test_memory_facts_carry_the_calendar_days_the_turns_stated_but_not_the_notes():
+    envelope = answer(rows=1).model_copy(
+        update={"summary": "Last reading on 2026-06-12, and the flag was set on May 30."}
+    )
+    memory = mem.add_note(remembered(envelope), "I think it broke on Jan 4")
+    assert mem.memory_facts(memory)["dates"] == frozenset({"jun 12", "may 30"})

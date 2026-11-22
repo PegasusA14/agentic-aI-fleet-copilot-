@@ -36,7 +36,13 @@ from fleet_copilot.config import Settings
 from fleet_copilot.contracts import ProposalCard, TraceEvent
 from fleet_copilot.data.loader import SCHEMA_VERSION, connect, stored_schema_version
 from fleet_copilot.evals import metrics
-from fleet_copilot.evals.evaluators import Check, called_tools, check_turn, planned_tools
+from fleet_copilot.evals.evaluators import (
+    Check,
+    called_tools,
+    check_turn,
+    planned_tools,
+    reply_stats,
+)
 from fleet_copilot.evals.golden_ref import load_golden, resolve_expect
 from fleet_copilot.evals.identifiers import foreign_identifiers
 from fleet_copilot.evals.scenarios import Instance, Scenario, expand
@@ -73,6 +79,8 @@ class CaseResult:
     planned: tuple[tuple[str, ...], ...] = ()  # the tools each turn's plan named
     answered: tuple[bool, ...] = ()  # whether each turn's outcome was an answer
     refusal_turns: tuple[int, ...] = ()  # turns whose expectation names a refusal-type outcome
+    # What each turn's reply did: `ran` (the talk step ran), `shown`, `dropped` sentences and `chars`.
+    replies: tuple[dict[str, Any], ...] = ()
 
     @property
     def refusal_ok(self) -> bool:
@@ -99,6 +107,7 @@ class CaseResult:
             "planned": [list(turn) for turn in self.planned],
             "answered": list(self.answered),
             "refusal_turns": list(self.refusal_turns),
+            "replies": [dict(turn) for turn in self.replies],
         }
 
 
@@ -400,6 +409,7 @@ def _result(
     tools=(),
     planned=(),
     answered=(),
+    replies=(),
 ):
     return CaseResult(
         instance_id=inst.id,
@@ -419,6 +429,7 @@ def _result(
         planned=tuple(tuple(t) for t in planned),
         answered=tuple(answered),
         refusal_turns=_refusal_turns(inst),
+        replies=tuple(dict(r) for r in replies),
     )
 
 
@@ -437,6 +448,7 @@ async def _play(inst: Instance, env: _Env, folder: Path) -> CaseResult:
     tools: list[list[str]] = []
     planned: list[list[str]] = []
     answered: list[bool] = []
+    replies: list[dict[str, Any]] = []
     baseline = _effect_totals(actions)
     async with AgentService.open(
         db_path=env.settings.db_path,
@@ -465,11 +477,13 @@ async def _play(inst: Instance, env: _Env, folder: Path) -> CaseResult:
                     tools=tools,
                     planned=planned,
                     answered=answered,
+                    replies=replies,
                 )
             turn_ms.append(elapsed)
             tools.append(called_tools(outcome.trace))
             planned.append(planned_tools(outcome.trace))
             answered.append(outcome.envelope.outcome == "answer")
+            replies.append(reply_stats(outcome.envelope, outcome.trace))
             if outcome.envelope.proposal is not None:
                 cards[number] = outcome.envelope.proposal
             expect = resolve_expect(turn.expect, env.golden)
@@ -499,6 +513,7 @@ async def _play(inst: Instance, env: _Env, folder: Path) -> CaseResult:
         tools=tools,
         planned=planned,
         answered=answered,
+        replies=replies,
     )
 
 

@@ -75,6 +75,6 @@ def test_agent_loop_limits():
     assert policy.MAX_CALLS_PER_ROUND == 4
     assert policy.MAX_QUESTION_CHARS == 2000
     assert policy.MAX_HISTORY_TURNS == 6
-    assert (policy.MAX_HEADLINE_CHARS, policy.MAX_EXPLANATION_CHARS) == (160, 280)
-    assert policy.MAX_EXPLANATION_SENTENCES == 2
+    assert (policy.MAX_HEADLINE_CHARS, policy.MAX_REPLY_CHARS) == (160, 900)
+    assert policy.MAX_REPLY_SENTENCES == 6
     assert policy.MAX_SUGGESTIONS == 6

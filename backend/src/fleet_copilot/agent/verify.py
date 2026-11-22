@@ -1,8 +1,10 @@
 """The verify gate: nothing a model wrote reaches the user unless code can ground it.
 
 Two checks, both deterministic:
-  * prose (the explanation and clarification text): every number, device id and hostname must
-    already appear in code-written facts, and the text must be plain and short;
+  * prose (the model's reply and clarification text): every number, device id, hostname and date must
+    already appear in code-written facts (this turn's, or the conversation's remembered ones), and the text
+    must be plain and short. A reply is checked one sentence at a time: a sentence that fails is dropped
+    and the rest is kept, as long as the first sentence survives;
   * evidence: every cited reading must exist for this tenant and read exactly as the data says.
 Prose that fails is replaced by code-written text. Evidence that fails makes the whole answer a
 `tool_error`, because an answer with unprovable evidence must not be shown.
@@ -12,12 +14,13 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from collections.abc import Collection, Sequence
+from collections.abc import Collection, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
 
 from fleet_copilot import policy
+from fleet_copilot.agent import texts
 from fleet_copilot.agent.compose import Composition, Resolver, evidence_kind, evidence_text
 from fleet_copilot.agent.insights import estimates_of
 from fleet_copilot.contracts import AnswerEnvelope
@@ -114,29 +117,53 @@ _JUDGMENT_WORD = re.compile(
 
 # The telemetry records readings, not causes, futures or how a machine feels to use. Prose that says why
 # something happens, what will happen, or that a machine is slow or crashing is asserting something no
-# number can check, so it is rejected whatever the outcome. Matched on word boundaries over the folded
-# text; flexible whitespace so "will  fail" does not slip through. A phrase equal to a code-written
-# estimate (see `_without_estimates`) is exempt. Lexical backstop, not a reading of meaning.
+# number can check. Causal and experience wording is allowed only when the sentence carries a hedge marker
+# (see `HEDGES`); future-facing wording is never allowed, hedged or not, unless it equals a code-written
+# estimate (see `_without_estimates`). Matched on word boundaries over the folded text, with flexible
+# whitespace so "will  fail" does not slip through. Lexical backstop, not a reading of meaning.
 CAUSAL_PHRASES = (
     "because", "due to", "caused by", "the reason", "reason why", "leads to", "results in",
-    "is why", "explains",
+    "is why", "explains", "may cause", "could cause",
 )  # fmt: skip
 PREDICTIVE_PHRASES = (
-    "will fail", "will run out", "is going to", "likely to", "expected to", "soon",
-    "within days", "within weeks", "probably", "may cause", "could cause",
+    "will fail", "will run out", "will likely", "will probably", "will soon", "is going to",
+    "are going to", "likely to", "expected to", "soon", "within days", "within weeks",
 )  # fmt: skip
 EXPERIENCE_WORDS = (
     "slow", "slowness", "sluggish", "lag", "laggy", "crash", "crashing", "performance",
 )  # fmt: skip
+# A sentence that says it is only a possibility. "may" is not a hedge when it is the month ("May 12").
+HEDGES = (
+    "could", "might", "may", "possibly", "perhaps", "one possible", "a possible", "worth checking",
+    "it's worth", "can be a sign", "can indicate",
+)  # fmt: skip
+
+
+def _flexible(phrase: str) -> str:
+    """A regex for `phrase`: whitespace between words is flexible and an apostrophe may be curly."""
+    words = (re.escape(w).replace("'", "['\u2019]") for w in phrase.split())
+    return r"\s+".join(words)
 
 
 def _phrase_pattern(phrases: tuple[str, ...], suffix: str = "") -> re.Pattern[str]:
-    body = "|".join(r"\s+".join(re.escape(w) for w in p.split()) for p in phrases)
+    body = "|".join(_flexible(p) for p in phrases)
     return re.compile(rf"\b(?:{body}){suffix}\b", re.IGNORECASE)
 
 
 _CAUSAL = _phrase_pattern(CAUSAL_PHRASES)
 _PREDICTIVE = _phrase_pattern(PREDICTIVE_PHRASES)
+_HEDGE = re.compile(
+    r"\b(?:" + "|".join(_flexible(h) if h != "may" else r"may(?!\s+\d)" for h in HEDGES) + r")\b",
+    re.IGNORECASE,
+)
+# "will likely fail", "probably run out", "is likely to ...": a likelihood is a prediction only when it
+# is attached to a future event. "A likely reason could be" is a hedged cause, not a prediction.
+_FUTURE_EVENT = r"(?:fail|run\s+out|crash|break|die|fill|stop|reach|hit|drop|degrade|worsen)"
+_FUTURE_LIKELY = re.compile(
+    rf"\b(?:will|won['\u2019]t)\s+(?:(?:likely|probably|soon|eventually|also)\s+)*{_FUTURE_EVENT}\b"
+    rf"|\b(?:probably|likely)\s+{_FUTURE_EVENT}\b",
+    re.IGNORECASE,
+)
 # Inflections of the experience words ("slower", "crashes", "lagging") are the same claim.
 _EXPERIENCE = re.compile(
     r"\b(?:slow(?:ness|er|est|ly|ing|ed|s)?|sluggish\w*|lag(?:gy|ging|ged|s)?"
@@ -144,6 +171,7 @@ _EXPERIENCE = re.compile(
     re.IGNORECASE,
 )
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
+_SENTENCE_SPLIT = re.compile(r"(?<=[.!?])(\s+)")
 
 
 def _without_estimates(text: str, estimates: Sequence[str]) -> str:
@@ -155,31 +183,96 @@ def _without_estimates(text: str, estimates: Sequence[str]) -> str:
 
 
 def claim_problems(text: str, *, estimates: Sequence[str] = ()) -> list[str]:
-    """Which speculation rules `text` breaks: `causal`, `predictive`, `experience` (codes only, never the text).
+    """Which speculation rules `text` breaks, hedged or not: `causal`, `predictive`, `experience`.
 
-    Pure and shared with the eval evaluator. `estimates` are phrases the code wrote into the facts
-    (for example a battery estimate); they may appear in prose verbatim, nothing else future-facing may.
+    Strict and pure: it is for text code wrote (headlines, refusals), where no speculation belongs at all.
+    A model's reply is judged by `confident_claims`, which lets a hedged sentence use causal or experience
+    wording. `estimates` are phrases the code wrote into the facts (for example a battery estimate); they
+    may appear verbatim, nothing else future-facing may.
     """
     folded = _without_estimates(_fold(text), estimates)
     found: list[str] = []
     if _CAUSAL.search(folded):
         found.append("causal")
-    if _PREDICTIVE.search(folded):
+    if is_predictive(text, estimates=estimates):
         found.append("predictive")
     if _EXPERIENCE.search(folded):
         found.append("experience")
     return found
 
 
+def has_hedge(sentence: str) -> bool:
+    """True if `sentence` carries a hedge marker (`HEDGES`): it says "could", "might", "worth checking" and so on."""
+    return _HEDGE.search(_fold(sentence)) is not None
+
+
+def is_predictive(sentence: str, *, estimates: Sequence[str] = ()) -> bool:
+    """True if `sentence` says something will happen: a future phrase, a likelihood attached to a future event,
+    or a dated prediction. A hedge does not excuse it; only a phrase equal to a code estimate is exempt."""
+    folded = _without_estimates(_fold(sentence), estimates)
+    return bool(
+        _PREDICTIVE.search(folded)
+        or _FUTURE_LIKELY.search(folded)
+        or _DATED_PREDICTION.search(folded)
+    )
+
+
+def unhedged_claims(sentence: str, *, estimates: Sequence[str] = ()) -> list[str]:
+    """`causal` and/or `experience` when `sentence` uses that wording without a hedge marker; none when hedged."""
+    if has_hedge(sentence):
+        return []
+    folded = _without_estimates(_fold(sentence), estimates)
+    found: list[str] = []
+    if _CAUSAL.search(folded):
+        found.append("causal")
+    if _EXPERIENCE.search(folded):
+        found.append("experience")
+    return found
+
+
+def confident_claims(text: str, *, estimates: Sequence[str] = ()) -> list[str]:
+    """The speculation a reader would take as stated fact in `text`: sentence by sentence, an unhedged causal
+    or experience sentence is `causal` / `experience`, and any predictive sentence is `predictive`. Pure and
+    shared with the eval evaluator."""
+    found: list[str] = []
+    for sentence in split_sentences(text):
+        found += unhedged_claims(sentence, estimates=estimates)
+        if is_predictive(sentence, estimates=estimates):
+            found.append("predictive")
+    return list(dict.fromkeys(found))
+
+
+def split_sentences(text: str) -> list[str]:
+    """The sentences of `text` (cut after . ! ? and whitespace), without the whitespace between them."""
+    return [part.strip() for part in _SENTENCE_END.split(text.strip()) if part.strip()]
+
+
 _MONTHS = ("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
-_MONTH_DAY = re.compile(
-    r"\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(\d{1,2})\b", re.IGNORECASE
+_MONTH_NAME = (
+    r"(?:jan(?:uary)?|feb(?:ruary)?|mar(?:ch)?|apr(?:il)?|may|june?|july?|aug(?:ust)?"
+    r"|sep(?:t(?:ember)?)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)"
+)
+_MONTH_DAY = re.compile(rf"\b({_MONTH_NAME})\.?\s+(\d{{1,2}})\b", re.IGNORECASE)
+# A date given as the time of a prediction: "will ... Jun 20", "by Jun 20", "expected Jun 20".
+_DATED_PREDICTION = re.compile(
+    rf"\b(?:will|by|before|until|expected)\b(?:\s+[\w'\u2019-]+){{0,4}}?\s+{_MONTH_NAME}\.?\s+\d{{1,2}}\b",
+    re.IGNORECASE,
 )
 _ISO_DAY = re.compile(r"\b\d{4}-(\d{2})-(\d{2})\b")
 
 
 def _month_days(text: str) -> set[tuple[str, int]]:
-    return {(m.group(1).lower(), int(m.group(2))) for m in _MONTH_DAY.finditer(_fold(text))}
+    return {(m.group(1).lower()[:3], int(m.group(2))) for m in _MONTH_DAY.finditer(_fold(text))}
+
+
+def stated_month_days(text: str) -> set[tuple[str, int]]:
+    """The calendar days `text` states, as ISO dates ("2026-06-12") or month and day ("Jun 12")."""
+    days = _month_days(text)
+    for match in _ISO_DAY.finditer(text):
+        month, day = int(match.group(1)), int(match.group(2))
+        if 1 <= month <= 12:
+            days.add((_MONTHS[month - 1], day))
+    return days
 
 
 def allowed_month_days(comp: Composition, estimates: Sequence[str]) -> set[tuple[str, int]]:
@@ -190,10 +283,7 @@ def allowed_month_days(comp: Composition, estimates: Sequence[str]) -> set[tuple
     stated = [c.text for c in comp.claims] + list(comp.notes)
     stated += [e.label for e in comp.evidence] + [e.value for e in comp.evidence]
     for text in stated:
-        for match in _ISO_DAY.finditer(text):
-            month, day = int(match.group(1)), int(match.group(2))
-            if 1 <= month <= 12:
-                allowed.add((_MONTHS[month - 1], day))
+        allowed |= stated_month_days(text)
     return allowed
 
 
@@ -359,15 +449,45 @@ def check_prose(
     return problems
 
 
-# An informational problem, not a failure: the explanation was over the length cap, was cut to its first
-# sentences and then passed every check. It is recorded so the trace shows the cut.
-EXPLANATION_TRIMMED = "explanation:trimmed"
-_LENGTH_PROBLEMS = frozenset({"too_long", "too_many_sentences"})
+# Why a sentence of a reply was dropped, by rule code. Fact rules mean the sentence stated something no code
+# fact backs (or showed something it must not); hedge rules mean it spoke with more confidence than a reading
+# allows; length rules mean it was too long to show. Only the fact rules say the model invented a fact.
+FACT_RULES = frozenset({"number", "unknown_id", "unknown_host", "date", "serial_in_prose"})
+HEDGE_RULES = frozenset({"unhedged_causal", "unhedged_experience", "predictive"})
+LENGTH_RULES = frozenset({"too_long"})
+REPLY_TRIMMED = "reply:trimmed"
+REPLY_FALLBACK = "reply:fallback"
+_PROBLEM = re.compile(r"^reply:([a-z_]+)@(\d+)$")
+_DROPPED = re.compile(r"^reply:dropped=(\d+)$")
+
+
+def parse_reply_problems(problems: Sequence[str]) -> list[tuple[str, int]]:
+    """The `(rule, sentence index)` pairs among `problems` (`reply:<rule>@<index>`); other entries are skipped."""
+    found: list[tuple[str, int]] = []
+    for problem in problems:
+        match = _PROBLEM.match(str(problem))
+        if match:
+            found.append((match.group(1), int(match.group(2))))
+    return found
+
+
+def dropped_count(problems: Sequence[str]) -> int:
+    """How many sentences the trace says were dropped (`reply:dropped=<n>`); zero when none."""
+    for problem in problems:
+        match = _DROPPED.match(str(problem))
+        if match:
+            return int(match.group(1))
+    return 0
 
 
 @dataclass(frozen=True)
 class ProseVerdict:
-    """What the graph may show. `problems` are codes only: safe to put in a trace."""
+    """What the graph may show. `problems` are codes only: safe to put in a trace.
+
+    `explanation` is the checked reply: the sentences that passed, or None when the lead did not stand.
+    `problems` read `reply:<rule>@<sentence index>` for each failed rule, then `reply:dropped=<n>`, then
+    `reply:fallback` when there is no reply and `reply:trimmed` when the caps cut it. Never sentence text.
+    """
 
     headline: str
     explanation: str | None
@@ -379,7 +499,7 @@ def _code(problem: str) -> str:
 
 
 def shown_serials(comp: Composition) -> set[str]:
-    """Every device serial the answer lists or cites. The explanation may use hostnames, never these."""
+    """Every device serial the answer lists or cites. The reply may use hostnames, never these."""
     serials = known_ids(comp)
     for item in comp.evidence:
         try:
@@ -389,24 +509,174 @@ def shown_serials(comp: Composition) -> set[str]:
     return serials
 
 
-def trimmed_to_caps(text: str) -> str | None:
-    """The first sentences of `text` that fit the explanation caps, or None when not even one does.
+@dataclass(frozen=True)
+class Grounding:
+    """Everything a sentence of a reply may rest on, and what it must not name."""
 
-    Cut only at a sentence boundary: at most `policy.MAX_EXPLANATION_SENTENCES` sentences and at most
-    `policy.MAX_EXPLANATION_CHARS` characters.
+    numbers: frozenset[str]
+    ids: frozenset[str]
+    labels: frozenset[str]
+    days: frozenset[tuple[str, int]]
+    serials: frozenset[str]
+    estimates: tuple[str, ...] = ()
+    claim_words: re.Pattern[str] | None = None
+    judges_software: bool = False
+
+
+# On a chat turn "no" and "none" are ordinary answers ("no, nothing was approved"); the words that vouch for
+# the whole fleet stay banned.
+_CHAT_CLAIM_WORD = re.compile(
+    r"\b(all|every|everything|always|healthy|fine|safe|secure|compliant)\b", re.IGNORECASE
+)
+
+
+def _memory_set(memory: Mapping[str, Collection[str]] | None, key: str) -> frozenset[str]:
+    return frozenset(memory.get(key, ())) if memory else frozenset()
+
+
+def _memory_days(memory: Mapping[str, Collection[str]] | None) -> set[tuple[str, int]]:
+    """The remembered calendar days, stored by `memory_facts` as "jun 12"."""
+    days: set[tuple[str, int]] = set()
+    for entry in _memory_set(memory, "dates"):
+        month, _, day = entry.partition(" ")
+        if day.isdigit():
+            days.add((month, int(day)))
+    return days
+
+
+def grounding_for(
+    comp: Composition,
+    as_of: datetime,
+    *,
+    estimates: Sequence[str] | None = None,
+    memory: Mapping[str, Collection[str]] | None = None,
+) -> Grounding:
+    """The facts a reply to `comp` may use: this turn's facts plus the conversation's remembered ones.
+
+    Remembered facts (`memory_facts`) are numbers, hostnames, device ids and dates from earlier turns; the
+    user's notes are never among them. A chat turn has no facts of its own: it may use only what is
+    remembered, the numbers in the capability card, and the disclosed policy numbers.
     """
-    kept: list[str] = []
-    for part in (p.strip() for p in _SENTENCE_END.split(text.strip())):
-        if not part:
-            continue
-        candidate = " ".join([*kept, part])
+    remembered_numbers = {_norm(n) for n in _memory_set(memory, "numbers")}
+    remembered_ids = _memory_set(memory, "ids")
+    remembered_labels = _memory_set(memory, "labels")
+    disclosed = {_norm(str(v)) for v in policy.disclosure().values()}
+    if comp.outcome == "chat":
+        return Grounding(
+            numbers=frozenset(
+                remembered_numbers | number_tokens(texts.CAPABILITY_CARD) | disclosed
+            ),
+            ids=remembered_ids,
+            labels=remembered_labels,
+            days=frozenset(_memory_days(memory)),
+            serials=remembered_ids,
+            claim_words=_CHAT_CLAIM_WORD,
+        )
+    if estimates is None:
+        estimates = tuple(getattr(comp, "estimates", None) or ())
+    numbers = allowed_numbers(comp, as_of) | remembered_numbers
+    for estimate in estimates:
+        numbers |= {_norm(m) for m in _NUMBER.findall(_fold(estimate))}
+    is_answer = comp.outcome == "answer"
+    return Grounding(
+        numbers=frozenset(numbers),
+        ids=frozenset(known_ids(comp) | remembered_ids),
+        labels=frozenset(known_labels(comp) | remembered_labels),
+        days=frozenset(allowed_month_days(comp, estimates) | _memory_days(memory)),
+        serials=frozenset(shown_serials(comp) | remembered_ids),
+        estimates=tuple(estimates),
+        claim_words=_CLAIM_WORD if is_answer else None,
+        judges_software=is_answer and any("#software[" in item.ref for item in comp.evidence),
+    )
+
+
+def sentence_problems(sentence: str, grounding: Grounding) -> list[str]:
+    """The rule codes `sentence` breaks, in a fixed order; empty when it may be shown.
+
+    Facts: `number`, `unknown_id`, `unknown_host`, `date`, `serial_in_prose`. Plain text: `markup`,
+    `bad_chars`. Claims: `claim_word` (universal reassurance), `judgment_word` (a label for software the
+    data does not carry). Hedging: `unhedged_causal`, `unhedged_experience`, `predictive`. Length:
+    `too_long`. Pure; the codes carry no text.
+    """
+    found = [
+        _code(p)
+        for p in check_prose(
+            sentence,
+            allowed=set(grounding.numbers),
+            ids=set(grounding.ids),
+            labels=set(grounding.labels),
+            max_chars=policy.MAX_REPLY_CHARS,
+        )
+    ]
+    found += date_problems(sentence, set(grounding.days))
+    if serials_in(sentence, grounding.serials):
+        found.append("serial_in_prose")
+    folded = _fold(sentence)
+    if grounding.claim_words is not None and grounding.claim_words.search(folded):
+        found.append("claim_word")
+    if grounding.judges_software and _JUDGMENT_WORD.search(folded):
+        found.append("judgment_word")
+    found += [f"unhedged_{c}" for c in unhedged_claims(sentence, estimates=grounding.estimates)]
+    if is_predictive(sentence, estimates=grounding.estimates):
+        found.append("predictive")
+    return list(dict.fromkeys(found))
+
+
+def _pieces(text: str) -> list[tuple[str, str]]:
+    """`text` as `(whitespace before, sentence)` pairs, so kept sentences keep their paragraph breaks."""
+    parts = _SENTENCE_SPLIT.split(text.strip())
+    pieces = [("", parts[0])]
+    pieces += [(parts[i], parts[i + 1]) for i in range(1, len(parts) - 1, 2)]
+    return [(gap, sentence.strip()) for gap, sentence in pieces if sentence.strip()]
+
+
+def _joined(pieces: Sequence[tuple[str, str]]) -> str:
+    return "".join(
+        (gap if index else "") + sentence for index, (gap, sentence) in enumerate(pieces)
+    )
+
+
+def trimmed_to_reply_caps(pieces: Sequence[tuple[str, str]]) -> list[tuple[str, str]]:
+    """The leading whole sentences that fit `policy.MAX_REPLY_SENTENCES` and `policy.MAX_REPLY_CHARS`."""
+    kept: list[tuple[str, str]] = []
+    for piece in pieces:
         if (
-            len(kept) >= policy.MAX_EXPLANATION_SENTENCES
-            or len(candidate) > policy.MAX_EXPLANATION_CHARS
+            len(kept) >= policy.MAX_REPLY_SENTENCES
+            or len(_joined([*kept, piece])) > policy.MAX_REPLY_CHARS
         ):
             break
-        kept.append(part)
-    return " ".join(kept) or None
+        kept.append(piece)
+    return kept
+
+
+def check_reply(text: str | None, grounding: Grounding) -> tuple[str | None, tuple[str, ...]]:
+    """The reply as it may be shown, and the trace problems, after checking it sentence by sentence.
+
+    A sentence that breaks any rule is dropped and the others are kept. The first sentence is the lead and
+    must stand: if it fails, or nothing is left, there is no reply (None) and the code headline and summary
+    stand alone. The kept sentences are then cut to the reply caps at a sentence boundary. Problems are
+    `reply:<rule>@<index>` (the sentence's place in the model's reply), `reply:dropped=<n>`,
+    `reply:fallback` and `reply:trimmed`, never the text.
+    """
+    if text is None or not text.strip():
+        return None, ()
+    pieces = _pieces(text)
+    problems: list[str] = []
+    failed: set[int] = set()
+    for index, (_, sentence) in enumerate(pieces):
+        for rule in sentence_problems(sentence, grounding):
+            problems.append(f"reply:{rule}@{index}")
+            failed.add(index)
+    if failed:
+        problems.append(f"reply:dropped={len(failed)}")
+    kept = [piece for index, piece in enumerate(pieces) if index not in failed]
+    if not kept or 0 in failed:
+        problems.append(REPLY_FALLBACK)
+        return None, tuple(problems)
+    cut = trimmed_to_reply_caps(kept)
+    if len(cut) < len(kept):
+        problems.append(REPLY_TRIMMED)
+    return _joined(cut), tuple(problems)
 
 
 def verify_prose(
@@ -415,59 +685,18 @@ def verify_prose(
     *,
     explanation: str | None,
     estimates: Sequence[str] | None = None,
+    memory: Mapping[str, Collection[str]] | None = None,
 ) -> ProseVerdict:
-    """Accept the model's explanation only if it grounds; the headline is always the code-written one.
+    """Accept the model's reply sentence by sentence; the headline is always the code-written one.
 
-    `estimates` (default: the composition's `estimates` list, if it has one) are code-written future-facing
-    phrases such as a battery estimate; prose may repeat them verbatim and their numbers count as grounded.
-    An explanation that fails only on length is cut to its first sentences (see `trimmed_to_caps`) and shown
-    if the cut text passes every check; the verdict then lists `explanation:trimmed`, which is not a failure.
+    The grounding is this turn's facts plus `memory` (the conversation's remembered facts, see
+    `memory_facts`); `estimates` (default: the composition's) are code-written future-facing phrases such as
+    a battery estimate, which a sentence may repeat verbatim. See `check_reply` for how failures are repaired.
     """
-    if estimates is None:
-        estimates = tuple(getattr(comp, "estimates", None) or ())
-    allowed, ids, labels = allowed_numbers(comp, as_of), known_ids(comp), known_labels(comp)
-    for estimate in estimates:
-        allowed |= {_norm(m) for m in _NUMBER.findall(_fold(estimate))}
-    days = allowed_month_days(comp, estimates)
-    is_answer = comp.outcome == "answer"
-    judges_software = is_answer and any("#software[" in item.ref for item in comp.evidence)
-    shown_ids = shown_serials(comp)
-
-    def explanation_problems(text: str) -> list[str]:
-        found = check_prose(
-            text,
-            allowed=allowed,
-            ids=ids,
-            labels=labels,
-            max_chars=policy.MAX_EXPLANATION_CHARS,
-        )
-        found += claim_problems(text, estimates=estimates)
-        found += date_problems(text, days)
-        if sentence_count(text) > policy.MAX_EXPLANATION_SENTENCES:
-            found.append("too_many_sentences")
-        if serials_in(text, shown_ids):
-            found.append("serial_in_prose")
-        if is_answer and _CLAIM_WORD.search(_fold(text)):
-            found.append("claim_word")
-        if judges_software and _JUDGMENT_WORD.search(_fold(text)):
-            found.append("judgment_word")
-        return found
-
-    problems: list[str] = []
-    final_explanation: str | None = None
-    if explanation is not None and explanation.strip():
-        found = explanation_problems(explanation)
-        if found and {_code(p) for p in found} <= _LENGTH_PROBLEMS:
-            cut = trimmed_to_caps(explanation)
-            if cut is not None and not explanation_problems(cut):
-                final_explanation = cut
-                problems.append(EXPLANATION_TRIMMED)
-                found = []
-        if found:
-            problems += [f"explanation:{_code(p)}" for p in found]
-        elif final_explanation is None:
-            final_explanation = explanation.strip()
-    return ProseVerdict(comp.fallback_headline, final_explanation, tuple(dict.fromkeys(problems)))
+    shown, problems = check_reply(
+        explanation, grounding_for(comp, as_of, estimates=estimates, memory=memory)
+    )
+    return ProseVerdict(comp.fallback_headline, shown, problems)
 
 
 MAX_CLARIFICATION_CHARS = 120

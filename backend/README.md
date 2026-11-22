@@ -6,16 +6,23 @@ Python service: dataset loader, tenant-scoped queries, and the agent graph. Run 
 ## Grounding is lexical
 
 The verify gate (`fleet_copilot/agent/verify.py`) decides whether model-written prose may be shown. It
-checks numbers, device ids, hostnames, links and markup, characters that hide or imitate text (rejected,
-never stripped), a model headline that must restate the numbers of the code-written headline, and, on an
-answer, a deny-list of negation, universal and reassurance words (`CLAIM_WORDS`).
+checks the reply one sentence at a time: numbers, hostnames, device ids and dates must already appear in
+this turn's code-written facts or in the conversation's remembered facts (never in a user note); links and
+markup, and characters that hide or imitate text, are rejected, never stripped; a device serial may not be
+named (hostnames are fine); and, on an answer, a deny-list of negation, universal and reassurance words
+(`CLAIM_WORDS`) applies. A chat turn may use only remembered facts, the numbers in the capability card and
+the disclosed policy numbers.
 
-It also rejects speculation the telemetry cannot show: causal phrases ("because", "the reason", "leads to"),
-predictions ("will fail", "soon", "probably", "within days") and how a machine feels to use ("slow",
-"lag", "crash", "performance"), in the headline and the explanation. A phrase the code itself wrote into the
-facts as an estimate is the only future-facing wording allowed. The explanation may not contain a device serial
-(hostnames are fine) and is capped at 2 sentences and 280 characters. The trace records only the rule that
-fired (`explanation:causal`, `explanation:serial_in_prose`), never the text.
+Speculation the telemetry cannot show is allowed only when hedged. A causal phrase ("because", "the reason",
+"leads to") or an experience word ("slow", "lag", "crash", "performance") needs a hedge marker in the same
+sentence (`HEDGES`: "could", "might", "may", "possibly", "perhaps", "worth checking", ...). A prediction
+("will fail", "going to", "within days", a dated prediction) is never allowed, hedged or not, unless it equals
+an estimate the code wrote into the facts. The code-written headline is held to the strict rule.
+
+A sentence that fails is dropped and the others are kept, provided the first sentence (the lead) stands;
+otherwise there is no reply and the code headline and summary stand alone. The kept sentences are cut to
+`policy.MAX_REPLY_SENTENCES` (6) and `policy.MAX_REPLY_CHARS` (900) at a sentence boundary. The trace records
+only `reply:<rule>@<sentence index>`, `reply:dropped=<n>`, `reply:fallback` and `reply:trimmed`, never the text.
 
 It cannot check meaning. A sentence can use only grounded numbers and still be wrong. The code-written
 claims, evidence readings and headline remain the source of truth; model prose is an optional rewording that is
@@ -242,7 +249,7 @@ A question such as "so what should I do?", "any recommendations?" or "next steps
    actions" holds the devices in suggestion order. When nothing is eligible the outcome is `no_match`, with the
    fixed headline "None of these devices supports one of the four actions right now." and one fixed line per
    device. The model may add a headline and a natural two-to-four sentence reply from the code-written facts
-   (explanations of at most 2 sentences and 280 characters: `MAX_EXPLANATION_SENTENCES`, `MAX_EXPLANATION_CHARS`), checked by the same verify gate as every answer.
+   (replies of at most 6 sentences and 900 characters: `MAX_REPLY_SENTENCES`, `MAX_REPLY_CHARS`), checked sentence by sentence by the same verify gate as every answer.
 
 **Advice creates nothing.** No proposal, no audit entry and no effect. To act, the person chooses a suggestion
 (the console sends its `request` as the next message) or writes their own request; that turn is planned as

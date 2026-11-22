@@ -545,28 +545,40 @@ def test_prose_verified_passes_when_the_verify_step_reports_no_problems():
     assert run({"prose_verified": True}, answer(), trace=trace)[0].passed
 
 
-def test_prose_verified_passes_when_the_prose_was_not_shown():
-    data = {**CLEAN_VERIFY, "explanation_shown": False}
-    data["problems"] = ["headline: a number was not in the evidence"]
-    assert run({"prose_verified": True}, answer(), trace=[event(kind="verify", data=data)])[
+def verify_event(*problems, shown=True, **data):
+    return event(
+        kind="verify",
+        data={**CLEAN_VERIFY, "explanation_shown": shown, "problems": list(problems), **data},
+    )
+
+
+def test_prose_verified_passes_when_sentences_were_dropped_for_hedging_only():
+    problems = ["reply:unhedged_causal@2", "reply:predictive@3", "reply:dropped=2"]
+    check = run({"prose_verified": True}, answer(), trace=[verify_event(*problems)])[0]
+    assert check.passed and "2 sentence" in check.detail
+
+
+def test_prose_verified_passes_when_the_reply_was_trimmed_or_a_sentence_was_too_long():
+    assert run({"prose_verified": True}, answer(), trace=[verify_event("reply:trimmed")])[0].passed
+    long = ["reply:too_long@0", "reply:dropped=1", "reply:fallback"]
+    assert run({"prose_verified": True}, answer(), trace=[verify_event(*long)])[0].passed
+
+
+def test_prose_verified_fails_when_a_sentence_was_dropped_for_a_fact():
+    for rule in ("number", "unknown_id", "unknown_host", "date", "serial_in_prose"):
+        problems = ["reply:trimmed", f"reply:{rule}@1", "reply:dropped=1"]
+        check = run({"prose_verified": True}, answer(), trace=[verify_event(*problems)])[0]
+        assert not check.passed and f"{rule}@1" in check.detail, rule
+
+
+def test_prose_verified_fails_for_markup_and_reassurance_drops_and_for_foreign_problems():
+    for problem in ("reply:markup@0", "reply:claim_word@2", "reply:judgment_word@1"):
+        check = run({"prose_verified": True}, answer(), trace=[verify_event(problem)])[0]
+        assert not check.passed, problem
+    check = run({"prose_verified": True}, answer(), trace=[verify_event("headline: unsupported")])[
         0
-    ].passed
-
-
-def test_prose_verified_passes_when_the_explanation_was_trimmed_and_shown():
-    data = {**CLEAN_VERIFY, "problems": ["explanation:trimmed"]}
-    check = run({"prose_verified": True}, answer(), trace=[event(kind="verify", data=data)])[0]
-    assert check.passed
-    # Only the informational note is excused: any other problem next to it still fails the check.
-    data = {**CLEAN_VERIFY, "problems": ["explanation:trimmed", "explanation:number"]}
-    check = run({"prose_verified": True}, answer(), trace=[event(kind="verify", data=data)])[0]
-    assert not check.passed and "explanation:number" in check.detail
-
-
-def test_prose_verified_fails_when_problems_were_reported_and_prose_shown():
-    data = {**CLEAN_VERIFY, "problems": ["explanation: unsupported claim"]}
-    check = run({"prose_verified": True}, answer(), trace=[event(kind="verify", data=data)])[0]
-    assert not check.passed and "unsupported claim" in check.detail
+    ]
+    assert not check.passed and "unsupported" in check.detail
 
 
 def test_prose_verified_fails_when_evidence_failed_verification():
@@ -599,6 +611,13 @@ def test_prose_no_causal_fails_on_a_causal_or_predictive_explanation_or_headline
     assert "Low disk is probably" not in check.detail  # rule names only, never the prose
     check = run({"prose_no_causal": True}, answer(headline="Your fleet is slow"))[0]
     assert not check.passed and "headline:experience" in check.detail
+
+
+def test_prose_no_causal_lets_a_hedged_reply_through_but_not_a_hedged_headline():
+    hedged = answer(reply="Low disk could be why it feels slow.")
+    assert run({"prose_no_causal": True}, hedged)[0].passed
+    check = run({"prose_no_causal": True}, answer(headline="It could be slow"))[0]
+    assert not check.passed
 
 
 # --- proposals ---------------------------------------------------------------------------------------
@@ -767,3 +786,60 @@ def test_insights_min_fails_readably_when_too_few_are_shown():
     assert not check.passed
     assert "expected at least 2" in check.detail and "got 1" in check.detail
     assert not run({"insights_min": 1}, answer(("A", "B")))[0].passed
+
+
+# --- reply_grounded, no_confident_claim, reply_mentions -----------------------------------------------------
+
+
+def test_reply_grounded_fails_only_for_fact_rule_drops():
+    ok = [verify_event("reply:unhedged_causal@1", "reply:predictive@2", "reply:dropped=2")]
+    assert run({"reply_grounded": True}, answer(), trace=ok)[0].passed
+    assert run({"reply_grounded": True}, answer(), trace=[verify_event()])[0].passed
+    assert run({"reply_grounded": True}, answer(), trace=[event()])[0].passed  # no verify step
+    for rule in ("number", "unknown_id", "unknown_host", "date", "serial_in_prose"):
+        check = run({"reply_grounded": True}, answer(), trace=[verify_event(f"reply:{rule}@3")])[0]
+        assert not check.passed and f"{rule}@3" in check.detail, rule
+    # a drop for markup is not an ungrounded fact
+    assert run({"reply_grounded": True}, answer(), trace=[verify_event("reply:markup@0")])[0].passed
+
+
+def test_no_confident_claim_passes_for_hedged_reasoning_and_for_no_reply():
+    hedged = answer(reply="acme-macbook-4 is low. Low disk could be why it feels slow.")
+    assert run({"no_confident_claim": True}, hedged)[0].passed
+    assert run({"no_confident_claim": True}, refusal())[0].passed
+
+
+def test_no_confident_claim_fails_for_an_unhedged_cause_or_any_prediction():
+    cause = run({"no_confident_claim": True}, answer(reply="Low disk is why it is slow."))[0]
+    assert not cause.passed and "causal" in cause.detail and "experience" in cause.detail
+    assert "Low disk" not in cause.detail  # rule names only
+    predicted = run({"no_confident_claim": True}, answer(reply="It might fill, and it will fail."))[
+        0
+    ]
+    assert not predicted.passed and "predictive" in predicted.detail
+    # the explanation field counts when no reply is set
+    assert not run({"no_confident_claim": True}, answer(explanation="It is why."))[0].passed
+
+
+def test_reply_mentions_wants_every_hostname_in_the_shown_reply():
+    reply = "acme-macbook-4 is lowest, then ACME-THINKPAD-8."
+    both = run({"reply_mentions": ["acme-macbook-4", "acme-thinkpad-8"]}, answer(reply=reply))[0]
+    assert both.passed
+    missing = run({"reply_mentions": ["acme-macbook-4", "acme-laptop-1"]}, answer(reply=reply))[0]
+    assert not missing.passed and "acme-laptop-1" in missing.detail
+    assert "acme-macbook-4" not in missing.detail
+    # a longer hostname that merely contains the wanted one does not count
+    longer = answer(reply="acme-macbook-44 is low.")
+    assert not run({"reply_mentions": ["acme-macbook-4"]}, longer)[0].passed
+    none = run({"reply_mentions": ["acme-macbook-4"]}, answer())[0]
+    assert not none.passed and "no reply" in none.detail
+
+
+def test_reply_stats_read_the_trace_and_the_shown_reply():
+    stats = evaluators.reply_stats(
+        answer(reply="One two."), [verify_event("reply:predictive@1", "reply:dropped=1")]
+    )
+    assert stats == {"ran": True, "shown": True, "dropped": 1, "chars": 8}
+    quiet = evaluators.reply_stats(answer(), [verify_event(model_prose=False)])
+    assert quiet == {"ran": False, "shown": False, "dropped": 0, "chars": 0}
+    assert evaluators.reply_stats(refusal(), [event()])["ran"] is False

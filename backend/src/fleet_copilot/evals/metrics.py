@@ -9,6 +9,10 @@ The figures come from what each case recorded, never from parsing a detail sente
 - refusal accuracy: of the cases that expect a refusal-type outcome, the share whose outcome check passed;
 - plan-tool agreement: of the answered turns whose plan named tools, the share whose called read tools were all
   among the planned tools or the two device lookups;
+- reply kept rate: of the turns where the talk step ran, the share that show a reply (the rest fell back to
+  the code headline and summary);
+- sentences dropped per reply: the mean over those turns of the sentences verification removed;
+- reply length: the mean number of characters of the replies that are shown;
 - latency: p50 and p95 of the wall time of each turn (in replay this is replay latency, not model latency);
 - tokens: prompt and completion tokens the cassette recorded for the calls the run made.
 
@@ -65,6 +69,8 @@ def compute(cases: Sequence[Any], *, tokens: dict[str, int] | None = None) -> di
     refusals = refusals_ok = 0
     planned_turns = agreeing = 0
     turn_ms: list[int] = []
+    talked = kept = dropped = 0
+    shown_chars: list[int] = []
     for case in cases:
         for check in case.checks:
             if check["name"] == LEAK_CHECK and not check["passed"]:
@@ -77,6 +83,14 @@ def compute(cases: Sequence[Any], *, tokens: dict[str, int] | None = None) -> di
             refusals += 1
             refusals_ok += 1 if case.refusal_ok else 0
         turn_ms.extend(case.turn_ms)
+        for reply in getattr(case, "replies", ()):
+            if not reply.get("ran"):
+                continue
+            talked += 1
+            dropped += int(reply.get("dropped", 0))
+            if reply.get("shown"):
+                kept += 1
+                shown_chars.append(int(reply.get("chars", 0)))
         for planned, called, answered in zip(case.planned, case.tools, case.answered, strict=False):
             if answered and planned:
                 planned_turns += 1
@@ -95,6 +109,16 @@ def compute(cases: Sequence[Any], *, tokens: dict[str, int] | None = None) -> di
             "total": planned_turns,
             "rate": _rate(agreeing, planned_turns),
         },
+        "reply_kept_rate": {"kept": kept, "total": talked, "rate": _rate(kept, talked)},
+        "sentences_dropped_per_reply": {
+            "dropped": dropped,
+            "replies": talked,
+            "mean": round(dropped / talked, 2) if talked else None,
+        },
+        "reply_length_chars": {
+            "replies": len(shown_chars),
+            "mean": round(sum(shown_chars) / len(shown_chars)) if shown_chars else None,
+        },
         "latency_ms": (
             {"p50": percentile(turn_ms, 50), "p95": percentile(turn_ms, 95), "turns": len(turn_ms)}
             if turn_ms
@@ -112,6 +136,12 @@ def _pct(rate: float | None) -> str:
 
 def _share(label: str, num: int, den: int, rate: float | None) -> str:
     return f"{label}: {num}/{den} ({_pct(rate)})" if den else f"{label}: n/a (nothing to measure)"
+
+
+def _mean(label: str, value: float | None, unit: str) -> str:
+    if value is None:
+        return f"{label}: n/a (no replies)"
+    return f"{label}: {value:g}{unit}"
 
 
 def _tokens(tokens: dict[str, int] | None, *, replay: bool) -> str:
@@ -133,6 +163,9 @@ def format_metrics(metrics: dict[str, Any], *, replay: bool) -> str:
         metrics["latency_ms"],
     )
     agree = metrics.get("plan_tool_agreement") or {"agreed": 0, "total": 0, "rate": None}
+    kept = metrics.get("reply_kept_rate") or {"kept": 0, "total": 0, "rate": None}
+    dropped = metrics.get("sentences_dropped_per_reply") or {"mean": None, "replies": 0}
+    length = metrics.get("reply_length_chars") or {"mean": None}
     if latency is None:
         speed = "latency p50/p95: n/a"
     else:
@@ -144,6 +177,9 @@ def format_metrics(metrics: dict[str, Any], *, replay: bool) -> str:
         _share("citation precision", cite["valid"], cite["total"], cite["rate"]),
         _share("refusal accuracy", refuse["passed"], refuse["total"], refuse["rate"]),
         _share("plan-tool agreement", agree["agreed"], agree["total"], agree["rate"]),
+        _share("reply kept rate", kept["kept"], kept["total"], kept["rate"]),
+        _mean("sentences dropped per reply", dropped["mean"], ""),
+        _mean("mean reply length", length["mean"], " chars"),
         speed,
         _tokens(metrics["tokens"], replay=replay),
     ]

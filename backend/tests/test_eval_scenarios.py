@@ -587,3 +587,39 @@ def test_insights_min_is_a_valid_expect_key(tmp_path):
     write_suite(tmp_path, cases=[ok])
     (scenario,) = load_suites(tmp_path)
     assert scenario.cases[0].turns[0].expect["insights_min"] == 3
+
+
+# --- reply keys ----------------------------------------------------------------------------------------
+
+
+def test_reply_keys_load(tmp_path):
+    expect = {
+        "outcome": "answer",
+        "reply_grounded": True,
+        "no_confident_claim": True,
+        "reply_mentions": ["acme-macbook-4", "acme-thinkpad-8"],
+    }
+    write_suite(tmp_path, suite="conversation", cases=[two_turn_case(second=expect)])
+    assert load_suites(tmp_path)
+
+
+@pytest.mark.parametrize(
+    ("key", "value", "needle"),
+    [
+        ("reply_mentions", [], "non-empty list of hostnames"),
+        ("reply_mentions", "acme-macbook-4", "non-empty list of hostnames"),
+        ("reply_mentions", ["acme-macbook-4", ""], "hostnames"),
+        ("reply_mentions", [3], "hostnames"),
+        ("reply_mentions", ["acme-macbook-4", "ACME-macbook-4"], "twice"),
+        ("reply_grounded", "yes", "true or false"),
+        ("no_confident_claim", 1, "true or false"),
+    ],
+)
+def test_malformed_reply_keys_are_rejected(tmp_path, key, value, needle):
+    write_suite(
+        tmp_path,
+        suite="conversation",
+        cases=[two_turn_case(second={"outcome": "answer", key: value})],
+    )
+    with pytest.raises(ScenarioError, match=f"{key}.*{needle}"):
+        load_suites(tmp_path)

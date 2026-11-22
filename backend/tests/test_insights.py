@@ -484,7 +484,7 @@ def test_a_date_that_the_code_did_not_write_is_rejected(battery_answer):
     wrong = f"{insight.label}'s battery is estimated to reach our service threshold between Aug 3 and Aug 9."
     verdict = verify_prose(comp, AS_OF, explanation=wrong)
     assert verdict.explanation is None
-    assert any(p.startswith("explanation:") for p in verdict.problems)
+    assert "reply:date@0" in verdict.problems
 
 
 def test_the_act_soon_label_may_be_repeated_but_not_a_prediction_with_soon(battery_answer):
@@ -497,7 +497,7 @@ def test_the_act_soon_label_may_be_repeated_but_not_a_prediction_with_soon(batte
     )
     assert ok.problems == ()
     bad = verify_prose(comp, AS_OF, explanation="Three batteries will run flat soon.")
-    assert "explanation:predictive" in bad.problems
+    assert "reply:predictive@0" in bad.problems
 
 
 def test_a_stated_date_may_be_named_by_month_and_day_but_no_other(battery_answer):
@@ -513,7 +513,7 @@ def test_a_stated_date_may_be_named_by_month_and_day_but_no_other(battery_answer
         AS_OF,
         explanation="acme-macbook-1 has had the vendor flag since May 20.",
     )
-    assert "explanation:date" in invented.problems
+    assert "reply:date@0" in invented.problems
 
 
 def test_an_unrelated_prediction_is_still_rejected_next_to_an_estimate(battery_answer):
@@ -522,7 +522,7 @@ def test_an_unrelated_prediction_is_still_rejected_next_to_an_estimate(battery_a
     phrase = estimate_phrase(insight.projection)
     text = f"{insight.label} will fail soon, {phrase}."
     verdict = verify_prose(comp, AS_OF, explanation=text)
-    assert "explanation:predictive" in verdict.problems
+    assert "reply:predictive@0" in verdict.problems
 
 
 def test_estimates_are_not_needed_for_an_answer_without_insights(real_db_path, real_conn):

@@ -86,6 +86,7 @@ from fleet_copilot.agent.tools import (
 from fleet_copilot.agent.trace import emit, trace_args
 from fleet_copilot.agent.verify import (
     composition_of,
+    dropped_count,
     verify_clarification,
     verify_evidence,
     verify_prose,
@@ -1218,6 +1219,7 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
             composition_of(draft),
             ctx.as_of,
             explanation=prose.get("text"),
+            memory=memory_module.memory_facts(memory_module.load(state.get("memory"))),
         )
         emit(
             "verify",
@@ -1226,6 +1228,8 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
                 "evidence_ok": True,
                 "model_prose": bool(prose),
                 "explanation_shown": verdict.explanation is not None,
+                "reply_dropped": dropped_count(verdict.problems),
+                "reply_chars": len(verdict.explanation or ""),
                 "problems": list(verdict.problems),
             },
         )

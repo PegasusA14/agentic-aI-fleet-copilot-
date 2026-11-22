@@ -52,8 +52,8 @@ MEMORY_MAX_CHARS = 6000  # most characters of memory shown to the planner
 MAX_HEADLINE_CHARS = (
     160  # longest headline the answer text may have (headlines are written by code)
 )
-MAX_EXPLANATION_CHARS = 280  # longest model-written explanation that passes verification
-MAX_EXPLANATION_SENTENCES = 2  # most sentences a model-written explanation may have
+MAX_REPLY_CHARS = 900  # longest model-written reply that is shown
+MAX_REPLY_SENTENCES = 6  # most sentences a model-written reply may have
 MAX_SUGGESTIONS = 6  # suggested actions one advise reply offers
 ACTION_REPEAT_WINDOW_DAYS = 30  # an action already executed this recently is not proposed again
 MAX_PENDING_PER_TENANT = 20  # proposals one company may have waiting for a decision at once
