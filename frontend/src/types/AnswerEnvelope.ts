@@ -194,7 +194,7 @@ export interface Clarification {
   question: Question;
 }
 /**
- * What the answer covered and what it could not: the disclosures a reviewer needs.
+ * What the answer covered and what it could not: the disclosures a reader needs to judge it.
  */
 export interface Coverage {
   excluded: Excluded;

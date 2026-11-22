@@ -1,11 +1,11 @@
 # Fleet Copilot
 
-Fleet Copilot answers an IT administrator's questions about their company's managed devices in plain
-language, backs every answer with cited readings from the telemetry, recommends what to do next when asked, and
-turns a request such as "open a ticket for that one" into a pending proposal that only a person can approve. It
-is a chat: past conversations are kept per administrator and can be reopened. It is built for the Senior Agentic
-AI Engineer assessment. The stack is Python 3.14 with an explicit LangGraph graph, FastAPI, Azure OpenAI for the
-model, SQLite for the data, checkpoints, traces and audit log, and a React and Vite web console.
+Fleet Copilot answers an IT administrator's questions about their company's managed devices in plain language,
+backs every answer with cited readings from the telemetry, recommends what to do next when asked, and turns a
+request such as "open a ticket for that one" into a pending proposal that only a person can approve. It is a chat:
+past conversations are kept per administrator and can be reopened. The stack is Python 3.14 with an explicit
+LangGraph graph, FastAPI, Azure OpenAI for the model, SQLite for the data, checkpoints, traces and audit log, and a
+React and Vite web console.
 
 > Status: the agent, API, web console and the four evaluation suites run end to end, and `make test` passes
 > without any credentials (backend 1981 passed, 1 skipped; `make frontend-test` 263 passed). The evaluation
@@ -20,7 +20,7 @@ Contents: [Quick start](#quick-start) · [Running the agent](#running-the-agent)
 [Running evaluations](#running-evaluations) · [Agent architecture](#agent-architecture) ·
 [Tool catalog](#tool-catalog) · [Grounding strategy](#grounding-strategy) · [Guardrails](#guardrails) ·
 [Design decisions and trade-offs](#key-design-decisions-and-trade-offs) ·
-[Checklist and proof](#sop-pre-submission-checklist-and-proof) · [Limitations](#limitations) ·
+[Requirements and proof](#requirements-and-proof) · [Limitations](#limitations) ·
 [Demo walkthrough](#demo-walkthrough) · [Repository layout](#repository-layout)
 
 ## Quick start
@@ -384,7 +384,7 @@ git-ignored.
 | Explicit LangGraph `StateGraph` instead of a prebuilt agent | The nodes, edges, bounds and what each node may do are visible and pinned by a topology test | More code than a one-line agent; changes to the flow are edits to the graph |
 | "Now" pinned to the newest snapshot | Answers and evaluations are reproducible and match the golden file | Not a live fleet view; a different dataset needs a new golden file, database and cassette |
 | Lexical verify gate | Deterministic, fast, no second model to trust or pay for | Checks tokens, not meaning; misses cross-script look-alikes and non-digit numerals; a wrong sentence made of grounded numbers passes |
-| One `propose_action` tool with enumerated parameters | One audited path to a proposal; the model cannot invent an action type or parameter | The four SOP actions are all it can do; a new action needs eligibility, payload and executor code |
+| One `propose_action` tool with enumerated parameters | One audited path to a proposal; the model cannot invent an action type or parameter | The four supported actions are all it can do; a new action needs eligibility, payload and executor code |
 | Advice is code-computed; acting stays a separate approved proposal | `recommend_actions` runs the same eligibility rules as a proposal, so a suggestion is never an action the data does not support, every suggestion cites readings, and the model cannot invent a recommendation. Choosing one only sends a message; the resulting proposal needs a person's approval as before | The advice is limited to the four actions, ordered by a fixed severity rule and capped at 6; it cannot suggest anything the eligibility code does not know. Acting on a suggestion takes a second turn |
 | An advise turn calls `recommend_actions` deterministically, not through the model | Advice never depends on the model's choice of tool: code makes the one call for the resolved devices and the graph topology is unchanged. The model's remaining jobs are classifying the turn as `advise` and wording the verified reply | A misclassified turn gets no advice, or advice where a data question was meant; the model is also told never to call the tool and a call on another plan is rejected |
 | Conversation history kept server-side per administrator | The sidebar can list, reopen and delete conversations, and a reopened conversation continues on its own checkpoint | The store holds typed questions and full answers (unlike traces), and a reopened proposal card shows the answer as it was stored |
@@ -395,12 +395,12 @@ git-ignored.
 | Installed software is "not in the common set", never "unapproved" | The telemetry has no approval or risk label, so the product does not invent one | Less direct than a risk label; a gate also rejects label words in model prose |
 | No LLM judge in the evaluation | Scores are exact and repeatable, and expected values come from an independent oracle | Whether a model-written sentence is a fair reading is not scored |
 
-## SOP pre-submission checklist and proof
+## Requirements and proof
 
 All files are under `backend/tests/` unless a command is shown. `make test` runs them all; `make eval` runs the
 scenario suites (after the cassette is recorded).
 
-| Checklist item (SOP 8.3) | Proof |
+| Requirement | Proof |
 | --- | --- |
 | Not a simple prompt wrapper: planning, tool calling, explicit loop | `test_agent_topology.py` (exact nodes and edges; tools entered only from `act` and returned only through `collect`), `test_agent_graph.py` (round limit, per-round limit, one retry, correction of invalid calls), `test_agent_llm.py` (the plan contract and plan leniency), `test_agent_tools.py`, `test_advise_agent.py` (advice runs through the graph with a code-made `recommend_actions` call and never an act call on the model) |
 | Every answer cites evidence from the data | `test_refs_resolve.py` (every reference resolves in its tenant and agrees with the finding), `test_agent_verify.py` (tampered, nonexistent and foreign evidence is caught), `test_evidence.py`, `test_api_data.py`; `make eval` check `cites_every_device` |
@@ -411,7 +411,7 @@ scenario suites (after the cassette is recorded).
 | Actions are refused when evidence is insufficient | `test_action_eligibility.py` (too little history, stale reading, not eligible cases), `test_action_service.py` (ineligible, foreign or unknown target refused and audited); `make eval` four ineligible `actions` cases |
 | Setup works from a clean clone | Rehearsed on 2026-11-21 from a fresh `git clone` with no `.env`: `make setup`, `make load-data` (750 rows, sha verified), `make test` (1852 passed, 1 skipped: the live-check replay without its cassette), `make lint`, `make frontend-install`, `make frontend-test` (144 passed), `make frontend-build`, and `make api` (127.0.0.1 only; app, demo sign-in and streamed chat). Only a live model needs `.env` |
 | The evaluation suite runs with a single documented command | `make eval` (and `make eval-live` to record); `test_eval_runner.py`, `test_eval_suites_valid.py`, `test_eval_scenarios.py`, `test_eval_evaluators.py`. It passes only once `evals/cassettes/eval.jsonl` is recorded |
-| README covers all 7.2 items | This document: installation and setup, running the agent, running evaluations, agent architecture, tool catalog, grounding strategy, guardrails, design decisions and trade-offs |
+| The documentation covers setup and design | This document: installation and setup, running the agent, running evaluations, agent architecture, tool catalog, grounding strategy, guardrails, design decisions and trade-offs |
 
 ## Limitations
 

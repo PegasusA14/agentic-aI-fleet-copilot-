@@ -236,7 +236,7 @@
     },
     "Coverage": {
       "additionalProperties": false,
-      "description": "What the answer covered and what it could not: the disclosures a reviewer needs.",
+      "description": "What the answer covered and what it could not: the disclosures a reader needs to judge it.",
       "properties": {
         "excluded": {
           "additionalProperties": {

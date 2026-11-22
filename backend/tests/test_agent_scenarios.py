@@ -1,6 +1,6 @@
 """Demo-shaped scenarios run end to end through the service with a scripted model.
 
-They pin what a reviewer sees: entity sets from the oracle's golden file, outcome types, fixed
+They pin what an administrator sees: entity sets from the oracle's golden file, outcome types, fixed
 refusal text, and that nothing crosses a tenant boundary. Paraphrase robustness of a real model is
 measured in Plan 5; here the model's choices are scripted and everything after them is real.
 """

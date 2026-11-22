@@ -98,7 +98,7 @@ class ExcludedDevice(_Model):
 
 
 class Coverage(_Model):
-    """What the answer covered and what it could not: the disclosures a reviewer needs."""
+    """What the answer covered and what it could not: the disclosures a reader needs to judge it."""
 
     population: int = Field(ge=0)
     stale: list[str] = Field(default_factory=list)

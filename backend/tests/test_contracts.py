@@ -539,7 +539,7 @@ def test_excluded_reasons_are_a_closed_set():
         Coverage(population=1, excluded={"made_up_reason": ["A"]})
 
 
-def test_action_type_covers_the_four_sop_actions():
+def test_action_type_covers_the_four_actions():
     assert set(get_args(ActionType)) == {
         "remediation_ticket",
         "replacement_flag",
