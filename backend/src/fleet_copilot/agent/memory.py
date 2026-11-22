@@ -64,6 +64,9 @@ class TurnMemory(_Model):
     reply: str = ""
     key_facts: list[KeyFact] = Field(default_factory=list)
     proposals: list[RememberedProposal] = Field(default_factory=list)
+    # The next steps the turn suggested, as "action_type|hostname". A conversation saved before this field
+    # existed has none.
+    suggested: list[str] = Field(default_factory=list)
     trace_id: str = ""
 
 
@@ -174,6 +177,7 @@ def remember_turn(
         reply=_one_line(envelope.reply, MAX_REPLY_KEPT),
         key_facts=key_facts_of(envelope),
         proposals=proposals[:MAX_PROPOSALS_PER_TURN],
+        suggested=[f"{a.action_type}|{a.target_label.lower()}" for a in envelope.suggested_actions],
         trace_id=trace_id,
     )
     turns = [*memory.turns, entry][-policy.MEMORY_MAX_TURNS :]
@@ -303,13 +307,15 @@ def render(
 
 def memory_facts(memory: ConversationMemory) -> dict[str, frozenset[str]]:
     """What the remembered turns state, for checking later prose against: `numbers`, `labels` (hostnames),
-    `ids` (device and proposal ids), `refs` and `dates` (calendar days as "jun 12"). Notes are the user's
+    `ids` (device and proposal ids), `refs`, `dates` (calendar days as "jun 12") and `actions`
+    ("action_type|hostname" of each proposal and suggestion). Notes are the user's
     words, not facts, so they add nothing."""
     numbers: set[str] = set()
     labels: set[str] = set()
     ids: set[str] = set()
     refs: set[str] = set()
     dates: set[str] = set()
+    actions: set[str] = set()
     for turn in memory.turns:
         texts = [turn.headline, turn.summary, turn.reply]
         for fact in turn.key_facts:
@@ -320,6 +326,8 @@ def memory_facts(memory: ConversationMemory) -> dict[str, frozenset[str]]:
         for proposal in turn.proposals:
             labels.add(proposal.label)
             ids.update((proposal.proposal_id, proposal.device_id))
+            actions.add(f"{proposal.action_type}|{proposal.label.lower()}")
+        actions.update(turn.suggested)
         for text in texts:
             numbers.update(_NUMBER.findall(text))
             dates.update(f"{month} {day}" for month, day in stated_month_days(text))
@@ -329,4 +337,5 @@ def memory_facts(memory: ConversationMemory) -> dict[str, frozenset[str]]:
         "ids": frozenset(ids),
         "refs": frozenset(refs),
         "dates": frozenset(dates),
+        "actions": frozenset(actions),
     }

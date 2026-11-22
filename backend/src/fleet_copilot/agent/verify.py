@@ -23,7 +23,7 @@ from fleet_copilot import policy
 from fleet_copilot.agent import texts
 from fleet_copilot.agent.compose import Composition, Resolver, evidence_kind, evidence_text
 from fleet_copilot.agent.insights import estimates_of
-from fleet_copilot.contracts import AnswerEnvelope
+from fleet_copilot.contracts import AnswerEnvelope, SuggestedAction
 from fleet_copilot.evidence import EvidenceRef
 from fleet_copilot.repository import NotFound
 
@@ -406,6 +406,7 @@ def composition_of(envelope: AnswerEnvelope) -> Composition:
         fallback_headline=envelope.headline,
         rules=[envelope.scope.rule] if envelope.scope.rule else [],
         suggested_actions=list(envelope.suggested_actions),
+        proposal=envelope.proposal,
         insights=list(envelope.insights),
         estimates=estimates_of(envelope.insights),
     )
@@ -455,6 +456,10 @@ def check_prose(
 FACT_RULES = frozenset({"number", "unknown_id", "unknown_host", "date", "serial_in_prose"})
 HEDGE_RULES = frozenset({"unhedged_causal", "unhedged_experience", "predictive"})
 LENGTH_RULES = frozenset({"too_long"})
+# Action rules mean the sentence offered or judged an action code did not back: an action no suggestion of
+# this turn carries (`unbacked_action`), or a verdict on how well an action would work (`effectiveness`).
+# They are action-quality errors, so they are neither hedge nor length repairs.
+ACTION_RULES = frozenset({"unbacked_action", "effectiveness"})
 REPLY_TRIMMED = "reply:trimmed"
 REPLY_FALLBACK = "reply:fallback"
 _PROBLEM = re.compile(r"^reply:([a-z_]+)@(\d+)$")
@@ -521,6 +526,11 @@ class Grounding:
     estimates: tuple[str, ...] = ()
     claim_words: re.Pattern[str] | None = None
     judges_software: bool = False
+    # The `(action_type, hostname)` pairs this turn's facts back (suggestions, the proposal card, and what
+    # the conversation already holds). None switches the action check off (a refusal's reply).
+    actions: frozenset[tuple[str, str]] | None = None
+    # A chat turn may describe what the four actions are; it may not tie one to a device without backing.
+    describes_capabilities: bool = False
 
 
 # On a chat turn "no" and "none" are ordinary answers ("no, nothing was approved"); the words that vouch for
@@ -550,17 +560,35 @@ def grounding_for(
     *,
     estimates: Sequence[str] | None = None,
     memory: Mapping[str, Collection[str]] | None = None,
+    suggestions: Sequence[SuggestedAction] = (),
 ) -> Grounding:
     """The facts a reply to `comp` may use: this turn's facts plus the conversation's remembered ones.
 
     Remembered facts (`memory_facts`) are numbers, hostnames, device ids and dates from earlier turns; the
     user's notes are never among them. A chat turn has no facts of its own: it may use only what is
     remembered, the numbers in the capability card, and the disclosed policy numbers.
+
+    The actions a reply may offer are this turn's suggestions (`comp.suggested_actions`, or `suggestions` for
+    the next steps of a list answer, which join the envelope only after the reply is checked), its proposal
+    card, and the actions the conversation already holds (`memory["actions"]`). A refusal's reply is not
+    checked for actions: it speaks only of the alternatives the refusal itself lists.
     """
     remembered_numbers = {_norm(n) for n in _memory_set(memory, "numbers")}
     remembered_ids = _memory_set(memory, "ids")
     remembered_labels = _memory_set(memory, "labels")
     disclosed = {_norm(str(v)) for v in policy.disclosure().values()}
+    actions: frozenset[tuple[str, str]] | None = None
+    if comp.outcome in ("answer", "proposal", "chat"):
+        offered = action_pairs(
+            comp.suggested_actions or list(suggestions),
+            (comp.proposal.action_type, comp.proposal.target_label) if comp.proposal else None,
+        )
+        held = {
+            (kind, host)
+            for entry in _memory_set(memory, "actions")
+            for kind, _, host in [entry.partition("|")]
+        }
+        actions = offered | held
     if comp.outcome == "chat":
         return Grounding(
             numbers=frozenset(
@@ -571,6 +599,8 @@ def grounding_for(
             days=frozenset(_memory_days(memory)),
             serials=remembered_ids,
             claim_words=_CHAT_CLAIM_WORD,
+            actions=actions,
+            describes_capabilities=True,
         )
     if estimates is None:
         estimates = tuple(getattr(comp, "estimates", None) or ())
@@ -587,6 +617,7 @@ def grounding_for(
         estimates=tuple(estimates),
         claim_words=_CLAIM_WORD if is_answer else None,
         judges_software=is_answer and any("#software[" in item.ref for item in comp.evidence),
+        actions=actions,
     )
 
 
@@ -595,8 +626,9 @@ def sentence_problems(sentence: str, grounding: Grounding) -> list[str]:
 
     Facts: `number`, `unknown_id`, `unknown_host`, `date`, `serial_in_prose`. Plain text: `markup`,
     `bad_chars`. Claims: `claim_word` (universal reassurance), `judgment_word` (a label for software the
-    data does not carry). Hedging: `unhedged_causal`, `unhedged_experience`, `predictive`. Length:
-    `too_long`. Pure; the codes carry no text.
+    data does not carry). Hedging: `unhedged_causal`, `unhedged_experience`, `predictive`. Actions:
+    `effectiveness` (a verdict on how well an action works), `unbacked_action` (an action this turn's facts do
+    not back). Length: `too_long`. Pure; the codes carry no text.
     """
     found = [
         _code(p)
@@ -619,7 +651,127 @@ def sentence_problems(sentence: str, grounding: Grounding) -> list[str]:
     found += [f"unhedged_{c}" for c in unhedged_claims(sentence, estimates=grounding.estimates)]
     if is_predictive(sentence, estimates=grounding.estimates):
         found.append("predictive")
+    if judges_effectiveness(sentence):
+        found.append("effectiveness")
+    if grounding.actions is not None and unbacked_actions(
+        sentence, grounding.actions, capabilities=grounding.describes_capabilities
+    ):
+        found.append("unbacked_action")
     return list(dict.fromkeys(found))
+
+
+# --- actions the reply may offer ---------------------------------------------------------------------------------
+# A reply may only offer or mention an action that code put in this turn's facts: a suggestion, the proposal
+# card, or one the conversation already holds. The words below find a sentence that talks about doing
+# something; a sentence that names an action must match a backed (action type, hostname) pair. Lexical
+# backstop, not a reading of meaning: it errs towards dropping a sentence, never towards showing an offer.
+_ACTION_MENTIONS: tuple[tuple[str | None, re.Pattern[str]], ...] = (
+    (
+        "employee_notification",
+        re.compile(
+            r"\bnotif\w*|\bnudg\w*"
+            r"|\b(?:ask|tell|remind|message|email|alert|contact|ping)\w*\s+"
+            r"(?:(?:the|those|these|all|their|each|your|our)\s+)?"
+            r"(?:users?|owners?|employees?|people|staff|assignees?|them|him|her)\b"
+            r"|\b(?:message|email|reminder)s?\s+to\b",
+            re.IGNORECASE,
+        ),
+    ),
+    ("remediation_ticket", re.compile(r"\btickets?\b|\bremediation\b", re.IGNORECASE)),
+    (
+        "upgrade_order",
+        re.compile(
+            r"\bupgrad\w*|\border(?:s|ed|ing)?\s+(?:a|an|the|more|new|extra|some)\b", re.IGNORECASE
+        ),
+    ),
+    (
+        "replacement_flag",
+        re.compile(
+            r"\breplac\w*|\bflag(?:s|ged|ging)?\s+"
+            r"(?:it|them|that|this|the|a|an|[a-z][a-z0-9]*-[a-z][a-z0-9]*-\d+)\b",
+            re.IGNORECASE,
+        ),
+    ),
+    (None, re.compile(r"\bpropos(?:e|es|ed|ing|al|als)\b", re.IGNORECASE)),
+)
+# An operating-system upgrade is a compliance matter, not the hardware upgrade order.
+_OS_UPGRADE = re.compile(
+    r"\b(?:mac\s*os|os|operating\s+system|windows)\s*(?:x\s*)?[\d.]*\s*(?:update|upgrade)s?\b"
+    r"|\bupgrad\w*\s+to\s+(?:mac\s*os|windows|os)\b",
+    re.IGNORECASE,
+)
+
+
+def action_pairs(
+    suggestions: Sequence[SuggestedAction], proposal_action: tuple[str, str] | None = None
+) -> frozenset[tuple[str, str]]:
+    """The `(action_type, lower-case hostname)` pairs a turn's suggestions (and proposal card) back."""
+    pairs = {(s.action_type, s.target_label.lower()) for s in suggestions[: policy.MAX_SUGGESTIONS]}
+    if proposal_action is not None:
+        pairs.add((proposal_action[0], proposal_action[1].lower()))
+    return frozenset(pairs)
+
+
+def named_actions(sentence: str) -> list[tuple[int, str | None, set[str]]]:
+    """The actions `sentence` talks about: `(position, action type or None, hostnames it is tied to)`.
+
+    An action type is one of the four action types, or None for a bare "propose". Each hostname in the
+    sentence is tied to the nearest action word (the one before it on a tie), so "an upgrade for host-a or a
+    replacement for host-b" ties each host to its own action.
+    """
+    folded = _OS_UPGRADE.sub(" ", _fold(sentence))
+    mentions = sorted(
+        (match.start(), kind)
+        for kind, pattern in _ACTION_MENTIONS
+        for match in pattern.finditer(folded)
+    )
+    tied: list[tuple[int, str | None, set[str]]] = [(pos, kind, set()) for pos, kind in mentions]
+    if tied:
+        for host in _HOST_LIKE.finditer(folded):
+            nearest = min(tied, key=lambda m: (abs(m[0] - host.start()), m[0] > host.start()))
+            nearest[2].add(host.group(0).lower())
+    return tied
+
+
+def unbacked_actions(
+    sentence: str, backed: Collection[tuple[str, str]], *, capabilities: bool = False
+) -> bool:
+    """True when `sentence` offers or mentions an action that no `(action type, hostname)` in `backed` covers.
+
+    Pure. Every action the sentence names must be backed: with hostnames, each (type, hostname) pair must be
+    in `backed`; with none, at least one backed pair must have that type; a bare "propose" needs any backed
+    action. A sentence that names no action is never unbacked. With `capabilities` (a chat turn) an action
+    named with no hostname describes what the assistant can do ("I can propose four actions") and is allowed;
+    tying an action to a device still needs a backing suggestion, proposal or remembered turn.
+    """
+    for _, kind, hosts in named_actions(sentence):
+        if capabilities and not hosts:
+            continue
+        if kind is None:
+            ok = bool(backed) and (not hosts or any(h in {b[1] for b in backed} for h in hosts))
+        elif hosts:
+            ok = all((kind, host) in backed for host in hosts)
+        else:
+            ok = any(kind == action for action, _ in backed)
+        if not ok:
+            return True
+    return False
+
+
+# Phrases that judge how well an action would work. The data shows readings, never what an action would do.
+EFFECTIVENESS_PHRASES = (
+    "only help a little", "only help a bit", "help only a little", "won't help", "will not help",
+    "wouldn't help", "would not help", "won't fix", "will not fix", "wouldn't fix", "would not fix",
+    "won't solve", "will not solve", "will fix", "will solve", "would solve", "would fix",
+    "will resolve", "would resolve", "not enough to",
+)  # fmt: skip
+_EFFECTIVENESS = _phrase_pattern(EFFECTIVENESS_PHRASES)
+
+
+def judges_effectiveness(sentence: str) -> bool:
+    """True when `sentence` says how well or how little an action would work ("may only help a little",
+    "will fix it", "not enough to"). Pure; hedging does not excuse it."""
+    return _EFFECTIVENESS.search(_fold(sentence)) is not None
 
 
 def _pieces(text: str) -> list[tuple[str, str]]:
@@ -686,6 +838,7 @@ def verify_prose(
     explanation: str | None,
     estimates: Sequence[str] | None = None,
     memory: Mapping[str, Collection[str]] | None = None,
+    suggestions: Sequence[SuggestedAction] = (),
 ) -> ProseVerdict:
     """Accept the model's reply sentence by sentence; the headline is always the code-written one.
 
@@ -694,7 +847,8 @@ def verify_prose(
     a battery estimate, which a sentence may repeat verbatim. See `check_reply` for how failures are repaired.
     """
     shown, problems = check_reply(
-        explanation, grounding_for(comp, as_of, estimates=estimates, memory=memory)
+        explanation,
+        grounding_for(comp, as_of, estimates=estimates, memory=memory, suggestions=suggestions),
     )
     return ProseVerdict(comp.fallback_headline, shown, problems)
 

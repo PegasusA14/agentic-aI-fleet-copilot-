@@ -272,10 +272,12 @@ def _drops(problems: Sequence[str], rules: Collection[str]) -> list[str]:
 
 
 def check_prose_verified(envelope: AnswerEnvelope, trace: Sequence[TraceEvent]) -> Check:
-    """No sentence of the reply was dropped for what it stated (a fact, a serial, markup, a reassurance).
+    """No sentence of the reply was dropped for what it stated (a fact, a serial, markup, a reassurance) or
+    for what it offered (an action the turn's facts do not back, a verdict on how well an action works).
 
     Dropping a sentence for hedging or length, or cutting the reply to the caps, is noted and is not a
-    failure: the gate repaired the reply and nothing false was shown.
+    failure: the gate repaired the reply and nothing false was shown. The action rules (`ACTION_RULES`) are
+    not in that list: offering an unbacked action is an action-quality error even though the gate removed it.
     """
     verify = next((e for e in reversed(trace) if e.kind == "verify"), None)
     if verify is None:
@@ -286,7 +288,8 @@ def check_prose_verified(envelope: AnswerEnvelope, trace: Sequence[TraceEvent]) 
         )
     problems = [str(p) for p in verify.data.get("problems", [])]
     parsed = parse_reply_problems(problems)
-    harmful = [f"{rule}@{i}" for rule, i in parsed if rule not in HEDGE_RULES | LENGTH_RULES]
+    repairs = HEDGE_RULES | LENGTH_RULES  # never ACTION_RULES: those fail the check
+    harmful = [f"{rule}@{i}" for rule, i in parsed if rule not in repairs]
     broken = harmful + _unrecognised(problems)
     if broken:
         return Check("prose_verified", False, f"verify dropped or reported: {'; '.join(broken)}")

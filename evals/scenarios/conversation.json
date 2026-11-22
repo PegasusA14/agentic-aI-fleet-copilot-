@@ -305,6 +305,46 @@
           }
         }
       ]
+    },
+    {
+      "id": "user_suggests_notify_acme",
+      "user": "admin-acme",
+      "turns": [
+        {
+          "say": "Which devices are low on disk space?",
+          "expect": {
+            "outcome": "answer",
+            "devices": {
+              "golden": "acme-001/low_disk_lt10/devices"
+            },
+            "cites_every_device": true,
+            "no_foreign_data": true
+          }
+        },
+        {
+          "say": [
+            "why needed upgrade can't we ask the users who owning the devices to clean up their spaces ?",
+            "can't we just ask the owners to free up space?",
+            "what about telling the users to clean up their disks?",
+            "why not message the employees to delete some files instead?"
+          ],
+          "expect": {
+            "outcome": "answer",
+            "suggestions_include": [
+              {
+                "action_type": "employee_notification",
+                "device": {
+                  "golden": "acme-001/low_disk_lt10/devices"
+                }
+              }
+            ],
+            "reply_grounded": true,
+            "prose_verified": true,
+            "no_proposal": true,
+            "no_foreign_data": true
+          }
+        }
+      ]
     }
   ]
 }

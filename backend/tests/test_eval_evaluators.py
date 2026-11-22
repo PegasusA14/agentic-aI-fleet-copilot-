@@ -571,6 +571,15 @@ def test_prose_verified_fails_when_a_sentence_was_dropped_for_a_fact():
         assert not check.passed and f"{rule}@1" in check.detail, rule
 
 
+def test_prose_verified_fails_when_a_sentence_was_dropped_for_an_unbacked_or_judged_action():
+    for rule in ("unbacked_action", "effectiveness"):
+        problems = [f"reply:{rule}@1", "reply:dropped=1"]
+        check = run({"prose_verified": True}, answer(), trace=[verify_event(*problems)])[0]
+        assert not check.passed and f"{rule}@1" in check.detail, rule
+        # an action drop is not an ungrounded fact
+        assert run({"reply_grounded": True}, answer(), trace=[verify_event(*problems)])[0].passed
+
+
 def test_prose_verified_fails_for_markup_and_reassurance_drops_and_for_foreign_problems():
     for problem in ("reply:markup@0", "reply:claim_word@2", "reply:judgment_word@1"):
         check = run({"prose_verified": True}, answer(), trace=[verify_event(problem)])[0]

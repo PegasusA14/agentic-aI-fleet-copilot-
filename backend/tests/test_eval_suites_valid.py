@@ -328,6 +328,7 @@ def test_the_conversation_suite_has_the_planned_cases():
         "note_then_filter_acme",
         "forget_note_acme",
         "repeat_conversational_acme",
+        "user_suggests_notify_acme",
     }
 
 
@@ -380,3 +381,24 @@ def test_the_repeat_case_repeats_the_first_question():
     case = conversation_cases()["repeat_conversational_acme"]
     assert case.turns[-1].expect["repeat"] is True
     assert case.turns[0].expect["devices"] == case.turns[-1].expect["devices"]
+
+
+def test_the_user_suggests_notify_case_asks_four_ways_and_expects_the_notification():
+    case = conversation_cases()["user_suggests_notify_acme"]
+    first, second = case.turns
+    assert first.expect["outcome"] == "answer"
+    assert len(second.phrasings) == 4
+    assert second.phrasings[0].startswith("why needed upgrade can't we ask the users")
+    expect = second.expect
+    assert expect["outcome"] == "answer"
+    assert expect["suggestions_include"] == [
+        {
+            "action_type": "employee_notification",
+            "device": {"golden": "acme-001/low_disk_lt10/devices"},
+        }
+    ]
+    assert resolve(expect["suggestions_include"][0]["device"], GOLDEN) == resolve(
+        first.expect["devices"], GOLDEN
+    )
+    for key in ("reply_grounded", "prose_verified", "no_proposal", "no_foreign_data"):
+        assert expect[key] is True, key

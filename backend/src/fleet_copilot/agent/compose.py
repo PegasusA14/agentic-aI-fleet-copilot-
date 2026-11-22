@@ -209,6 +209,16 @@ class Composition:
 MAX_TALK_ROWS = 20  # table rows, insights, not-checked devices and suggestions the reply step reads
 
 
+def extra_suggestions(extras: dict | None) -> list[SuggestedAction]:
+    """The next steps a list answer carries in `extras` (they join the envelope after the reply is checked)."""
+    if not extras:
+        return []
+    try:
+        return [SuggestedAction.model_validate(s) for s in extras["suggested_actions"]]
+    except (KeyError, ValueError):
+        return []
+
+
 def talk_facts(draft: AnswerEnvelope, extras: dict | None = None) -> dict:
     """Everything the reply step may read about this turn: code-written text only, kept compact.
 
@@ -273,12 +283,7 @@ def talk_facts(draft: AnswerEnvelope, extras: dict | None = None) -> dict:
         facts["notes"] = list(draft.notes)
     if draft.scope.rule:
         facts["rule"] = draft.scope.rule
-    suggestions = list(draft.suggested_actions)
-    if extras and not suggestions:
-        try:
-            suggestions = [SuggestedAction.model_validate(s) for s in extras["suggested_actions"]]
-        except (KeyError, ValueError):
-            suggestions = []
+    suggestions = list(draft.suggested_actions) or extra_suggestions(extras)
     if suggestions:
         facts["suggested_actions"] = [
             {"label": a.label, "reason": a.reason} for a in suggestions[: policy.MAX_SUGGESTIONS]

@@ -297,14 +297,16 @@ async def test_a_refused_action_is_framed_in_words_and_keeps_its_fixed_headline(
             ),
             final_message(),
         ],
-        explains=[explanation(text="That check is not failing there, so a ticket would not help.")],
+        explains=[
+            explanation(text="That check is not failing there, so a ticket is not available.")
+        ],
     )
     service = make_service(real_db_path, llm, actions_db_path=tmp_path / "actions.db")
     result = await ask(service, "Open a ticket for disk_encryption on MT7PJB7N5LRE")
     envelope = result.envelope
     assert (envelope.outcome, envelope.reason_code) == ("denied", "not_eligible")
     assert envelope.headline == texts.ACTION_NOT_ELIGIBLE and envelope.notes
-    assert envelope.reply == "That check is not failing there, so a ticket would not help."
+    assert envelope.reply == "That check is not failing there, so a ticket is not available."
     assert envelope.explanation is None  # a refusal never carries an explanation
     body = talk_text(llm)
     assert '"refusal_reason": "not_eligible"' in body and envelope.notes[0] in body

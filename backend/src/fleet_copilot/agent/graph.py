@@ -33,7 +33,13 @@ from fleet_copilot.actions.service import ActionService, ProposalNotFound
 from fleet_copilot.actions.store import ActionStore
 from fleet_copilot.agent import memory as memory_module
 from fleet_copilot.agent import outcomes, texts
-from fleet_copilot.agent.compose import Resolver, compose, suggestion_evidence, talk_facts
+from fleet_copilot.agent.compose import (
+    Resolver,
+    compose,
+    extra_suggestions,
+    suggestion_evidence,
+    talk_facts,
+)
 from fleet_copilot.agent.context import AgentContext
 from fleet_copilot.agent.disambiguation import (
     company_typo_clarification,
@@ -174,16 +180,37 @@ def typoed_approval(question: str) -> bool:
     return False
 
 
+# Asking the people who own the devices to do something about them: "ask the users", "tell the owners",
+# "get them to", and the housekeeping that asking is about ("clean up", "free up space", "tidy", "delete some
+# files"). Both are the notify-the-employee action in other words.
+_OWNER_ASK = re.compile(
+    r"\b(?:ask|tell|get|let|remind|message|email|notify|nudge)\w*\s+"
+    r"(?:(?:the|those|these|all|our|each|every)\s+)?"
+    r"(?:users?|owners?|employees?|people|staff|assignees?|them|him|her)\b",
+    re.IGNORECASE,
+)
+_CLEAN_UP = re.compile(
+    r"\bclean(?:ing)?[\s-]*up\b|\bfree(?:ing)?[\s-]*up\b|\btidy\w*"
+    r"|\bdelet\w*\s+(?:some|old|unused|their|files?)|\bclear(?:ing)?\s+(?:out\s+)?(?:some\s+)?(?:space|files?)",
+    re.IGNORECASE,
+)
+
+
 def names_an_action(question: str, *, strict: bool = False) -> bool:
     """True when the user's question names a specific action the advice could be limited to.
 
     `strict` widens the set to every word that asks for something to be done; it decides whether a plan
     that calls the question an unsupported action is believed. A misspelled "approve" or "execute" counts.
+    Without `strict`, asking the owners to clean up ("can't we ask the users to free up space?") also counts.
     """
     if strict:
         folded = _CHECK_NAMES.sub(" ", question)
         return _STRICT_ACTION_WORDS.search(folded) is not None or typoed_approval(question)
-    return _ACTION_WORDS.search(question) is not None
+    return (
+        _ACTION_WORDS.search(question) is not None
+        or _OWNER_ASK.search(question) is not None
+        or _CLEAN_UP.search(question) is not None
+    )
 
 
 # "every one of those", "all of them", "those three", "these": the user points at the whole list shown last.
@@ -205,8 +232,45 @@ _SUMMARY_WORDS = re.compile(
 _BATTERY_WORDS = re.compile(r"\bbat\w{0,3}r(?:y|ies)\b", re.IGNORECASE)
 
 
+# A message that puts forward a course of action for the devices already discussed: "can't we ask the users",
+# "why not just tell the owners", "what about asking them", "shouldn't we replace it", "instead".
+_COURSE_CUE = re.compile(
+    r"\b(?:(?:can|could|should|shall|couldn|shouldn)['\u2019]?(?:t|not)?\s+we"
+    r"|why\s+not|what\s+about|how\s+about|why\s+(?:do\s+we\s+)?need\w*|why\s+needed"
+    r"|instead|rather\s+than|let['\u2019]?s)\b",
+    re.IGNORECASE,
+)
+# "tell me", "remind me": a request to the assistant, not an action on a device.
+_ASSISTANT_ASK = re.compile(r"\b(?:tell|show|remind|message)\s+(?:me|us)\b", re.IGNORECASE)
+# A question about what already happened to an earlier proposal, not a new course of action.
+_PAST_OR_STATUS = re.compile(
+    r"\b(?:did\s+(?:we|you|it)|have\s+we|has\s+it|status|approved|executed|happened)\b",
+    re.IGNORECASE,
+)
+
+
+def suggests_course_of_action(question: str) -> bool:
+    """True when the message puts forward an action for devices already discussed.
+
+    It needs both a cue that proposes or questions a course ("can't we", "why not", "what about", "instead")
+    and a named action (the non-strict `names_an_action` set, which includes asking the owners to clean up).
+    A greeting, thanks, a capability question and a question about what already happened name no action, or
+    carry no cue, and are not this.
+    """
+    if _PAST_OR_STATUS.search(question):
+        return False
+    folded = _ASSISTANT_ASK.sub(" ", question)
+    return _COURSE_CUE.search(folded) is not None and names_an_action(folded)
+
+
 def bulk_action_type(question: str) -> str | None:
-    """The action a "do it for all of those" follow-up names, or None when it names none."""
+    """The action a "do it for all of those" follow-up names, or None when it names none.
+
+    Asking the owners to clean up is the notification even when the message also names the action it would
+    replace ("why needed upgrade, can't we ask the users to clean up?").
+    """
+    if _OWNER_ASK.search(question) or _CLEAN_UP.search(question):
+        return "employee_notification"
     for pattern, action in _ACTION_BY_WORD:
         if pattern.search(question):
             return action
@@ -717,11 +781,28 @@ def _repeat_hint(draft: AnswerEnvelope, held: memory_module.ConversationMemory) 
 def _guard_plan(plan: Plan, question: str, focus: list[EntityList]) -> tuple[Plan, str, str] | None:
     """A corrected plan, the trace summary and the change's name, or None when the plan stands.
 
-    Two misreads the planner makes on live runs, fixed by code. A misspelled approval ("aprove it now") that
+    Three misreads the planner makes on live runs, fixed by code. A message that proposes a course of action
+    for the devices just discussed ("can't we ask the users to clean up?") is advice, never chat: the
+    suggestions are computed for it. A misspelled approval ("aprove it now") that
     the planner turned into a question is an unsupported action: nothing here approves anything. A bulk
     follow-up ("mark every one of those laptops for replacement") after exactly one list is advice for that
     list, not a question about which list is meant.
     """
+    if plan.intent == "chat":
+        if focus and suggests_course_of_action(question):
+            return (
+                plan.model_copy(
+                    update={
+                        "intent": "advise",
+                        "summary": "Advise on the devices of the last answer.",
+                        "tools": [],
+                        "action_type": bulk_action_type(question),
+                    }
+                ),
+                "The message puts forward an action for the devices already discussed; answered with advice",
+                "chat_to_advise",
+            )
+        return None
     if plan.intent != "clarify":
         return None
     if typoed_approval(question):
@@ -1220,6 +1301,7 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
             ctx.as_of,
             explanation=prose.get("text"),
             memory=memory_module.memory_facts(memory_module.load(state.get("memory"))),
+            suggestions=extra_suggestions(extras),
         )
         emit(
             "verify",
