@@ -459,6 +459,12 @@
           "title": "Rationale",
           "type": "string"
         },
+        "risk": {
+          "default": "",
+          "maxLength": 200,
+          "title": "Risk",
+          "type": "string"
+        },
         "scope": {
           "additionalProperties": {
             "type": "string"
@@ -498,6 +504,7 @@
         "evidence_refs",
         "scope",
         "expected_effect",
+        "risk",
         "status",
         "payload_hash"
       ],

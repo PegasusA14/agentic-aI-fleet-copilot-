@@ -29,7 +29,7 @@ def flag_turn():
         _named_plan(ACME_FLAG_DEVICE),
         [
             tool_calls_message(
-                ("propose_action", {"action_type": "replacement_flag", "device_id": "x"})
+                ("flag_device_for_replacement", {"device_id": "x"})
             ),
             final_message(),
         ],
@@ -42,8 +42,8 @@ def notify_turn():
         [
             tool_calls_message(
                 (
-                    "propose_action",
-                    {"action_type": "employee_notification", "device_id": "x", "topic": "low_disk"},
+                    "notify_employee",
+                    {"device_id": "x", "topic": "low_disk"},
                 )
             ),
             final_message(),

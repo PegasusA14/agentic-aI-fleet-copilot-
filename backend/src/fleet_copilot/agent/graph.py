@@ -61,6 +61,8 @@ from fleet_copilot.agent.state import (
 from fleet_copilot.agent.tools import (
     DEVICE_FILTER_TOOLS,
     INVALID_INPUT_PREFIX,
+    PROPOSAL_TOOLS,
+    SINGLE_DEVICE_TOOLS,
     TOOLS,
     execute_recommend,
     tool_error_text,
@@ -165,10 +167,10 @@ def inject_focus(name: str, args: ToolCall, focus_ids: list[str] | None) -> Tool
         return dict(args)
     if name in DEVICE_FILTER_TOOLS:
         return {**args, "device_ids": list(focus_ids)}
-    # device_history and propose_action take one device. With several resolved ids there is nothing to inject, so the
-    # model's own `device_id` stays; it is still looked up through the tenant-scoped repository, so a
-    # foreign or unknown id gets the uniform not-found.
-    if name in ("device_history", "propose_action") and len(focus_ids) == 1:
+    # device_history and the four proposal tools take one device. With several resolved ids there is nothing to
+    # inject, so the model's own `device_id` stays; it is still looked up through the tenant-scoped repository,
+    # so a foreign or unknown id gets the uniform not-found.
+    if name in SINGLE_DEVICE_TOOLS and len(focus_ids) == 1:
         return {**args, "device_id": focus_ids[0]}
     return dict(args)
 
@@ -189,23 +191,24 @@ def _is_transient_error(result: Any) -> bool:
     )
 
 
-PROPOSE_ONLY_FOR_ACTIONS = "propose_action is only for action requests"
+PROPOSE_ONLY_FOR_ACTIONS = "proposal tools are only for action requests"
 ONE_PROPOSAL_PER_TURN = "one proposal per turn"
 RECOMMEND_ONLY_FOR_ADVICE = "recommend_actions is only for advice requests"
 ONE_RECOMMENDATION_PER_TURN = "one recommendation per turn"
 
 
 def _propose_blocked(name: str, state: Any) -> str | None:
-    """Why this `propose_action` call must not run (fixed text for the model), or None.
+    """Why this proposal-tool call must not run (fixed text for the model), or None.
 
-    Only a propose plan may create a proposal, and a turn holds at most one: a call after a proposal or
-    refusal is rejected whatever the model says.
+    The four proposal tools are one class (`PROPOSAL_TOOLS`). Only a propose plan may create a proposal, and
+    a turn holds at most one across all four: a call after a proposal or refusal is rejected whatever the
+    model says.
     """
-    if name != "propose_action":
+    if name not in PROPOSAL_TOOLS:
         return None
     if (state.get("plan") or {}).get("intent") != "propose":
         return PROPOSE_ONLY_FOR_ACTIONS
-    if any(r.get("tool") == "propose_action" for r in state.get("records") or []):
+    if any(r.get("tool") in PROPOSAL_TOOLS for r in state.get("records") or []):
         return ONE_PROPOSAL_PER_TURN
     return None
 
@@ -538,9 +541,9 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
             )
             return {"pending_calls": False, "limit_hit": True}
         dropped_any = False
-        proposals = [i for i, call in enumerate(calls) if call["name"] == "propose_action"]
+        proposals = [i for i, call in enumerate(calls) if call["name"] in PROPOSAL_TOOLS]
         if len(proposals) > 1:
-            # One proposal per turn: only the first request is kept.
+            # One proposal per turn, whichever of the four tools: only the first request is kept.
             emit("tool_call", "Dropped extra proposal calls", data={"dropped": len(proposals) - 1})
             extra = set(proposals[1:])
             calls = [call for i, call in enumerate(calls) if i not in extra]

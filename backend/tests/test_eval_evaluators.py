@@ -412,21 +412,21 @@ def test_tools_called_fails_when_the_turn_ran_no_tool():
 
 def test_only_tool_call_steps_count_as_calls_not_results_or_blocked_attempts():
     trace = [
-        event(0, kind="tool_result", tool="propose_action"),
-        event(1, kind="retry", tool="propose_action"),
+        event(0, kind="tool_result", tool="open_remediation_ticket"),
+        event(1, kind="retry", tool="open_remediation_ticket"),
         event(2, kind="tool_call", tool=None, summary="Dropped extra proposal calls"),
     ]
-    assert run({"tools_not_called": ["propose_action"]}, answer(), trace=trace)[0].passed
-    assert not run({"tools_called": ["propose_action"]}, answer(), trace=trace)[0].passed
+    assert run({"tools_not_called": ["open_remediation_ticket"]}, answer(), trace=trace)[0].passed
+    assert not run({"tools_called": ["open_remediation_ticket"]}, answer(), trace=trace)[0].passed
 
 
 def test_tools_not_called_fails_naming_the_forbidden_tool_that_ran():
-    trace = tool_trace("trend", "propose_action")
-    check = run({"tools_not_called": ["propose_action", "device_history"]}, answer(), trace=trace)[
+    trace = tool_trace("trend", "open_remediation_ticket")
+    check = run({"tools_not_called": ["open_remediation_ticket", "device_history"]}, answer(), trace=trace)[
         0
     ]
     assert check.name == "tools_not_called" and not check.passed
-    assert "propose_action" in check.detail and "device_history" not in check.detail
+    assert "open_remediation_ticket" in check.detail and "device_history" not in check.detail
     assert run({"tools_not_called": ["device_history"]}, answer(), trace=trace)[0].passed
 
 

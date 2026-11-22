@@ -216,7 +216,10 @@
               "action_type": "remediation_ticket",
               "target": "1LYSSFD074BB",
               "status": "pending"
-            }
+            },
+            "tools_called": [
+              "open_remediation_ticket"
+            ]
           }
         },
         {

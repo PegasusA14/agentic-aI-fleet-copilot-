@@ -407,12 +407,8 @@ async def test_the_agent_denies_a_repeat_as_already_done_with_the_fixed_headline
         acts=[
             tool_calls_message(
                 (
-                    "propose_action",
-                    {
-                        "action_type": "employee_notification",
-                        "device_id": "ignored",
-                        "topic": "low_disk",
-                    },
+                    "notify_employee",
+                    {"device_id": "ignored", "topic": "low_disk"},
                 )
             ),
             final_message(),

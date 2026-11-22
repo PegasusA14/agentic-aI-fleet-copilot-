@@ -19,8 +19,8 @@ from fleet_copilot.observability.store import TraceStore
 
 LOW_DISK = {"golden": "acme-001/low_disk_lt10/devices"}
 TICKET = (
-    "propose_action",
-    {"action_type": "remediation_ticket", "device_id": "X", "check_id": "screen_lock"},
+    "open_remediation_ticket",
+    {"device_id": "X", "check_id": "screen_lock"},
 )
 STARTED = datetime(2026, 6, 12, 12, 0, tzinfo=UTC)
 

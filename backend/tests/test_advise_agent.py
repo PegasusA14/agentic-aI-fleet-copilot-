@@ -414,12 +414,8 @@ async def test_a_propose_resolving_to_one_device_still_proposes(real_db_path, ac
         acts=[
             tool_calls_message(
                 (
-                    "propose_action",
-                    {
-                        "action_type": "upgrade_order",
-                        "device_id": "MT7PJB7N5LRE",
-                        "component": "storage",
-                    },
+                    "create_upgrade_order",
+                    {"device_id": "MT7PJB7N5LRE", "component": "storage"},
                 )
             ),
             final_message(),

@@ -105,6 +105,29 @@ def _requested_params(**args: str | None) -> dict[str, str]:
     }
 
 
+MAX_RISK_CHARS = 200  # the contract's limit on `ProposalCard.risk`
+_RISK_TAIL = "Simulated: nothing leaves this system. The decision is recorded in Audit."
+
+
+def _risk_note(action_type: ActionType, host: str, company: str) -> str:
+    """The card's risk line, written by code from the action, the device label and the company name.
+
+    It is NOT part of the payload hash. It is derived only from fields the hash already covers (the action
+    type, the target device and the tenant) plus fixed wording, so hashing it would add nothing the approver
+    is not already signing, and rewording it must not invalidate proposals that are waiting for a decision.
+    `company` is the display name when the caller knows it, else the company id. A very long name drops out
+    first so the line always fits the contract's 200 characters.
+    """
+    recipient = "; the message goes only to its assigned employee" * (
+        action_type == "employee_notification"
+    )
+    for where in (f" in {company}", ""):
+        text = f"Affects only {host}{where}{recipient}. {_RISK_TAIL}"
+        if len(text) <= MAX_RISK_CHARS:
+            return text
+    return _RISK_TAIL
+
+
 def _short_action(row: ProposalRow) -> str:
     """A fixed, code-built phrase for an executed proposal, from its enumerated parameters."""
     label = eligibility.display_hostname(
@@ -149,10 +172,18 @@ class ActionService:
         check_id: str | None = None,
         component: str | None = None,
         topic: str | None = None,
+        employee_id: str | None = None,
+        company_name: str = "",
         as_of: datetime,
         conversation_id: str | None = None,
         trace_id: str | None = None,
     ) -> Proposed | Refused:
+        """Create (or reuse) ONE pending proposal, or refuse and audit why.
+
+        `employee_id` is only a claim about the notification recipient: it must equal the employee the
+        tenant-bound device row names, else the refusal is the uniform `not_found`. `company_name` is the
+        display name for the card's risk line (the company id when empty).
+        """
         result = self._check(
             company_id,
             actor_id,
@@ -162,8 +193,11 @@ class ActionService:
             check_id=check_id,
             component=component,
             topic=topic,
+            employee_id=employee_id,
         )
-        requested = _requested_params(check_id=check_id, component=component, topic=topic)
+        requested = _requested_params(
+            check_id=check_id, component=component, topic=topic, employee_id=employee_id
+        )
         target = (company_id, actor_id, trace_id, action_type, device_id, requested)
         if isinstance(result, eligibility.Ineligible):
             with self._store.transaction() as conn:
@@ -211,6 +245,7 @@ class ActionService:
                     **({"employee": result.employee_id} if result.employee_id else {}),
                 },
                 expected_effect=result.expected_effect,
+                risk=_risk_note(action_type, result.target_label, company_name or company_id),
                 status="pending",
                 payload_hash=digest,
             )
@@ -276,6 +311,7 @@ class ActionService:
         check_id: str | None,
         component: str | None,
         topic: str | None,
+        employee_id: str | None = None,
     ) -> eligibility.Eligible | eligibility.Ineligible:
         """Eligibility on the tenant's data. `as_of=None` pins to the current database's own as-of."""
         with closing(connect(self._fleet_db, read_only=True)) as fleet:
@@ -288,6 +324,7 @@ class ActionService:
                 check_id=check_id,
                 component=component,
                 topic=topic,
+                employee_id=employee_id,
             )
 
     # ---- decide ---------------------------------------------------------------------------------

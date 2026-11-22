@@ -223,38 +223,57 @@ def execute(tool_name: str, args: dict[str, Any], ctx: AgentContext) -> ToolReco
         conn.close()
 
 
-def execute_propose(args: dict[str, Any], ctx: AgentContext) -> ToolRecord:
+# Each model-visible proposal tool maps to exactly one action type, and every one goes through the single
+# guarded runner `execute_propose`. This table is the only place the two are paired.
+PROPOSAL_TOOL_BY_ACTION: dict[ActionType, str] = {
+    "upgrade_order": "create_upgrade_order",
+    "remediation_ticket": "open_remediation_ticket",
+    "replacement_flag": "flag_device_for_replacement",
+    "employee_notification": "notify_employee",
+}
+_ACTION_BY_PROPOSAL_TOOL: dict[str, ActionType] = {
+    tool_name: action for action, tool_name in PROPOSAL_TOOL_BY_ACTION.items()
+}
+# The class of tools that can create a proposal. The graph gates all of them together: only on a `propose`
+# plan, and at most one call of ANY of them per turn.
+PROPOSAL_TOOLS: frozenset[str] = frozenset(PROPOSAL_TOOL_BY_ACTION.values())
+
+
+def execute_propose(tool_name: str, args: dict[str, Any], ctx: AgentContext) -> ToolRecord:
     """Ask the action service for ONE pending proposal as the context's tenant and actor.
 
-    Code decides eligibility, parameters, evidence and wording; the record carries the resulting card or
-    the refusal. An unknown or foreign device is the same uniform `not_found` as for every other tool.
+    The one runner behind all four proposal tools: `tool_name` fixes the action type, so the model never
+    chooses it. Code decides eligibility, parameters, evidence and wording; the record carries the resulting
+    card or the refusal. An unknown or foreign device (or a recipient that is not the device's employee) is
+    the same uniform `not_found` as for every other tool.
     """
-    recorded = redact_args(args)
+    action_type = _ACTION_BY_PROPOSAL_TOOL[tool_name]
+    recorded = {**redact_args(args), "action_type": action_type}
     if ctx.actions_db_path is None:
-        return ToolRecord(tool="propose_action", args=recorded, error="tool_error")
+        return ToolRecord(tool=tool_name, args=recorded, error="tool_error")
     service = ActionService(fleet_db=ctx.db_path, store=ActionStore(ctx.actions_db_path))
     result = service.propose(
         company_id=ctx.company_id,
         actor_id=ctx.actor_id,
-        action_type=args["action_type"],
+        action_type=action_type,
         device_id=args["device_id"],
         check_id=args.get("check_id"),
         component=args.get("component"),
         topic=args.get("topic"),
+        employee_id=args.get("employee_id"),
+        company_name=ctx.company_name,
         as_of=ctx.as_of,  # the pinned as-of, never the wall clock
         trace_id=ctx.trace_id or None,
     )
     if isinstance(result, Refused):
         if result.reason == "not_found":
-            return ToolRecord(tool="propose_action", args=recorded, error="not_found")
+            return ToolRecord(tool=tool_name, args=recorded, error="not_found")
         return ToolRecord(
-            tool="propose_action",
+            tool=tool_name,
             args=recorded,
             action_refusal={"reason": result.reason, "detail": result.detail},
         )
-    return ToolRecord(
-        tool="propose_action", args=recorded, proposal=result.card.model_dump(mode="json")
-    )
+    return ToolRecord(tool=tool_name, args=recorded, proposal=result.card.model_dump(mode="json"))
 
 
 def execute_recommend(
@@ -475,28 +494,74 @@ def software_inventory(
     return _respond("software_inventory", args, runtime)
 
 
-@tool(response_format="content_and_artifact")
-def propose_action(
-    runtime: ToolRuntime[AgentContext],
-    action_type: ActionType,
-    device_id: DeviceId,
-    check_id: CheckId | None = None,
-    component: Component | None = None,
-    topic: Topic | None = None,
+def _propose(
+    tool_name: str, args: dict[str, Any], runtime: ToolRuntime[AgentContext]
 ) -> tuple[str, dict[str, Any]]:
-    """Proposes ONE action for ONE device: a remediation ticket (`check_id`), a replacement flag, a hardware
-    upgrade order (`component` memory or storage) or an employee notification (`topic`). The system checks
-    eligibility and writes the proposal; nothing changes until a person approves it. Use only when the
-    user asks for such an action, and call it once."""
-    args = {
-        "action_type": action_type,
-        "device_id": device_id,
-        "check_id": check_id,
-        "component": component,
-        "topic": topic,
-    }
-    record = execute_propose(args, runtime.context)
+    record = execute_propose(tool_name, args, runtime.context)
     return record.llm_view(), record.model_dump(mode="json")
+
+
+# The four proposal tools. None takes free text: the upgrade target size, the ticket note, the replacement
+# reason and the notification message are all written by code from the device's own readings, so a model
+# (or text injected into one) can never put its own words into a card an approver reads.
+
+
+@tool(response_format="content_and_artifact")
+def create_upgrade_order(
+    runtime: ToolRuntime[AgentContext],
+    device_id: DeviceId,
+    component: Component,
+) -> tuple[str, dict[str, Any]]:
+    """PROPOSES a hardware upgrade order for ONE device's `component` (memory or storage). It does not place
+    any order: the system checks eligibility and writes a pending proposal, and a person approves or rejects it
+    in the app. The target size (the spec) is computed by the system from the device's current size, never
+    supplied. Use only when the user asks for such an action, and call it once."""
+    args = {"device_id": device_id, "component": component}
+    return _propose("create_upgrade_order", args, runtime)
+
+
+@tool(response_format="content_and_artifact")
+def open_remediation_ticket(
+    runtime: ToolRuntime[AgentContext],
+    device_id: DeviceId,
+    check_id: CheckId,
+) -> tuple[str, dict[str, Any]]:
+    """PROPOSES a remediation ticket for ONE device's failing compliance check `check_id`. It does not open any
+    ticket: the system checks eligibility and writes a pending proposal, and a person approves or rejects it in
+    the app. The ticket note is written by the system from the failing reading, never supplied. Use only when
+    the user asks for such an action, and call it once."""
+    args = {"device_id": device_id, "check_id": check_id}
+    return _propose("open_remediation_ticket", args, runtime)
+
+
+@tool(response_format="content_and_artifact")
+def flag_device_for_replacement(
+    runtime: ToolRuntime[AgentContext],
+    device_id: DeviceId,
+) -> tuple[str, dict[str, Any]]:
+    """PROPOSES flagging ONE device for replacement. It does not flag anything: the system checks eligibility
+    and writes a pending proposal, and a person approves or rejects it in the app. The reason is written by the
+    system from the device's battery evidence, never supplied. Use only when the user asks for such an action,
+    and call it once."""
+    return _propose("flag_device_for_replacement", {"device_id": device_id}, runtime)
+
+
+@tool(response_format="content_and_artifact")
+def notify_employee(
+    runtime: ToolRuntime[AgentContext],
+    device_id: DeviceId,
+    topic: Topic,
+    employee_id: EmployeeId | None = None,
+    check_id: CheckId | None = None,
+) -> tuple[str, dict[str, Any]]:
+    """PROPOSES a notification to the employee assigned to ONE device about `topic`. It sends nothing: the
+    system checks eligibility and writes a pending proposal, and a person approves or rejects it in the app.
+    The recipient is always the device's assigned employee and the message is a fixed template for the topic,
+    never supplied. `employee_id` is optional; when given it must be that assigned employee, otherwise the
+    device is reported as not found. `check_id` only picks the check for topic failing_check. Use only when the
+    user asks for such an action, and call it once."""
+    args = {"device_id": device_id, "topic": topic, "employee_id": employee_id, "check_id": check_id}
+    return _propose("notify_employee", args, runtime)
 
 
 @tool(response_format="content_and_artifact")
@@ -524,11 +589,15 @@ TOOLS = [
     find_devices,
     device_history,
     software_inventory,
-    propose_action,
+    create_upgrade_order,
+    open_remediation_ticket,
+    flag_device_for_replacement,
+    notify_employee,
     recommend_actions,
 ]
-# `device_history` and `propose_action` take ONE device, not a filter list.
-DEVICE_FILTER_TOOLS = frozenset(t.name for t in TOOLS) - {"device_history", "propose_action"}
+# `device_history` and the proposal tools take ONE device, not a filter list.
+SINGLE_DEVICE_TOOLS = frozenset({"device_history"}) | PROPOSAL_TOOLS
+DEVICE_FILTER_TOOLS = frozenset(t.name for t in TOOLS) - SINGLE_DEVICE_TOOLS
 
 
 def tool_error_text(exc: Exception) -> str:

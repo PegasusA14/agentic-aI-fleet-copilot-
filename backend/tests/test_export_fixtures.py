@@ -211,9 +211,9 @@ def test_the_proposal_trace_is_a_real_turn_that_proposes_without_explaining(expo
         trace = load(exported, tenant, "proposal")["trace"]
         kinds = [e["kind"] for e in trace]
         assert "explain" not in kinds and "plan" in kinds and kinds[-1] == "respond"
-        calls = [e for e in trace if e["kind"] == "tool_call" and e["tool"] == "propose_action"]
+        calls = [e for e in trace if e["kind"] == "tool_call" and e["tool"] == "open_remediation_ticket"]
         assert len(calls) == 1
-        assert calls[0]["data"]["args"]["action_type"] == "remediation_ticket"
+        assert calls[0]["data"]["args"]["check_id"] == "screen_lock"
         assert all(e["latency_ms"] is None for e in trace)
         assert all(e["trace_id"] == f"replay-{tenant}-proposal" for e in trace)
 

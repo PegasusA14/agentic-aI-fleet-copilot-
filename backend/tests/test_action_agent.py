@@ -1,4 +1,4 @@
-"""The agent proposes actions only through `propose_action`, only on a propose plan, one per turn."""
+"""The agent proposes actions only through the four proposal tools, only on a propose plan, one per turn."""
 
 import json
 
@@ -14,6 +14,7 @@ from graph_support import (
 
 from fleet_copilot.actions.store import ActionStore
 from fleet_copilot.agent import texts
+from fleet_copilot.agent.tools import PROPOSAL_TOOLS
 from fleet_copilot.agent.llm import (
     Plan,
     Reference,
@@ -28,8 +29,8 @@ from fleet_copilot.repository import FleetRepository, TenantContext
 SCREEN_LOCK_QUESTION = "Which devices fail the screen lock check?"
 ASK_TICKET = "Open a remediation ticket for the first one"
 PROPOSE_TICKET = (
-    "propose_action",
-    {"action_type": "remediation_ticket", "device_id": "WRONGDEVICE1", "check_id": "screen_lock"},
+    "open_remediation_ticket",
+    {"device_id": "WRONGDEVICE1", "check_id": "screen_lock"},
 )
 
 
@@ -146,7 +147,7 @@ async def test_the_model_sees_no_card_text_employee_or_refs(real_db_path, action
     reply = llm.calls_of("act")[-1].messages[-1]
     body = json.loads(reply.content)
     assert body == {
-        "tool": "propose_action",
+        "tool": "open_remediation_ticket",
         "status": "proposed",
         "action_type": "remediation_ticket",
     }
@@ -211,9 +212,8 @@ async def test_an_ineligible_action_is_denied_with_a_note_and_one_refusal_audit(
         acts=[
             tool_calls_message(
                 (
-                    "propose_action",
+                    "open_remediation_ticket",
                     {
-                        "action_type": "remediation_ticket",
                         "device_id": "ignored",
                         "check_id": "disk_encryption",
                     },
@@ -251,11 +251,8 @@ async def test_a_model_supplied_foreign_device_id_is_the_uniform_not_found(
         acts=[
             tool_calls_message(
                 (
-                    "propose_action",
-                    {
-                        "action_type": "replacement_flag",
-                        "device_id": "E4V0SB5I0MYU",
-                    },
+                    "flag_device_for_replacement",
+                    {"device_id": "E4V0SB5I0MYU"},
                 )
             ),
             final_message(),
@@ -282,15 +279,15 @@ async def test_without_an_action_store_the_tool_fails_closed(real_db_path):
 # ---- graph rules ---------------------------------------------------------------------------------
 
 
-async def test_propose_action_on_an_answer_plan_is_an_input_error(real_db_path, actions_db):
+async def test_a_proposal_tool_on_an_answer_plan_is_an_input_error(real_db_path, actions_db):
     llm = ScriptedLLM(
         plans=[answer_plan()],
         acts=[
             tool_calls_message(
                 ("low_disk_devices", {}),
                 (
-                    "propose_action",
-                    {"action_type": "replacement_flag", "device_id": "8NM23J95R5I6"},
+                    "flag_device_for_replacement",
+                    {"device_id": "8NM23J95R5I6"},
                 ),
             ),
             final_message(),
@@ -303,7 +300,7 @@ async def test_propose_action_on_an_answer_plan_is_an_input_error(real_db_path, 
     assert result.envelope.claims  # still composed from the read tool
     proposals, effects, audit = state_of(actions_db)
     assert proposals == [] and effect_total(effects) == 0 and audit == []
-    results = [e for e in result.trace if e.kind == "tool_result" and e.tool == "propose_action"]
+    results = [e for e in result.trace if e.kind == "tool_result" and e.tool == "flag_device_for_replacement"]
     assert [e.data["status"] for e in results] == ["invalid_input"]
 
 
@@ -313,8 +310,8 @@ async def test_the_model_is_told_why_the_call_was_rejected(real_db_path, actions
         acts=[
             tool_calls_message(
                 (
-                    "propose_action",
-                    {"action_type": "replacement_flag", "device_id": "8NM23J95R5I6"},
+                    "flag_device_for_replacement",
+                    {"device_id": "8NM23J95R5I6"},
                 )
             ),
             final_message(),
@@ -323,14 +320,11 @@ async def test_the_model_is_told_why_the_call_was_rejected(real_db_path, actions
     service = make_service(real_db_path, llm, actions_db_path=actions_db)
     await ask(service, "flag it")
     reply = llm.calls_of("act")[-1].messages[-1]
-    assert "propose_action is only for action requests" in str(reply.content)
+    assert "proposal tools are only for action requests" in str(reply.content)
 
 
 async def test_two_propose_calls_in_one_message_make_one_proposal(real_db_path, actions_db):
-    second = (
-        "propose_action",
-        {"action_type": "remediation_ticket", "device_id": "OTHER", "check_id": "screen_lock"},
-    )
+    second = ("flag_device_for_replacement", {"device_id": "OTHER"})
     service, _, listed = await list_then(
         real_db_path,
         actions_db,
@@ -341,7 +335,7 @@ async def test_two_propose_calls_in_one_message_make_one_proposal(real_db_path, 
     assert result.envelope.outcome == "proposal"
     proposals, _, _ = state_of(actions_db)
     assert len(proposals) == 1
-    calls = [e for e in result.trace if e.kind == "tool_call" and e.tool == "propose_action"]
+    calls = [e for e in result.trace if e.kind == "tool_call" and e.tool in PROPOSAL_TOOLS]
     assert len(calls) == 1
 
 
@@ -363,6 +357,79 @@ async def test_a_second_proposal_after_the_first_is_an_input_error(real_db_path,
     assert len(proposals) == 1 and [a["event"] for a in audit] == ["proposal_created"]
 
 
+async def test_a_different_proposal_tool_after_the_first_is_an_input_error(
+    real_db_path, actions_db
+):
+    # The one-per-turn rule covers the whole class of proposal tools, not each tool by itself.
+    service, llm, _ = await list_then(
+        real_db_path,
+        actions_db,
+        follow_up_propose(),
+        [
+            tool_calls_message(PROPOSE_TICKET),
+            tool_calls_message(("flag_device_for_replacement", {"device_id": "x"})),
+            final_message(),
+        ],
+    )
+    result = await ask(service, ASK_TICKET)
+    assert result.envelope.outcome == "proposal"
+    assert "one proposal per turn" in str(llm.calls_of("act")[-1].messages[-1].content)
+    proposals, _, audit = state_of(actions_db)
+    assert len(proposals) == 1 and [a["event"] for a in audit] == ["proposal_created"]
+
+
+@pytest.mark.parametrize(
+    ("tool", "args"),
+    [
+        ("create_upgrade_order", {"device_id": "MT7PJB7N5LRE", "component": "storage"}),
+        ("open_remediation_ticket", {"device_id": "DLT35MHGTH2D", "check_id": "screen_lock"}),
+        ("flag_device_for_replacement", {"device_id": "8NM23J95R5I6"}),
+        ("notify_employee", {"device_id": "MT7PJB7N5LRE", "topic": "low_disk"}),
+    ],
+)
+async def test_every_proposal_tool_is_dropped_without_a_propose_plan(
+    real_db_path, actions_db, tool, args
+):
+    llm = ScriptedLLM(
+        plans=[answer_plan()],
+        acts=[tool_calls_message((tool, args)), final_message()],
+    )
+    service = make_service(real_db_path, llm, actions_db_path=actions_db)
+    await ask(service, "do the thing")
+    proposals, effects, audit = state_of(actions_db)
+    assert proposals == [] and effect_total(effects) == 0 and audit == []
+    reply = llm.calls_of("act")[-1].messages[-1]
+    assert "proposal tools are only for action requests" in str(reply.content)
+
+
+@pytest.mark.parametrize(
+    "pair",
+    [
+        (
+            ("open_remediation_ticket", {"device_id": "DLT35MHGTH2D", "check_id": "screen_lock"}),
+            ("notify_employee", {"device_id": "MT7PJB7N5LRE", "topic": "low_disk"}),
+        ),
+        (
+            ("create_upgrade_order", {"device_id": "MT7PJB7N5LRE", "component": "storage"}),
+            ("flag_device_for_replacement", {"device_id": "8NM23J95R5I6"}),
+        ),
+    ],
+)
+async def test_two_different_proposal_tools_in_one_message_make_one_proposal(
+    real_db_path, actions_db, pair
+):
+    llm = ScriptedLLM(
+        plans=[propose_plan(reference=Reference(kind="named", device_ref=pair[0][1]["device_id"]))],
+        acts=[tool_calls_message(*pair), final_message()],
+    )
+    service = make_service(real_db_path, llm, actions_db_path=actions_db)
+    result = await ask(service, "propose both")
+    proposals, _, _ = state_of(actions_db)
+    assert len(proposals) <= 1
+    calls = [e for e in result.trace if e.kind == "tool_call" and e.tool in PROPOSAL_TOOLS]
+    assert [c.tool for c in calls] == [pair[0][0]]
+
+
 async def test_the_trace_shows_enumerated_action_arguments_and_hides_the_device(
     real_db_path, actions_db
 ):
@@ -373,9 +440,8 @@ async def test_the_trace_shows_enumerated_action_arguments_and_hides_the_device(
         [tool_calls_message(PROPOSE_TICKET), final_message()],
     )
     result = await ask(service, ASK_TICKET)
-    call = next(e for e in result.trace if e.kind == "tool_call" and e.tool == "propose_action")
+    call = next(e for e in result.trace if e.kind == "tool_call" and e.tool == "open_remediation_ticket")
     assert call.data["args"] == {
-        "action_type": "remediation_ticket",
         "device_id": "applied",
         "check_id": "screen_lock",
     }

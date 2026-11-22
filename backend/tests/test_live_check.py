@@ -4,6 +4,7 @@ from graph_support import answer_plan, explanation, make_service
 from fleet_copilot import live_check
 from fleet_copilot.actions.store import ActionStore
 from fleet_copilot.agent.llm import Plan, ScriptedLLM, final_message, tool_calls_message
+from fleet_copilot.agent.tools import PROPOSAL_TOOL_BY_ACTION
 
 
 def test_the_cases_are_named_and_cover_the_demo_story():
@@ -148,12 +149,13 @@ TICKET_TARGET = "1LYSSFD074BB"
 
 
 def propose_script(device_id=TICKET_TARGET, action_type="remediation_ticket", **extra):
-    args = {"action_type": action_type, "device_id": device_id, **extra}
+    args = {"device_id": device_id, **extra}
     if action_type == "remediation_ticket":
         args.setdefault("check_id", "screen_lock")
+    tool_name = PROPOSAL_TOOL_BY_ACTION[action_type]
     return ScriptedLLM(
         plans=[Plan(intent="propose", summary="open a remediation ticket")],
-        acts=[tool_calls_message(("propose_action", args)), final_message()],
+        acts=[tool_calls_message((tool_name, args)), final_message()],
     )
 
 

@@ -551,11 +551,11 @@ async def test_a_proposal_turn_can_say_which_tools_it_must_run_and_which_it_must
     stores,
 ):
     expect = ticket_case([{"do": "reject", "expect": {"status": "rejected"}}], "ticket")
-    expect["turns"][0]["expect"]["tools_called"] = ["propose_action"]
+    expect["turns"][0]["expect"]["tools_called"] = ["open_remediation_ticket"]
     expect["turns"][0]["expect"]["tools_not_called"] = ["low_disk_devices"]
     suite_file(scenarios, "actions", [expect])
     result = await go(tmp_path, settings, stores, ScriptedLLM(**ticket_script()))
     case_result = by_id(result)["actions.ticket#1"]
     names = {c["name"]: c["passed"] for c in case_result.checks}
     assert names["tools_called"] and names["tools_not_called"]
-    assert case_result.tools == (("propose_action",),)
+    assert case_result.tools == (("open_remediation_ticket",),)

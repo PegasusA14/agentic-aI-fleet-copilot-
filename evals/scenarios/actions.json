@@ -40,6 +40,9 @@
                   "effects_delta": {}
                 }
               }
+            ],
+            "tools_called": [
+              "open_remediation_ticket"
             ]
           }
         }
@@ -122,6 +125,9 @@
                   "effects_delta": {}
                 }
               }
+            ],
+            "tools_called": [
+              "flag_device_for_replacement"
             ]
           }
         }
@@ -201,6 +207,9 @@
                   }
                 }
               }
+            ],
+            "tools_called": [
+              "create_upgrade_order"
             ]
           }
         }
@@ -281,6 +290,9 @@
                   }
                 }
               }
+            ],
+            "tools_called": [
+              "notify_employee"
             ]
           }
         }

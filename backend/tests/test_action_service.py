@@ -1,4 +1,5 @@
 import json
+from contextlib import closing
 import shutil
 import sqlite3
 from datetime import UTC, datetime
@@ -130,6 +131,58 @@ def test_the_notification_message_is_part_of_the_hash(svc):
     assert got.card.scope["employee"]
     other = propose(svc, "employee_notification", "MT7PJB7N5LRE", topic="failing_check")
     assert isinstance(other, Refused) or other.card.payload_hash != got.card.payload_hash
+
+
+def test_a_new_card_carries_a_code_written_risk_note_naming_the_device_and_company(svc):
+    card = propose_ticket(svc).card
+    assert card.risk == (
+        f"Affects only {card.target_label} in acme-001. "
+        "Simulated: nothing leaves this system. The decision is recorded in Audit."
+    )
+    named = propose(
+        svc, "replacement_flag", "8NM23J95R5I6", company_name="Acme"
+    )  # the display name when the caller has it
+    assert isinstance(named, Proposed)
+    assert named.card.risk.startswith(f"Affects only {named.card.target_label} in Acme. ")
+    assert 0 < len(named.card.risk) <= 200
+
+
+def test_the_notification_risk_note_says_who_receives_the_message(svc):
+    got = propose(svc, "employee_notification", "MT7PJB7N5LRE", topic="low_disk", company_name="Acme")
+    assert isinstance(got, Proposed)
+    assert "the message goes only to its assigned employee" in got.card.risk
+    assert len(got.card.risk) <= 200
+
+
+def test_the_risk_note_never_exceeds_the_contract_limit():
+    from fleet_copilot.actions.service import _risk_note
+
+    for action in ("employee_notification", "upgrade_order"):
+        text = _risk_note(action, "h" * 63, "c" * 64)
+        assert 0 < len(text) <= 200
+
+
+def test_the_risk_note_is_not_part_of_the_payload_hash(svc):
+    first = propose(svc, "remediation_ticket", TICKET_DEVICE, company_name="Acme", **SCREEN_LOCK)
+    again = propose(svc, "remediation_ticket", TICKET_DEVICE, company_name="Other", **SCREEN_LOCK)
+    assert isinstance(first, Proposed) and isinstance(again, Proposed)
+    # Different wording of the risk line, same signed payload: the pending card is simply reused.
+    assert again.reused and again.card.payload_hash == first.card.payload_hash
+    assert again.card.risk == first.card.risk
+
+
+def test_a_card_stored_before_the_risk_field_still_loads_and_can_be_approved(svc, tmp_path):
+    card = propose_ticket(svc).card
+    path = tmp_path / "state" / "actions.db"
+    with closing(sqlite3.connect(path)) as conn, conn:
+        (stored,) = conn.execute("SELECT card FROM proposals").fetchone()
+        old = json.loads(stored)
+        del old["risk"]
+        conn.execute("UPDATE proposals SET card = ?", (json.dumps(old),))
+    (loaded,) = svc.list(ACME)
+    assert loaded.risk == "" and loaded.proposal_id == card.proposal_id
+    decision = svc.approve(ACME, card.proposal_id, card.payload_hash)
+    assert decision.card.status == "approved" or decision.card.status == "executed"
 
 
 # ---- approve ------------------------------------------------------------------------------------

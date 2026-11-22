@@ -15,4 +15,4 @@ class AgentContext:
     as_of: datetime
     trace_id: str = ""
     company_name: str = ""  # display name for the planner prompt only; never a tool argument
-    actions_db_path: Path | None = None  # the actions store; None means `propose_action` cannot run
+    actions_db_path: Path | None = None  # the actions store; None means the proposal tools cannot run

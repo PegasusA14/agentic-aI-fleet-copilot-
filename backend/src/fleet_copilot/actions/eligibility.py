@@ -145,11 +145,19 @@ def check(
     check_id: str | None = None,
     component: str | None = None,
     topic: str | None = None,
+    employee_id: str | None = None,
 ) -> Eligible | Ineligible:
-    """Eligibility of one action on one device. Every text in the result names the device by `display_hostname`."""
+    """Eligibility of one action on one device. Every text in the result names the device by `display_hostname`.
+
+    `employee_id` is the recipient a notification claims to be for. The recipient is always the employee the
+    tenant-bound device row names, so a claim that differs is refused as the same uniform `not_found` as an
+    unknown or foreign device, whatever else is true of the device.
+    """
     try:
         device = repo.get_device(device_id)
     except NotFound:
+        return Ineligible("not_found", texts.NOT_FOUND)
+    if employee_id is not None and employee_id != device.employee_id:
         return Ineligible("not_found", texts.NOT_FOUND)
     if action_type == "remediation_ticket":
         return _ticket(repo, as_of, device, check_id)

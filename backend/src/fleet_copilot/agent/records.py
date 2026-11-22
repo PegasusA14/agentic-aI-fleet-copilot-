@@ -62,7 +62,7 @@ class ToolRecord(BaseModel):
     missing_latest: list[str] = Field(default_factory=list)
     # Requested `device_ids` that are not this tenant's devices. Foreign and nonexistent ids count alike.
     unresolved_ids: int = Field(default=0, ge=0)
-    # `propose_action` only: the code-written card of the proposal that was made, or why none was.
+    # The proposal tools only: the code-written card of the proposal that was made, or why none was.
     proposal: dict[str, Any] | None = None
     action_refusal: dict[str, str] | None = None
     # `recommend_actions` only: the code-written suggestions (empty when nothing is eligible). `findings`

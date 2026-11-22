@@ -186,6 +186,9 @@ class ProposalCard(_Model):
     evidence_refs: list[str] = Field(min_length=1)
     scope: dict[str, str]
     expected_effect: str
+    # Code-written (see `actions.service._risk_note`): who is affected and that the effect is simulated and
+    # audited. Not part of the payload hash. Defaulted so a card stored before this field existed still loads.
+    risk: str = Field(default="", max_length=200)
     status: ProposalStatus
     payload_hash: str
 

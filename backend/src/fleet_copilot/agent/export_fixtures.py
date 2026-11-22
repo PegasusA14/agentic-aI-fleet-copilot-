@@ -4,7 +4,7 @@ Each fixture is the output of the real tool layer and the deterministic composer
 over the real dataset: `execute()` -> `compose()` -> `Composition.to_envelope()`. Nothing is hand-written
 data. A live list answer also carries code-only `suggested_actions` (the next steps on its subject), which
 the graph adds after the prose is verified; the fixtures get them from the same code. The trace of every real (`tools`) scenario is the trace of a real scripted `AgentService` turn, and the
-`proposal` fixture is the whole envelope and trace of one: a scripted propose plan and `propose_action` call
+`proposal` fixture is the whole envelope and trace of one: a scripted propose plan and `open_remediation_ticket` call
 against a temporary actions database (the eligibility, parameters, evidence and wording are the real code's).
 A few outcomes cannot occur without a live model or an outage, so those are built from the same parts and
 flagged `synthetic` with a note saying why.
@@ -199,9 +199,8 @@ SCENARIOS: tuple[Scenario, ...] = (
         "Propose a remediation ticket for one device whose screen lock check is failing.",
         (
             (
-                "propose_action",
+                "open_remediation_ticket",
                 {
-                    "action_type": "remediation_ticket",
                     "device_id": "{target}",
                     "check_id": "screen_lock",
                 },
@@ -321,7 +320,7 @@ async def live_proposal(
 ) -> tuple[AnswerEnvelope, list[dict]]:
     """The envelope and trace of one real, scripted turn that proposes a remediation ticket.
 
-    The scripted model plans `propose` and calls `propose_action`; the action service decides eligibility
+    The scripted model plans `propose` and calls `open_remediation_ticket`; the action service decides eligibility
     and writes the card, the evidence and the headline. Two things are normalised so the fixture is
     byte-identical between runs: the trace id is fixed through the service's `trace_id_factory`, and the
     proposal id (random per run) is replaced by `prop-<trace id>`. The payload hash is a pure function of the

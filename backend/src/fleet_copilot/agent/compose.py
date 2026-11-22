@@ -16,6 +16,7 @@ from fleet_copilot.agent.present import (
     representative,
 )
 from fleet_copilot.agent.records import FindingRecord, ToolRecord
+from fleet_copilot.agent.tools import PROPOSAL_TOOLS
 from fleet_copilot.contracts import (
     MAX_EXCLUDED_DEVICES,
     Alternative,
@@ -793,7 +794,7 @@ def _advice(record: ToolRecord, resolve: Resolver) -> Composition:
 # inventory answer when none of these ran in the turn; next to one it is a lookup (a way to pick or
 # name devices) and adds no claim, list or evidence, even when the model never fed its devices to the
 # analysis call (a sibling call in the same round). `device_history` counts: it answers for one
-# device. `recommend_actions` and `propose_action` never reach this path (composed earlier).
+# device. `recommend_actions` and the proposal tools never reach this path (composed earlier).
 ANALYSIS_TOOLS = frozenset(_TEMPLATES) - {"find_devices"}
 
 
@@ -828,7 +829,7 @@ def compose(records: Sequence[ToolRecord], *, resolve: Resolver) -> Composition:
     """Turn tool records into claims, evidence, coverage and entity lists. No model involved."""
     if any(r.error == "tool_error" for r in records):
         return Composition("tool_error", "tool_failure", fallback_headline=texts.TOOL_FAILED)
-    if any(r.tool == "propose_action" and r.error == "not_found" for r in records):
+    if any(r.tool in PROPOSAL_TOOLS and r.error == "not_found" for r in records):
         # A device that is not this tenant's reads exactly like any other missing record.
         return Composition("denied", "not_found", fallback_headline=texts.NOT_FOUND)
     proposed = next((r for r in records if r.proposal is not None), None)
