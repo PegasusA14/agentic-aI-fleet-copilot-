@@ -33,7 +33,7 @@
     "proposal": null,
     "reason_code": "data_unavailable",
     "repeat_of": null,
-    "reply": "",
+    "reply": "I can't rank devices by Wi-Fi signal: the fleet data doesn't record network quality.\n\nI can look at disk, memory, battery or compliance instead.",
     "scope": {
       "as_of": "2026-06-12T11:00:00Z",
       "calculation": null,
@@ -54,7 +54,7 @@
       "signal",
       "network quality"
     ],
-    "note": "The refusal text and alternatives are fixed wording; routing needs the model.",
+    "note": "The refusal text and alternatives are fixed wording; routing and the reply need the model.",
     "question": "Which devices have a weak Wi-Fi signal?",
     "scenario": "unsupported_wifi",
     "synthetic": true,
@@ -62,23 +62,71 @@
   },
   "trace": [
     {
-      "data": {},
-      "kind": "plan",
+      "data": {
+        "company_id": "initech-003"
+      },
+      "kind": "scope",
       "latency_ms": null,
       "seq": 0,
-      "summary": "The question asks for network data the telemetry does not hold.",
+      "summary": "Turn started",
       "tool": null,
       "trace_id": "replay-initech-003-unsupported_wifi"
     },
     {
       "data": {
+        "action_type": null,
+        "fallback": false,
+        "has_reference": false,
+        "intent": "unsupported",
+        "missing_topic": "network",
+        "reference_kind": null,
+        "repaired": false,
+        "tools": [],
+        "window_days": null
+      },
+      "kind": "plan",
+      "latency_ms": null,
+      "seq": 1,
+      "summary": "Planned the turn",
+      "tool": null,
+      "trace_id": "replay-initech-003-unsupported_wifi"
+    },
+    {
+      "data": {
+        "ok": true
+      },
+      "kind": "explain",
+      "latency_ms": null,
+      "seq": 2,
+      "summary": "Model wrote a reply",
+      "tool": null,
+      "trace_id": "replay-initech-003-unsupported_wifi"
+    },
+    {
+      "data": {
+        "evidence_ok": true,
+        "explanation_shown": true,
+        "model_prose": true,
+        "problems": []
+      },
+      "kind": "verify",
+      "latency_ms": null,
+      "seq": 3,
+      "summary": "Checked the answer against the evidence",
+      "tool": null,
+      "trace_id": "replay-initech-003-unsupported_wifi"
+    },
+    {
+      "data": {
+        "claims": 0,
+        "evidence": 0,
         "outcome": "unsupported",
         "reason_code": "data_unavailable"
       },
       "kind": "respond",
       "latency_ms": null,
-      "seq": 1,
-      "summary": "Responded with unsupported.",
+      "seq": 4,
+      "summary": "Answer ready",
       "tool": null,
       "trace_id": "replay-initech-003-unsupported_wifi"
     }

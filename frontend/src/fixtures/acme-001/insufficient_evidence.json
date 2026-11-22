@@ -32,7 +32,7 @@
     "proposal": null,
     "reason_code": "not_eligible",
     "repeat_of": null,
-    "reply": "",
+    "reply": "I can't flag that laptop for replacement yet: its battery isn't reporting a service condition.\n\nIf the readings change, ask me again and I will look at it afresh.",
     "scope": {
       "as_of": "2026-06-12T11:00:00Z",
       "calculation": null,
@@ -131,24 +131,21 @@
     },
     {
       "data": {
-        "error": "ScriptExhausted",
-        "ok": false
+        "ok": true
       },
       "kind": "explain",
       "latency_ms": null,
       "seq": 5,
-      "summary": "Reply unavailable",
+      "summary": "Model wrote a reply",
       "tool": null,
       "trace_id": "replay-acme-001-insufficient_evidence"
     },
     {
       "data": {
         "evidence_ok": true,
-        "explanation_shown": false,
-        "model_prose": false,
-        "problems": [],
-        "reply_chars": 0,
-        "reply_dropped": 0
+        "explanation_shown": true,
+        "model_prose": true,
+        "problems": []
       },
       "kind": "verify",
       "latency_ms": null,

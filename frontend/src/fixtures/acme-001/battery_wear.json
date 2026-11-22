@@ -163,7 +163,7 @@
         "value": "condition Service Recommended; 1042 cycles; full-charge capacity 4172 (unit not reported)"
       }
     ],
-    "explanation": null,
+    "explanation": "acme-thinkpad-8 shows the clearest wear signal over the last month, so it is the one to watch first.",
     "follow_ups": [
       {
         "label": "What should we do about these?",
@@ -727,7 +727,7 @@
     "proposal": null,
     "reason_code": null,
     "repeat_of": null,
-    "reply": "",
+    "reply": "acme-thinkpad-8 shows the clearest wear signal over the last month, so it is the one to watch first.",
     "scope": {
       "as_of": "2026-06-12T11:00:00Z",
       "calculation": "3 distinct devices across 1 claim; at most 3 supporting readings are cited per device",
@@ -1053,7 +1053,7 @@
     {
       "data": {
         "evidence_ok": true,
-        "explanation_shown": false,
+        "explanation_shown": true,
         "model_prose": true,
         "problems": [],
         "reply_chars": 0,

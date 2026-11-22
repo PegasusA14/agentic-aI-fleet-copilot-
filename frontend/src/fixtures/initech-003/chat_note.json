@@ -1,0 +1,132 @@
+{
+  "envelope": {
+    "alternatives": [],
+    "claims": [],
+    "clarification": null,
+    "coverage": null,
+    "entity_lists": [],
+    "evidence": [],
+    "explanation": "Got it. I'll keep to laptops when I list devices in this conversation.",
+    "follow_ups": [],
+    "headline": "Happy to help with your fleet.",
+    "insights": [],
+    "needs": [],
+    "notes": [],
+    "notes_count": 1,
+    "offer_switch_company": false,
+    "outcome": "chat",
+    "proposal": null,
+    "reason_code": null,
+    "repeat_of": null,
+    "reply": "Got it. I'll keep to laptops when I list devices in this conversation.",
+    "scope": {
+      "as_of": "2026-06-12T11:00:00Z",
+      "calculation": null,
+      "company_id": "initech-003",
+      "population": null,
+      "rule": null
+    },
+    "scope_line": null,
+    "suggested_actions": [],
+    "summary": "",
+    "table": null,
+    "trace_id": "replay-initech-003-chat_note"
+  },
+  "meta": {
+    "keywords": [
+      "i only care about",
+      "keep in mind",
+      "remember that"
+    ],
+    "note": "A conversational reply; routing and the words need the model.",
+    "question": "I only care about laptops",
+    "scenario": "chat_note",
+    "synthetic": true,
+    "tenant": "initech-003"
+  },
+  "trace": [
+    {
+      "data": {
+        "company_id": "initech-003"
+      },
+      "kind": "scope",
+      "latency_ms": null,
+      "seq": 0,
+      "summary": "Turn started",
+      "tool": null,
+      "trace_id": "replay-initech-003-chat_note"
+    },
+    {
+      "data": {
+        "action_type": null,
+        "fallback": false,
+        "has_reference": false,
+        "intent": "chat",
+        "missing_topic": null,
+        "reference_kind": null,
+        "repaired": false,
+        "tools": [],
+        "window_days": null
+      },
+      "kind": "plan",
+      "latency_ms": null,
+      "seq": 1,
+      "summary": "Planned the turn",
+      "tool": null,
+      "trace_id": "replay-initech-003-chat_note"
+    },
+    {
+      "data": {
+        "forgot": false,
+        "notes": 1,
+        "remembered": true,
+        "turns": 0
+      },
+      "kind": "memory",
+      "latency_ms": null,
+      "seq": 2,
+      "summary": "Updated the notes for this conversation",
+      "tool": null,
+      "trace_id": "replay-initech-003-chat_note"
+    },
+    {
+      "data": {
+        "ok": true
+      },
+      "kind": "explain",
+      "latency_ms": null,
+      "seq": 3,
+      "summary": "Model wrote a reply",
+      "tool": null,
+      "trace_id": "replay-initech-003-chat_note"
+    },
+    {
+      "data": {
+        "evidence_ok": true,
+        "explanation_shown": true,
+        "model_prose": true,
+        "problems": []
+      },
+      "kind": "verify",
+      "latency_ms": null,
+      "seq": 4,
+      "summary": "Checked the answer against the evidence",
+      "tool": null,
+      "trace_id": "replay-initech-003-chat_note"
+    },
+    {
+      "data": {
+        "claims": 0,
+        "evidence": 0,
+        "outcome": "chat",
+        "reason_code": null
+      },
+      "kind": "respond",
+      "latency_ms": null,
+      "seq": 5,
+      "summary": "Answer ready",
+      "tool": null,
+      "trace_id": "replay-initech-003-chat_note"
+    }
+  ]
+}

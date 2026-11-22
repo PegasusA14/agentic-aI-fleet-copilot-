@@ -78,7 +78,7 @@
         "value": "93.0% used (14.9 GiB of 16.0 GiB)"
       }
     ],
-    "explanation": null,
+    "explanation": "globex-thinkpad-8 is the device using the most memory right now.",
     "follow_ups": [
       {
         "label": "Show their 7-day trend",
@@ -99,7 +99,7 @@
     "proposal": null,
     "reason_code": null,
     "repeat_of": null,
-    "reply": "",
+    "reply": "globex-thinkpad-8 is the device using the most memory right now.",
     "scope": {
       "as_of": "2026-06-12T11:00:00Z",
       "calculation": "2 distinct devices across 1 claim; at most 1 supporting reading is cited per device",
@@ -307,7 +307,7 @@
     {
       "data": {
         "evidence_ok": true,
-        "explanation_shown": false,
+        "explanation_shown": true,
         "model_prose": true,
         "problems": [],
         "reply_chars": 0,

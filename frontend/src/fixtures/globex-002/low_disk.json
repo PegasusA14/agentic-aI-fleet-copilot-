@@ -103,7 +103,7 @@
         "value": "14.6 GiB free of 512.0 GiB (2.9% free)"
       }
     ],
-    "explanation": null,
+    "explanation": "globex-thinkpad-8 has the least room left, so I would start there.\n\nThe others on the list can wait a little longer, and I can open a ticket for any of them if you want.",
     "follow_ups": [
       {
         "label": "Show their 7-day trend",
@@ -124,7 +124,7 @@
     "proposal": null,
     "reason_code": null,
     "repeat_of": null,
-    "reply": "",
+    "reply": "globex-thinkpad-8 has the least room left, so I would start there.\n\nThe others on the list can wait a little longer, and I can open a ticket for any of them if you want.",
     "scope": {
       "as_of": "2026-06-12T11:00:00Z",
       "calculation": "2 distinct devices across 1 claim; at most 1 supporting reading is cited per device",
@@ -372,7 +372,7 @@
     {
       "data": {
         "evidence_ok": true,
-        "explanation_shown": false,
+        "explanation_shown": true,
         "model_prose": true,
         "problems": [],
         "reply_chars": 0,

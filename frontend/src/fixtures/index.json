@@ -181,7 +181,7 @@
         "signal",
         "network quality"
       ],
-      "note": "The refusal text and alternatives are fixed wording; routing needs the model.",
+      "note": "The refusal text and alternatives are fixed wording; routing and the reply need the model.",
       "question": "Which devices have a weak Wi-Fi signal?",
       "scenario": "unsupported_wifi",
       "synthetic": true,
@@ -232,6 +232,64 @@
       "note": "The options are built by code from this company's devices; routing needs the model.",
       "question": "How is the macbook doing on battery?",
       "scenario": "clarification_device",
+      "synthetic": true,
+      "tenant": "acme-001"
+    },
+    {
+      "keywords": [
+        "thanks",
+        "thank you"
+      ],
+      "note": "A conversational reply; routing and the words need the model.",
+      "question": "Thanks!",
+      "scenario": "chat_thanks",
+      "synthetic": true,
+      "tenant": "acme-001"
+    },
+    {
+      "keywords": [
+        "hello",
+        "hey there"
+      ],
+      "note": "A conversational reply; routing and the words need the model.",
+      "question": "Hello",
+      "scenario": "chat_hello",
+      "synthetic": true,
+      "tenant": "acme-001"
+    },
+    {
+      "keywords": [
+        "what can you do",
+        "what do you do",
+        "what are you able to"
+      ],
+      "note": "A conversational reply; routing and the words need the model.",
+      "question": "What can you do?",
+      "scenario": "chat_capabilities",
+      "synthetic": true,
+      "tenant": "acme-001"
+    },
+    {
+      "keywords": [
+        "i only care about",
+        "keep in mind",
+        "remember that"
+      ],
+      "note": "A conversational reply; routing and the words need the model.",
+      "question": "I only care about laptops",
+      "scenario": "chat_note",
+      "synthetic": true,
+      "tenant": "acme-001"
+    },
+    {
+      "keywords": [
+        "forget that",
+        "forget it",
+        "never mind that"
+      ],
+      "note": "A conversational reply; routing and the words need the model.",
+      "question": "Forget that",
+      "scenario": "chat_forget",
       "synthetic": true,
       "tenant": "acme-001"
     },
@@ -430,7 +488,7 @@
         "signal",
         "network quality"
       ],
-      "note": "The refusal text and alternatives are fixed wording; routing needs the model.",
+      "note": "The refusal text and alternatives are fixed wording; routing and the reply need the model.",
       "question": "Which devices have a weak Wi-Fi signal?",
       "scenario": "unsupported_wifi",
       "synthetic": true,
@@ -481,6 +539,64 @@
       "note": "The options are built by code from this company's devices; routing needs the model.",
       "question": "How is the macbook doing on battery?",
       "scenario": "clarification_device",
+      "synthetic": true,
+      "tenant": "globex-002"
+    },
+    {
+      "keywords": [
+        "thanks",
+        "thank you"
+      ],
+      "note": "A conversational reply; routing and the words need the model.",
+      "question": "Thanks!",
+      "scenario": "chat_thanks",
+      "synthetic": true,
+      "tenant": "globex-002"
+    },
+    {
+      "keywords": [
+        "hello",
+        "hey there"
+      ],
+      "note": "A conversational reply; routing and the words need the model.",
+      "question": "Hello",
+      "scenario": "chat_hello",
+      "synthetic": true,
+      "tenant": "globex-002"
+    },
+    {
+      "keywords": [
+        "what can you do",
+        "what do you do",
+        "what are you able to"
+      ],
+      "note": "A conversational reply; routing and the words need the model.",
+      "question": "What can you do?",
+      "scenario": "chat_capabilities",
+      "synthetic": true,
+      "tenant": "globex-002"
+    },
+    {
+      "keywords": [
+        "i only care about",
+        "keep in mind",
+        "remember that"
+      ],
+      "note": "A conversational reply; routing and the words need the model.",
+      "question": "I only care about laptops",
+      "scenario": "chat_note",
+      "synthetic": true,
+      "tenant": "globex-002"
+    },
+    {
+      "keywords": [
+        "forget that",
+        "forget it",
+        "never mind that"
+      ],
+      "note": "A conversational reply; routing and the words need the model.",
+      "question": "Forget that",
+      "scenario": "chat_forget",
       "synthetic": true,
       "tenant": "globex-002"
     },
@@ -679,7 +795,7 @@
         "signal",
         "network quality"
       ],
-      "note": "The refusal text and alternatives are fixed wording; routing needs the model.",
+      "note": "The refusal text and alternatives are fixed wording; routing and the reply need the model.",
       "question": "Which devices have a weak Wi-Fi signal?",
       "scenario": "unsupported_wifi",
       "synthetic": true,
@@ -730,6 +846,64 @@
       "note": "The options are built by code from this company's devices; routing needs the model.",
       "question": "How is the macbook doing on battery?",
       "scenario": "clarification_device",
+      "synthetic": true,
+      "tenant": "initech-003"
+    },
+    {
+      "keywords": [
+        "thanks",
+        "thank you"
+      ],
+      "note": "A conversational reply; routing and the words need the model.",
+      "question": "Thanks!",
+      "scenario": "chat_thanks",
+      "synthetic": true,
+      "tenant": "initech-003"
+    },
+    {
+      "keywords": [
+        "hello",
+        "hey there"
+      ],
+      "note": "A conversational reply; routing and the words need the model.",
+      "question": "Hello",
+      "scenario": "chat_hello",
+      "synthetic": true,
+      "tenant": "initech-003"
+    },
+    {
+      "keywords": [
+        "what can you do",
+        "what do you do",
+        "what are you able to"
+      ],
+      "note": "A conversational reply; routing and the words need the model.",
+      "question": "What can you do?",
+      "scenario": "chat_capabilities",
+      "synthetic": true,
+      "tenant": "initech-003"
+    },
+    {
+      "keywords": [
+        "i only care about",
+        "keep in mind",
+        "remember that"
+      ],
+      "note": "A conversational reply; routing and the words need the model.",
+      "question": "I only care about laptops",
+      "scenario": "chat_note",
+      "synthetic": true,
+      "tenant": "initech-003"
+    },
+    {
+      "keywords": [
+        "forget that",
+        "forget it",
+        "never mind that"
+      ],
+      "note": "A conversational reply; routing and the words need the model.",
+      "question": "Forget that",
+      "scenario": "chat_forget",
       "synthetic": true,
       "tenant": "initech-003"
     },

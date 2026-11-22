@@ -298,7 +298,7 @@
         "value": "screen_lock: fail (medium severity)"
       }
     ],
-    "explanation": null,
+    "explanation": "These are ranked by urgency, with acme-macbook-1 first.",
     "follow_ups": [
       {
         "label": "What should we do about these?",
@@ -2008,7 +2008,7 @@
     "proposal": null,
     "reason_code": null,
     "repeat_of": null,
-    "reply": "",
+    "reply": "These are ranked by urgency, with acme-macbook-1 first.",
     "scope": {
       "as_of": "2026-06-12T11:00:00Z",
       "calculation": "7 distinct devices across 4 claims; at most 10 supporting readings are cited per device",
@@ -2127,7 +2127,7 @@
     {
       "data": {
         "evidence_ok": true,
-        "explanation_shown": false,
+        "explanation_shown": true,
         "model_prose": true,
         "problems": [],
         "reply_chars": 0,

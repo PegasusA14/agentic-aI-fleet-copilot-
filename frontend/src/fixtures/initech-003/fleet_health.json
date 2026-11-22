@@ -207,7 +207,7 @@
         "value": "screen_lock: fail (medium severity)"
       }
     ],
-    "explanation": null,
+    "explanation": "These are ranked by urgency, with initech-mac-4 first.",
     "follow_ups": [
       {
         "label": "What should we do about these?",
@@ -1211,7 +1211,7 @@
     "proposal": null,
     "reason_code": null,
     "repeat_of": null,
-    "reply": "",
+    "reply": "These are ranked by urgency, with initech-mac-4 first.",
     "scope": {
       "as_of": "2026-06-12T11:00:00Z",
       "calculation": "6 distinct devices across 3 claims; at most 4 supporting readings are cited per device",
@@ -1330,7 +1330,7 @@
     {
       "data": {
         "evidence_ok": true,
-        "explanation_shown": false,
+        "explanation_shown": true,
         "model_prose": true,
         "problems": [],
         "reply_chars": 0,

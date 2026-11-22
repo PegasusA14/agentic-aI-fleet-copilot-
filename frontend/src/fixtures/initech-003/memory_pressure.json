@@ -66,7 +66,7 @@
         "value": "98.4% used (7.9 GiB of 8.0 GiB)"
       }
     ],
-    "explanation": null,
+    "explanation": "initech-mac-3 is the device using the most memory right now.",
     "follow_ups": [
       {
         "label": "Show their 7-day trend",
@@ -87,7 +87,7 @@
     "proposal": null,
     "reason_code": null,
     "repeat_of": null,
-    "reply": "",
+    "reply": "initech-mac-3 is the device using the most memory right now.",
     "scope": {
       "as_of": "2026-06-12T11:00:00Z",
       "calculation": "1 distinct device across 1 claim; at most 1 supporting reading is cited per device",
@@ -271,7 +271,7 @@
     {
       "data": {
         "evidence_ok": true,
-        "explanation_shown": false,
+        "explanation_shown": true,
         "model_prose": true,
         "problems": [],
         "reply_chars": 0,

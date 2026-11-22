@@ -145,7 +145,7 @@
         "value": "screen_lock: fail (medium severity)"
       }
     ],
-    "explanation": null,
+    "explanation": "The table shows each failing check next to its device, and globex-macbook-3 is the first one listed.",
     "follow_ups": [
       {
         "label": "What should we do about these?",
@@ -162,7 +162,7 @@
     "proposal": null,
     "reason_code": null,
     "repeat_of": null,
-    "reply": "",
+    "reply": "The table shows each failing check next to its device, and globex-macbook-3 is the first one listed.",
     "scope": {
       "as_of": "2026-06-12T11:00:00Z",
       "calculation": "5 distinct devices across 2 claims; at most 2 supporting readings are cited per device",
@@ -560,7 +560,7 @@
     {
       "data": {
         "evidence_ok": true,
-        "explanation_shown": false,
+        "explanation_shown": true,
         "model_prose": true,
         "problems": [],
         "reply_chars": 0,

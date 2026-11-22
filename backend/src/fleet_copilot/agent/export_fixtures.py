@@ -81,6 +81,9 @@ class Scenario:
     missing_topic: str = ""  # unsupported scenarios: the data the telemetry does not hold
     # `turn` scenarios: the scripted plan's fields (the model's decision), run through the real graph.
     plan_fields: tuple[tuple[str, Any], ...] = ()
+    # The scripted reply step's text, standing in for what the reply model writes. `{lead}` is the label of the
+    # first device the answer lists. The graph verifies it like any reply, so a line it would drop never ships.
+    reply: str = ""
 
 
 SCENARIOS: tuple[Scenario, ...] = (
@@ -91,6 +94,7 @@ SCENARIOS: tuple[Scenario, ...] = (
         "tools",
         "Check the latest free disk space against the low-disk rule.",
         (("low_disk_devices", {}),),
+        reply='{lead} has the least room left, so I would start there.\n\nThe others on the list can wait a little longer, and I can open a ticket for any of them if you want.',
     ),
     Scenario(
         "macos_older_than_15",
@@ -99,6 +103,7 @@ SCENARIOS: tuple[Scenario, ...] = (
         "tools",
         "List macOS devices below version 15; Windows devices are out of scope.",
         (("macos_version_check", {}),),
+        reply='{lead} is first in the table. Windows devices are left out, as the version rule only covers Macs.',
     ),
     Scenario(
         "compliance_failures",
@@ -107,6 +112,7 @@ SCENARIOS: tuple[Scenario, ...] = (
         "tools",
         "List devices with any failing compliance check at the latest snapshot.",
         (("compliance_failures_now", {}),),
+        reply='The table shows each failing check next to its device, and {lead} is the first one listed.',
     ),
     Scenario(
         "compliance_high_no_match",
@@ -123,6 +129,7 @@ SCENARIOS: tuple[Scenario, ...] = (
         "tools",
         "Check memory use at the latest snapshot against the memory rule.",
         (("memory_pressure_now", {}),),
+        reply='{lead} is the device using the most memory right now.',
     ),
     Scenario(
         "disk_trend",
@@ -147,6 +154,7 @@ SCENARIOS: tuple[Scenario, ...] = (
         "tools",
         "Look for battery wear signals over the last 30 days.",
         (("trend", {"metric": "battery"}),),
+        reply='{lead} shows the clearest wear signal over the last month, so it is the one to watch first.',
     ),
     Scenario(
         "fleet_health",
@@ -155,6 +163,7 @@ SCENARIOS: tuple[Scenario, ...] = (
         "tools",
         "Rank what needs attention across battery, disk, memory and compliance.",
         (("fleet_health", {}),),
+        reply='These are ranked by urgency, with {lead} first.',
     ),
     Scenario(
         "inventory_by_model",
@@ -202,11 +211,19 @@ SCENARIOS: tuple[Scenario, ...] = (
         "unsupported_wifi",
         "Which devices have a weak Wi-Fi signal?",
         ("wi-fi", "wifi", "signal", "network quality"),
-        "unsupported",
+        "turn",
         "The question asks for network data the telemetry does not hold.",
         synthetic=True,
-        note="The refusal text and alternatives are fixed wording; routing needs the model.",
-        missing_topic="network",
+        note="The refusal text and alternatives are fixed wording; routing and the reply need the model.",
+        plan_fields=(
+            ("intent", "unsupported"),
+            ("refusal_reason", "data_unavailable"),
+            ("missing_topic", "network"),
+        ),
+        reply=(
+            "I can't rank devices by Wi-Fi signal: the fleet data doesn't record network quality.\n\n"
+            "I can look at disk, memory, battery or compliance instead."
+        ),
     ),
     Scenario(
         "proposal",
@@ -234,6 +251,7 @@ SCENARIOS: tuple[Scenario, ...] = (
         synthetic=True,
         note="The refusal is the real eligibility check run on the device; routing needs the model.",
         plan_fields=(("intent", "propose"), ("action_type", "replacement_flag")),
+        reply="I can't flag that laptop for replacement yet: its battery isn't reporting a service condition.\n\nIf the readings change, ask me again and I will look at it afresh.",
     ),
     Scenario(
         "other_company",
@@ -254,6 +272,65 @@ SCENARIOS: tuple[Scenario, ...] = (
         synthetic=True,
         note="The options are built by code from this company's devices; routing needs the model.",
         plan_fields=(("intent", "clarify"), ("device_phrase", "macbook")),
+    ),
+    Scenario(
+        "chat_thanks",
+        "Thanks!",
+        ("thanks", "thank you"),
+        "turn",
+        "A thank-you: reply in a line, with no lookup.",
+        synthetic=True,
+        note="A conversational reply; routing and the words need the model.",
+        plan_fields=(("intent", "chat"),),
+        reply="You're welcome. Ask me about disk, memory, battery or compliance whenever you want another look.",
+    ),
+    Scenario(
+        "chat_hello",
+        "Hello",
+        ("hello", "hey there"),
+        "turn",
+        "A greeting: reply in a line, with no lookup.",
+        synthetic=True,
+        note="A conversational reply; routing and the words need the model.",
+        plan_fields=(("intent", "chat"),),
+        reply="Hello. Ask me about disk space, memory, battery wear or compliance across your devices.",
+    ),
+    Scenario(
+        "chat_capabilities",
+        "What can you do?",
+        ("what can you do", "what do you do", "what are you able to"),
+        "turn",
+        "A question about the assistant itself: answer from the capability card, with no lookup.",
+        synthetic=True,
+        note="A conversational reply; routing and the words need the model.",
+        plan_fields=(("intent", "chat"),),
+        reply=(
+            "I answer questions about this company's devices: hardware, OS versions, memory, disk, battery, software "
+            "and compliance checks.\n\n"
+            "I can propose an action too, but nothing happens until you approve it."
+        ),
+    ),
+    Scenario(
+        "chat_note",
+        "I only care about laptops",
+        ("i only care about", "keep in mind", "remember that"),
+        "turn",
+        "A statement to keep for later in this conversation: acknowledge it, with no lookup.",
+        synthetic=True,
+        note="A conversational reply; routing and the words need the model.",
+        plan_fields=(("intent", "chat"), ("remember", "I only care about laptops")),
+        reply="Got it. I'll keep to laptops when I list devices in this conversation.",
+    ),
+    Scenario(
+        "chat_forget",
+        "Forget that",
+        ("forget that", "forget it", "never mind that"),
+        "turn",
+        "A request to drop the last remembered note: confirm it, with no lookup.",
+        synthetic=True,
+        note="A conversational reply; routing and the words need the model.",
+        plan_fields=(("intent", "chat"), ("forget", True)),
+        reply="Done. I've dropped that note, so I'll list every kind of device again.",
     ),
     Scenario(
         "tool_error",
@@ -326,32 +403,49 @@ def _trace(scenario: Scenario, records: list[ToolRecord], envelope: AnswerEnvelo
     ]
 
 
+def _lead_label(envelope: AnswerEnvelope) -> str:
+    """The label of the first device the answer lists, for a scripted reply that names it."""
+    for entity_list in envelope.entity_lists:
+        if entity_list.items:
+            return entity_list.items[0].label
+    if envelope.table and envelope.table.rows:
+        return envelope.table.rows[0].label
+    return ""
+
+
 async def live_trace(
     scenario: Scenario, tenant: str, db_path: Path, foreign_id: str, envelope: AnswerEnvelope
-) -> list[dict]:
-    """The trace of one real, scripted `AgentService` turn for a `tools` scenario.
+) -> tuple[AnswerEnvelope, list[dict]]:
+    """The envelope and trace of one real, scripted `AgentService` turn for a `tools` scenario.
 
-    The scripted model plans, calls the scenario's tools and replies with no text,
-    so the trace has the kinds, tools and data keys a live turn produces.
+    The scripted model plans, calls the scenario's tools and replies with the scenario's scripted line, so the
+    trace has the kinds, tools and data keys a live turn produces. The envelope is the composed one plus the
+    reply the graph kept after verifying it (empty when the scenario has none or the graph dropped it).
     """
     calls = [(tool, _fill(args, foreign_id)) for tool, args in scenario.calls]
     llm = ScriptedLLM(
         plans=[Plan(intent="answer", summary=scenario.plan)],
         acts=[tool_calls_message(*calls), final_message()],
-        explains=[Reply(text="")],
+        explains=[Reply(text=scenario.reply.replace("{lead}", _lead_label(envelope)))],
     )
     service = AgentService(db_path=db_path, gateway=llm, checkpointer=InMemorySaver())
     actor = f"admin-{tenant.split('-')[0]}"
-    identity = Identity(tenant, actor, f"{tenant} admin (replay)")
+    identity = Identity(
+        tenant, actor, f"{tenant} admin (replay)", company_name=_COMPANY_NAMES.get(tenant, "")
+    )
     question = scenario.question.replace("{foreign_id}", foreign_id)
     result = await service.run_turn(identity, "replay", question)
-    return [
+    trace = [
         # Latency is wall-clock time; a fixture must be byte-identical between runs, so it is dropped.
         event.model_copy(update={"trace_id": envelope.trace_id, "latency_ms": None}).model_dump(
             mode="json"
         )
         for event in result.trace
     ]
+    spoken = envelope.model_copy(
+        update={"reply": result.envelope.reply, "explanation": result.envelope.explanation}
+    )
+    return spoken, trace
 
 
 def _golden_screen_lock_target(tenant: str) -> str:
@@ -429,7 +523,9 @@ async def live_turn(
     plan = Plan(summary=scenario.plan, **dict(scenario.plan_fields))
     calls = [(tool, _fill(args, target, "{target}")) for tool, args in scenario.calls]
     llm = ScriptedLLM(
-        plans=[plan], acts=[tool_calls_message(*calls), final_message()] if calls else []
+        plans=[plan],
+        acts=[tool_calls_message(*calls), final_message()] if calls else [],
+        explains=[Reply(text=scenario.reply)] if scenario.reply else [],
     )
     service = AgentService(
         db_path=db_path,
@@ -581,7 +677,7 @@ def export_all(out_dir: Path) -> None:
                     else:
                         envelope, records = _build(scenario, tenant, ctx, repo, foreign_id)
                         if scenario.kind == "tools":
-                            trace = asyncio.run(
+                            envelope, trace = asyncio.run(
                                 live_trace(scenario, tenant, db_path, foreign_id, envelope)
                             )
                         else:

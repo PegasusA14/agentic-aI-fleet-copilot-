@@ -98,7 +98,7 @@
         "value": "os_up_to_date: fail (medium severity)"
       }
     ],
-    "explanation": null,
+    "explanation": "globex-macbook-3 is first in the table. Windows devices are left out, as the version rule only covers Macs.",
     "follow_ups": [
       {
         "label": "Look at the 3 devices not checked",
@@ -121,7 +121,7 @@
     "proposal": null,
     "reason_code": null,
     "repeat_of": null,
-    "reply": "",
+    "reply": "globex-macbook-3 is first in the table. Windows devices are left out, as the version rule only covers Macs.",
     "scope": {
       "as_of": "2026-06-12T11:00:00Z",
       "calculation": "2 distinct devices across 1 claim; at most 1 supporting reading is cited per device",
@@ -340,7 +340,7 @@
     {
       "data": {
         "evidence_ok": true,
-        "explanation_shown": false,
+        "explanation_shown": true,
         "model_prose": true,
         "problems": [],
         "reply_chars": 0,

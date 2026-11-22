@@ -67,7 +67,20 @@ def test_outcomes_cover_every_state_the_ui_renders(exported):
         "denied",
         "unsupported",
         "tool_error",
+        "chat",
     }
+
+
+def test_scripted_replies_are_kept_by_the_graph_and_stay_plain_text(exported):
+    for scenario in SCENARIOS:
+        if not scenario.reply:
+            continue
+        for tenant in TENANTS:
+            envelope = load(exported, tenant, scenario.name)["envelope"]
+            if scenario.name == "battery_wear" and not envelope["reply"]:
+                continue  # this company has no battery wear answer to speak about
+            assert envelope["reply"], f"{tenant}/{scenario.name}: the reply was dropped by verification"
+            assert "<" not in envelope["reply"] and "**" not in envelope["reply"]
 
 
 def test_meta_marks_synthetic_fixtures_and_carries_router_keywords(exported):
@@ -80,6 +93,11 @@ def test_meta_marks_synthetic_fixtures_and_carries_router_keywords(exported):
         "insufficient_evidence",
         "other_company",
         "clarification_device",
+        "chat_thanks",
+        "chat_hello",
+        "chat_capabilities",
+        "chat_note",
+        "chat_forget",
     }
     for scenario in SCENARIOS:
         meta = load(exported, "acme-001", scenario.name)["meta"]
