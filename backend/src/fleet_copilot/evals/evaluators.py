@@ -341,6 +341,26 @@ def called_tools(trace: Sequence[TraceEvent]) -> list[str]:
     return [e.tool for e in trace if e.kind == "tool_call" and e.tool]
 
 
+def planned_tools(trace: Sequence[TraceEvent]) -> list[str]:
+    """The tools the turn's plan named (empty when the plan named none or the turn had no plan)."""
+    plan = next((e for e in trace if e.kind == "plan" and "intent" in e.data), None)
+    return list(plan.data.get("tools") or []) if plan else []
+
+
+def check_tools_planned(expected: Any, trace: Sequence[TraceEvent]) -> Check:
+    """Every named tool must be among the tools the turn's plan named."""
+    want, planned = _many(expected), planned_tools(trace)
+    missing = [name for name in want if name not in planned]
+    if missing:
+        shown = ", ".join(planned) or "no tools"
+        return Check(
+            "tools_planned",
+            False,
+            f"expected the plan to name {', '.join(missing)}; the plan named {shown}",
+        )
+    return Check("tools_planned", True, f"the plan named {', '.join(want)}")
+
+
 def check_tools_called(expected: Any, trace: Sequence[TraceEvent]) -> Check:
     """Every named tool must appear among the turn's tool calls."""
     want, ran = _many(expected), list(dict.fromkeys(called_tools(trace)))
@@ -381,6 +401,7 @@ _KEYS = (
     "no_foreign_data",
     "prose_verified",
     "prose_no_causal",
+    "tools_planned",
     "tools_called",
     "tools_not_called",
     "proposal",
@@ -454,6 +475,8 @@ def check_turn(
             checks.append(check_insights_min(value, envelope))
         elif key == "population":
             checks.append(check_population(value, envelope))
+        elif key == "tools_planned":
+            checks.append(check_tools_planned(value, trace))
         elif key == "tools_called":
             checks.append(check_tools_called(value, trace))
         elif key == "tools_not_called":

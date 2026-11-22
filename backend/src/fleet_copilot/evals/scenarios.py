@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, get_args
 
 from fleet_copilot.agent.identity import DEMO_IDENTITIES
+from fleet_copilot.agent.llm import ToolName
 from fleet_copilot.agent.tools import TOOLS
 from fleet_copilot.contracts import MAX_INSIGHTS, ActionType, OutcomeType, ReasonCode
 from fleet_copilot.evals.evaluators import ANY_TOOL
@@ -45,6 +46,7 @@ _EXPECT_KEYS = frozenset(
         "needs_min",
         "choices_min",
         "insights_min",
+        "tools_planned",
         "tools_called",
         "tools_not_called",
         *_BOOLEAN_KEYS,
@@ -279,7 +281,7 @@ def _check_expect(expect: Any, *, last: bool) -> None:
             raise ScenarioError(
                 f"expect.insights_min must be a whole number from 1 to {MAX_INSIGHTS}"
             )
-    for key in ("tools_called", "tools_not_called"):
+    for key in ("tools_planned", "tools_called", "tools_not_called"):
         if key in expect:
             _check_tools(key, expect[key])
     for key in _BOOLEAN_KEYS:
@@ -299,7 +301,12 @@ def _check_tools(key: str, value: Any) -> None:
     """Tool names are read from the live tool list, so a renamed or split tool is caught at load time."""
     if key == "tools_not_called" and value == ANY_TOOL:
         return
-    known = frozenset(t.name for t in TOOLS)
+    # A plan can name any tool but `recommend_actions`, which code (never the model) calls.
+    known = (
+        frozenset(get_args(ToolName))
+        if key == "tools_planned"
+        else frozenset(t.name for t in TOOLS)
+    )
     if not isinstance(value, list) or not value or not all(isinstance(v, str) for v in value):
         hint = f' or "{ANY_TOOL}" (no tool at all)' if key == "tools_not_called" else ""
         raise ScenarioError(f"expect.{key} must be a non-empty list of tool names{hint}")

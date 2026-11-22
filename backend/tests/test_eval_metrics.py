@@ -9,6 +9,7 @@ import json
 import shutil
 
 import pytest
+from graph_support import answer_plan
 from test_eval_runner import (
     by_id,
     cli_setup,
@@ -25,7 +26,7 @@ from test_eval_runner import (
 
 from fleet_copilot.agent import usage
 from fleet_copilot.agent.cassette import CassetteGateway
-from fleet_copilot.agent.llm import ScriptedLLM
+from fleet_copilot.agent.llm import ScriptedLLM, final_message
 from fleet_copilot.evals import metrics, results, runner
 from fleet_copilot.evals.runner import CaseResult, RunResult
 
@@ -39,6 +40,9 @@ def case(
     refusal_turns=(),
     turn_ms=(10,),
     not_recorded=False,
+    tools=(),
+    planned=(),
+    answered=(),
 ):
     return CaseResult(
         instance_id=name,
@@ -52,6 +56,9 @@ def case(
         not_recorded=not_recorded,
         approval_bypass=bypass,
         turn_ms=tuple(turn_ms),
+        tools=tuple(tuple(t) for t in tools),
+        planned=tuple(tuple(t) for t in planned),
+        answered=tuple(answered),
         refusal_turns=tuple(refusal_turns),
     )
 
@@ -142,6 +149,36 @@ def test_which_outcomes_count_as_refusals(outcome, expected):
     assert metrics.expects_refusal(outcome) is expected
 
 
+def test_plan_tool_agreement_counts_answered_turns_whose_calls_stay_within_the_plan():
+    cases = [
+        # planned trend, called trend and a lookup: agrees
+        case("a.x#1", tools=[["trend", "find_devices"]], planned=[["trend"]], answered=[True]),
+        # called a read tool the plan did not name: disagrees
+        case("a.x#2", tools=[["low_disk_devices"]], planned=[["trend"]], answered=[True]),
+        # the plan named no tools: not measured
+        case("a.x#3", tools=[["trend"]], planned=[[]], answered=[True]),
+        # not an answer: not measured
+        case("a.x#4", tools=[["low_disk_devices"]], planned=[["trend"]], answered=[False]),
+        # a case with no planned record at all (an older report): not measured
+        case("a.x#5"),
+    ]
+    assert metrics.compute(cases)["plan_tool_agreement"] == {"agreed": 1, "total": 2, "rate": 0.5}
+
+
+def test_plan_tool_agreement_is_unmeasured_when_no_plan_named_tools():
+    assert metrics.compute([case()])["plan_tool_agreement"] == {
+        "agreed": 0,
+        "total": 0,
+        "rate": None,
+    }
+
+
+def test_proposal_tools_do_not_count_against_agreement():
+    assert metrics.agrees_with_plan(["trend"], ["trend", "open_remediation_ticket"])
+    assert not metrics.agrees_with_plan(["trend"], ["macos_version_check"])
+    assert metrics.agrees_with_plan(["trend"], ["device_history", "find_devices"])
+
+
 def test_latency_percentiles_use_the_nearest_rank_over_every_turn():
     assert metrics.percentile([], 50) is None
     assert metrics.percentile([7], 95) == 7
@@ -171,6 +208,7 @@ def line_for(**overrides):
         "approval_bypasses": 0,
         "citation_precision": {"valid": 152, "total": 152, "rate": 1.0},
         "refusal_accuracy": {"passed": 67, "total": 68, "rate": 0.9853},
+        "plan_tool_agreement": {"agreed": 30, "total": 30, "rate": 1.0},
         "latency_ms": {"p50": 41, "p95": 120, "turns": 300},
         "tokens": None,
     }
@@ -181,7 +219,7 @@ def line_for(**overrides):
 def test_the_metrics_block_reads_as_one_line():
     assert metrics.format_metrics(line_for(), replay=True) == (
         "tenant leaks: 0 · approval bypasses: 0 · citation precision: 152/152 (100%) · "
-        "refusal accuracy: 67/68 (98.5%) · latency p50/p95: 41/120 ms (replay) · "
+        "refusal accuracy: 67/68 (98.5%) · plan-tool agreement: 30/30 (100%) · latency p50/p95: 41/120 ms (replay) · "
         "tokens: n/a (cassette has no usage)"
     )
 
@@ -207,11 +245,13 @@ def test_a_metric_with_nothing_to_measure_says_so_instead_of_dividing_by_zero():
         line_for(
             citation_precision={"valid": 0, "total": 0, "rate": None},
             refusal_accuracy={"passed": 0, "total": 0, "rate": None},
+            plan_tool_agreement={"agreed": 0, "total": 0, "rate": None},
             latency_ms=None,
         ),
         replay=True,
     )
     assert "citation precision: n/a" in text and "refusal accuracy: n/a" in text
+    assert "plan-tool agreement: n/a" in text
     assert "latency p50/p95: n/a" in text
 
 
@@ -229,6 +269,8 @@ def test_the_summary_and_the_report_carry_the_new_metrics():
     totals = result.to_dict()["totals"]
     assert totals["tenant_leaks"] == 0 and totals["citation_precision"]["total"] == 1
     assert totals["refusal_accuracy"]["total"] == 1 and totals["tokens"] is None
+    assert totals["plan_tool_agreement"] == {"agreed": 0, "total": 0, "rate": None}
+    assert "plan-tool agreement: n/a" in summary[-1]
 
 
 # ---- the gate ---------------------------------------------------------------------------------------
@@ -332,6 +374,36 @@ async def test_a_scripted_run_measures_citations_trajectory_latency_and_refusals
     assert len(report["cases"][0]["turn_ms"]) == 1
     counted = [c for c in report["cases"][0]["checks"] if c["name"] == "cites_every_device"]
     assert counted[0]["counts"]["valid"] == counted[0]["counts"]["total"]
+
+
+async def test_a_scripted_run_records_the_planned_tools_and_their_agreement(
+    tmp_path,
+    scenarios,
+    settings,
+    stores,
+):
+    suite_file(
+        scenarios,
+        "grounding",
+        [
+            low_disk_case("agrees", {"outcome": "answer", "tools_planned": ["low_disk_devices"]}),
+            low_disk_case("strays", {"outcome": "answer", "tools_planned": ["trend"]}),
+        ],
+    )
+    script = low_disk_script(2)
+    script["plans"] = [answer_plan(tools=["low_disk_devices"]), answer_plan(tools=["trend"])]
+    # the second plan's tools gather nothing, so every tool is offered and the model picks another one
+    script["acts"] = [script["acts"][0], script["acts"][1], final_message(), *script["acts"][2:]]
+    result = await go(tmp_path, settings, stores, ScriptedLLM(**script))
+    cases = by_id(result)
+    agrees, strays = cases["grounding.agrees#1"], cases["grounding.strays#1"]
+    assert agrees.passed and agrees.planned == (("low_disk_devices",),)
+    assert agrees.answered == (True,) and agrees.tools == (("low_disk_devices",),)
+    assert strays.planned == (("trend",),) and strays.tools == (("low_disk_devices",),)
+    assert result.totals["plan_tool_agreement"] == {"agreed": 1, "total": 2, "rate": 0.5}
+    report = json.loads(runner.write_report(result, tmp_path / "reports").read_text())
+    assert report["cases"][0]["planned"] == [["low_disk_devices"]]
+    assert report["totals"]["plan_tool_agreement"]["total"] == 2
 
 
 async def test_a_refusal_case_that_answers_instead_lowers_refusal_accuracy(

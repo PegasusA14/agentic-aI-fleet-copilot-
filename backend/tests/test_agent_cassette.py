@@ -216,3 +216,12 @@ async def test_a_stale_usage_is_not_recorded_for_a_call_that_reported_none(tmp_p
     path = tmp_path / "c.jsonl"
     await CassetteGateway(path, inner=ScriptedLLM(plans=[PLAN])).plan(MESSAGES)
     assert "usage" not in json.loads(path.read_text())
+
+
+async def test_the_tool_limit_of_an_act_call_reaches_the_recording_model_but_not_the_key(tmp_path):
+    path = tmp_path / "c.jsonl"
+    inner = ScriptedLLM(acts=[final_message()])
+    await CassetteGateway(path, inner=inner).act(MESSAGES, tools=["trend", "find_devices"])
+    assert inner.calls_of("act")[0].tools == ("trend", "find_devices")
+    # replayed without the limit: the same recorded line answers it
+    assert (await CassetteGateway(path).act(MESSAGES)).tool_calls == []

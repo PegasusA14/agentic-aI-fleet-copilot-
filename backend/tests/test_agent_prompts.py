@@ -215,3 +215,14 @@ def test_the_planner_sets_action_type_only_for_a_named_action():
     plan = _flat(prompts.PLAN_SYSTEM)
     assert "set `action_type` only when the user names a specific action" in plan
     assert "what should we do about these?" in plan and "leave `action_type` empty" in plan
+
+
+def test_the_planner_is_told_every_tool_name_it_may_list():
+    from typing import get_args
+
+    from fleet_copilot.agent.llm import ToolName
+
+    for name in get_args(ToolName):
+        assert name in prompts.PLAN_SYSTEM
+    assert "`tools`" in prompts.PLAN_SYSTEM
+    assert "recommend_actions" not in prompts.PLAN_SYSTEM

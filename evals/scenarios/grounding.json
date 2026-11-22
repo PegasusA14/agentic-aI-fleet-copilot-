@@ -24,6 +24,9 @@
               "golden": "acme-001/low_disk_lt10/population"
             },
             "prose_verified": true,
+            "tools_planned": [
+              "low_disk_devices"
+            ],
             "tools_called": [
               "low_disk_devices"
             ]
@@ -111,6 +114,9 @@
             "devices_exclude": {
               "golden": "acme-001/macos_below_15/out_of_scope"
             },
+            "tools_planned": [
+              "macos_version_check"
+            ],
             "tools_called": [
               "macos_version_check"
             ]

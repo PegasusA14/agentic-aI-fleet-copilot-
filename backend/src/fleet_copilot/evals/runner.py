@@ -36,7 +36,7 @@ from fleet_copilot.config import Settings
 from fleet_copilot.contracts import ProposalCard, TraceEvent
 from fleet_copilot.data.loader import SCHEMA_VERSION, connect, stored_schema_version
 from fleet_copilot.evals import metrics
-from fleet_copilot.evals.evaluators import Check, called_tools, check_turn
+from fleet_copilot.evals.evaluators import Check, called_tools, check_turn, planned_tools
 from fleet_copilot.evals.golden_ref import load_golden, resolve_expect
 from fleet_copilot.evals.identifiers import foreign_identifiers
 from fleet_copilot.evals.scenarios import Instance, Scenario, expand
@@ -70,6 +70,8 @@ class CaseResult:
     approval_bypass: bool = False  # a proposal was executed though no `approve` step asked for it
     turn_ms: tuple[int, ...] = ()  # wall time of each turn that ran, in whole milliseconds
     tools: tuple[tuple[str, ...], ...] = ()  # the tools each turn ran, in order
+    planned: tuple[tuple[str, ...], ...] = ()  # the tools each turn's plan named
+    answered: tuple[bool, ...] = ()  # whether each turn's outcome was an answer
     refusal_turns: tuple[int, ...] = ()  # turns whose expectation names a refusal-type outcome
 
     @property
@@ -94,6 +96,8 @@ class CaseResult:
             "approval_bypass": self.approval_bypass,
             "turn_ms": list(self.turn_ms),
             "tools": [list(turn) for turn in self.tools],
+            "planned": [list(turn) for turn in self.planned],
+            "answered": list(self.answered),
             "refusal_turns": list(self.refusal_turns),
         }
 
@@ -390,6 +394,8 @@ def _result(
     bypass=False,
     turn_ms=(),
     tools=(),
+    planned=(),
+    answered=(),
 ):
     return CaseResult(
         instance_id=inst.id,
@@ -406,6 +412,8 @@ def _result(
         approval_bypass=bypass,
         turn_ms=tuple(turn_ms),
         tools=tuple(tuple(t) for t in tools),
+        planned=tuple(tuple(t) for t in planned),
+        answered=tuple(answered),
         refusal_turns=_refusal_turns(inst),
     )
 
@@ -423,6 +431,8 @@ async def _play(inst: Instance, env: _Env, folder: Path) -> CaseResult:
     cards: dict[int, ProposalCard] = {}  # the proposal each turn made, by turn number
     turn_ms: list[int] = []
     tools: list[list[str]] = []
+    planned: list[list[str]] = []
+    answered: list[bool] = []
     baseline = _effect_totals(actions)
     async with AgentService.open(
         db_path=env.settings.db_path,
@@ -449,9 +459,13 @@ async def _play(inst: Instance, env: _Env, folder: Path) -> CaseResult:
                     not_recorded=True,
                     turn_ms=turn_ms,
                     tools=tools,
+                    planned=planned,
+                    answered=answered,
                 )
             turn_ms.append(elapsed)
             tools.append(called_tools(outcome.trace))
+            planned.append(planned_tools(outcome.trace))
+            answered.append(outcome.envelope.outcome == "answer")
             if outcome.envelope.proposal is not None:
                 cards[number] = outcome.envelope.proposal
             expect = resolve_expect(turn.expect, env.golden)
@@ -479,6 +493,8 @@ async def _play(inst: Instance, env: _Env, folder: Path) -> CaseResult:
         bypass=bypass,
         turn_ms=turn_ms,
         tools=tools,
+        planned=planned,
+        answered=answered,
     )
 
 

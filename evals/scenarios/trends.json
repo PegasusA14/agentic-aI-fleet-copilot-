@@ -486,6 +486,9 @@
               "golden": "acme-001/fleet_health/act_soon"
             },
             "insights_min": 4,
+            "tools_planned": [
+              "fleet_health"
+            ],
             "tools_called": [
               "fleet_health"
             ],

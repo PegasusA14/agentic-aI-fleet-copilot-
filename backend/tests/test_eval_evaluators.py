@@ -1,6 +1,7 @@
 import pytest
 
 from fleet_copilot.contracts import AnswerEnvelope, TraceEvent
+from fleet_copilot.evals import evaluators
 from fleet_copilot.evals.evaluators import Check, check_turn
 from fleet_copilot.evals.identifiers import foreign_identifiers, identifiers_by_tenant
 
@@ -384,6 +385,38 @@ def test_cites_every_device_reports_how_many_references_resolved_as_numbers():
 
 def tool_trace(*names):
     return [event(i, kind="tool_call", tool=name) for i, name in enumerate(names)]
+
+
+def plan_trace(*names):
+    return [event(0, kind="plan", data={"intent": "answer", "tools": list(names)})]
+
+
+def test_tools_planned_passes_when_every_named_tool_is_in_the_plan():
+    trace = plan_trace("low_disk_devices", "trend")
+    check = run({"tools_planned": ["trend"]}, answer(), trace=trace)[0]
+    assert check.name == "tools_planned" and check.passed
+
+
+def test_tools_planned_names_the_missing_tool_and_what_the_plan_named():
+    check = run({"tools_planned": ["trend", "fleet_health"]}, answer(), trace=plan_trace("trend"))[
+        0
+    ]
+    assert not check.passed
+    assert "fleet_health" in check.detail and "trend" in check.detail.split(";")[1]
+
+
+def test_tools_planned_fails_when_the_plan_named_nothing_or_there_was_no_plan():
+    for trace in (plan_trace(), [event()]):
+        check = run({"tools_planned": ["trend"]}, answer(), trace=trace)[0]
+        assert not check.passed and "no tools" in check.detail
+
+
+def test_the_planned_tools_are_read_from_the_plan_step_not_a_widening_step():
+    trace = [
+        event(0, kind="plan", data={"intent": "answer", "tools": ["trend"]}),
+        event(1, kind="plan", data={"widened": True, "planned": ["trend"]}),
+    ]
+    assert evaluators.planned_tools(trace) == ["trend"]
 
 
 def test_tools_called_passes_when_every_named_tool_is_among_the_turns_calls():

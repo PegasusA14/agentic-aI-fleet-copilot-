@@ -86,7 +86,10 @@ class ChatGateway:
         self._sleep = sleep
         self._plan = model.with_structured_output(Plan, method="function_calling")
         self._explain = model.with_structured_output(Explanation, method="function_calling")
+        self._tools = tools
+        self._model = model
         self._act = model.bind_tools(tools)
+        self._act_bound: dict[tuple[str, ...], Any] = {}
 
     async def _call(self, runnable: Any, messages: list[BaseMessage]) -> Any:
         reason = "unavailable"
@@ -116,8 +119,19 @@ class ChatGateway:
             raise PlanRejected("no structured plan")
         return result
 
-    async def act(self, messages: list[BaseMessage]) -> AIMessage:
-        result = await self._call(self._act, messages)
+    def _act_for(self, names: Sequence[str] | None) -> Any:
+        """The model bound to only these tools (every tool when `names` is None)."""
+        if names is None:
+            return self._act
+        key = tuple(name for name in (t.name for t in self._tools) if name in set(names))
+        if key not in self._act_bound:
+            self._act_bound[key] = self._model.bind_tools([t for t in self._tools if t.name in key])
+        return self._act_bound[key]
+
+    async def act(
+        self, messages: list[BaseMessage], tools: Sequence[str] | None = None
+    ) -> AIMessage:
+        result = await self._call(self._act_for(tools), messages)
         if not isinstance(result, AIMessage):
             raise ModelUnavailable("bad_model_message")
         return result

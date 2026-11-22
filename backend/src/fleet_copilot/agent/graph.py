@@ -69,6 +69,7 @@ from fleet_copilot.agent.state import (
 from fleet_copilot.agent.tools import (
     DEVICE_FILTER_TOOLS,
     INVALID_INPUT_PREFIX,
+    LOOKUP_TOOLS,
     PROPOSAL_TOOLS,
     SINGLE_DEVICE_TOOLS,
     TOOLS,
@@ -167,7 +168,13 @@ def _plan_fallback(ctx: AgentContext, problems: list[str], started: float) -> di
     emit(
         "plan",
         "The plan stayed invalid after one retry; declined as off topic",
-        data={"intent": "unsupported", "fallback": "off_topic", "problems": problems},
+        data={
+            "intent": "unsupported",
+            "tools": [],
+            "repaired": False,
+            "fallback": "off_topic",
+            "problems": problems,
+        },
         latency_ms=_ms(started),
     )
     plan = Plan(intent="unsupported", summary="", refusal_reason="off_topic")
@@ -209,6 +216,40 @@ def _is_transient_error(result: Any) -> bool:
     return (
         isinstance(result, ToolMessage) and result.status == "error" and not _is_input_error(result)
     )
+
+
+NOT_PLANNED = "that tool is not available for this question"
+
+
+def bound_tools(plan: Plan, widened: bool = False) -> frozenset[str] | None:
+    """The tools the act step may use for this plan, or None for every tool.
+
+    A plan that names tools gets those plus the two lookups. Proposal tools are only ever offered to a
+    `propose` plan, and then only the one(s) it names (all four when it names none). A plan that names
+    nothing usable, an advise plan, or one already widened this turn, gets every tool.
+    """
+    if widened or not plan.tools or plan.intent == "advise":
+        return None
+    planned = set(plan.tools)
+    reads = planned - PROPOSAL_TOOLS
+    if plan.intent == "propose":
+        return frozenset(reads | LOOKUP_TOOLS | ((planned & PROPOSAL_TOOLS) or PROPOSAL_TOOLS))
+    if not reads:
+        return None
+    return frozenset(reads | LOOKUP_TOOLS)
+
+
+def _tool_order(names: frozenset[str]) -> list[str]:
+    return [t.name for t in TOOLS if t.name in names]
+
+
+def _not_bound(name: str, state: Any) -> str | None:
+    """Why this call is outside the tools bound for the plan (fixed text for the model), or None."""
+    plan = state.get("plan")
+    if not plan:
+        return None
+    bound = bound_tools(Plan.model_validate(plan), bool(state.get("widened")))
+    return None if bound is None or name in bound else NOT_PLANNED
 
 
 PROPOSE_ONLY_FOR_ACTIONS = "proposal tools are only for action requests"
@@ -338,7 +379,11 @@ async def _tool_wrapper(
             tool_call_id=call["id"],
             status="error",
         )
-    blocked = _propose_blocked(name, request.state) or _recommend_blocked(name, request.state)
+    blocked = (
+        _not_bound(name, request.state)
+        or _propose_blocked(name, request.state)
+        or _recommend_blocked(name, request.state)
+    )
     if blocked:
         emit(
             "tool_result",
@@ -438,6 +483,7 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
             "pending_calls": False,
             "rounds": 0,
             "limit_hit": False,
+            "widened": False,
             "incomplete": False,
             "unfixed_calls": [],
             "records": [],
@@ -492,10 +538,13 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
             data={
                 "intent": plan.intent,
                 "window_days": plan.window_days,
+                "tools": list(plan.tools),
                 "has_reference": plan.reference is not None,
                 "reference_kind": plan.reference.kind if plan.reference else None,
-                **({"repaired": True} if repaired else {}),
-                **({"missing_topic": plan.missing_topic} if plan.missing_topic else {}),
+                "action_type": plan.action_type,
+                "missing_topic": plan.missing_topic,
+                "repaired": repaired,
+                "fallback": False,
             },
             latency_ms=_ms(started),
         )
@@ -559,7 +608,7 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
                     "The action request names several devices; answering with advice",
                     data={"devices": len(resolution.device_ids)},
                 )
-                advised = plan.model_copy(update={"intent": "advise"})
+                advised = plan.model_copy(update={"intent": "advise", "tools": []})
                 return {
                     "focus_ids": list(resolution.device_ids),
                     "plan": advised.model_dump(mode="json"),
@@ -575,6 +624,11 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
         assert isinstance(resolution, NotFoundRef)
         emit("reference", "The follow-up did not resolve to a device", data={"resolved": False})
         return {"envelope": _dump(outcomes.refusal("cross_tenant", **kwargs))}
+
+    async def _ask(bound: frozenset[str] | None, messages: list[Any]) -> AIMessage:
+        if bound is None:
+            return await llm.act(messages)
+        return await llm.act(messages, tools=_tool_order(bound))
 
     async def act_node(state: TurnState, runtime: Runtime[AgentContext]) -> dict[str, Any]:
         ctx = runtime.context
@@ -604,26 +658,43 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
                 "pending_calls": True,
             }
         started = time.perf_counter()
+        widened = bool(state.get("widened"))
+        messages = act_messages(
+            question=state["question"],
+            as_of=ctx.as_of,
+            plan_summary=plan.summary,
+            window_days=plan.window_days,
+            resolved_ids=state.get("focus_ids"),
+            history=state.get("history") or [],
+            turn_messages=state.get("turn_messages") or [],
+        )
         try:
-            message = await llm.act(
-                act_messages(
-                    question=state["question"],
-                    as_of=ctx.as_of,
-                    plan_summary=plan.summary,
-                    window_days=plan.window_days,
-                    resolved_ids=state.get("focus_ids"),
-                    history=state.get("history") or [],
-                    turn_messages=state.get("turn_messages") or [],
+            bound = bound_tools(plan, widened)
+            message = await _ask(bound, messages)
+            calls = list(message.tool_calls)
+            if (
+                not calls
+                and bound is not None
+                and not state.get("records")
+                and state.get("rounds", 0) < policy.MAX_TOOL_ROUNDS
+            ):
+                # The planned tools gathered nothing: offer every tool once, for the rest of the turn.
+                emit(
+                    "plan",
+                    "The planned tools gathered nothing; every tool is offered instead",
+                    data={"widened": True, "planned": list(plan.tools)},
                 )
-            )
+                widened = True
+                message = await _ask(None, messages)
         except ContentFiltered as exc:
             return _provider_refused(ctx, exc, "act")
         except Exception as exc:
             emit("error", "Gathering evidence failed", data={"error": type(exc).__name__})
             return _failure(ctx)
         calls = list(message.tool_calls)
+        grown: dict[str, Any] = {"widened": True} if widened else {}
         if not calls:
-            return {"pending_calls": False}
+            return {"pending_calls": False, **grown}
         if state.get("rounds", 0) >= policy.MAX_TOOL_ROUNDS:
             emit(
                 "compose",
@@ -631,7 +702,7 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
                 data={"max_rounds": policy.MAX_TOOL_ROUNDS},
                 latency_ms=_ms(started),
             )
-            return {"pending_calls": False, "limit_hit": True}
+            return {"pending_calls": False, "limit_hit": True, **grown}
         dropped_any = False
         proposals = [i for i, call in enumerate(calls) if call["name"] in PROPOSAL_TOOLS]
         if len(proposals) > 1:
@@ -652,6 +723,7 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
         update: dict[str, Any] = {
             "turn_messages": [AIMessage(content="", tool_calls=calls)],
             "pending_calls": True,
+            **grown,
         }
         if dropped_any:
             update["incomplete"] = True  # something the model asked for will never run

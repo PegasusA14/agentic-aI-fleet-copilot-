@@ -381,7 +381,11 @@ def test_no_effects_must_be_true_or_false(tmp_path):
 
 
 def test_trajectory_keys_load_with_real_tool_names_and_the_no_tool_marker(tmp_path):
-    first = {"outcome": "answer", "tools_called": ["low_disk_devices", "trend"]}
+    first = {
+        "outcome": "answer",
+        "tools_planned": ["low_disk_devices"],
+        "tools_called": ["low_disk_devices", "trend"],
+    }
     second = {"outcome": "unsupported", "tools_not_called": "*"}
     write_suite(tmp_path, suite="guardrails", cases=[two_turn_case(first=first, second=second)])
     assert load_suites(tmp_path)
@@ -400,6 +404,11 @@ def test_trajectory_keys_load_with_real_tool_names_and_the_no_tool_marker(tmp_pa
             "non-empty list",
         ),  # the marker only means something for tools_not_called
         ("tools_not_called", "all", "non-empty list"),
+        ("tools_planned", ["no_such_tool"], "unknown tool"),
+        ("tools_planned", ["recommend_actions"], "unknown tool"),
+        ("tools_planned", [], "non-empty list"),
+        ("tools_planned", "*", "non-empty list"),
+        ("tools_planned", ["trend", "trend"], "twice"),
         ("tools_not_called", ["trend", "trend"], "twice"),
         ("tools_called", [1], "non-empty list"),
     ],

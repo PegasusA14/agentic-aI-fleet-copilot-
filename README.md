@@ -179,7 +179,7 @@ nodes and edges.
 | Node | What it does |
 | --- | --- |
 | `scope` | Starts the turn for the signed-in company and clears per-turn state |
-| `plan` | The model returns a structured plan: intent (`answer`, `clarify`, `refuse`, `unsupported`, `propose`, `advise`), time window, follow-up reference. It never writes the answer. An invalid plan is retried once, then declined |
+| `plan` | The model returns a structured plan: intent (`answer`, `clarify`, `refuse`, `unsupported`, `propose`, `advise`), time window, follow-up reference, and the tools it expects to need. It never writes the answer. An invalid plan is retried once, then declined |
 | `reference` | Code resolves "those", "the first one" or a named device against the lists shown earlier |
 | `act` | The model picks read tools with typed arguments and sees short summaries of their results; it can call more tools in the next round |
 | `tools`, `collect` | Run the calls (one retry on a transient error), replace any device ids with the ones code resolved, and store typed records |

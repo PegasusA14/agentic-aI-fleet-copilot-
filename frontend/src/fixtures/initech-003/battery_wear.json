@@ -73,9 +73,14 @@
     },
     {
       "data": {
+        "action_type": null,
+        "fallback": false,
         "has_reference": false,
         "intent": "answer",
+        "missing_topic": null,
         "reference_kind": null,
+        "repaired": false,
+        "tools": [],
         "window_days": null
       },
       "kind": "plan",

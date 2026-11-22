@@ -122,7 +122,10 @@ class CassetteGateway:
             self._prompt += seen["prompt"]
             self._completion += seen["completion"]
 
-    async def _serve(self, kind: str, messages: list[BaseMessage]) -> Any:
+    async def _serve(
+        self, kind: str, messages: list[BaseMessage], tools: Sequence[str] | None = None
+    ) -> Any:
+        # The tools an act call is limited to are not part of the key: they follow from the recorded plan.
         key = call_key(kind, messages)
         hit = self._entries.get(key)
         if hit is not None:
@@ -134,7 +137,10 @@ class CassetteGateway:
             raise CassetteMiss("no recorded model response for this call")
         model_usage.CURRENT.set(None)  # a gateway that reports usage sets it during the call
         try:
-            response = await getattr(self._inner, kind)(messages)
+            if tools is None:
+                response = await getattr(self._inner, kind)(messages)
+            else:
+                response = await getattr(self._inner, kind)(messages, tools=tools)
         except ContentFiltered as exc:
             self._append(key, kind, {"content_filtered": exc.category})
             raise
@@ -158,8 +164,10 @@ class CassetteGateway:
     async def plan(self, messages: list[BaseMessage]) -> Plan:
         return await self._serve("plan", messages)
 
-    async def act(self, messages: list[BaseMessage]) -> AIMessage:
-        return await self._serve("act", messages)
+    async def act(
+        self, messages: list[BaseMessage], tools: Sequence[str] | None = None
+    ) -> AIMessage:
+        return await self._serve("act", messages, tools)
 
     async def explain(self, messages: list[BaseMessage]) -> Explanation:
         return await self._serve("explain", messages)

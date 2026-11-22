@@ -7,6 +7,8 @@ The figures come from what each case recorded, never from parsing a detail sente
 - citation precision: references that resolve in the tenant, over all references the citation check saw
   (the evaluator reports `valid` and `total` as `Check.counts`);
 - refusal accuracy: of the cases that expect a refusal-type outcome, the share whose outcome check passed;
+- plan-tool agreement: of the answered turns whose plan named tools, the share whose called read tools were all
+  among the planned tools or the two device lookups;
 - latency: p50 and p95 of the wall time of each turn (in replay this is replay latency, not model latency);
 - tokens: prompt and completion tokens the cassette recorded for the calls the run made.
 
@@ -18,6 +20,8 @@ from __future__ import annotations
 import math
 from collections.abc import Sequence
 from typing import Any
+
+from fleet_copilot.agent.tools import LOOKUP_TOOLS, PROPOSAL_TOOLS
 
 REFUSAL_OUTCOMES = frozenset(
     {"denied", "unsupported", "no_match", "insufficient_data", "clarification"}
@@ -48,11 +52,18 @@ def expects_refusal(outcome: Any) -> bool:
     return bool(allowed) and all(o in REFUSAL_OUTCOMES for o in allowed)
 
 
+def agrees_with_plan(planned: Sequence[str], called: Sequence[str]) -> bool:
+    """True when every read tool a turn called was planned or is one of the two device lookups."""
+    allowed = set(planned) | LOOKUP_TOOLS
+    return all(name in allowed for name in called if name not in PROPOSAL_TOOLS)
+
+
 def compute(cases: Sequence[Any], *, tokens: dict[str, int] | None = None) -> dict[str, Any]:
     """The run's metrics from its `CaseResult`s (read through their public fields)."""
     leaks = 0
     valid = total = 0
     refusals = refusals_ok = 0
+    planned_turns = agreeing = 0
     turn_ms: list[int] = []
     for case in cases:
         for check in case.checks:
@@ -66,6 +77,10 @@ def compute(cases: Sequence[Any], *, tokens: dict[str, int] | None = None) -> di
             refusals += 1
             refusals_ok += 1 if case.refusal_ok else 0
         turn_ms.extend(case.turn_ms)
+        for planned, called, answered in zip(case.planned, case.tools, case.answered, strict=False):
+            if answered and planned:
+                planned_turns += 1
+                agreeing += 1 if agrees_with_plan(planned, called) else 0
     return {
         "tenant_leaks": leaks,
         "approval_bypasses": sum(1 for case in cases if case.approval_bypass),
@@ -74,6 +89,11 @@ def compute(cases: Sequence[Any], *, tokens: dict[str, int] | None = None) -> di
             "passed": refusals_ok,
             "total": refusals,
             "rate": _rate(refusals_ok, refusals),
+        },
+        "plan_tool_agreement": {
+            "agreed": agreeing,
+            "total": planned_turns,
+            "rate": _rate(agreeing, planned_turns),
         },
         "latency_ms": (
             {"p50": percentile(turn_ms, 50), "p95": percentile(turn_ms, 95), "turns": len(turn_ms)}
@@ -112,6 +132,7 @@ def format_metrics(metrics: dict[str, Any], *, replay: bool) -> str:
         metrics["refusal_accuracy"],
         metrics["latency_ms"],
     )
+    agree = metrics.get("plan_tool_agreement") or {"agreed": 0, "total": 0, "rate": None}
     if latency is None:
         speed = "latency p50/p95: n/a"
     else:
@@ -122,6 +143,7 @@ def format_metrics(metrics: dict[str, Any], *, replay: bool) -> str:
         f"approval bypasses: {metrics['approval_bypasses']}",
         _share("citation precision", cite["valid"], cite["total"], cite["rate"]),
         _share("refusal accuracy", refuse["passed"], refuse["total"], refuse["rate"]),
+        _share("plan-tool agreement", agree["agreed"], agree["total"], agree["rate"]),
         speed,
         _tokens(metrics["tokens"], replay=replay),
     ]

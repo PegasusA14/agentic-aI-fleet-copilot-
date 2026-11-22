@@ -34,6 +34,24 @@ MissingTopic = Literal[
     "network", "location", "performance", "user_activity", "peripherals", "other"
 ]
 ShortText = Annotated[str, Field(max_length=80)]
+# The tools a plan may name: every read tool and the four proposal tools. `recommend_actions` is not here
+# because code, not the model, makes that call on an advise turn.
+ToolName = Literal[
+    "low_disk_devices",
+    "macos_version_check",
+    "compliance_failures_now",
+    "memory_pressure_now",
+    "trend",
+    "find_devices",
+    "device_history",
+    "software_inventory",
+    "fleet_health",
+    "create_upgrade_order",
+    "open_remediation_ticket",
+    "flag_device_for_replacement",
+    "notify_employee",
+]
+MAX_PLANNED_TOOLS = 4
 
 _INTENTS = ("answer", "clarify", "refuse", "unsupported", "propose", "advise")
 _MAX_SUMMARY = 300
@@ -73,6 +91,24 @@ def _word(value: object) -> str | None:
     return text or None
 
 
+def _planned_tools(value: object) -> list[str]:
+    """The known tool names of a model-written list, in order, once each and at most four.
+
+    A single name is read as a list of one. Unknown or non-text entries are dropped, never an error.
+    """
+    if isinstance(value, str):
+        value = [value]
+    if not isinstance(value, list):
+        return []
+    known = frozenset(get_args(ToolName))
+    kept: list[str] = []
+    for item in value:
+        name = _word(item)
+        if name in known and name not in kept:
+            kept.append(name)
+    return kept[:MAX_PLANNED_TOOLS]
+
+
 class Plan(BaseModel):
     """What the planner decided. It never contains an answer, only what to do next."""
 
@@ -96,6 +132,9 @@ class Plan(BaseModel):
     # A company the question names as the owner of the devices, exactly as written (a misspelling of the
     # user's own company included). Code compares it with the Company line; the model never decides.
     named_company: str | None = Field(default=None, max_length=60)
+    # The tools the planner expects to need (an `answer` or `propose` plan; empty otherwise). The act step
+    # binds these, plus the two device lookups, instead of every tool.
+    tools: list[ToolName] = Field(default_factory=list, max_length=MAX_PLANNED_TOOLS)
 
     @model_validator(mode="before")
     @classmethod
@@ -106,8 +145,9 @@ class Plan(BaseModel):
         never read as an answer: security reasons are a `refuse`, `off_topic` is `unsupported` and a
         missing data topic is `unsupported` with reason `data_unavailable`. A refusal that names no reason
         gets the safe default for its intent; a clarify plan with a blank question keeps its intent and
-        the question stays unset. Text that is too long is cut, null lists are empty lists. Anything
-        else is left for normal validation.
+        the question stays unset. Text that is too long is cut, null lists are empty lists, and the planned
+        tools are the known tool names only (unknown ones dropped, at most four, none for a plan that
+        answers nothing). Anything else is left for normal validation.
         """
         if not isinstance(data, dict):
             return data
@@ -157,6 +197,11 @@ class Plan(BaseModel):
             # Blank, non-text or over-long values are not a usable phrase: read as unset, never an error.
             usable = isinstance(text, str) and text.strip() and len(text.strip()) <= limit
             repaired[name] = text.strip() if usable else None
+        repaired["tools"] = (
+            _planned_tools(repaired.get("tools"))
+            if intent in ("answer", "propose") or intent is None
+            else []
+        )
         question = repaired.get("clarification_question")
         if intent == "clarify" and (question is None or not str(question).strip()):
             repaired["clarification_question"] = None
@@ -244,7 +289,11 @@ class LLMGateway(Protocol):
 
     async def plan(self, messages: list[BaseMessage]) -> Plan: ...
 
-    async def act(self, messages: list[BaseMessage]) -> AIMessage: ...
+    async def act(
+        self, messages: list[BaseMessage], tools: Sequence[str] | None = None
+    ) -> AIMessage:
+        """One evidence-gathering step. `tools` names the only tools the model may call; None is all of them."""
+        ...
 
     async def explain(self, messages: list[BaseMessage]) -> Explanation: ...
 
@@ -278,6 +327,9 @@ class ScriptExhausted(AssertionError):
 class RecordedCall:
     kind: Literal["plan", "act", "explain"]
     messages: tuple[BaseMessage, ...]
+    tools: tuple[str, ...] | None = (
+        None  # the tool names an act call was limited to; None is every tool
+    )
 
     @property
     def text(self) -> str:
@@ -312,8 +364,15 @@ class ScriptedLLM:
     def calls_of(self, kind: str) -> list[RecordedCall]:
         return [call for call in self.calls if call.kind == kind]
 
-    def _next(self, kind: Literal["plan", "act", "explain"], messages: list[BaseMessage]) -> Any:
-        self.calls.append(RecordedCall(kind, tuple(messages)))
+    def _next(
+        self,
+        kind: Literal["plan", "act", "explain"],
+        messages: list[BaseMessage],
+        tools: Sequence[str] | None = None,
+    ) -> Any:
+        self.calls.append(
+            RecordedCall(kind, tuple(messages), None if tools is None else tuple(tools))
+        )
         queue = self._queues[kind]
         if not queue:
             raise ScriptExhausted(
@@ -327,8 +386,10 @@ class ScriptedLLM:
     async def plan(self, messages: list[BaseMessage]) -> Plan:
         return self._next("plan", messages)
 
-    async def act(self, messages: list[BaseMessage]) -> AIMessage:
-        return self._next("act", messages)
+    async def act(
+        self, messages: list[BaseMessage], tools: Sequence[str] | None = None
+    ) -> AIMessage:
+        return self._next("act", messages, tools)
 
     async def explain(self, messages: list[BaseMessage]) -> Explanation:
         return self._next("explain", messages)

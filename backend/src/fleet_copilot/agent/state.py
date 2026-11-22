@@ -36,6 +36,8 @@ class TurnState(TypedDict, total=False):
     pending_calls: bool
     rounds: int
     limit_hit: bool
+    # Set once when the planned tools gathered nothing and every tool was offered for the rest of the turn.
+    widened: bool
     # Set when part of what the model asked for never ran: calls dropped over the per-round cap, or
     # (`unfixed_calls`, tool names only) calls the tool rejected and the model never repeated correctly.
     incomplete: bool

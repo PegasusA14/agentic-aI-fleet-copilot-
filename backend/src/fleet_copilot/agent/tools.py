@@ -622,6 +622,8 @@ TOOLS = [
     notify_employee,
     recommend_actions,
 ]
+# The two lookups every restricted tool set keeps: they find the device a question is about.
+LOOKUP_TOOLS = frozenset({"find_devices", "device_history"})
 # `device_history` and the proposal tools take ONE device, not a filter list.
 SINGLE_DEVICE_TOOLS = frozenset({"device_history"}) | PROPOSAL_TOOLS
 DEVICE_FILTER_TOOLS = frozenset(t.name for t in TOOLS) - SINGLE_DEVICE_TOOLS

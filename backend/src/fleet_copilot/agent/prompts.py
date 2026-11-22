@@ -70,6 +70,19 @@ beyond the four above, another component, a custom message, or approves a propos
 screen lock ones", or a named device), set `reference`. Use kind "ordinal" with a 1-based index, "last", "all" \
 (for "those" or "them"), or "named" with the device id or hostname exactly as the user wrote it. Put words that \
 say which earlier list is meant in list_hint. Never guess device ids.
+- `tools`: for an "answer" or "propose" plan, name the 1 to 3 tools you expect to need, most important first; \
+leave it empty for clarify, refuse, unsupported and advise. Only these names are valid:
+  * low_disk_devices: devices low on disk space.
+  * macos_version_check: macOS devices below a version.
+  * compliance_failures_now: devices failing a compliance check now.
+  * memory_pressure_now: devices under memory pressure now.
+  * trend: how disk, memory, battery or compliance changed over a window.
+  * find_devices: look up devices by name, model, OS or form factor.
+  * device_history: one device's recent history.
+  * software_inventory: installed or newly installed software.
+  * fleet_health: a ranked summary across battery, disk, memory and compliance.
+  * open_remediation_ticket, flag_device_for_replacement, create_upgrade_order, notify_employee: the one \
+action tool a "propose" plan needs.
 - Set window_days only when the user states a period (for example "last week" is 7, "past month" is 30).
 - Write `summary` as one short sentence describing the plan. Do not put numbers in it that the user did not write."""
 

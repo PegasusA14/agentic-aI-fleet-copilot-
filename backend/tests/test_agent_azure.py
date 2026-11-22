@@ -62,6 +62,16 @@ async def test_act_binds_the_agent_tools_and_returns_the_ai_message():
     assert model.bound_tools is TOOLS
 
 
+async def test_act_can_bind_only_the_named_tools_and_binds_each_set_once():
+    message = AIMessage(content="")
+    model = FakeChatModel([message])
+    gw, _ = gateway(model)
+    await gw.act(MESSAGES, tools=["trend", "find_devices"])
+    assert [t.name for t in model.bound_tools] == ["trend", "find_devices"]
+    assert gw._act_for(["find_devices", "trend"]) is gw._act_for(["trend", "find_devices"])
+    assert gw._act_for(None) is gw._act  # no limit: the full set bound at start
+
+
 async def test_a_rate_limit_is_retried_with_backoff_then_succeeds():
     model = FakeChatModel([rate_limited(), rate_limited(), PLAN])
     gw, slept = gateway(model, backoff_s=(1.0, 3.0))
