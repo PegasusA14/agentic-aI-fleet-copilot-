@@ -13,20 +13,29 @@ describe("outcomeStyle", () => {
     expect(outcomeStyle("denied", "not_found")).toMatchObject({ word: "Not found", mark: "lock", tone: "denied" });
   });
 
-  it("calls a general question about another company Outside this company, with the lock", () => {
+  it("calls a general question about another company Outside your company, with the lock", () => {
     expect(outcomeStyle("denied", "other_company")).toMatchObject({
-      word: "Outside this company",
+      word: "Outside your company",
       mark: "lock",
       tone: "denied",
     });
   });
 
-  it("calls an action that is not eligible Not supported yet, with a neutral mark", () => {
+  it("calls an action that is not eligible Not supported yet, with a warning mark", () => {
     expect(outcomeStyle("denied", "not_eligible")).toMatchObject({
       word: "Not supported yet",
-      tone: "neutral",
-      mark: "hollow",
+      tone: "attention",
+      mark: "triangle",
     });
+  });
+
+  it("gives every refusal reason its own mark and word", () => {
+    expect(outcomeStyle("denied", "already_done")).toMatchObject({ word: "Already done", mark: "hollow" });
+    expect(outcomeStyle("denied", "too_many_pending")).toMatchObject({ word: "Too many waiting", mark: "triangle" });
+    expect(outcomeStyle("denied", "prompt_injection")).toMatchObject({ word: "Not followed", mark: "lock" });
+    expect(outcomeStyle("unsupported", "data_unavailable")).toMatchObject({ word: "Not in the data", mark: "hollow" });
+    expect(outcomeStyle("unsupported", "unsupported_action")).toMatchObject({ word: "Not available here", mark: "hollow" });
+    expect(outcomeStyle("unsupported", "off_topic")).toBe(OUTCOMES.unsupported);
   });
 
   it("calls a refusal for lack of evidence Not enough evidence, with a warning mark", () => {

@@ -41,6 +41,8 @@ interface TurnViewProps {
   onDecided?: (card: ProposalCard) => void;
   onSessionEnded?: () => void;
   onEditDetails?: (text: string) => void;
+  /** The refusal card's "Switch company": the same action as the top bar's button. */
+  onSwitchCompany?: () => void;
 }
 
 function FailureMessage({ turn, onAsk }: { turn: TurnData; onAsk: (question: string) => void }) {
@@ -86,7 +88,7 @@ function jumpTo(turnId: string) {
   target.focus({ preventScroll: true });
 }
 
-function TurnView({ turn, earlier, last, busy, onOpenEvidence, onOpenTrace, onAsk, decide, onDecided, onSessionEnded, onEditDetails }: TurnViewProps) {
+function TurnView({ turn, earlier, last, busy, onOpenEvidence, onOpenTrace, onAsk, decide, onDecided, onSessionEnded, onEditDetails, onSwitchCompany }: TurnViewProps) {
   const root = useRef<HTMLElement>(null);
   const previous = useRef(turn.status);
   /** What a screen reader hears when the reply lands. The region stays mounted so the change is announced. */
@@ -170,6 +172,7 @@ function TurnView({ turn, earlier, last, busy, onOpenEvidence, onOpenTrace, onAs
             onDecided={onDecided}
             onSessionEnded={onSessionEnded}
             onEditDetails={onEditDetails}
+            onSwitchCompany={onSwitchCompany}
           />
         ) : turn.status === "failed" ? (
           <FailureMessage key="failed" turn={turn} onAsk={onAsk} />

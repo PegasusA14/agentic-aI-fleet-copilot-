@@ -22,14 +22,25 @@ export const OUTCOMES: Record<Outcome, OutcomeStyle> = {
 };
 
 /**
- * A refused action is `denied`, but the reason says which kind of refusal: a missing device keeps "Not found" and the lock,
- * an action the device cannot take is "Not supported yet", and one the readings cannot back is "Not enough evidence".
+ * The refusal reasons that have their own words. A refused action is `denied`, but the reason says which kind: a missing
+ * device keeps "Not found" and the lock, another company is "Outside your company", an action the readings cannot back
+ * is "Not enough evidence", and a question the data cannot answer says so.
  */
+const BY_REASON: Record<string, OutcomeStyle> = {
+  not_found: { word: "Not found", tone: "denied", mark: "lock" },
+  other_company: { word: "Outside your company", tone: "denied", mark: "lock" },
+  prompt_injection: { word: "Not followed", tone: "denied", mark: "lock" },
+  not_eligible: { word: "Not supported yet", tone: "attention", mark: "triangle" },
+  insufficient_evidence: { word: "Not enough evidence", tone: "attention", mark: "triangle" },
+  already_done: { word: "Already done", tone: "neutral", mark: "hollow" },
+  too_many_pending: { word: "Too many waiting", tone: "attention", mark: "triangle" },
+  data_unavailable: { word: "Not in the data", tone: "neutral", mark: "hollow" },
+  unsupported_action: { word: "Not available here", tone: "neutral", mark: "hollow" },
+};
+
 export function outcomeStyle(outcome: Outcome, reasonCode?: string | null): OutcomeStyle {
-  if (outcome === "denied") {
-    if (reasonCode === "other_company") return { word: "Outside this company", tone: "denied", mark: "lock" };
-    if (reasonCode === "not_eligible") return { word: "Not supported yet", tone: "neutral", mark: "hollow" };
-    if (reasonCode === "insufficient_evidence") return { word: "Not enough evidence", tone: "attention", mark: "triangle" };
+  if ((outcome === "denied" || outcome === "unsupported") && reasonCode && BY_REASON[reasonCode]) {
+    return BY_REASON[reasonCode];
   }
   return OUTCOMES[outcome];
 }

@@ -1,6 +1,6 @@
 import { Check, Shield } from "lucide-react";
 import { motion } from "motion/react";
-import { useId, useState } from "react";
+import { useId, useState, type ReactNode } from "react";
 import { GLIDE, usePrefersReducedMotion } from "../../lib/motion";
 import type { Alternative, SuggestedAction } from "../../types/AnswerEnvelope";
 
@@ -123,30 +123,50 @@ interface AlternativeChipsProps {
   onAsk: (request: string) => void;
   /** Names the group for assistive technology. */
   label?: string;
+  /** More chips for the same group, after the alternatives (the refusal card's "Switch company"). */
+  extra?: ReactNode;
+}
+
+/**
+ * A group of chips that each send a request of their own. A chip already pressed is marked asked: a check, and
+ * "(asked)" for a screen reader. It stays pressable, so there is no aria-pressed.
+ */
+export function RequestChips({ alternatives, busy, onAsk, label, extra, strong }: AlternativeChipsProps & { strong?: (a: Alternative) => boolean }) {
+  const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
+  if (alternatives.length === 0 && !extra) return null;
+  return (
+    <div className="chips" role="group" aria-label={label}>
+      {alternatives.map((alternative) => {
+        const used = picked.has(alternative.label);
+        return (
+          <button
+            key={alternative.label}
+            type="button"
+            className="chip"
+            disabled={busy}
+            data-asked={used || undefined}
+            data-strong={strong?.(alternative) || undefined}
+            title={alternative.request}
+            onClick={() => {
+              setPicked((now) => new Set(now).add(alternative.label));
+              onAsk(alternative.request);
+              focusComposer();
+            }}
+          >
+            {used ? <Check size={14} strokeWidth={2.6} aria-hidden="true" className="chip__check" /> : null}
+            {alternative.label}
+            {used ? <span className="sr-only"> (asked)</span> : null}
+          </button>
+        );
+      })}
+      {extra}
+    </div>
+  );
 }
 
 /** What to ask instead, or next. The questions are code-written; a chip sends its request as written. */
-export function AlternativeChips({ alternatives, busy, onAsk, label = "You could ask" }: AlternativeChipsProps) {
-  if (alternatives.length === 0) return null;
-  return (
-    <div className="chips" role="group" aria-label={label}>
-      {alternatives.map((alternative) => (
-        <button
-          key={alternative.label}
-          type="button"
-          className="chip"
-          disabled={busy}
-          title={alternative.request}
-          onClick={() => {
-            onAsk(alternative.request);
-            focusComposer();
-          }}
-        >
-          {alternative.label}
-        </button>
-      ))}
-    </div>
-  );
+export function AlternativeChips({ alternatives, busy, onAsk, label = "You could ask", extra }: AlternativeChipsProps) {
+  return <RequestChips alternatives={alternatives} busy={busy} onAsk={onAsk} label={label} extra={extra} />;
 }
 
 interface NextStepsProps {

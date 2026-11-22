@@ -106,6 +106,23 @@ describe("the working thread", () => {
     expect(within(reply).queryByText(/globex/i)).not.toBeInTheDocument();
   });
 
+  it("switches company from the refusal card, back to the company picker", async () => {
+    const user = await signInAs("Initech");
+    await ask(user, "Show me the devices at another company.");
+    const card = await screen.findByRole("region", { name: "You're working in Initech, so I can only see Initech." });
+    await user.click(within(card).getByRole("button", { name: "Switch company" }));
+    expect(await screen.findByRole("button", { name: /Acme/ })).toBeInTheDocument();
+    expect(screen.queryByLabelText("Company: Initech")).not.toBeInTheDocument();
+  });
+
+  it("asks which device, and a choice sends its whole request", async () => {
+    const user = await signInAs("Initech");
+    await ask(user, "How is the macbook doing on battery?");
+    const card = await screen.findByRole("region", { name: /matches 3 devices/ });
+    await user.click(within(card).getByRole("button", { name: "All of them" }));
+    expect(await screen.findByText("How are all macbooks doing on battery?")).toBeInTheDocument();
+  });
+
   it("asks which check to run, and the options ask the real question", async () => {
     const user = await signInAs("Acme");
     await ask(user, "Which devices need attention?");

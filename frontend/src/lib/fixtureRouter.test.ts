@@ -24,6 +24,14 @@ describe("routeQuestion", () => {
     expect(scenario(acme, "Which devices have a weak Wi-Fi signal?")).toBe("unsupported_wifi");
   });
 
+  it("sends a replacement flag, another company and an ambiguous device to their cards", () => {
+    for (const tenant of TENANTS) {
+      expect(scenario(tenant.id, "Flag initech-mac-4 for replacement.")).toBe("insufficient_evidence");
+      expect(scenario(tenant.id, "Show me the devices at another company.")).toBe("other_company");
+      expect(scenario(tenant.id, "How is the macbook doing on battery?")).toBe("clarification_device");
+    }
+  });
+
   it("answers each shorter home-screen suggestion with the real answer it stands for", () => {
     const expected = ["low_disk", "macos_older_than_15", "compliance_failures"];
     HOME_SUGGESTIONS.forEach((question, i) => {

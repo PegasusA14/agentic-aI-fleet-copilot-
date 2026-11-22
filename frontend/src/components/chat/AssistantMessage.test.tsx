@@ -230,7 +230,7 @@ describe("a refusal with alternatives", () => {
   it("says what the fleet data records and offers the alternatives as chips that send their request", async () => {
     const { user, onAsk } = setup(WIFI);
     expect(screen.getByText(WIFI.headline)).toBeInTheDocument();
-    expect(screen.getByRole("list", { name: "Notes" })).toHaveTextContent(WIFI.notes[0]);
+    expect(screen.getByText(WIFI.notes[0])).toBeInTheDocument();
     const group = screen.getByRole("group", { name: "You could ask" });
     const chips = within(group).getAllByRole("button");
     expect(chips.map((c) => c.textContent)).toEqual(WIFI.alternatives.map((a) => a.label));

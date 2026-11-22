@@ -5,12 +5,15 @@ import { copyText, notesFor, numberEvidence, scopeLineText, sortRows, type SortS
 import { EXCLUDED_TEXT, plural, reasonWords } from "../../lib/format";
 import { CROSSFADE, ENTER, FOLD_IN, FOLD_OUT, Presence, usePrefersReducedMotion } from "../../lib/motion";
 import { leadCount, replyOf } from "../../lib/reply";
+import { refusalKind } from "../../lib/refusal";
 import type { AnswerEnvelope, EntityList, ProposalCard } from "../../lib/types";
 import { Count, CountedText } from "../Count";
 import { ProposalView, type Decide } from "../ProposalView";
 import { StateMark } from "../StateMark";
 import { AnswerDisclosures, HOT_MS, type HotSource } from "./AnswerDisclosures";
 import { AnswerTable } from "./AnswerTable";
+import { ClarificationCard } from "./ClarificationCard";
+import { RefusalCard } from "./RefusalCard";
 import { RepeatCard } from "./RepeatCard";
 import { ReplyTools } from "./ReplyTools";
 import { AlternativeChips, NextSteps, focusComposer } from "./SuggestionChips";
@@ -38,6 +41,8 @@ interface AssistantMessageProps {
   question?: string;
   /** Brings the earlier turn this reply repeats into view. Absent when that turn is not in the thread. */
   onJump?: () => void;
+  /** Ends the session at the company picker; the refusal card's "Switch company" chip. Absent: the chip is not offered. */
+  onSwitchCompany?: () => void;
 }
 
 /**
@@ -170,6 +175,7 @@ export function AssistantMessage({
   onArrive,
   question,
   onJump,
+  onSwitchCompany,
 }: AssistantMessageProps) {
   const detailsId = useId();
   const rowKey = useId();
@@ -198,6 +204,9 @@ export function AssistantMessage({
   const claimsInReply = !hasTable && !explanation && !envelope.proposal && !isAdvice && envelope.claims.length > 0;
   const lists = isAdvice || hasTable ? [] : envelope.entity_lists;
   /** A proposal's card owns its state, so the reply carries no second mark above it. */
+  /** A refusal or a clarification is one bordered card that carries its own mark, words and chips. */
+  const refusal = refusalKind(envelope);
+  const carded = refusal !== null || Boolean(clarification);
   const markShown = outcome !== "answer" && outcome !== "proposal";
   const repeated = Boolean(envelope.repeat_of) && !envelope.proposal && !expanded;
 
@@ -267,27 +276,23 @@ export function AssistantMessage({
             </div>
           ) : null}
 
-          <Lead
+          {refusal ? (
+            <RefusalCard envelope={envelope} kind={refusal} busy={busy} onAsk={onAsk} onSwitchCompany={onSwitchCompany} />
+          ) : null}
+
+          {clarification ? <ClarificationCard clarification={clarification} busy={busy} onAsk={pick} /> : null}
+
+          {carded ? null : <Lead
             text={lead}
             // Only the composer's own headline is read for a count, never the model's words or a question.
             counted={reply.headline}
             withList={claimsInReply}
             headline={reply.emphatic && (outcome === "answer" || outcome === "proposal")}
-          />
+          />}
 
-          {support ? <p className="msg__support">{support}</p> : null}
+          {support && !carded ? <p className="msg__support">{support}</p> : null}
 
           {claimsInReply ? <Claims claims={envelope.claims} /> : null}
-
-          {clarification ? (
-            <div className="chips" role="group" aria-label="Choose one">
-              {clarification.options.map((option) => (
-                <button key={option} type="button" className="chip" disabled={busy} onClick={() => pick(option)}>
-                  {option}
-                </button>
-              ))}
-            </div>
-          ) : null}
 
           {hasTable && table ? (
             <>
@@ -335,7 +340,7 @@ export function AssistantMessage({
             />
           ) : null}
 
-          {notes.length > 0 ? (
+          {notes.length > 0 && !carded ? (
             <ul className="msg__notes" aria-label="Notes">
               {notes.map((text) => (
                 <li key={text}>{text}</li>
@@ -343,7 +348,7 @@ export function AssistantMessage({
             </ul>
           ) : null}
 
-          <AlternativeChips alternatives={envelope.alternatives ?? []} busy={busy} onAsk={onAsk} />
+          {carded ? null : <AlternativeChips alternatives={envelope.alternatives ?? []} busy={busy} onAsk={onAsk} />}
 
           {isAdvice ? null : nextSteps}
 

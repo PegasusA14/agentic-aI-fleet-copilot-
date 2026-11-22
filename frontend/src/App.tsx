@@ -522,6 +522,7 @@ export default function App({ transport: given }: AppProps) {
                 onDecided={refreshPending}
                 onSessionEnded={sessionEnded}
                 onEditDetails={editDetails}
+                onSwitchCompany={signOut}
                 onOpenEvidence={(turn, refs) => setDrawer({ turnId: turn.id, tab: "evidence", refs: refs ?? [] })}
                 onOpenTrace={(turn) => setDrawer({ turnId: turn.id, tab: "trace", refs: [] })}
               />
