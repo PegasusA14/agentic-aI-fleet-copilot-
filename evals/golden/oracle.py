@@ -13,6 +13,7 @@ from __future__ import annotations
 import argparse
 import hashlib
 import json
+import math
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
@@ -20,6 +21,15 @@ FMT = "%Y-%m-%dT%H:%M:%SZ"
 CHECKS = ("disk_encryption", "screen_lock", "os_up_to_date")
 SERVICE = "Service Recommended"
 SOFTWARE_WINDOWS = (7, 14, 30)
+# Battery insight policy. Our own numbers: the dataset has no battery design capacity, so wear is the
+# capacity as a percentage of the battery's own first reading in the window (100 = that reading).
+MIN_READINGS = 3  # fewest readings a trend or a transition is judged from
+MIN_FIT_POINTS = 7  # fewest capacity readings a straight-line estimate is made from
+HORIZON_DAYS = 180
+SERVICE_INDEX = 90.0
+ACT_SOON_DAYS = 30
+REPLACEMENT_STREAK = 3
+DECLINE_PCT = 1.0
 
 
 def ts(text):
@@ -125,17 +135,93 @@ def trend_class(flags):
 
 
 def compliance_kind(statuses):
-    if not statuses:
+    if len(statuses) < MIN_READINGS:
         return "insufficient", None
     last = statuses[-1]
     start = len(statuses)
     while start > 0 and statuses[start - 1] == last:
         start -= 1
     if start == 0:
-        if len(statuses) < 3:
-            return "insufficient", None
         return ("persistent_failure" if last == "fail" else "passing"), None
     return ("transition" if last == "fail" else "recovered"), start
+
+
+def least_squares(points):
+    """Slope, intercept, r squared and the standard error of the slope, from raw sums."""
+    n = len(points)
+    st = sum(t for t, _ in points)
+    sy = sum(y for _, y in points)
+    stt = sum(t * t for t, _ in points)
+    sty = sum(t * y for t, y in points)
+    syy = sum(y * y for _, y in points)
+    denominator = n * stt - st * st
+    slope = (n * sty - st * sy) / denominator
+    intercept = (sy - slope * st) / n
+    residual = sum((y - (intercept + slope * t)) ** 2 for t, y in points)
+    spread = syy - sy * sy / n
+    r2 = 0.0 if spread <= 0 else max(0.0, 1.0 - residual / spread)
+    sd = math.sqrt(residual / (n - 2)) if n > 2 else 0.0
+    se = sd / math.sqrt(denominator / n)
+    return slope, intercept, r2, se
+
+
+def crossing_days(level, slope):
+    """Days until `level` falls to the service index at `slope` per day (None if it never does)."""
+    if slope >= 0:
+        return None
+    if level <= SERVICE_INDEX:
+        return 0.0
+    return (level - SERVICE_INDEX) / -slope
+
+
+def project_battery(index_points, as_of):
+    """Where the straight line through (days since first reading, index) reaches the service index."""
+    none = {
+        "status": "none",
+        "slope_per_day": None,
+        "estimate": None,
+        "earliest": None,
+        "latest": None,
+        "days_to_estimate": None,
+    }
+    if len(index_points) < MIN_READINGS:
+        return none
+    origin = index_points[0][0]
+    points = [((at - origin).total_seconds() / 86400.0, value) for at, value in index_points]
+    slope, intercept, _, se = least_squares(points)
+    result = dict(none, slope_per_day=round(slope + 0.0, 4))
+    if len(index_points) < MIN_FIT_POINTS or slope >= 0:
+        return result
+    level = intercept + slope * ((as_of - origin).total_seconds() / 86400.0)
+    point = crossing_days(level, slope)
+    if point > HORIZON_DAYS:
+        return dict(result, status="beyond_horizon", days_to_estimate=round(point, 2))
+    early = crossing_days(level, slope - se)
+    late = crossing_days(level, slope + se)
+
+    def on(days):
+        return (as_of + timedelta(days=days)).date().isoformat()
+
+    return dict(
+        result,
+        status="projected",
+        days_to_estimate=round(point, 2),
+        estimate=on(point),
+        earliest=on(early),
+        latest=on(late) if late is not None and late <= HORIZON_DAYS else None,
+    )
+
+
+def battery_severity(streak, change, projection):
+    """act_soon: a Service Recommended streak of 3 or more, or an estimate within 30 days. watch: capacity
+    down by more than 1% from the first reading (or a shorter streak). Otherwise ok."""
+    if streak >= REPLACEMENT_STREAK:
+        return "act_soon"
+    if projection["status"] == "projected" and projection["days_to_estimate"] <= ACT_SOON_DAYS:
+        return "act_soon"
+    if (change is not None and change < -DECLINE_PCT) or streak > 0:
+        return "watch"
+    return "ok"
 
 
 def tenant_facts(company, series, as_of):
@@ -226,13 +312,17 @@ def tenant_facts(company, series, as_of):
         check: {"30": compliance_trends(check, 30)} for check in ("screen_lock", "os_up_to_date")
     }
 
-    notable, missing_latest, no_reading = {}, [], []
+    notable, missing_latest, no_reading, thin = {}, [], [], []
+    battery_projection = {}
     for d in laptops:
         if "battery" not in latest[d]:
             missing_latest.append(d)
         readings = [r for r in window(d, 30) if "battery" in r and r["battery"]["battery_present"]]
         if not readings:
             no_reading.append(d)
+            continue
+        if len(readings) < MIN_READINGS:
+            thin.append(d)
             continue
         capacities = [
             r["battery"]["full_charge_capacity"]
@@ -247,12 +337,84 @@ def tenant_facts(company, series, as_of):
             if r["battery"].get("condition") != SERVICE:
                 break
             streak += 1
-        if (change is not None and change < -1.0) or streak > 0:
+        index_points = []
+        if capacities and capacities[0] > 0:
+            index_points = [
+                (ts(r["collected_at"]), r["battery"]["full_charge_capacity"] * 100.0 / capacities[0])
+                for r in readings
+                if r["battery"].get("full_charge_capacity") is not None
+            ]
+        projection = project_battery(index_points, as_of)
+        severity = battery_severity(streak, change, projection)
+        battery_projection[d] = {
+            "slope_per_day": projection["slope_per_day"],
+            "estimate": projection["estimate"],
+            "earliest": projection["earliest"],
+            "latest": projection["latest"],
+            "status": projection["status"],
+            "severity": severity,
+            "service_streak": streak,
+            "readings": len(readings),
+        }
+        if (change is not None and change < -DECLINE_PCT) or streak > 0 or severity != "ok":
             notable[d] = {
                 "capacity_change_pct": None if change is None else round(change, 6),
                 "service_streak": streak,
             }
-    facts["battery_30"] = {"notable": notable, "missing_latest": missing_latest, "no_reading": no_reading}
+    facts["battery_30"] = {
+        "notable": notable,
+        "missing_latest": missing_latest,
+        "no_reading": no_reading,
+        "insufficient_history": thin,
+    }
+    by_severity = {
+        level: sorted(d for d, v in battery_projection.items() if v["severity"] == level)
+        for level in ("act_soon", "watch", "ok")
+    }
+    facts["battery_insight"] = {
+        "devices": battery_projection,
+        **by_severity,
+        "needs_attention": sorted(by_severity["act_soon"] + by_severity["watch"]),
+    }
+
+    # Fleet health: each device at its worst finding across battery, disk, memory and compliance.
+    worst = {}
+
+    def raise_to(device, level):
+        order = ("act_soon", "watch")
+        if device not in worst or order.index(level) < order.index(worst[device]):
+            worst[device] = level
+
+    for device in by_severity["act_soon"]:
+        raise_to(device, "act_soon")
+    for device in by_severity["watch"]:
+        raise_to(device, "watch")
+    for found in (facts["disk_trend_lt10"]["30"], facts["memory_trend"]["85"]["30"]):
+        for device, cls in found.items():
+            if cls == "sustained":
+                raise_to(device, "act_soon")
+            elif cls in ("onset", "intermittent"):
+                raise_to(device, "watch")
+    for check in CHECKS:
+        for device in devices:
+            observed = [r for r in window(device, 30) if status_of(r, check) is not None]
+            kind, _ = compliance_kind([status_of(r, check) for r in observed])
+            if kind not in ("persistent_failure", "transition"):
+                continue
+            severity = next(
+                c["severity"] for c in latest[device]["compliance_results"] if c["check_id"] == check
+            )
+            if severity in ("high", "critical"):
+                raise_to(device, "act_soon")
+            elif kind == "transition":
+                raise_to(device, "watch")
+    act = sorted(d for d, level in worst.items() if level == "act_soon")
+    watch = sorted(d for d, level in worst.items() if level == "watch")
+    facts["fleet_health"] = {
+        "act_soon": act,
+        "watch": watch,
+        "devices_needing_attention": len(worst),
+    }
 
     common_sets, new_installs = {}, {}
     for days in SOFTWARE_WINDOWS:

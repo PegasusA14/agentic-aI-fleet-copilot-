@@ -85,6 +85,8 @@ argument: employee_id is a person's employee identifier, never a company.
 policy; pass them only when the user stated them.
 - When <resolved> lists device ids, the system applies them to your calls automatically; never invent other ids.
 - Use the fewest calls that cover the question. Independent checks may be called together in one round.
+- For "fleet health", "summary" or "what needs attention" questions call `fleet_health` once instead of the \
+separate checks.
 - When <plan> is an action request, call exactly ONE of `open_remediation_ticket`, `flag_device_for_replacement`, \
 `create_upgrade_order` or `notify_employee`, once, with enumerated values; they only propose, a person approves. \
 Call read tools first only if you need them to identify the device. The system decides eligibility, so never \

@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from datetime import date
 from typing import Annotated, Any, Literal
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
@@ -84,6 +85,12 @@ MAX_TABLE_ROWS = 50
 MAX_EXCLUDED_DEVICES = 100
 MAX_FOLLOW_UPS = 4
 MAX_SUMMARY_CHARS = 200
+MAX_INSIGHTS = 10
+MAX_INSIGHT_TEXT_CHARS = 240
+MAX_SERIES_POINTS = 200
+InsightCategory = Literal["battery", "disk", "memory", "compliance"]
+InsightSeverity = Literal["act_soon", "watch", "ok"]
+ProjectionStatus = Literal["projected", "none", "beyond_horizon"]
 
 
 class _Model(BaseModel):
@@ -308,6 +315,79 @@ class ScopeLine(_Model):
         return self
 
 
+class KeyValue(_Model):
+    label: str = Field(min_length=1, max_length=60)
+    value: str = Field(max_length=120)
+
+
+class SeriesPoint(_Model):
+    at: AwareDatetime
+    value: float
+
+
+class SeriesThreshold(_Model):
+    """A line drawn on a series. `source` says whose number it is: ours (policy), never the vendor's."""
+
+    value: float
+    label: str = Field(min_length=1, max_length=80)
+    source: Literal["policy"]
+
+
+class InsightSeries(_Model):
+    unit: str = Field(min_length=1, max_length=80)
+    points: list[SeriesPoint] = Field(max_length=MAX_SERIES_POINTS)
+    threshold: SeriesThreshold | None = None
+
+
+class InsightFit(_Model):
+    """A straight-line fit over the series: slope per day, how much of the scatter it explains, points used."""
+
+    slope_per_day: float
+    r2: float = Field(ge=0, le=1)
+    n: int = Field(ge=2)
+
+
+class InsightProjection(_Model):
+    """An ESTIMATE of when the series reaches the threshold. `none`: not downward or too few points."""
+
+    estimate: date | None = None
+    earliest: date | None = None
+    latest: date | None = None  # None with `earliest` set: the trend gives no upper bound
+    status: ProjectionStatus
+
+    @model_validator(mode="after")
+    def _consistent(self) -> InsightProjection:
+        if self.status == "projected":
+            if self.estimate is None or self.earliest is None:
+                raise ValueError("a projected estimate needs an estimate and an earliest date")
+            if self.earliest > self.estimate or (
+                self.latest is not None and self.latest < self.estimate
+            ):
+                raise ValueError("the range must contain the estimate")
+        elif self.estimate or self.earliest or self.latest:
+            raise ValueError("only a projected estimate carries dates")
+        return self
+
+
+class Insight(_Model):
+    """One finding about one device, written by code: what it is, how bad, the numbers behind it, how sure."""
+
+    device_id: str = Field(min_length=1)
+    label: str = Field(min_length=1)
+    category: InsightCategory
+    severity: InsightSeverity
+    finding: str = Field(min_length=1, max_length=MAX_INSIGHT_TEXT_CHARS)
+    evidence_kv: list[KeyValue] = Field(default_factory=list, max_length=8)
+    series: InsightSeries
+    fit: InsightFit | None = None
+    projection: InsightProjection | None = None
+    # How the finding was reached, in a few words: "Estimate · straight-line fit · 30 snapshots".
+    method: str = Field(min_length=1, max_length=120)
+    why: str = Field(min_length=1, max_length=MAX_INSIGHT_TEXT_CHARS)
+    refs: list[str] = Field(min_length=1, max_length=8)
+    suggested_action_types: list[ActionType] = Field(default_factory=list, max_length=4)
+
+
 class AnswerEnvelope(_Model):
     """The only shape the agent returns. The UI maps it to fixed components; the LLM never emits markup."""
 
@@ -339,6 +419,8 @@ class AnswerEnvelope(_Model):
     follow_ups: list[Alternative] = Field(default_factory=list, max_length=MAX_FOLLOW_UPS)
     # trace_id of the earlier turn in this conversation that gave this same answer.
     repeat_of: str | None = None
+    # Ranked, code-written findings per device (an answer outcome only), at most MAX_INSIGHTS.
+    insights: list[Insight] = Field(default_factory=list, max_length=MAX_INSIGHTS)
 
     @model_validator(mode="after")
     def _outcome_payloads(self) -> AnswerEnvelope:
@@ -395,6 +477,16 @@ class AnswerEnvelope(_Model):
             self.summary or self.scope_line or self.follow_ups or self.repeat_of
         ):
             raise ValueError(f"{self.outcome} outcome must not carry list-answer presentation")
+        if self.insights and self.outcome != "answer":
+            raise ValueError("only an answer outcome may carry insights")
+        for insight in self.insights:
+            for ref in insight.refs:
+                self._check_ref(ref)
+                if EvidenceRef.parse(ref).device_id != insight.device_id:
+                    raise ValueError("an insight cites a reading of another device")
+            missing = [r for r in insight.refs if r not in known]
+            if missing:
+                raise ValueError(f"insight cites refs without evidence: {missing}")
         if self.repeat_of is not None and self.outcome != "answer":
             raise ValueError("only an answer outcome may repeat an earlier answer")
         if self.proposal is not None:

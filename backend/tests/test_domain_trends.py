@@ -70,7 +70,9 @@ def test_scattered_breaches_are_intermittent_but_two_spikes_are_isolated():
         (["pass"] * 30, ComplianceTrend("passing", None)),
         (["pass"] * 8 + ["fail"] * 22, ComplianceTrend("transition", 8)),
         (["fail"] * 5 + ["pass"] * 3, ComplianceTrend("recovered", 5)),
-        (["pass", "fail"], ComplianceTrend("transition", 1)),
+        (["pass", "fail"], ComplianceTrend("insufficient", None)),
+        (["pass", "pass", "fail"], ComplianceTrend("transition", 2)),
+        (["fail", "fail", "pass"], ComplianceTrend("recovered", 2)),
         (["fail", "pass", "fail"], ComplianceTrend("transition", 2)),
     ],
 )

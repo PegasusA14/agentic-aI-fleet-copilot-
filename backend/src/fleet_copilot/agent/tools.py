@@ -18,7 +18,7 @@ from fleet_copilot.agent.records import FindingRecord, ToolRecord, redact_args
 from fleet_copilot.contracts import ActionType, SuggestedAction
 from fleet_copilot.data.loader import connect
 from fleet_copilot.data.models import SOFTWARE_NAME_PATTERN
-from fleet_copilot.fleet import inventory
+from fleet_copilot.fleet import health, inventory
 from fleet_copilot.fleet import queries as q
 from fleet_copilot.fleet.queries import QueryResult
 from fleet_copilot.repository import FleetRepository, NotFound, TenantContext
@@ -182,6 +182,12 @@ def _run_software(repo: FleetRepository, as_of, a: dict[str, Any]) -> QueryResul
     )
 
 
+def _run_fleet_health(repo: FleetRepository, as_of, a: dict[str, Any]) -> QueryResult:
+    return health.fleet_health(
+        repo, as_of, a.get("window_days") or policy.BATTERY_WINDOW_DAYS, only_devices=_only(a)
+    )
+
+
 _RUNNERS: dict[str, Callable[[FleetRepository, Any, dict[str, Any]], QueryResult]] = {
     "low_disk_devices": _run_low_disk,
     "macos_version_check": _run_macos,
@@ -191,6 +197,7 @@ _RUNNERS: dict[str, Callable[[FleetRepository, Any, dict[str, Any]], QueryResult
     "find_devices": _run_find,
     "device_history": _run_history,
     "software_inventory": _run_software,
+    "fleet_health": _run_fleet_health,
 }
 
 
@@ -415,7 +422,7 @@ def trend(
 ) -> tuple[str, dict[str, Any]]:
     """Classify a metric over a trailing window (1 to 60 days): sustained, onset, intermittent, recovering or
     isolated for memory and disk; persistent failure, transition or recovery for one compliance `check_id`;
-    wear signals for batteries. The window defaults per metric (7 days for memory and disk, 30 for compliance and
+    wear signals for batteries, with a labelled estimate of when capacity reaches our service threshold. The window defaults per metric (7 days for memory and disk, 30 for compliance and
     battery) and thresholds default to the disclosed policy."""
     args = {
         "metric": metric,
@@ -492,6 +499,20 @@ def software_inventory(
         "device_ids": device_ids,
     }
     return _respond("software_inventory", args, runtime)
+
+
+@tool(response_format="content_and_artifact")
+def fleet_health(
+    runtime: ToolRuntime[AgentContext],
+    window_days: Window = policy.BATTERY_WINDOW_DAYS,
+    device_ids: DeviceIds = None,
+) -> tuple[str, dict[str, Any]]:
+    """One ranked overview across battery, disk, memory and compliance for the whole fleet: which
+    devices need attention, most urgent first, over a trailing window (`window_days`, 1 to 60, default 30).
+    Use it for fleet health, summary or "what needs attention" questions instead of calling each check. The
+    system ranks and words every finding; battery estimates are labelled estimates."""
+    args = {"window_days": window_days, "device_ids": device_ids}
+    return _respond("fleet_health", args, runtime)
 
 
 def _propose(
@@ -594,6 +615,7 @@ TOOLS = [
     find_devices,
     device_history,
     software_inventory,
+    fleet_health,
     create_upgrade_order,
     open_remediation_ticket,
     flag_device_for_replacement,

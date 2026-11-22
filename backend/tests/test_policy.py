@@ -20,6 +20,8 @@ def test_policy_values_are_the_disclosed_defaults():
     assert policy.SOFTWARE_WINDOW_DAYS == 30
     assert policy.MAX_WINDOW_DAYS == 60
     assert policy.MAX_REFS_PER_FINDING == 6
+    assert (policy.BATTERY_SERVICE_INDEX, policy.MIN_FIT_POINTS) == (90.0, 7)
+    assert (policy.PROJECTION_HORIZON_DAYS, policy.ACT_SOON_PROJECTION_DAYS) == (180, 30)
 
 
 def test_stale_limit_comes_from_policy():
@@ -52,6 +54,10 @@ def test_disclosure_lists_every_default():
         "battery_window_days": 30,
         "software_window_days": 30,
         "replacement_min_snapshots": 3,
+        "battery_service_index": 90.0,
+        "min_fit_points": 7,
+        "projection_horizon_days": 180,
+        "act_soon_projection_days": 30,
         "memory_upgrade_factor": 2,
         "upgrade_trend_window_days": 7,
     }

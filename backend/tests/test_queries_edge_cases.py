@@ -154,11 +154,44 @@ def test_battery_capacity_baseline_and_latest_are_cited_when_early_readings_lack
     assert "acme-001/L@2026-06-10T09:00:00Z#battery" not in finding.refs  # reported no capacity
 
 
-def test_single_service_reading_yields_no_duplicate_refs():
-    rows = [make_row("L", ts=day(12), battery=battery("Service Recommended"))]
+def test_single_service_reading_at_the_end_yields_no_duplicate_refs():
+    rows = [
+        make_row("L", ts=day(10), battery=battery()),
+        make_row("L", ts=day(11), battery=battery()),
+        make_row("L", ts=day(12), battery=battery("Service Recommended")),
+    ]
     finding = q.battery_overview(repo_for(rows), AS_OF, 30).findings[0]
-    assert finding.refs == ("acme-001/L@2026-06-12T09:00:00Z#battery",)
+    assert finding.values["service_streak"] == 1
+    assert finding.refs == (
+        "acme-001/L@2026-06-10T09:00:00Z#battery",
+        "acme-001/L@2026-06-12T09:00:00Z#battery",
+    )
     assert len(finding.refs) == len(set(finding.refs))
+
+
+def test_a_laptop_with_fewer_than_three_battery_readings_is_insufficient_history():
+    rows = [
+        make_row("L", ts=day(11), battery=battery(capacity=5000)),
+        make_row("L", ts=day(12), battery=battery("Service Recommended", capacity=4000)),
+    ]
+    result = q.battery_overview(repo_for(rows), AS_OF, 30)
+    assert result.findings == ()
+    assert result.excluded == {"insufficient_history": ("L",)}
+    assert (
+        result.excluded_detail["insufficient_history"]["L"][1]
+        == "Only 2 battery readings in the window"
+    )
+    assert result.population == 1
+
+
+def test_a_compliance_change_needs_three_readings():
+    rows = [
+        with_status(make_row("A", ts=day(11)), "screen_lock", "pass"),
+        with_status(make_row("A", ts=day(12)), "screen_lock", "fail"),
+    ]
+    result = q.compliance_trend(repo_for(rows), AS_OF, check_id="screen_lock", window_days=7)
+    assert result.findings == ()
+    assert result.excluded == {"insufficient_history": ("A",)}
 
 
 def test_latest_value_is_cited_even_when_the_latest_snapshot_is_not_in_breach():

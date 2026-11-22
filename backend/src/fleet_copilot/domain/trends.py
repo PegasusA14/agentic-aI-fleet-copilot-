@@ -48,14 +48,12 @@ class ComplianceTrend:
 def classify_compliance(statuses: Sequence[str]) -> ComplianceTrend:
     """Distinguish a persistent failure from a transition. Statuses are chronological."""
     n = len(statuses)
-    if n == 0:
+    if n < MIN_SNAPSHOTS:  # a change needs enough readings to tell it from a one-off
         return ComplianceTrend("insufficient", None)
     latest = statuses[-1]
     run_start = n - 1
     while run_start > 0 and statuses[run_start - 1] == latest:
         run_start -= 1
     if run_start == 0:
-        if n < MIN_SNAPSHOTS:
-            return ComplianceTrend("insufficient", None)
         return ComplianceTrend("persistent_failure" if latest == "fail" else "passing", None)
     return ComplianceTrend("transition" if latest == "fail" else "recovered", run_start)

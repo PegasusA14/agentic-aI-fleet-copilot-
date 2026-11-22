@@ -23,6 +23,7 @@
   "tenants": {
     "acme-001": {
       "battery_30": {
+        "insufficient_history": [],
         "missing_latest": [
           "MT7PJB7N5LRE"
         ],
@@ -41,6 +42,119 @@
             "service_streak": 20
           }
         }
+      },
+      "battery_insight": {
+        "act_soon": [
+          "7VP16KHV88LM",
+          "8NM23J95R5I6",
+          "M4XVHUV1MEPZ"
+        ],
+        "devices": {
+          "1LYSSFD074BB": {
+            "earliest": null,
+            "estimate": null,
+            "latest": null,
+            "readings": 30,
+            "service_streak": 0,
+            "severity": "ok",
+            "slope_per_day": 0.0,
+            "status": "none"
+          },
+          "7VP16KHV88LM": {
+            "earliest": "2026-07-22",
+            "estimate": "2026-07-22",
+            "latest": "2026-07-22",
+            "readings": 30,
+            "service_streak": 14,
+            "severity": "act_soon",
+            "slope_per_day": -0.1444,
+            "status": "projected"
+          },
+          "8NM23J95R5I6": {
+            "earliest": "2026-07-21",
+            "estimate": "2026-07-21",
+            "latest": "2026-07-22",
+            "readings": 30,
+            "service_streak": 21,
+            "severity": "act_soon",
+            "slope_per_day": -0.1458,
+            "status": "projected"
+          },
+          "9MXJVZ1I0DKA": {
+            "earliest": null,
+            "estimate": null,
+            "latest": null,
+            "readings": 28,
+            "service_streak": 0,
+            "severity": "ok",
+            "slope_per_day": -0.0,
+            "status": "beyond_horizon"
+          },
+          "DSYPSES7SKBB": {
+            "earliest": null,
+            "estimate": null,
+            "latest": null,
+            "readings": 30,
+            "service_streak": 0,
+            "severity": "ok",
+            "slope_per_day": 0.0,
+            "status": "none"
+          },
+          "M4XVHUV1MEPZ": {
+            "earliest": "2026-07-22",
+            "estimate": "2026-07-22",
+            "latest": "2026-07-22",
+            "readings": 30,
+            "service_streak": 20,
+            "severity": "act_soon",
+            "slope_per_day": -0.1455,
+            "status": "projected"
+          },
+          "MT7PJB7N5LRE": {
+            "earliest": null,
+            "estimate": null,
+            "latest": null,
+            "readings": 25,
+            "service_streak": 0,
+            "severity": "ok",
+            "slope_per_day": 0.0,
+            "status": "none"
+          },
+          "Q3VUITEGQ400": {
+            "earliest": null,
+            "estimate": null,
+            "latest": null,
+            "readings": 30,
+            "service_streak": 0,
+            "severity": "ok",
+            "slope_per_day": 0.0,
+            "status": "none"
+          },
+          "XSU9UUDGU6AC": {
+            "earliest": null,
+            "estimate": null,
+            "latest": null,
+            "readings": 30,
+            "service_streak": 0,
+            "severity": "ok",
+            "slope_per_day": 0.0,
+            "status": "none"
+          }
+        },
+        "needs_attention": [
+          "7VP16KHV88LM",
+          "8NM23J95R5I6",
+          "M4XVHUV1MEPZ"
+        ],
+        "ok": [
+          "1LYSSFD074BB",
+          "9MXJVZ1I0DKA",
+          "DSYPSES7SKBB",
+          "MT7PJB7N5LRE",
+          "Q3VUITEGQ400",
+          "XSU9UUDGU6AC"
+        ],
+        "watch": []
       },
       "compliance_trend": {
         "os_up_to_date": {
@@ -177,6 +291,20 @@
           ]
         }
       },
+      "fleet_health": {
+        "act_soon": [
+          "7VP16KHV88LM",
+          "8NM23J95R5I6",
+          "M4XVHUV1MEPZ",
+          "MT7PJB7N5LRE"
+        ],
+        "devices_needing_attention": 7,
+        "watch": [
+          "1LYSSFD074BB",
+          "DLT35MHGTH2D",
+          "DSYPSES7SKBB"
+        ]
+      },
       "laptops": [
         "1LYSSFD074BB",
         "7VP16KHV88LM",
@@ -292,9 +420,107 @@
     },
     "globex-002": {
       "battery_30": {
+        "insufficient_history": [],
         "missing_latest": [],
         "no_reading": [],
         "notable": {}
+      },
+      "battery_insight": {
+        "act_soon": [],
+        "devices": {
+          "4SEFDLPTKXAM": {
+            "earliest": null,
+            "estimate": null,
+            "latest": null,
+            "readings": 30,
+            "service_streak": 0,
+            "severity": "ok",
+            "slope_per_day": 0.0,
+            "status": "none"
+          },
+          "CUXW0BQSV1B7": {
+            "earliest": null,
+            "estimate": null,
+            "latest": null,
+            "readings": 30,
+            "service_streak": 0,
+            "severity": "ok",
+            "slope_per_day": 0.0,
+            "status": "none"
+          },
+          "DXUCJ272DCYX": {
+            "earliest": null,
+            "estimate": null,
+            "latest": null,
+            "readings": 30,
+            "service_streak": 0,
+            "severity": "ok",
+            "slope_per_day": -0.0,
+            "status": "beyond_horizon"
+          },
+          "E4V0SB5I0MYU": {
+            "earliest": null,
+            "estimate": null,
+            "latest": null,
+            "readings": 28,
+            "service_streak": 0,
+            "severity": "ok",
+            "slope_per_day": 0.0,
+            "status": "none"
+          },
+          "IZ6K51CBZR8F": {
+            "earliest": null,
+            "estimate": null,
+            "latest": null,
+            "readings": 30,
+            "service_streak": 0,
+            "severity": "ok",
+            "slope_per_day": 0.0,
+            "status": "none"
+          },
+          "JRZSGXVMKE6M": {
+            "earliest": null,
+            "estimate": null,
+            "latest": null,
+            "readings": 30,
+            "service_streak": 0,
+            "severity": "ok",
+            "slope_per_day": 0.0,
+            "status": "none"
+          },
+          "Q1AFVLH3YV33": {
+            "earliest": null,
+            "estimate": null,
+            "latest": null,
+            "readings": 30,
+            "service_streak": 0,
+            "severity": "ok",
+            "slope_per_day": 0.0,
+            "status": "none"
+          },
+          "QPZSXKINA7GP": {
+            "earliest": null,
+            "estimate": null,
+            "latest": null,
+            "readings": 30,
+            "service_streak": 0,
+            "severity": "ok",
+            "slope_per_day": 0.0,
+            "status": "none"
+          }
+        },
+        "needs_attention": [],
+        "ok": [
+          "4SEFDLPTKXAM",
+          "CUXW0BQSV1B7",
+          "DXUCJ272DCYX",
+          "E4V0SB5I0MYU",
+          "IZ6K51CBZR8F",
+          "JRZSGXVMKE6M",
+          "Q1AFVLH3YV33",
+          "QPZSXKINA7GP"
+        ],
+        "watch": []
       },
       "compliance_trend": {
         "os_up_to_date": {
@@ -381,6 +607,15 @@
             "JRZSGXVMKE6M"
           ]
         }
+      },
+      "fleet_health": {
+        "act_soon": [],
+        "devices_needing_attention": 3,
+        "watch": [
+          "CUXW0BQSV1B7",
+          "E4V0SB5I0MYU",
+          "JRZSGXVMKE6M"
+        ]
       },
       "laptops": [
         "4SEFDLPTKXAM",
@@ -480,9 +715,74 @@
     },
     "initech-003": {
       "battery_30": {
+        "insufficient_history": [],
         "missing_latest": [],
         "no_reading": [],
         "notable": {}
+      },
+      "battery_insight": {
+        "act_soon": [],
+        "devices": {
+          "2MAN6T4DJD95": {
+            "earliest": null,
+            "estimate": null,
+            "latest": null,
+            "readings": 30,
+            "service_streak": 0,
+            "severity": "ok",
+            "slope_per_day": 0.0,
+            "status": "none"
+          },
+          "DARFCP0BQM2G": {
+            "earliest": null,
+            "estimate": null,
+            "latest": null,
+            "readings": 29,
+            "service_streak": 0,
+            "severity": "ok",
+            "slope_per_day": -0.0,
+            "status": "beyond_horizon"
+          },
+          "SPKRRDF0L786": {
+            "earliest": null,
+            "estimate": null,
+            "latest": null,
+            "readings": 30,
+            "service_streak": 0,
+            "severity": "ok",
+            "slope_per_day": 0.0,
+            "status": "none"
+          },
+          "W2656QDAE2ZJ": {
+            "earliest": null,
+            "estimate": null,
+            "latest": null,
+            "readings": 30,
+            "service_streak": 0,
+            "severity": "ok",
+            "slope_per_day": 0.0,
+            "status": "none"
+          },
+          "XZYK11QTPWEC": {
+            "earliest": null,
+            "estimate": null,
+            "latest": null,
+            "readings": 30,
+            "service_streak": 0,
+            "severity": "ok",
+            "slope_per_day": 0.0,
+            "status": "none"
+          }
+        },
+        "needs_attention": [],
+        "ok": [
+          "2MAN6T4DJD95",
+          "DARFCP0BQM2G",
+          "SPKRRDF0L786",
+          "W2656QDAE2ZJ",
+          "XZYK11QTPWEC"
+        ],
+        "watch": []
       },
       "compliance_trend": {
         "os_up_to_date": {
@@ -584,6 +884,19 @@
             "XZYK11QTPWEC"
           ]
         }
+      },
+      "fleet_health": {
+        "act_soon": [
+          "I3JLKILKQTAC",
+          "RLD7WV7J82SH"
+        ],
+        "devices_needing_attention": 6,
+        "watch": [
+          "2MAN6T4DJD95",
+          "DARFCP0BQM2G",
+          "SPKRRDF0L786",
+          "XZYK11QTPWEC"
+        ]
       },
       "laptops": [
         "2MAN6T4DJD95",

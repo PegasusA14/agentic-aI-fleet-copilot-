@@ -10,6 +10,7 @@ from fleet_copilot.actions import guidance
 from fleet_copilot.actions.eligibility import display_hostname
 from fleet_copilot.agent import texts
 from fleet_copilot.agent.format import fmt_bytes, fmt_day, fmt_pct, fmt_signed_pct, fmt_ts, noun
+from fleet_copilot.agent.insights import battery_insight, estimates_of, insight_for, rank
 from fleet_copilot.agent.present import (
     GENERIC_EXCLUDED_TEXT,
     ScopeParts,
@@ -20,6 +21,7 @@ from fleet_copilot.agent.records import FindingRecord, ToolRecord
 from fleet_copilot.agent.tools import PROPOSAL_TOOLS
 from fleet_copilot.contracts import (
     MAX_EXCLUDED_DEVICES,
+    MAX_INSIGHTS,
     Alternative,
     AnswerEnvelope,
     AnswerTable,
@@ -29,6 +31,7 @@ from fleet_copilot.contracts import (
     EntityRef,
     EvidenceItem,
     ExcludedDevice,
+    Insight,
     OutcomeType,
     ProposalCard,
     ReasonCode,
@@ -38,10 +41,13 @@ from fleet_copilot.contracts import (
 )
 from fleet_copilot.domain.metrics import free_pct, used_pct
 from fleet_copilot.evidence import EvidenceRef
+from fleet_copilot.fleet.health import CATEGORY_ORDER, SEVERITY_ORDER
 from fleet_copilot.repository import EvidenceValue
 
 Resolver = Callable[[EvidenceRef], EvidenceValue]
 
+# Where a headline names the company: `to_envelope` fills it in, or drops it when the name is unknown.
+COMPANY_SLOT = " at {company}"
 _CLASS_ORDER = ("sustained", "onset", "intermittent", "recovering", "isolated")
 _CLASS_TEXT = {
     "sustained": "breached in at least 80% of the window's snapshots and still breached at the latest",
@@ -102,6 +108,10 @@ class Composition:
     # A refused action: what would make it possible, and what to look at instead.
     needs: list[str] = field(default_factory=list)
     alternatives: list[Alternative] = field(default_factory=list)
+    # Ranked per-device findings (at most MAX_INSIGHTS), and the code-written date ranges inside them. The
+    # prose gate lets the model repeat an `estimates` phrase verbatim and nothing else that looks forward.
+    insights: list[Insight] = field(default_factory=list)
+    estimates: list[str] = field(default_factory=list)
 
     def facts(self) -> dict:
         """Everything the model may read when asked to explain: code-written text only."""
@@ -158,7 +168,10 @@ class Composition:
         return AnswerEnvelope(
             outcome=self.outcome,
             trace_id=trace_id,
-            headline=headline or self.fallback_headline,
+            headline=headline
+            or self.fallback_headline.replace(
+                COMPANY_SLOT, f" at {company_name}" if company_name else ""
+            ),
             claims=self.claims,
             evidence=self.evidence,
             proposal=self.proposal,
@@ -181,6 +194,7 @@ class Composition:
             follow_ups=self.follow_ups,
             needs=self.needs,
             alternatives=self.alternatives,
+            insights=self.insights if self.outcome == "answer" else [],
         )
 
 
@@ -222,8 +236,13 @@ def _item(finding: FindingRecord, detail: str) -> str:
 
 
 class _Builder:
-    def __init__(self, resolve: Resolver, order: Sequence[tuple[str, str]] | None = None) -> None:
+    def __init__(
+        self,
+        resolve: Resolver,
+        order: Sequence[tuple[str, str]] | None = None,
+    ) -> None:
         self._resolve = resolve
+        self.insights: list[Insight] = []
         # Where each (list group, device) stands in the answer table's default row order, if it has a table.
         self._position: dict[tuple[str, str], int] = {}
         for place, key in enumerate(order or ()):
@@ -281,6 +300,21 @@ class _Builder:
             self.add_evidence(ref)
         ids = [f.device_id for f in findings]
         self.claims.append(Claim(text=text, refs=refs, count=len(ids), device_ids=ids))
+
+    def add_insights(self, insights: Sequence[Insight]) -> None:
+        """Keep the insights (and the evidence they cite). An answer carries at most MAX_INSIGHTS."""
+        for insight in insights:
+            if len(self.insights) >= MAX_INSIGHTS:
+                break
+            if any(
+                (i.device_id, i.category, i.finding)
+                == (insight.device_id, insight.category, insight.finding)
+                for i in self.insights
+            ):
+                continue
+            for ref in insight.refs:
+                self.add_evidence(ref)
+            self.insights.append(insight)
 
     def entity_list(
         self, list_id: str, title: str, findings: Sequence[FindingRecord], group: str = ""
@@ -584,6 +618,17 @@ def _trend_battery(rec: ToolRecord, idx: int, b: _Builder) -> None:
     b.set_headline(
         f"{k} of {n} {noun(n, 'laptop')} show battery wear signals over the last {days} days"
     )
+    # Most urgent first, then the steepest decline (the most negative rate), then device id.
+    ordered = sorted(
+        rec.findings,
+        key=lambda f: (
+            SEVERITY_ORDER.index(f.values["severity"]),
+            f.values["rate_per_day"] is None,
+            f.values["rate_per_day"] or 0.0,
+            f.device_id,
+        ),
+    )
+    b.add_insights([battery_insight(f) for f in ordered])
 
 
 def _find(rec: ToolRecord, idx: int, b: _Builder) -> None:
@@ -728,6 +773,79 @@ def _software_inventory(rec: ToolRecord, idx: int, b: _Builder) -> None:
     b.set_headline(f"{k} of {n} {noun(n, 'device')} report installed software")
 
 
+_CATEGORY_TITLE = {
+    "battery": "Battery",
+    "disk": "Disk space",
+    "memory": "Memory",
+    "compliance": "Compliance",
+}
+
+
+def _health_headline(insights: Sequence[Insight]) -> str:
+    """`4 devices need attention at Acme: 2 act soon, 2 to watch.` Each device counts once, at its worst.
+
+    The company is filled in by `Composition.to_envelope`, which is where its name is known.
+    """
+    worst: dict[str, str] = {}
+    for insight in insights:  # ranked, so the first one seen for a device is its worst
+        worst.setdefault(insight.device_id, insight.severity)
+    urgent = sum(1 for severity in worst.values() if severity == "act_soon")
+    watching = sum(1 for severity in worst.values() if severity == "watch")
+    n = urgent + watching
+    parts = []
+    if urgent:
+        parts.append(f"{urgent} act soon")
+    if watching:
+        parts.append(f"{watching} to watch")
+    verb = "needs" if n == 1 else "need"
+    return f"{n} {noun(n, 'device')} {verb} attention{COMPANY_SLOT}: {', '.join(parts)}."
+
+
+def _fleet_health(rec: ToolRecord, idx: int, b: _Builder) -> None:
+    b.coverage(rec)
+    ranked = rank([insight_for(f) for f in rec.findings if f.values["severity"] != "ok"])
+    if not ranked:
+        return
+    b.add_insights(ranked)
+    if len(b.insights) < len(ranked):
+        b.add_note(
+            f"Showing the {len(b.insights)} most urgent of {len(ranked)} findings, "
+            "ranked act soon first, then by category."
+        )
+    for category in CATEGORY_ORDER:
+        group = [i for i in b.insights if i.category == category]
+        if not group:
+            continue
+        devices = list(dict.fromkeys(i.device_id for i in group))
+        refs = {
+            d: list(dict.fromkeys(r for i in group if i.device_id == d for r in i.refs))
+            for d in devices
+        }
+        found = [
+            FindingRecord(
+                device_id=d,
+                hostname=next(i.label for i in group if i.device_id == d),
+                values={},
+                refs=refs[d],
+            )
+            for d in devices
+        ]
+        b.claim(
+            f"{_CATEGORY_TITLE[category]}: {len(devices)} {noun(len(devices), 'device')} to look at. "
+            + " ".join(i.finding for i in group),
+            found,
+            refs_by_device=refs,
+        )
+    listed = list(dict.fromkeys(i.device_id for i in b.insights))
+    labels = {i.device_id: i.label for i in b.insights}
+    b.entity_list(
+        f"{rec.tool}-{idx}",
+        "Needs attention",
+        [FindingRecord(device_id=d, hostname=labels[d], values={}, refs=[]) for d in listed],
+    )
+    b.set_headline(_health_headline(ranked))
+
+
 _TEMPLATES: dict[str, Callable[[ToolRecord, int, _Builder], None]] = {
     "low_disk_devices": _low_disk,
     "macos_version_check": _macos,
@@ -737,6 +855,7 @@ _TEMPLATES: dict[str, Callable[[ToolRecord, int, _Builder], None]] = {
     "find_devices": _find,
     "device_history": _history,
     "software_inventory": _software,
+    "fleet_health": _fleet_health,
 }
 
 
@@ -933,6 +1052,8 @@ def compose(
             builder.notes,
             "; ".join(builder.headlines) or builder.claims[0].text.split(":")[0],
             builder.rules,
+            insights=builder.insights,
+            estimates=estimates_of(builder.insights),
             **ui,
         )
     thin = [r for r in usable if r.excluded.get("insufficient_history")]

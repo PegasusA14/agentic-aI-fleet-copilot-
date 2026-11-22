@@ -427,6 +427,281 @@
       "title": "ExcludedDevice",
       "type": "object"
     },
+    "Insight": {
+      "additionalProperties": false,
+      "description": "One finding about one device, written by code: what it is, how bad, the numbers behind it, how sure.",
+      "properties": {
+        "category": {
+          "enum": [
+            "battery",
+            "disk",
+            "memory",
+            "compliance"
+          ],
+          "title": "Category",
+          "type": "string"
+        },
+        "device_id": {
+          "minLength": 1,
+          "title": "Device Id",
+          "type": "string"
+        },
+        "evidence_kv": {
+          "items": {
+            "$ref": "#/$defs/KeyValue"
+          },
+          "maxItems": 8,
+          "title": "Evidence Kv",
+          "type": "array"
+        },
+        "finding": {
+          "maxLength": 240,
+          "minLength": 1,
+          "title": "Finding",
+          "type": "string"
+        },
+        "fit": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/InsightFit"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "label": {
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "method": {
+          "maxLength": 120,
+          "minLength": 1,
+          "title": "Method",
+          "type": "string"
+        },
+        "projection": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/InsightProjection"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "refs": {
+          "items": {
+            "type": "string"
+          },
+          "maxItems": 8,
+          "minItems": 1,
+          "title": "Refs",
+          "type": "array"
+        },
+        "series": {
+          "$ref": "#/$defs/InsightSeries"
+        },
+        "severity": {
+          "enum": [
+            "act_soon",
+            "watch",
+            "ok"
+          ],
+          "title": "Severity",
+          "type": "string"
+        },
+        "suggested_action_types": {
+          "items": {
+            "enum": [
+              "remediation_ticket",
+              "replacement_flag",
+              "upgrade_order",
+              "employee_notification"
+            ],
+            "type": "string"
+          },
+          "maxItems": 4,
+          "title": "Suggested Action Types",
+          "type": "array"
+        },
+        "why": {
+          "maxLength": 240,
+          "minLength": 1,
+          "title": "Why",
+          "type": "string"
+        }
+      },
+      "required": [
+        "device_id",
+        "label",
+        "category",
+        "severity",
+        "finding",
+        "evidence_kv",
+        "series",
+        "fit",
+        "projection",
+        "method",
+        "why",
+        "refs",
+        "suggested_action_types"
+      ],
+      "title": "Insight",
+      "type": "object"
+    },
+    "InsightFit": {
+      "additionalProperties": false,
+      "description": "A straight-line fit over the series: slope per day, how much of the scatter it explains, points used.",
+      "properties": {
+        "n": {
+          "minimum": 2,
+          "title": "N",
+          "type": "integer"
+        },
+        "r2": {
+          "maximum": 1,
+          "minimum": 0,
+          "title": "R2",
+          "type": "number"
+        },
+        "slope_per_day": {
+          "title": "Slope Per Day",
+          "type": "number"
+        }
+      },
+      "required": [
+        "slope_per_day",
+        "r2",
+        "n"
+      ],
+      "title": "InsightFit",
+      "type": "object"
+    },
+    "InsightProjection": {
+      "additionalProperties": false,
+      "description": "An ESTIMATE of when the series reaches the threshold. `none`: not downward or too few points.",
+      "properties": {
+        "earliest": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Earliest"
+        },
+        "estimate": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Estimate"
+        },
+        "latest": {
+          "anyOf": [
+            {
+              "format": "date",
+              "type": "string"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null,
+          "title": "Latest"
+        },
+        "status": {
+          "enum": [
+            "projected",
+            "none",
+            "beyond_horizon"
+          ],
+          "title": "Status",
+          "type": "string"
+        }
+      },
+      "required": [
+        "estimate",
+        "earliest",
+        "latest",
+        "status"
+      ],
+      "title": "InsightProjection",
+      "type": "object"
+    },
+    "InsightSeries": {
+      "additionalProperties": false,
+      "properties": {
+        "points": {
+          "items": {
+            "$ref": "#/$defs/SeriesPoint"
+          },
+          "maxItems": 200,
+          "title": "Points",
+          "type": "array"
+        },
+        "threshold": {
+          "anyOf": [
+            {
+              "$ref": "#/$defs/SeriesThreshold"
+            },
+            {
+              "type": "null"
+            }
+          ],
+          "default": null
+        },
+        "unit": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Unit",
+          "type": "string"
+        }
+      },
+      "required": [
+        "unit",
+        "points",
+        "threshold"
+      ],
+      "title": "InsightSeries",
+      "type": "object"
+    },
+    "KeyValue": {
+      "additionalProperties": false,
+      "properties": {
+        "label": {
+          "maxLength": 60,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "value": {
+          "maxLength": 120,
+          "title": "Value",
+          "type": "string"
+        }
+      },
+      "required": [
+        "label",
+        "value"
+      ],
+      "title": "KeyValue",
+      "type": "object"
+    },
     "ProposalCard": {
       "additionalProperties": false,
       "properties": {
@@ -687,6 +962,54 @@
       "title": "ScopeLine",
       "type": "object"
     },
+    "SeriesPoint": {
+      "additionalProperties": false,
+      "properties": {
+        "at": {
+          "format": "date-time",
+          "title": "At",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "number"
+        }
+      },
+      "required": [
+        "at",
+        "value"
+      ],
+      "title": "SeriesPoint",
+      "type": "object"
+    },
+    "SeriesThreshold": {
+      "additionalProperties": false,
+      "description": "A line drawn on a series. `source` says whose number it is: ours (policy), never the vendor's.",
+      "properties": {
+        "label": {
+          "maxLength": 80,
+          "minLength": 1,
+          "title": "Label",
+          "type": "string"
+        },
+        "source": {
+          "const": "policy",
+          "title": "Source",
+          "type": "string"
+        },
+        "value": {
+          "title": "Value",
+          "type": "number"
+        }
+      },
+      "required": [
+        "value",
+        "label",
+        "source"
+      ],
+      "title": "SeriesThreshold",
+      "type": "object"
+    },
     "SortSpec": {
       "additionalProperties": false,
       "properties": {
@@ -849,6 +1172,14 @@
       "title": "Headline",
       "type": "string"
     },
+    "insights": {
+      "items": {
+        "$ref": "#/$defs/Insight"
+      },
+      "maxItems": 10,
+      "title": "Insights",
+      "type": "array"
+    },
     "needs": {
       "items": {
         "maxLength": 120,
@@ -1002,7 +1333,8 @@
     "summary",
     "scope_line",
     "follow_ups",
-    "repeat_of"
+    "repeat_of",
+    "insights"
   ],
   "title": "AnswerEnvelope",
   "type": "object"

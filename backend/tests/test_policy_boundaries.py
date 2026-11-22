@@ -115,6 +115,7 @@ def test_window_start_is_inclusive_in_a_trend_query():
 def test_battery_capacity_cutoff_is_exclusive(last_capacity, reported):
     rows = [
         make_row("L1", ts=FRESH[0], battery=battery(10000)),
+        make_row("L1", ts=FRESH[1], battery=battery(10000)),
         make_row("L1", ts=FRESH[-1], battery=battery(last_capacity)),
     ]
     result = q.battery_overview(repo_for(rows), AS_OF)
@@ -122,7 +123,7 @@ def test_battery_capacity_cutoff_is_exclusive(last_capacity, reported):
     assert ids(result) == (["L1"] if reported else [])
     if reported:
         assert result.findings[0].values["capacity_change_pct"] == pytest.approx(-1.01)
-        assert result.findings[0].values["readings"] == 2
+        assert result.findings[0].values["readings"] == 3
 
 
 # ---- staleness: exactly 48 hours old is still current; one second older is stale

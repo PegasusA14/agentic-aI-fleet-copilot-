@@ -19,6 +19,7 @@ from decimal import Decimal, InvalidOperation
 
 from fleet_copilot import policy
 from fleet_copilot.agent.compose import Composition, Resolver, evidence_kind, evidence_text
+from fleet_copilot.agent.insights import estimates_of
 from fleet_copilot.contracts import AnswerEnvelope
 from fleet_copilot.evidence import EvidenceRef
 from fleet_copilot.repository import NotFound
@@ -170,6 +171,37 @@ def claim_problems(text: str, *, estimates: Sequence[str] = ()) -> list[str]:
     return found
 
 
+_MONTHS = ("jan", "feb", "mar", "apr", "may", "jun", "jul", "aug", "sep", "oct", "nov", "dec")
+_MONTH_DAY = re.compile(
+    r"\b(jan|feb|mar|apr|may|jun|jul|aug|sep|oct|nov|dec)[a-z]*\.?\s+(\d{1,2})\b", re.IGNORECASE
+)
+_ISO_DAY = re.compile(r"\b\d{4}-(\d{2})-(\d{2})\b")
+
+
+def _month_days(text: str) -> set[tuple[str, int]]:
+    return {(m.group(1).lower(), int(m.group(2))) for m in _MONTH_DAY.finditer(_fold(text))}
+
+
+def allowed_month_days(comp: Composition, estimates: Sequence[str]) -> set[tuple[str, int]]:
+    """The calendar days prose may name: those in a code-written estimate, or the same day as a date the facts state."""
+    allowed: set[tuple[str, int]] = set()
+    for estimate in estimates:
+        allowed |= _month_days(estimate)
+    stated = [c.text for c in comp.claims] + list(comp.notes)
+    stated += [e.label for e in comp.evidence] + [e.value for e in comp.evidence]
+    for text in stated:
+        for match in _ISO_DAY.finditer(text):
+            month, day = int(match.group(1)), int(match.group(2))
+            if 1 <= month <= 12:
+                allowed.add((_MONTHS[month - 1], day))
+    return allowed
+
+
+def date_problems(text: str, allowed: set[tuple[str, int]]) -> list[str]:
+    """`date` when prose names a month and day that no code-written estimate or stated date contains."""
+    return ["date"] if _month_days(text) - allowed else []
+
+
 def sentence_count(text: str) -> int:
     return len([part for part in _SENTENCE_END.split(text.strip()) if part.strip()])
 
@@ -279,6 +311,8 @@ def composition_of(envelope: AnswerEnvelope) -> Composition:
         fallback_headline=envelope.headline,
         rules=[envelope.scope.rule] if envelope.scope.rule else [],
         suggested_actions=list(envelope.suggested_actions),
+        insights=list(envelope.insights),
+        estimates=estimates_of(envelope.insights),
     )
 
 
@@ -362,6 +396,7 @@ def verify_prose(
     allowed, ids, labels = allowed_numbers(comp, as_of), known_ids(comp), known_labels(comp)
     for estimate in estimates:
         allowed |= {_norm(m) for m in _NUMBER.findall(_fold(estimate))}
+    days = allowed_month_days(comp, estimates)
     is_answer = comp.outcome == "answer"
     judges_software = is_answer and any("#software[" in item.ref for item in comp.evidence)
     required = number_tokens(comp.fallback_headline)
@@ -376,6 +411,7 @@ def verify_prose(
             max_chars=policy.MAX_HEADLINE_CHARS,
         )
         found += claim_problems(headline, estimates=estimates)
+        found += date_problems(headline, days)
         if is_answer and _CLAIM_WORD.search(_fold(headline)):
             found.append("claim_word")
         if judges_software and _JUDGMENT_WORD.search(_fold(headline)):
@@ -397,6 +433,7 @@ def verify_prose(
             max_chars=policy.MAX_EXPLANATION_CHARS,
         )
         found += claim_problems(explanation, estimates=estimates)
+        found += date_problems(explanation, days)
         if sentence_count(explanation) > policy.MAX_EXPLANATION_SENTENCES:
             found.append("too_many_sentences")
         if serials_in(explanation, shown_serials(comp)):

@@ -5,6 +5,7 @@ import pytest
 
 from fleet_copilot.config import REPO_ROOT
 from fleet_copilot.domain.windows import STALE_AFTER
+from fleet_copilot.fleet import health
 from fleet_copilot.fleet import queries as q
 from fleet_copilot.repository import FleetRepository, TenantContext, dataset_as_of
 
@@ -144,3 +145,45 @@ def test_product_defaults_match_the_golden_policy():
     assert default(q.memory_trend, "threshold_pct") == policy["memory_used_pct_at_least"][0]
     assert STALE_AFTER.total_seconds() / 3600 == policy["stale_hours"]
     assert policy["windows_days"] == [7, 30]
+
+
+def _by_device(result):
+    return {f.device_id: f for f in result.findings}
+
+
+@pytest.mark.parametrize("tenant", TENANTS)
+def test_battery_insight_agrees_with_the_oracle(real_conn, tenant):
+    want = GOLDEN["tenants"][tenant]["battery_insight"]
+    got = _by_device(q.battery_overview(repo_for(real_conn, tenant), dataset_as_of(real_conn), 30))
+    for device, expected in want["devices"].items():
+        if device not in got:
+            assert expected["severity"] == "ok", device
+            continue
+        values = got[device].values
+        assert values["severity"] == expected["severity"], device
+        assert values["service_streak"] == expected["service_streak"]
+        assert values["fit"]["n"] == expected["readings"]
+        assert values["rate_per_day"] == pytest.approx(expected["slope_per_day"], abs=1e-4)
+        projection = values["projection"]
+        assert projection["status"] == expected["status"], device
+        for key in ("estimate", "earliest", "latest"):
+            assert projection[key] == expected[key], (device, key)
+    needs = sorted(d for d, f in got.items() if f.values["severity"] != "ok")
+    assert needs == want["needs_attention"]
+    assert (
+        sorted(d for d, f in got.items() if f.values["severity"] == "act_soon") == want["act_soon"]
+    )
+
+
+@pytest.mark.parametrize("tenant", TENANTS)
+def test_fleet_health_agrees_with_the_oracle(real_conn, tenant):
+    want = GOLDEN["tenants"][tenant]["fleet_health"]
+    result = health.fleet_health(repo_for(real_conn, tenant), dataset_as_of(real_conn), 30)
+    worst = {}
+    for f in result.findings:
+        level = f.values["severity"]
+        if worst.get(f.device_id) != "act_soon":
+            worst[f.device_id] = level
+    assert sorted(d for d, level in worst.items() if level == "act_soon") == want["act_soon"]
+    assert sorted(d for d, level in worst.items() if level == "watch") == want["watch"]
+    assert len(worst) == want["devices_needing_attention"]

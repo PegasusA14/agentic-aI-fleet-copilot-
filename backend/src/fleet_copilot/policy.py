@@ -18,6 +18,16 @@ SOFTWARE_WINDOW_DAYS = 30  # "newly installed" looks this far back from the as-o
 REPLACEMENT_MIN_SNAPSHOTS = (
     3  # consecutive "Service Recommended" battery readings to propose a flag
 )
+BATTERY_SERVICE_INDEX = (
+    90.0  # OUR service threshold: 90% of the battery's own first reading in the window
+)
+MIN_FIT_POINTS = 7  # fewest capacity readings a straight-line projection is made from
+PROJECTION_HORIZON_DAYS = (
+    180  # a crossing later than this many days out is "not within the horizon"
+)
+ACT_SOON_PROJECTION_DAYS = (
+    30  # a battery projected to reach the service threshold this soon is act soon
+)
 MEMORY_UPGRADE_FACTOR = 2  # a memory upgrade order multiplies the current total by this
 STORAGE_SIZES_GIB = (256, 512, 1024, 2048)  # the standard sizes a storage upgrade steps through
 UPGRADE_TREND_WINDOW_DAYS = (
@@ -56,6 +66,10 @@ def disclosure() -> dict[str, float | int]:
         "battery_window_days": BATTERY_WINDOW_DAYS,
         "software_window_days": SOFTWARE_WINDOW_DAYS,
         "replacement_min_snapshots": REPLACEMENT_MIN_SNAPSHOTS,
+        "battery_service_index": BATTERY_SERVICE_INDEX,
+        "min_fit_points": MIN_FIT_POINTS,
+        "projection_horizon_days": PROJECTION_HORIZON_DAYS,
+        "act_soon_projection_days": ACT_SOON_PROJECTION_DAYS,
         "memory_upgrade_factor": MEMORY_UPGRADE_FACTOR,
         "upgrade_trend_window_days": UPGRADE_TREND_WINDOW_DAYS,
     }

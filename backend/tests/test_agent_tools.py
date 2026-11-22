@@ -148,6 +148,7 @@ def test_tools_expose_enumerated_bounded_inputs_and_no_tenant_arguments():
         "find_devices",
         "device_history",
         "software_inventory",
+        "fleet_health",
         "create_upgrade_order",
         "open_remediation_ticket",
         "flag_device_for_replacement",

@@ -546,6 +546,16 @@ def _battery(rec: ToolRecord) -> Presentation:
         clauses.append(
             f"{_word(servicing)} {'has' if servicing == 1 else 'have'} a Service Recommended flag"
         )
+    scope = _plain_scope(
+        rec, "with no wear signal", basis=f"last {days} days of snapshots", thin=True
+    )
+    if scope.ok:
+        clauses_text = _sentence(clauses)
+        rest = f"{_word(scope.ok)[0].upper()}{_word(scope.ok)[1:]} {noun(scope.ok, 'laptop')} show no meaningful decline."
+        summary = f"{clauses_text} {rest}" if clauses_text else rest
+        summary = summary if len(summary) <= MAX_SUMMARY_CHARS else clauses_text
+    else:
+        summary = _sentence(clauses)
     return Presentation(
         order=_order(rows),
         table=_table(
@@ -558,10 +568,18 @@ def _battery(rec: ToolRecord) -> Presentation:
             rows,
             SortSpec(key="capacity", direction="asc"),
         ),
-        summary=_sentence(clauses),
+        summary=summary,
+        scope=scope,
+    )
+
+
+def _fleet_health(rec: ToolRecord) -> Presentation:
+    """No table: the insight cards are the list. Just the counts behind the footer line."""
+    days = rec.args.get("window_days") or policy.BATTERY_WINDOW_DAYS
+    return Presentation(
         scope=_plain_scope(
-            rec, "with no wear signal", basis=f"last {days} days of snapshots", thin=True
-        ),
+            rec, "with nothing to flag", basis=f"last {days} days of snapshots", thin=True
+        )
     )
 
 
@@ -823,6 +841,7 @@ _BUILDERS: dict[str, Callable[[ToolRecord], Presentation]] = {
     "trend": _trend,
     "find_devices": _find,
     "software_inventory": _software,
+    "fleet_health": _fleet_health,
 }
 # Tools whose list answers offer actions: a finding there means something may need doing.
 ADVISABLE_TOOLS = frozenset(
@@ -916,6 +935,8 @@ def _scope_only(rec: ToolRecord) -> ScopeParts:
         )
     if rec.tool == "find_devices":
         return ScopeParts(rec.population, 0, None, "", 0, _LATEST_SNAPSHOT)
+    if rec.tool == "fleet_health":
+        return _fleet_health(rec).scope  # type: ignore[return-value]
     if rec.tool == "trend":
         metric = rec.args.get("metric")
         days = rec.args.get("window_days") or {

@@ -7,10 +7,17 @@ from datetime import datetime
 from typing import Any
 
 from fleet_copilot import policy
-from fleet_copilot.domain.battery import BatteryReading, battery_signals
+from fleet_copilot.domain.battery import (
+    BatteryReading,
+    BatterySignals,
+    battery_severity,
+    battery_signals,
+    capacity_index,
+    fit_capacity_index,
+)
 from fleet_copilot.domain.metrics import free_pct, used_pct
 from fleet_copilot.domain.osversion import macos_older_than
-from fleet_copilot.domain.trends import classify_breach_trend, classify_compliance
+from fleet_copilot.domain.trends import MIN_SNAPSHOTS, classify_breach_trend, classify_compliance
 from fleet_copilot.domain.windows import is_stale, window_start
 from fleet_copilot.repository import Device, FleetRepository, Snapshot
 from fleet_copilot.timeutil import iso_z
@@ -375,16 +382,67 @@ def compliance_trend(
     )
 
 
+def _battery_insight_values(
+    snaps: list[Snapshot], signals: BatterySignals, as_of: datetime
+) -> dict[str, Any]:
+    """The capacity index series, its straight-line fit, the estimate and the severity for one battery."""
+    readings = [
+        BatteryReading(
+            s.collected_at,
+            s.battery.condition,
+            s.battery.cycle_count,
+            s.battery.full_charge_capacity,
+        )
+        for s in snaps
+    ]
+    index = capacity_index(readings)
+    fitted = fit_capacity_index(index, as_of)
+    projection = fitted.projection
+    severity = battery_severity(
+        service_streak=signals.service_streak,
+        capacity_change_pct=signals.capacity_change_pct,
+        projection=projection,
+    )
+    return {
+        "severity": severity,
+        "index_series": [{"at": iso_z(at), "value": round(value, 3)} for at, value in index],
+        "rate_per_day": fitted.rate_per_day,
+        "fit": None
+        if fitted.fit is None
+        else {
+            "slope_per_day": fitted.fit.slope,
+            "r2": fitted.fit.r2,
+            "residual_sd": fitted.fit.residual_sd,
+            "n": fitted.fit.n,
+        },
+        "projection": {
+            "status": projection.status,
+            "estimate": None if projection.estimate is None else projection.estimate.isoformat(),
+            "earliest": None if projection.earliest is None else projection.earliest.isoformat(),
+            "latest": None if projection.latest is None else projection.latest.isoformat(),
+            "days_to_estimate": projection.days_to_estimate,
+        },
+        "service_index": policy.BATTERY_SERVICE_INDEX,
+    }
+
+
 def battery_overview(
     repo: FleetRepository,
     as_of: datetime,
     window_days: int = policy.BATTERY_WINDOW_DAYS,
     only_devices: Collection[str] | None = None,
 ) -> QueryResult:
+    """Battery wear per laptop: capacity against its own first reading, a fitted rate and an estimate.
+
+    A laptop with fewer than `MIN_SNAPSHOTS` battery readings in the window is excluded as having
+    insufficient history. A laptop is a finding when its capacity is down more than `BATTERY_DECLINE_PCT`,
+    it carries a Service Recommended flag, or its severity is not "ok".
+    """
     since = window_start(as_of, window_days)
     laptops = [d for d in _devices(repo, only_devices) if d.form_factor == "laptop"]
-    findings, no_reading, missing_latest, stale = [], [], [], []
+    findings, no_reading, thin, missing_latest, stale = [], [], [], [], []
     detail: dict[str, tuple[str, str]] = {}
+    thin_detail: dict[str, tuple[str, str]] = {}
     for device in laptops:
         newest = repo.latest(device.device_id)
         if newest is not None and newest.battery is None:
@@ -400,6 +458,14 @@ def battery_overview(
             continue
         if is_stale(snaps[-1].collected_at, as_of):
             stale.append(device.device_id)
+        if len(snaps) < MIN_SNAPSHOTS:
+            thin.append(device.device_id)
+            n = len(snaps)
+            thin_detail[device.device_id] = (
+                device.hostname,
+                f"Only {n} battery {'reading' if n == 1 else 'readings'} in the window",
+            )
+            continue
         signals = battery_signals(
             [
                 BatteryReading(
@@ -411,11 +477,12 @@ def battery_overview(
                 for s in snaps
             ]
         )
+        insight = _battery_insight_values(snaps, signals, as_of)
         declining = (
             signals.capacity_change_pct is not None
             and signals.capacity_change_pct < -policy.BATTERY_DECLINE_PCT
         )
-        if declining or signals.service_streak > 0:
+        if declining or signals.service_streak > 0 or insight["severity"] != "ok":
             # cite what each value rests on: the two readings the capacity change was measured between,
             # the latest reading (cycles, condition) and the snapshot where the service streak began
             with_capacity = [s for s in snaps if s.battery.full_charge_capacity is not None]
@@ -437,12 +504,20 @@ def battery_overview(
                         else iso_z(signals.first_service_at),
                         "readings": signals.readings,
                         "latest_reading_at": iso_z(snaps[-1].collected_at),
+                        **insight,
                     },
                     tuple(dict.fromkeys(str(s.ref("battery")) for s in cited)),
                 )
             )
     findings.sort(key=lambda f: f.device_id)
-    excluded = {"no_reading": tuple(sorted(no_reading))} if no_reading else {}
+    excluded: dict[str, tuple[str, ...]] = {}
+    excluded_detail: dict[str, dict[str, tuple[str, str]]] = {}
+    if thin:
+        excluded["insufficient_history"] = tuple(sorted(thin))
+        excluded_detail["insufficient_history"] = thin_detail
+    if no_reading:
+        excluded["no_reading"] = tuple(sorted(no_reading))
+        excluded_detail["no_reading"] = detail
     return QueryResult(
         tuple(findings),
         len(laptops),
@@ -451,7 +526,7 @@ def battery_overview(
         excluded=excluded,
         stale=tuple(sorted(stale)),
         missing_latest=tuple(sorted(missing_latest)),
-        excluded_detail={"no_reading": detail} if detail else {},
+        excluded_detail=excluded_detail,
     )
 
 
