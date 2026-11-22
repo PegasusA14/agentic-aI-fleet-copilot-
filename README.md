@@ -227,8 +227,9 @@ Each conversation keeps its own memory in the saved agent state, so reopening a 
   tool argument or a citation.
 - **Scope.** Memory belongs to one conversation of one administrator. Nothing carries over between
   conversations or companies.
-- **Removing notes.** Say "forget that" to remove the last note, or list and remove any note through
-  `GET /api/conversations/{id}/notes` and `DELETE /api/conversations/{id}/notes/{index}`.
+- **Removing notes.** Say "forget that" to remove the last note, or open **Remembered · N notes** above the
+  composer to see and remove any of them (the same as `GET /api/conversations/{id}/notes` and
+  `DELETE /api/conversations/{id}/notes/{index}`).
 
 ## Tool catalog
 
