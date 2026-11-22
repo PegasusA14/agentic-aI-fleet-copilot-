@@ -10,7 +10,7 @@ from model_support import FakeChatModel
 
 from fleet_copilot.agent.chat_gateway import ChatGateway, ModelUnavailable
 from fleet_copilot.agent.gateways import build_gateway, build_live_gateway
-from fleet_copilot.agent.llm import ContentFiltered, Plan
+from fleet_copilot.agent.llm import ContentFiltered, Explanation, Plan
 from fleet_copilot.agent.providers import ADAPTERS, ProviderAdapter
 from fleet_copilot.agent.tools import TOOLS
 from fleet_copilot.config import ModelSettings
@@ -382,3 +382,164 @@ async def test_a_model_that_returns_no_structured_plan_is_still_rejected(adapter
     gw, _ = gateway(FakeChatModel([None]), adapter)
     with pytest.raises(PlanRejected):
         await gw.plan(MESSAGES)
+
+
+# ---- reasoning models and the reply model -----------------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "o1",
+        "o1-mini",
+        "o3-mini",
+        "O3-Mini",
+        "o4-mini",
+        "gpt-5",
+        "gpt-5-mini",
+        "GPT-5.1",
+        "openai/o3-mini",
+        "openai/gpt-5",
+        "openrouter/OpenAI/O1-preview",
+    ],
+)
+def test_reasoning_model_names_take_no_temperature(name):
+    for adapter in ADAPTERS.values():
+        assert adapter.supports_temperature(name) is False
+
+
+@pytest.mark.parametrize(
+    "name",
+    [
+        "gpt-4o",
+        "gpt-4o-mini",
+        "gpt-4.1",
+        "openai/gpt-4o-mini",
+        "anthropic/claude-sonnet",
+        "my-deployment",
+    ],
+)
+def test_other_model_names_take_a_temperature(name):
+    for adapter in ADAPTERS.values():
+        assert adapter.supports_temperature(name) is True
+
+
+@pytest.mark.parametrize("provider", list(ADAPTERS))
+def test_the_temperature_is_left_out_for_a_reasoning_model_and_kept_otherwise(provider):
+    adapter = ADAPTERS[provider]
+    settings = adapter.settings_from_env(ENVS[provider])
+    kept = adapter.build_model(adapter.with_model(settings, "gpt-4o"), temperature=0.4, timeout=5.0)
+    left_out = adapter.build_model(
+        adapter.with_model(settings, "o3-mini"), temperature=0.4, timeout=5.0
+    )
+    assert kept.temperature == 0.4
+    assert left_out.temperature is None
+    assert "temperature" not in left_out._default_params
+
+
+@pytest.mark.parametrize("provider", list(ADAPTERS))
+def test_with_model_changes_only_the_model(provider):
+    adapter = ADAPTERS[provider]
+    settings = adapter.settings_from_env(ENVS[provider])
+    other = adapter.with_model(settings, "other-model")
+    assert other.label == "other-model"
+    assert other.api_key is settings.api_key or other.api_key == settings.api_key
+    assert KEY not in repr(other)
+    assert settings.label != "other-model"
+
+
+def model_settings(provider, tmp_path, **kw):
+    env = {**ENVS[provider], "FLEET_MODEL_MODE": "live", "FLEET_MODEL_PROVIDER": provider, **kw}
+    return ModelSettings.from_env({**env, "FLEET_CASSETTE_PATH": str(tmp_path / "c.jsonl")})
+
+
+@pytest.mark.parametrize("provider", list(ADAPTERS))
+def test_the_reply_model_is_the_main_model_by_default(provider, tmp_path):
+    gw = build_live_gateway(model_settings(provider, tmp_path))
+    assert gw._explain is not None and gw._reply_model is gw._model
+
+
+@pytest.mark.parametrize("provider", list(ADAPTERS))
+def test_a_separate_reply_model_is_built_on_the_same_provider(provider, tmp_path):
+    gw = build_live_gateway(model_settings(provider, tmp_path, FLEET_REPLY_MODEL="gpt-4.1"))
+    assert gw._reply_model is not gw._model
+    assert type(gw._reply_model) is type(gw._model)
+    name = lambda m: getattr(m, "deployment_name", None) or m.model_name  # noqa: E731
+    assert name(gw._reply_model) == "gpt-4.1" and name(gw._model) != "gpt-4.1"
+    assert gw._reply_model.openai_api_key.get_secret_value() == KEY
+
+
+def test_the_reply_temperature_alone_builds_a_second_model(tmp_path):
+    gw = build_live_gateway(
+        model_settings(
+            "openai", tmp_path, FLEET_MODEL_TEMPERATURE="0.1", FLEET_REPLY_TEMPERATURE="0.7"
+        )
+    )
+    assert gw._model.temperature == 0.1 and gw._reply_model.temperature == 0.7
+
+
+def test_the_reply_temperature_defaults_to_the_main_one(tmp_path):
+    gw = build_live_gateway(
+        model_settings(
+            "openai", tmp_path, FLEET_MODEL_TEMPERATURE="0.1", FLEET_REPLY_MODEL="gpt-4o"
+        )
+    )
+    assert gw._model.temperature == 0.1 and gw._reply_model.temperature == 0.1
+
+
+def test_a_reasoning_model_on_either_step_is_built_without_temperature(tmp_path):
+    gw = build_live_gateway(
+        model_settings(
+            "openai",
+            tmp_path,
+            OPENAI_MODEL="o4-mini",
+            FLEET_MODEL_TEMPERATURE="0.3",
+            FLEET_REPLY_MODEL="gpt-4o-mini",
+        )
+    )
+    assert gw._model.temperature is None and gw._reply_model.temperature == 0.3
+    gw = build_live_gateway(
+        model_settings(
+            "openai", tmp_path, FLEET_MODEL_TEMPERATURE="0.3", FLEET_REPLY_MODEL="openai/o3-mini"
+        )
+    )
+    assert gw._model.temperature == 0.3 and gw._reply_model.temperature is None
+
+
+@pytest.mark.parametrize("method", ["explain", "reply"])
+async def test_explain_uses_the_reply_model_and_plan_and_act_the_main_one(method):
+    main = FakeChatModel([PLAN, AIMessage("looked"), PLAN])
+    reply = FakeChatModel([Explanation(headline="Done.")])
+    gw = ChatGateway(main, reply_model=reply)
+    await gw.plan(MESSAGES)
+    await gw.act(MESSAGES)
+    result = await getattr(gw, method)(MESSAGES)
+    assert result.headline == "Done."
+    assert [label for label, _ in main.calls] == ["Plan", "act"]
+    assert [label for label, _ in reply.calls] == ["Explanation"]
+    assert reply.bound_tools is None
+
+
+async def test_explain_uses_the_main_model_without_a_reply_model():
+    main = FakeChatModel([Explanation(headline="Done.")])
+    await ChatGateway(main).explain(MESSAGES)
+    assert [label for label, _ in main.calls] == ["Explanation"]
+
+
+async def test_the_reply_model_gets_the_same_retries_and_error_mapping(adapter):
+    request = httpx.Request("POST", "https://example.invalid")
+    main = FakeChatModel([])
+    reply = FakeChatModel([openai.APITimeoutError(request=request), Explanation(headline="Done.")])
+    gw, slept = gateway(main, adapter, reply_model=reply)
+    assert (await gw.explain(MESSAGES)).headline == "Done."
+    assert len(slept) == 1 and main.calls == []
+
+    refused = status_error(openai.BadRequestError, 400, body={"code": "content_filter"})
+    gw, _ = gateway(main, adapter, reply_model=FakeChatModel([refused]))
+    with pytest.raises(ContentFiltered):
+        await gw.explain(MESSAGES)
+
+    gw, _ = gateway(main, adapter, reply_model=FakeChatModel([ValueError("secret text")]))
+    with pytest.raises(ModelUnavailable) as err:
+        await gw.explain(MESSAGES)
+    assert err.value.reason == "ValueError" and "secret" not in str(err.value)

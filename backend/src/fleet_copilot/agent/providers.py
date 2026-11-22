@@ -1,8 +1,8 @@
 """Model providers. Each is one adapter in `ADAPTERS`; nothing else in the product names a provider.
 
 An adapter knows four things about its provider: which environment variables configure it, how to turn them
-into settings (validated, the key held as a `SecretStr`), how to build the LangChain chat model, and how to
-sort the errors a call can raise. The gateway, the settings loader, `doctor` and the evaluation entry point
+into settings (validated, the key held as a `SecretStr`), how to build the LangChain chat model (leaving out
+the temperature for a model that rejects it), and how to sort the errors a call can raise. The gateway, the settings loader, `doctor` and the evaluation entry point
 only use that interface, so adding a provider is adding an adapter here.
 
 Azure OpenAI, OpenAI and OpenRouter all speak the OpenAI chat API, so they share the same error rules, and
@@ -13,7 +13,7 @@ an endpoint in `repr`, and every message here names variables, never their value
 from __future__ import annotations
 
 from collections.abc import Mapping
-from dataclasses import dataclass, field
+from dataclasses import dataclass, field, replace
 from typing import Any, Literal, Protocol, runtime_checkable
 
 import openai
@@ -43,6 +43,17 @@ _REFUSAL_WORDS = (
     "moderation",
     "safety system",
 )
+
+# Model families that reject a sampling temperature (OpenAI's reasoning models). A model name that starts
+# with one of these, in any case and after any provider prefix such as "openai/", is built without it. An
+# Azure deployment under a custom name cannot be recognised this way; name it after its model family.
+REASONING_MODEL_PREFIXES = ("o1", "o3", "o4", "gpt-5")
+
+
+def accepts_temperature(model_name: str) -> bool:
+    """False for the reasoning model families in `REASONING_MODEL_PREFIXES`, True for every other name."""
+    bare = model_name.strip().lower().rsplit("/", 1)[-1]
+    return not bare.startswith(REASONING_MODEL_PREFIXES)
 
 
 # ---- settings ---------------------------------------------------------------------------------------
@@ -93,8 +104,17 @@ class ProviderAdapter(Protocol):
     def settings_from_env(self, env: Mapping[str, str]) -> ProviderSettings:
         """Validated settings; raises `ConfigError` naming the variables at fault, never their values."""
 
+    def with_model(self, settings: Any, model: str) -> ProviderSettings:
+        """The same settings pointing at another model (an Azure deployment) on the same provider."""
+
+    def supports_temperature(self, model_name: str) -> bool:
+        """Whether this model takes a sampling temperature. `build_model` leaves it out when not."""
+
     def build_model(self, settings: Any, *, temperature: float, timeout: float) -> Any:
-        """The LangChain chat model. No network call happens until it is used."""
+        """The LangChain chat model. No network call happens until it is used.
+
+        The temperature is left out when `supports_temperature(settings.label)` is False.
+        """
 
     def classify_error(self, exc: BaseException) -> ErrorKind: ...
 
@@ -120,7 +140,10 @@ def _https(name: str, value: str) -> str:
 
 
 class _OpenAIFamily:
-    """Error rules shared by every provider that speaks the OpenAI chat API."""
+    """Error and temperature rules shared by every provider that speaks the OpenAI chat API."""
+
+    def supports_temperature(self, model_name: str) -> bool:
+        return accepts_temperature(model_name)
 
     def classify_error(self, exc: BaseException) -> ErrorKind:
         if isinstance(exc, _RETRYABLE):
@@ -173,6 +196,9 @@ class AzureAdapter(_OpenAIFamily):
             deployment=values["AZURE_OPENAI_DEPLOYMENT"],
         )
 
+    def with_model(self, settings: AzureSettings, model: str) -> AzureSettings:
+        return replace(settings, deployment=model)
+
     def build_model(self, settings: AzureSettings, *, temperature: float, timeout: float) -> Any:
         from langchain_openai import AzureChatOpenAI
 
@@ -181,7 +207,7 @@ class AzureAdapter(_OpenAIFamily):
             azure_endpoint=settings.endpoint,
             api_version=settings.api_version,
             api_key=settings.api_key,
-            temperature=temperature,
+            temperature=temperature if self.supports_temperature(settings.label) else None,
             timeout=timeout,
             max_retries=0,  # retries are ours: bounded, counted and covered by the turn deadline
         )
@@ -248,6 +274,11 @@ class OpenAICompatibleAdapter(_OpenAIFamily):
             headers=headers,
         )
 
+    def with_model(
+        self, settings: OpenAICompatibleSettings, model: str
+    ) -> OpenAICompatibleSettings:
+        return replace(settings, model=model)
+
     def build_model(
         self, settings: OpenAICompatibleSettings, *, temperature: float, timeout: float
     ) -> Any:
@@ -258,7 +289,7 @@ class OpenAICompatibleAdapter(_OpenAIFamily):
             model=settings.model,
             base_url=settings.base_url,  # always given, so an endpoint in the environment never wins
             default_headers=dict(settings.headers) or None,
-            temperature=temperature,
+            temperature=temperature if self.supports_temperature(settings.label) else None,
             timeout=timeout,
             max_retries=0,
         )

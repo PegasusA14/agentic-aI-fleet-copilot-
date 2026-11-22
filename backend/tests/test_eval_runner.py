@@ -417,9 +417,11 @@ async def test_the_report_records_the_provider_model_label_and_temperature(
         ScriptedLLM(**low_disk_script()),
         provider="openrouter",
         model_name="gpt-4o-2024-11-20",
+        reply_model_name="gpt-4o-mini",
         temperature=0.2,
     )
     report = result.to_dict()
+    assert report["reply_model_name"] == "gpt-4o-mini"
     assert report["model_name"] == "gpt-4o-2024-11-20" and report["temperature"] == 0.2
     assert report["provider"] == "openrouter"
 
@@ -596,7 +598,24 @@ def test_a_live_run_records_the_provider_and_model_in_its_report(
     report = json.loads(next((tmp_path / "reports").glob("*.json")).read_text())
     assert report["provider"] == "openrouter" and report["model_name"] == "openai/gpt-4o-mini"
     assert report["temperature"] == 0.1 and report["model_mode"] == "eval-live"
+    assert report["reply_model_name"] == "openai/gpt-4o-mini"  # the main model writes replies too
     assert "sk-or-not-real" not in json.dumps(report)
+
+
+def test_a_live_run_records_the_reply_model_next_to_the_model(
+    tmp_path, scenarios, real_db_path, monkeypatch
+):
+    suite_file(scenarios, "grounding", [low_disk_case("right", {"outcome": "answer"})])
+    cli = cli_setup(monkeypatch, tmp_path, real_db_path, scenarios)
+    monkeypatch.setattr(cli, "build_live_gateway", lambda models: ScriptedLLM())
+    monkeypatch.setenv("FLEET_MODEL_PROVIDER", "openrouter")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-not-real")
+    monkeypatch.setenv("OPENROUTER_MODEL", "openai/gpt-4o-mini")
+    monkeypatch.setenv("FLEET_REPLY_MODEL", "openai/gpt-4o")
+    cli.main(["run", "--live"])
+    report = json.loads(next((tmp_path / "reports").glob("*.json")).read_text())
+    assert report["model_name"] == "openai/gpt-4o-mini"
+    assert report["reply_model_name"] == "openai/gpt-4o"
 
 
 def test_a_replay_run_records_no_provider(tmp_path, scenarios, real_db_path, monkeypatch):
@@ -605,6 +624,7 @@ def test_a_replay_run_records_no_provider(tmp_path, scenarios, real_db_path, mon
     cli.main(["run"])
     report = json.loads(next((tmp_path / "reports").glob("*.json")).read_text())
     assert report["provider"] is None and report["model_name"] is None
+    assert report["reply_model_name"] is None
 
 
 async def test_a_stale_dataset_stops_the_run_before_any_case(tmp_path, scenarios, stores):

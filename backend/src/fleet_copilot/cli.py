@@ -117,6 +117,33 @@ def _db_state(db_path: Path) -> str:
     return "present" if current else "stale (run make load-data)"
 
 
+def _model_lines(models: ModelSettings) -> list[str]:
+    """Which model each step uses and whether it is sent a temperature. Model names, never secrets."""
+    if models.provider_settings is None:
+        return ["model: not used in replay mode"]
+    adapter = ADAPTERS[models.provider]
+    main = models.provider_settings.label
+    reply = models.reply_model or main
+
+    def line(role: str, name: str, steps: str, temperature: float) -> str:
+        sent = (
+            f"temperature {temperature:g} sent"
+            if adapter.supports_temperature(name)
+            else "temperature not sent"
+        )
+        return f"{role}: {name} ({steps}, {sent})"
+
+    return [
+        line("model", main, "plan and act", models.temperature),
+        line(
+            "reply model",
+            reply,
+            "reply" if models.reply_model else "reply, same as model",
+            models.effective_reply_temperature,
+        ),
+    ]
+
+
 def _doctor(args: argparse.Namespace) -> int:
     settings = Settings.from_env()
     healthy = True
@@ -142,6 +169,8 @@ def _doctor(args: argparse.Namespace) -> int:
     except ConfigError as exc:
         print(f"settings: {exc}")
         return 1
+    for line in _model_lines(models):
+        print(line)
     cassette = Path(models.cassette_path)
     entries = len(cassette.read_text().splitlines()) if cassette.exists() else 0
     print(f"cassette: {entries} recorded responses")

@@ -39,6 +39,7 @@ class ChatGateway:
         self,
         model: Any,
         *,
+        reply_model: Any = None,
         adapter: ProviderAdapter | None = None,
         attempts: int = policy.MODEL_ATTEMPTS,
         call_timeout_s: float = policy.MODEL_CALL_TIMEOUT_S,
@@ -52,7 +53,11 @@ class ChatGateway:
         self._backoff_s = tuple(backoff_s) or (0.0,)
         self._sleep = sleep
         self._plan = model.with_structured_output(Plan, method="function_calling")
-        self._explain = model.with_structured_output(Explanation, method="function_calling")
+        # The reply step may run on its own model; every other step, and every call, is handled alike.
+        self._reply_model = reply_model or model
+        self._explain = self._reply_model.with_structured_output(
+            Explanation, method="function_calling"
+        )
         self._tools = tools
         self._model = model
         self._act = model.bind_tools(tools)
@@ -112,7 +117,10 @@ class ChatGateway:
         return result
 
     async def explain(self, messages: list[BaseMessage]) -> Explanation:
+        """The reply step: uses the reply model when there is one, else the main model."""
         result = await self._call(self._explain, messages)
         if not isinstance(result, Explanation):
             raise ModelUnavailable("bad_structured_output")
         return result
+
+    reply = explain  # the name the conversational reply step will use

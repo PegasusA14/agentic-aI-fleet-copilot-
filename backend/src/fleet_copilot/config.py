@@ -62,18 +62,26 @@ class Settings:
         return self.state_dir or self.db_path.parent
 
 
-def _temperature(raw: str | None) -> float:
-    """`FLEET_MODEL_TEMPERATURE`: a number from 0 to 1, default 0. The message never repeats the value."""
+def _temperature(name: str, raw: str | None) -> float | None:
+    """A temperature variable: a number from 0 to 1, None when blank. The message never repeats the value."""
     text = (raw or "").strip()
     if not text:
-        return 0.0
+        return None
     try:
         value = float(text)
     except ValueError:
-        raise ConfigError("FLEET_MODEL_TEMPERATURE must be a number from 0 to 1") from None
+        raise ConfigError(f"{name} must be a number from 0 to 1") from None
     if not 0.0 <= value <= 1.0:  # also false for nan
-        raise ConfigError("FLEET_MODEL_TEMPERATURE must be a number from 0 to 1")
+        raise ConfigError(f"{name} must be a number from 0 to 1")
     return value
+
+
+def _reply_model(raw: str | None) -> str | None:
+    """`FLEET_REPLY_MODEL`: a model or deployment name on the same provider, None when blank."""
+    text = (raw or "").strip()
+    if text and not text.isprintable():
+        raise ConfigError("FLEET_REPLY_MODEL must be a single line of text")
+    return text or None
 
 
 @dataclass(frozen=True)
@@ -85,8 +93,21 @@ class ModelSettings:
     temperature: float = 0.0
     # A label for the model behind the provider, recorded with eval runs. It never picks the model.
     model_name: str | None = field(default=None, repr=False)
+    # The model (an Azure deployment) for the reply step, on the same provider. None means the main model.
+    reply_model: str | None = field(default=None, repr=False)
+    # None means the main temperature.
+    reply_temperature: float | None = None
     provider: str = "azure"  # a key of `agent.providers.ADAPTERS`
     provider_settings: ProviderSettings | None = None  # set in live mode, validated by the adapter
+
+    @property
+    def reply_model_name(self) -> str | None:
+        """The label of the model that writes replies: the reply model, else the main model's label."""
+        return self.reply_model or self.model_name
+
+    @property
+    def effective_reply_temperature(self) -> float:
+        return self.temperature if self.reply_temperature is None else self.reply_temperature
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> ModelSettings:
@@ -99,7 +120,11 @@ class ModelSettings:
         )  # local imports: policy has no dependencies and the providers import this module
         from fleet_copilot.agent.providers import ADAPTERS, provider_from_env
 
-        temperature = _temperature(env.get("FLEET_MODEL_TEMPERATURE"))
+        temperature = _temperature("FLEET_MODEL_TEMPERATURE", env.get("FLEET_MODEL_TEMPERATURE"))
+        reply_temperature = _temperature(
+            "FLEET_REPLY_TEMPERATURE", env.get("FLEET_REPLY_TEMPERATURE")
+        )
+        reply_model = _reply_model(env.get("FLEET_REPLY_MODEL"))
         label = (env.get("FLEET_MODEL_NAME") or "").strip() or None
         provider = provider_from_env(env)
         credentials = ADAPTERS[provider].settings_from_env(env) if raw_mode == "live" else None
@@ -112,7 +137,9 @@ class ModelSettings:
             cassette_path=Path(cassette),
             record=record,
             call_timeout_s=policy.MODEL_CALL_TIMEOUT_S,
-            temperature=temperature,
+            temperature=0.0 if temperature is None else temperature,
+            reply_temperature=reply_temperature,
+            reply_model=reply_model,
             model_name=label or (credentials.label if credentials else None),
             provider=provider,
             provider_settings=credentials,

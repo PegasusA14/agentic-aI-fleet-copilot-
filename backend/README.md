@@ -46,6 +46,12 @@ never be on for tenant data.
 Optional model parameters: `FLEET_MODEL_TEMPERATURE` (0 to 1, default 0) and `FLEET_MODEL_NAME` (a label
 recorded with eval runs, default the deployment or model name; it does not change which model is called).
 
+The reply step can run on its own model: `FLEET_REPLY_MODEL` names a model (an Azure deployment) on the same
+provider and `FLEET_REPLY_TEMPERATURE` its temperature (0 to 1); both default to the main model's. Planning and
+tool calls always use the main model. A model whose name starts with `o1`, `o3`, `o4` or `gpt-5` (after any
+`provider/` prefix) is built without a temperature, since those models reject one; `make doctor` shows each
+model and whether it is sent a temperature.
+
 Other variables: `FLEET_DATA_PATH`, `FLEET_DB_PATH`, `FLEET_STATE_DIR`, `FLEET_PORT`, `FLEET_ALLOWED_ORIGINS`,
 `FLEET_SESSION_SECRET`, `FLEET_OPERATOR_PASSCODE`.
 

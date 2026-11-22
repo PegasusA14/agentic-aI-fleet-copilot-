@@ -22,7 +22,18 @@ def build_live_gateway(settings: ModelSettings) -> ChatGateway:
         temperature=settings.temperature,
         timeout=settings.call_timeout_s,
     )
-    return ChatGateway(model, adapter=adapter, call_timeout_s=settings.call_timeout_s)
+    reply_model = None
+    reply_name = settings.reply_model or settings.provider_settings.label
+    reply_temperature = settings.effective_reply_temperature
+    if reply_name != settings.provider_settings.label or reply_temperature != settings.temperature:
+        reply_model = adapter.build_model(
+            adapter.with_model(settings.provider_settings, reply_name),
+            temperature=reply_temperature,
+            timeout=settings.call_timeout_s,
+        )  # one instance serves both steps when the name and the temperature are the same
+    return ChatGateway(
+        model, reply_model=reply_model, adapter=adapter, call_timeout_s=settings.call_timeout_s
+    )
 
 
 def build_gateway(settings: ModelSettings) -> LLMGateway:

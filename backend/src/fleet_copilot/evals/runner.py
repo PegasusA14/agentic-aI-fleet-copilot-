@@ -124,6 +124,7 @@ class RunResult:
     tokens: dict[str, int] | None = None  # what the model calls of this run cost, when recorded
     provider: str | None = None  # the model provider of a live run
     model_name: str | None = None  # a label for the model behind a live run
+    reply_model_name: str | None = None  # the label of the model that writes replies, same provider
     temperature: float | None = None  # the sampling temperature of a live run
 
     @property
@@ -148,6 +149,7 @@ class RunResult:
             "model_mode": self.model_mode,
             "provider": self.provider,
             "model_name": self.model_name,
+            "reply_model_name": self.reply_model_name,
             "temperature": self.temperature,
             "dataset_sha256": self.dataset_sha256,
             "as_of": self.as_of,
@@ -582,6 +584,7 @@ async def run(
     model_mode: str = "eval-replay",
     provider: str | None = None,
     model_name: str | None = None,
+    reply_model_name: str | None = None,
     temperature: float | None = None,
     now: datetime | None = None,
 ) -> RunResult:
@@ -596,6 +599,7 @@ async def run(
         model_mode=model_mode,
         provider=provider,
         model_name=model_name,
+        reply_model_name=reply_model_name,
         temperature=temperature,
         dataset_sha256=sha,
         as_of=as_of,

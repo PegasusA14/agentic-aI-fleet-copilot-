@@ -56,6 +56,7 @@ Settings are read from a git-ignored `.env`; `.env.example` lists every variable
 | Model mode | `FLEET_MODEL_MODE`: `replay` (default, answers from a recorded cassette, no credentials) or `live` (calls the provider you pick) |
 | Model provider (live mode) | `FLEET_MODEL_PROVIDER`: `azure` (default), `openai` or `openrouter`; see "Pick one provider" below |
 | Model parameters (optional) | `FLEET_MODEL_TEMPERATURE` (0 to 1, default 0), `FLEET_MODEL_NAME` (a label recorded with evaluation runs, default the deployment or model name) |
+| Reply model (optional) | `FLEET_REPLY_MODEL` (a model or Azure deployment on the same provider for the reply step, default the main model), `FLEET_REPLY_TEMPERATURE` (0 to 1, default the main temperature). Reasoning models (names starting o1, o3, o4 or gpt-5) are called without a temperature |
 | API server | `FLEET_PORT`, `FLEET_SESSION_SECRET`, `FLEET_OPERATOR_PASSCODE`, `FLEET_ALLOWED_ORIGINS` |
 | Recording and state | `FLEET_CASSETTE_PATH`, `FLEET_CASSETTE_RECORD`, `FLEET_STATE_DIR` |
 | Paths (optional) | `FLEET_DATA_PATH`, `FLEET_DB_PATH`, `FLEET_STATIC_DIR` |

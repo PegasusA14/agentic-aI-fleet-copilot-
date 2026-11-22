@@ -101,7 +101,7 @@ def test_doctor_for_openai_lists_only_its_variables(monkeypatch, tmp_path, real_
     assert "OPENAI_API_KEY: set" in out and "OPENAI_MODEL: set" in out
     assert "OPENAI_BASE_URL: set" in out
     assert "AZURE" not in out and "OPENROUTER" not in out
-    for value in ("sk-openai-secret-value", "gpt-secret-model", "hidden-gateway", "sk-azure"):
+    for value in ("sk-openai-secret-value", "hidden-gateway", "sk-azure"):
         assert value not in out
 
 
@@ -247,3 +247,54 @@ def test_doctor_reports_a_stale_database(monkeypatch, tmp_path, real_db_path, ca
     code = run(["doctor"], monkeypatch, tmp_path, stale)
     out = capsys.readouterr().out
     assert code == 1 and "dataset db: stale (run make load-data)" in out
+
+
+def live_openai(monkeypatch, **extra):
+    monkeypatch.setenv("FLEET_MODEL_MODE", "live")
+    monkeypatch.setenv("FLEET_MODEL_PROVIDER", "openai")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-openai-secret-value")
+    monkeypatch.setenv("OPENAI_MODEL", "gpt-4o-mini")
+    for name, value in extra.items():
+        monkeypatch.setenv(name, value)
+
+
+def test_doctor_shows_one_model_for_both_steps_by_default(
+    monkeypatch, tmp_path, real_db_path, capsys
+):
+    live_openai(monkeypatch, FLEET_MODEL_TEMPERATURE="0.2")
+    run(["doctor"], monkeypatch, tmp_path, real_db_path)
+    out = capsys.readouterr().out
+    assert "model: gpt-4o-mini (plan and act, temperature 0.2 sent)" in out
+    assert "reply model: gpt-4o-mini (reply, same as model, temperature 0.2 sent)" in out
+    assert "sk-openai-secret-value" not in out
+
+
+def test_doctor_shows_the_reply_model_and_where_temperature_is_left_out(
+    monkeypatch, tmp_path, real_db_path, capsys
+):
+    live_openai(monkeypatch, FLEET_REPLY_MODEL="o3-mini", FLEET_REPLY_TEMPERATURE="0.5")
+    run(["doctor"], monkeypatch, tmp_path, real_db_path)
+    out = capsys.readouterr().out
+    assert "model: gpt-4o-mini (plan and act, temperature 0 sent)" in out
+    assert "reply model: o3-mini (reply, temperature not sent)" in out
+
+
+def test_doctor_marks_a_reasoning_main_model(monkeypatch, tmp_path, real_db_path, capsys):
+    live_openai(monkeypatch, OPENAI_MODEL="gpt-5-mini")
+    run(["doctor"], monkeypatch, tmp_path, real_db_path)
+    assert "model: gpt-5-mini (plan and act, temperature not sent)" in capsys.readouterr().out
+
+
+def test_doctor_in_replay_mode_names_no_model(monkeypatch, tmp_path, real_db_path, capsys):
+    monkeypatch.delenv("FLEET_MODEL_MODE", raising=False)
+    run(["doctor"], monkeypatch, tmp_path, real_db_path)
+    assert "model: not used in replay mode" in capsys.readouterr().out
+
+
+def test_doctor_names_a_bad_reply_temperature_without_its_value(
+    monkeypatch, tmp_path, real_db_path, capsys
+):
+    live_openai(monkeypatch, FLEET_REPLY_TEMPERATURE="7.77")
+    code = run(["doctor"], monkeypatch, tmp_path, real_db_path)
+    out = capsys.readouterr().out
+    assert code == 1 and "FLEET_REPLY_TEMPERATURE" in out and "7.77" not in out

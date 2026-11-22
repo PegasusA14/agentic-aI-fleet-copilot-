@@ -102,6 +102,7 @@ async def _run(args: argparse.Namespace) -> int:
         model_mode=mode,
         provider=models.provider if models else None,
         model_name=models.model_name if models else None,
+        reply_model_name=models.reply_model_name if models else None,
         temperature=models.temperature if models else None,
     )
     print(runner.format_summary(result))

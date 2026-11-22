@@ -301,3 +301,53 @@ def test_temperature_and_the_label_apply_to_every_provider():
     two = live("openrouter", {**OPENROUTER, **extra})
     assert one.temperature == two.temperature == 0.3
     assert one.model_name == two.model_name == "label"
+
+
+# ---- the reply model --------------------------------------------------------------------------------
+
+
+def test_the_reply_model_and_temperature_default_to_the_main_ones():
+    settings = ModelSettings.from_env(
+        {"FLEET_MODEL_MODE": "live", **AZURE, "FLEET_MODEL_TEMPERATURE": "0.3"}
+    )
+    assert settings.reply_model is None and settings.reply_temperature is None
+    assert settings.reply_model_name == "gpt-4o"
+    assert settings.effective_reply_temperature == 0.3
+
+
+def test_a_reply_model_and_temperature_are_read():
+    env = {
+        "FLEET_MODEL_MODE": "live",
+        **AZURE,
+        "FLEET_MODEL_TEMPERATURE": "0.3",
+        "FLEET_REPLY_MODEL": " gpt-4o-mini ",
+        "FLEET_REPLY_TEMPERATURE": "0.6",
+    }
+    settings = ModelSettings.from_env(env)
+    assert settings.reply_model == "gpt-4o-mini" and settings.reply_model_name == "gpt-4o-mini"
+    assert settings.temperature == 0.3 and settings.effective_reply_temperature == 0.6
+    assert "gpt-4o-mini" not in repr(settings)
+
+
+def test_a_blank_reply_model_means_the_main_model():
+    env = {
+        "FLEET_MODEL_MODE": "live",
+        **AZURE,
+        "FLEET_REPLY_MODEL": " ",
+        "FLEET_REPLY_TEMPERATURE": "",
+    }
+    settings = ModelSettings.from_env(env)
+    assert settings.reply_model is None and settings.reply_temperature is None
+
+
+@pytest.mark.parametrize("raw", ["hot", "1.5", "-0.1", "nan", "7.25"])
+def test_a_bad_reply_temperature_names_the_variable_but_not_the_value(raw):
+    with pytest.raises(ConfigError) as err:
+        ModelSettings.from_env({"FLEET_REPLY_TEMPERATURE": raw})
+    assert "FLEET_REPLY_TEMPERATURE" in str(err.value) and raw not in str(err.value)
+
+
+def test_a_reply_model_over_several_lines_is_refused_without_its_text():
+    with pytest.raises(ConfigError) as err:
+        ModelSettings.from_env({"FLEET_REPLY_MODEL": "line1\nsecretline2"})
+    assert "FLEET_REPLY_MODEL" in str(err.value) and "secretline2" not in str(err.value)
