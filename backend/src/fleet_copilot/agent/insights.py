@@ -59,9 +59,19 @@ def estimate_phrase(projection: InsightProjection | None) -> str | None:
     return f"between {day_text(earliest)} and {day_text(latest)}"
 
 
+ACT_SOON_LABEL = "act soon"
+
+
 def estimates_of(insights: Sequence[Insight]) -> list[str]:
-    """The distinct estimate phrases the insights' findings contain, for the prose verifier."""
-    return list(dict.fromkeys(p for p in (estimate_phrase(i.projection) for i in insights) if p))
+    """The code-written phrases the prose gate lets the model repeat verbatim.
+
+    Each date range an insight's finding contains, and the severity label "act soon" when an insight carries
+    it (the label would otherwise read as a prediction). Nothing else that looks forward is let through.
+    """
+    phrases = [p for p in (estimate_phrase(i.projection) for i in insights) if p]
+    if any(i.severity == "act_soon" for i in insights):
+        phrases.append(ACT_SOON_LABEL)
+    return list(dict.fromkeys(phrases))
 
 
 def _clip(text: str, limit: int = MAX_INSIGHT_TEXT_CHARS) -> str:

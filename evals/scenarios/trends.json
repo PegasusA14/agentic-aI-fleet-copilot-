@@ -440,6 +440,59 @@
           }
         }
       ]
+    },
+    {
+      "id": "battery_eol_acme",
+      "user": "admin-acme",
+      "turns": [
+        {
+          "say": [
+            "When will our laptop batteries need replacing?",
+            "battery end of life estimate",
+            "wich laptops r closest to needing a new batery and by when",
+            "Estimate when each laptop battery's capacity will reach our service threshold, and list the ones that need attention first",
+            "Which batteries are on their way out, and roughly how long do they have?"
+          ],
+          "expect": {
+            "outcome": "answer",
+            "devices": {
+              "golden": "acme-001/battery_insight/needs_attention"
+            },
+            "insights_min": 3,
+            "tools_called": [
+              "trend"
+            ],
+            "cites_every_device": true,
+            "no_foreign_data": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "fleet_health_acme",
+      "user": "admin-acme",
+      "turns": [
+        {
+          "say": [
+            "Give me a fleet health summary",
+            "what needs attention?",
+            "wats the state of our fleet, anything i should look at first",
+            "Summarise the health of all our devices across battery, disk, memory and compliance and rank what needs attention",
+            "fleet health overview please"
+          ],
+          "expect": {
+            "outcome": "answer",
+            "devices_include": {
+              "golden": "acme-001/fleet_health/act_soon"
+            },
+            "insights_min": 4,
+            "tools_called": [
+              "fleet_health"
+            ],
+            "no_foreign_data": true
+          }
+        }
+      ]
     }
   ]
 }

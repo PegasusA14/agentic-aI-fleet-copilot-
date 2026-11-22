@@ -15,7 +15,7 @@ from typing import Any, get_args
 
 from fleet_copilot.agent.identity import DEMO_IDENTITIES
 from fleet_copilot.agent.tools import TOOLS
-from fleet_copilot.contracts import ActionType, OutcomeType, ReasonCode
+from fleet_copilot.contracts import MAX_INSIGHTS, ActionType, OutcomeType, ReasonCode
 from fleet_copilot.evals.evaluators import ANY_TOOL
 from fleet_copilot.evals.golden_ref import validate_ref
 
@@ -44,6 +44,7 @@ _EXPECT_KEYS = frozenset(
         "alternatives_min",
         "needs_min",
         "choices_min",
+        "insights_min",
         "tools_called",
         "tools_not_called",
         *_BOOLEAN_KEYS,
@@ -272,6 +273,12 @@ def _check_expect(expect: Any, *, last: bool) -> None:
             count = expect[key]
             if not isinstance(count, int) or isinstance(count, bool) or not 1 <= count <= most:
                 raise ScenarioError(f"expect.{key} must be a whole number from 1 to {most}")
+    if "insights_min" in expect:
+        count = expect["insights_min"]
+        if not isinstance(count, int) or isinstance(count, bool) or not 1 <= count <= MAX_INSIGHTS:
+            raise ScenarioError(
+                f"expect.insights_min must be a whole number from 1 to {MAX_INSIGHTS}"
+            )
     for key in ("tools_called", "tools_not_called"):
         if key in expect:
             _check_tools(key, expect[key])

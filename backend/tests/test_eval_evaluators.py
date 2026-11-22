@@ -693,3 +693,35 @@ def test_alternatives_min_fails_readably_when_too_few_are_offered():
     assert not check.passed
     assert "expected at least 3" in check.detail and "got 1" in check.detail
     assert not run({"alternatives_min": 1}, refusal("unsupported", "off_topic"))[0].passed
+
+
+# --- insights ----------------------------------------------------------------------------------------
+
+
+def with_insights(count):
+    refs = [ref(d) for d in ("A", "B")]
+    insight = {
+        "device_id": "A",
+        "label": "host-A",
+        "category": "disk",
+        "severity": "watch",
+        "finding": "host-A is low.",
+        "series": {"unit": "% free", "points": []},
+        "method": "Observed",
+        "why": "Because.",
+        "refs": [refs[0]],
+    }
+    return answer(("A", "B"), insights=[dict(insight) for _ in range(count)])
+
+
+def test_insights_min_passes_when_enough_insights_are_shown():
+    check = run({"insights_min": 2}, with_insights(3))[0]
+    assert check.name == "insights_min" and check.passed
+    assert "3 insights" in check.detail
+
+
+def test_insights_min_fails_readably_when_too_few_are_shown():
+    check = run({"insights_min": 2}, with_insights(1))[0]
+    assert not check.passed
+    assert "expected at least 2" in check.detail and "got 1" in check.detail
+    assert not run({"insights_min": 1}, answer(("A", "B")))[0].passed

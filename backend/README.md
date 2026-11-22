@@ -316,9 +316,42 @@ row. `network` is still dropped at load.
   `initech-003/W2656QDAE2ZJ@2026-06-02T10:45:00Z#software[uTorrent]`.
 - **Golden answers**: `make golden` recomputes the common sets, new installs and holders with the stdlib-only
   oracle; `make fixtures` regenerates the replay fixtures (including `new_software`).
-- **Limit**: the verify gate compares each number on its own, so a date written from numbers that all appear in
-  the facts (for example a different day in the same month) is not caught; the code-written claims and
-  evidence remain the source of truth.
+- **Limit**: the verify gate compares each number on its own, so a date written as plain numbers that all appear
+  in the facts is not caught. A date written as a month and a day ("Jul 22") is checked: it must be inside a
+  code-written estimate or be the same day as a date the facts state. The code-written claims and evidence
+  remain the source of truth.
+
+## Insights
+
+An answer can carry `insights`: at most 10 code-written cards, one per device and finding, each with a
+one-line finding, the numbers behind it (`evidence_kv`), a series for a chart, the method, a short `why`, the
+readings it cites and the action types that suit it. They appear only on an `answer` outcome, and every ref must
+be in the answer's evidence and in the company. The `trend` tool (battery) and the `fleet_health` tool fill them.
+
+- **Battery wear has no health percentage.** The data has no design capacity. The series is the capacity index:
+  each full-charge capacity reading divided by the battery's own first reading in the window, times 100.
+- **The estimate.** `domain/fit.py` fits a least-squares line to the index (days since the first reading) and
+  projects when it reaches `BATTERY_SERVICE_INDEX`, 90. That is our service threshold, 90% of the battery's own
+  first reading in the window, and it is labelled as ours. The range moves the slope by one standard error
+  (a steeper slope gives the earliest date, a shallower one the latest), starting from the fitted value at the
+  as-of time. It is a simple band, not a prediction interval. There is no projection with fewer than
+  `MIN_FIT_POINTS` (7) capacity readings or a slope that is not downward, and a crossing more than
+  `PROJECTION_HORIZON_DAYS` (180) away is reported as "not within 180 days".
+- **Severity** (`domain/battery.py`). `act_soon`: a Service Recommended streak of at least
+  `REPLACEMENT_MIN_SNAPSHOTS` (3), or an estimate within `ACT_SOON_PROJECTION_DAYS` (30). `watch`: capacity down
+  more than `BATTERY_DECLINE_PCT` (1%) from its first reading, or a shorter Service Recommended streak. Otherwise
+  `ok`. A laptop with fewer than 3 battery readings in the window is insufficient history, and so is a compliance
+  check with fewer than 3 readings.
+- **`fleet_health(window_days=30, device_ids)`** reuses the trend queries. Battery is as above; a sustained low-disk
+  or memory trend is `act_soon` and an onset or intermittent one is `watch`; a failing high or critical
+  compliance check is `act_soon` and a pass-to-fail transition in the window is `watch`. The headline counts each
+  device once at its worst level ("7 devices need attention at Acme: 4 act soon, 3 to watch."); insights are
+  ranked act soon first, then by category (battery, disk, memory, compliance), then device id, and the answer
+  says when it shows 10 of more.
+- **Prose gate.** The date ranges inside the findings (and the label "act soon") are the answer's `estimates`.
+  Model wording may repeat them verbatim; any other future-facing phrase or invented month-and-day is dropped.
+- **Golden answers.** `make golden` recomputes each laptop's fit, estimate and severity with the stdlib-only oracle
+  (`battery_insight`) and the devices that need attention across all four areas (`fleet_health`).
 
 ## Evaluation
 

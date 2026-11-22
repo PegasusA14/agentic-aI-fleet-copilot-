@@ -119,7 +119,7 @@ check in code. No model judges another model.
 | Suite | What it checks |
 | --- | --- |
 | `grounding` | Device sets and counts equal the golden values; every listed device has evidence from the signed-in company; unknown devices get a uniform "not found"; speculative questions get no causal claims |
-| `trends` | Sustained, onset, intermittent and transition findings for memory, disk, compliance, battery and new software match the golden classes, including follow-ups |
+| `trends` | Sustained, onset, intermittent and transition findings for memory, disk, compliance, battery and new software match the golden classes, including follow-ups; battery estimates and the fleet health ranking match the golden severities |
 | `actions` | A request creates one pending proposal for the right device and action; approval executes it once; a duplicate, a wrong hash or a rejection changes nothing; ineligible requests are refused; advice suggests the actions the data supports |
 | `guardrails` | Cross-company questions leak nothing; prompt injection, off-topic questions, missing data, "approve it" in chat and bulk requests are refused; another company's admin cannot approve; the audit log is complete |
 
@@ -206,10 +206,11 @@ company and the user come from the signed-in session. No tool approves, rejects 
 | `macos_version_check` | read | Macs older than a macOS version (compared as numbers); other systems listed as not checked, with the reason | `older_than` (default "15"), `device_ids` |
 | `compliance_failures_now` | read | Devices failing a compliance check at the latest snapshot | `check_id`, `severity`, `form_factor`, `device_ids` |
 | `memory_pressure_now` | read | Devices at or above a memory-used threshold at the latest snapshot | `threshold_pct` (default 85), `device_ids` |
-| `trend` | read | Classifies memory, disk, compliance or battery over a window: sustained, onset, intermittent, recovering, transition, wear | `metric`, `window_days` (1 to 60), `threshold_pct`, `check_id`, `device_ids` |
+| `trend` | read | Classifies memory, disk, compliance or battery over a window: sustained, onset, intermittent, recovering, transition, wear. Battery also gets a labelled estimate of when capacity reaches our service threshold | `metric`, `window_days` (1 to 60), `threshold_pct`, `check_id`, `device_ids` |
 | `find_devices` | read | Inventory lookup by OS, model, form factor or hostname | `os_name`, `model_name`, `form_factor`, `hostname`, `group_by`, `device_ids` |
 | `device_history` | read | One device's readings for one metric over a window | `device_id`, `metric`, `window_days`, `check_id` |
 | `software_inventory` | read | Installed apps, or apps newly installed in a window that are not common in the fleet; never labels an app as risky | `view`, `app_name`, `window_days`, `device_ids` |
+| `fleet_health` | read | One ranked overview across battery, disk, memory and compliance: which devices need attention, most urgent first | `window_days` (1 to 60, default 30), `device_ids` |
 | `create_upgrade_order` | proposal (needs approval) | Proposes a memory or storage upgrade order for one device. The target size is computed by code from the current size | `device_id`, `component` (`memory`, `storage`) |
 | `open_remediation_ticket` | proposal (needs approval) | Proposes a remediation ticket for one device's failing compliance check. The note is written by code from the failing reading | `device_id`, `check_id` |
 | `flag_device_for_replacement` | proposal (needs approval) | Proposes flagging one device for replacement. The reason is written by code from the battery readings | `device_id` |
@@ -241,6 +242,11 @@ device ids. The full records go to the code that composes the answer.
   checked and why, for which company, and as of which snapshot.
 - **Thresholds are disclosed.** Low disk is under 10% free, memory pressure is 85% used or more, and
   "sustained" means at least 80% of the window's snapshots and the latest one. `GET /api/policy` returns them all.
+- **Estimates are labelled.** A battery has no design capacity in the data, so wear is capacity against that
+  battery's own first reading in the window (100 = that reading), never a health percentage. When it falls, a
+  straight-line fit gives an estimated date range for reaching our service threshold (90 on that scale; our
+  policy value, not the vendor's). The card names the method and the number of snapshots. Code writes the
+  dates; wording that repeats them is accepted, and any other date is dropped.
 - **Missing data is said, not guessed.** Questions about data the telemetry does not contain (Wi-Fi, location,
   performance) get a fixed reply naming what is missing and what can be asked instead.
 

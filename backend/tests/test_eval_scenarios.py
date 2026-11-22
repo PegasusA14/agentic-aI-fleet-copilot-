@@ -139,6 +139,10 @@ def test_suites_load_in_a_stable_order_and_other_files_are_ignored(tmp_path):
         (lambda c: c["turns"][0].update(expect={"choices_min": 0}), "choices_min"),
         (lambda c: c["turns"][0].update(expect={"choices_min": 7}), "choices_min"),
         (lambda c: c["turns"][0].update(expect={"choices_min": True}), "choices_min"),
+        (lambda c: c["turns"][0].update(expect={"insights_min": 0}), "insights_min"),
+        (lambda c: c["turns"][0].update(expect={"insights_min": 11}), "insights_min"),
+        (lambda c: c["turns"][0].update(expect={"insights_min": "3"}), "insights_min"),
+        (lambda c: c["turns"][0].update(expect={"insights_min": True}), "insights_min"),
         (lambda c: c["turns"][0].update(expect={"suggestions_include": []}), "suggestions_include"),
         (
             lambda c: c["turns"][0].update(expect={"suggestions_include": "A"}),
@@ -567,3 +571,10 @@ def test_needs_min_and_choices_min_are_valid_expect_keys(tmp_path):
     (scenario,) = load_suites(tmp_path)
     assert scenario.cases[0].turns[0].expect["needs_min"] == 1
     assert scenario.cases[0].turns[1].expect["choices_min"] == 3
+
+
+def test_insights_min_is_a_valid_expect_key(tmp_path):
+    ok = case(turns=[{"say": "q", "expect": {"outcome": "answer", "insights_min": 3}}])
+    write_suite(tmp_path, cases=[ok])
+    (scenario,) = load_suites(tmp_path)
+    assert scenario.cases[0].turns[0].expect["insights_min"] == 3

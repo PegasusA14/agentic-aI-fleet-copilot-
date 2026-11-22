@@ -104,6 +104,19 @@
     },
     {
       "keywords": [
+        "fleet health",
+        "summary",
+        "needs attention",
+        "overview"
+      ],
+      "note": "",
+      "question": "Give me a fleet health summary",
+      "scenario": "fleet_health",
+      "synthetic": false,
+      "tenant": "acme-001"
+    },
+    {
+      "keywords": [
         "inventory",
         "how many",
         "models",
@@ -340,6 +353,19 @@
     },
     {
       "keywords": [
+        "fleet health",
+        "summary",
+        "needs attention",
+        "overview"
+      ],
+      "note": "",
+      "question": "Give me a fleet health summary",
+      "scenario": "fleet_health",
+      "synthetic": false,
+      "tenant": "globex-002"
+    },
+    {
+      "keywords": [
         "inventory",
         "how many",
         "models",
@@ -571,6 +597,19 @@
       "note": "",
       "question": "Which laptops show battery wear?",
       "scenario": "battery_wear",
+      "synthetic": false,
+      "tenant": "initech-003"
+    },
+    {
+      "keywords": [
+        "fleet health",
+        "summary",
+        "needs attention",
+        "overview"
+      ],
+      "note": "",
+      "question": "Give me a fleet health summary",
+      "scenario": "fleet_health",
       "synthetic": false,
       "tenant": "initech-003"
     },

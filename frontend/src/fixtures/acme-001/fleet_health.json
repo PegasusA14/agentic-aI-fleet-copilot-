@@ -1,0 +1,2150 @@
+{
+  "envelope": {
+    "alternatives": [],
+    "claims": [
+      {
+        "count": 3,
+        "device_ids": [
+          "7VP16KHV88LM",
+          "8NM23J95R5I6",
+          "M4XVHUV1MEPZ"
+        ],
+        "refs": [
+          "acme-001/7VP16KHV88LM@2026-05-14T11:09:00Z#battery",
+          "acme-001/7VP16KHV88LM@2026-06-12T10:41:00Z#battery",
+          "acme-001/7VP16KHV88LM@2026-05-30T09:16:00Z#battery",
+          "acme-001/8NM23J95R5I6@2026-05-14T10:10:00Z#battery",
+          "acme-001/8NM23J95R5I6@2026-06-12T09:02:00Z#battery",
+          "acme-001/8NM23J95R5I6@2026-05-23T09:01:00Z#battery",
+          "acme-001/M4XVHUV1MEPZ@2026-05-14T08:40:00Z#battery",
+          "acme-001/M4XVHUV1MEPZ@2026-06-12T11:00:00Z#battery",
+          "acme-001/M4XVHUV1MEPZ@2026-05-24T10:05:00Z#battery"
+        ],
+        "text": "Battery: 3 devices to look at. acme-macbook-1's battery is estimated to reach our service threshold around Jul 22. acme-thinkpad-8's battery is estimated to reach our service threshold between Jul 21 and Jul 22. acme-dell-9's battery is estimated to reach our service threshold around Jul 22."
+      },
+      {
+        "count": 2,
+        "device_ids": [
+          "MT7PJB7N5LRE",
+          "8NM23J95R5I6"
+        ],
+        "refs": [
+          "acme-001/MT7PJB7N5LRE@2026-05-14T11:14:00Z#disk",
+          "acme-001/MT7PJB7N5LRE@2026-05-24T11:03:00Z#disk",
+          "acme-001/MT7PJB7N5LRE@2026-06-02T11:19:00Z#disk",
+          "acme-001/MT7PJB7N5LRE@2026-06-12T08:39:00Z#disk",
+          "acme-001/8NM23J95R5I6@2026-05-29T11:16:00Z#disk",
+          "acme-001/8NM23J95R5I6@2026-06-03T08:42:00Z#disk",
+          "acme-001/8NM23J95R5I6@2026-06-07T10:35:00Z#disk",
+          "acme-001/8NM23J95R5I6@2026-06-12T09:02:00Z#disk"
+        ],
+        "text": "Disk space: 2 devices to look at. acme-macbook-4 has had disk space under 10% free in 30 of 30 snapshots over the last 30 days, and still does (2.0% free). acme-thinkpad-8 began having disk space under 10% free inside the last 30 days and still does (15 of 30 snapshots; 2.6% free now)."
+      },
+      {
+        "count": 1,
+        "device_ids": [
+          "M4XVHUV1MEPZ"
+        ],
+        "refs": [
+          "acme-001/M4XVHUV1MEPZ@2026-05-14T08:40:00Z#memory",
+          "acme-001/M4XVHUV1MEPZ@2026-05-24T10:05:00Z#memory",
+          "acme-001/M4XVHUV1MEPZ@2026-06-02T09:17:00Z#memory",
+          "acme-001/M4XVHUV1MEPZ@2026-06-12T11:00:00Z#memory"
+        ],
+        "text": "Memory: 1 device to look at. acme-dell-9 has had memory use at or above 85% in 30 of 30 snapshots over the last 30 days, and still does (99.0% used)."
+      },
+      {
+        "count": 4,
+        "device_ids": [
+          "1LYSSFD074BB",
+          "8NM23J95R5I6",
+          "DLT35MHGTH2D",
+          "DSYPSES7SKBB"
+        ],
+        "refs": [
+          "acme-001/1LYSSFD074BB@2026-05-21T09:45:00Z#compliance[screen_lock]",
+          "acme-001/1LYSSFD074BB@2026-05-22T09:41:00Z#compliance[screen_lock]",
+          "acme-001/1LYSSFD074BB@2026-06-12T09:47:00Z#compliance[screen_lock]",
+          "acme-001/8NM23J95R5I6@2026-05-29T11:16:00Z#compliance[screen_lock]",
+          "acme-001/8NM23J95R5I6@2026-05-30T08:38:00Z#compliance[screen_lock]",
+          "acme-001/8NM23J95R5I6@2026-06-12T09:02:00Z#compliance[screen_lock]",
+          "acme-001/DLT35MHGTH2D@2026-05-31T09:37:00Z#compliance[screen_lock]",
+          "acme-001/DLT35MHGTH2D@2026-06-01T10:14:00Z#compliance[screen_lock]",
+          "acme-001/DLT35MHGTH2D@2026-06-12T09:36:00Z#compliance[screen_lock]",
+          "acme-001/DSYPSES7SKBB@2026-05-31T10:31:00Z#compliance[screen_lock]",
+          "acme-001/DSYPSES7SKBB@2026-06-01T10:20:00Z#compliance[screen_lock]",
+          "acme-001/DSYPSES7SKBB@2026-06-12T10:57:00Z#compliance[screen_lock]"
+        ],
+        "text": "Compliance: 4 devices to look at. acme-macbook-2's screen_lock check changed from pass to fail on 2026-05-22 and still fails. acme-thinkpad-8's screen_lock check changed from pass to fail on 2026-05-30 and still fails. acme-mac-5's screen_lock check changed from pass to fail on 2026-06-01 and still fails. acme-macbook-3's screen_lock check changed from pass to fail on 2026-06-01 and still fails."
+      }
+    ],
+    "clarification": null,
+    "coverage": {
+      "excluded": {},
+      "excluded_devices": [],
+      "missing_latest": [
+        "MT7PJB7N5LRE"
+      ],
+      "population": 10,
+      "stale": []
+    },
+    "entity_lists": [
+      {
+        "items": [
+          {
+            "device_id": "7VP16KHV88LM",
+            "label": "acme-macbook-1",
+            "rank": 1
+          },
+          {
+            "device_id": "8NM23J95R5I6",
+            "label": "acme-thinkpad-8",
+            "rank": 2
+          },
+          {
+            "device_id": "M4XVHUV1MEPZ",
+            "label": "acme-dell-9",
+            "rank": 3
+          },
+          {
+            "device_id": "MT7PJB7N5LRE",
+            "label": "acme-macbook-4",
+            "rank": 4
+          },
+          {
+            "device_id": "1LYSSFD074BB",
+            "label": "acme-macbook-2",
+            "rank": 5
+          },
+          {
+            "device_id": "DLT35MHGTH2D",
+            "label": "acme-mac-5",
+            "rank": 6
+          },
+          {
+            "device_id": "DSYPSES7SKBB",
+            "label": "acme-macbook-3",
+            "rank": 7
+          }
+        ],
+        "list_id": "replay-acme-001-fleet_health/fleet_health-1",
+        "title": "Needs attention"
+      }
+    ],
+    "evidence": [
+      {
+        "label": "Battery · acme-macbook-1 · 2026-05-14 11:09Z",
+        "ref": "acme-001/7VP16KHV88LM@2026-05-14T11:09:00Z#battery",
+        "value": "condition Normal; 1017 cycles; full-charge capacity 4348 (unit not reported)"
+      },
+      {
+        "label": "Battery · acme-macbook-1 · 2026-06-12 10:41Z",
+        "ref": "acme-001/7VP16KHV88LM@2026-06-12T10:41:00Z#battery",
+        "value": "condition Service Recommended; 1049 cycles; full-charge capacity 4166 (unit not reported)"
+      },
+      {
+        "label": "Battery · acme-macbook-1 · 2026-05-30 09:16Z",
+        "ref": "acme-001/7VP16KHV88LM@2026-05-30T09:16:00Z#battery",
+        "value": "condition Service Recommended; 1025 cycles; full-charge capacity 4248 (unit not reported)"
+      },
+      {
+        "label": "Battery · acme-thinkpad-8 · 2026-05-14 10:10Z",
+        "ref": "acme-001/8NM23J95R5I6@2026-05-14T10:10:00Z#battery",
+        "value": "condition Normal; 1127 cycles; full-charge capacity 4043 (unit not reported)"
+      },
+      {
+        "label": "Battery · acme-thinkpad-8 · 2026-06-12 09:02Z",
+        "ref": "acme-001/8NM23J95R5I6@2026-06-12T09:02:00Z#battery",
+        "value": "condition Service Recommended; 1157 cycles; full-charge capacity 3872 (unit not reported)"
+      },
+      {
+        "label": "Battery · acme-thinkpad-8 · 2026-05-23 09:01Z",
+        "ref": "acme-001/8NM23J95R5I6@2026-05-23T09:01:00Z#battery",
+        "value": "condition Service Recommended; 1136 cycles; full-charge capacity 3990 (unit not reported)"
+      },
+      {
+        "label": "Battery · acme-dell-9 · 2026-05-14 08:40Z",
+        "ref": "acme-001/M4XVHUV1MEPZ@2026-05-14T08:40:00Z#battery",
+        "value": "condition Normal; 928 cycles; full-charge capacity 3406 (unit not reported)"
+      },
+      {
+        "label": "Battery · acme-dell-9 · 2026-06-12 11:00Z",
+        "ref": "acme-001/M4XVHUV1MEPZ@2026-06-12T11:00:00Z#battery",
+        "value": "condition Service Recommended; 948 cycles; full-charge capacity 3262 (unit not reported)"
+      },
+      {
+        "label": "Battery · acme-dell-9 · 2026-05-24 10:05Z",
+        "ref": "acme-001/M4XVHUV1MEPZ@2026-05-24T10:05:00Z#battery",
+        "value": "condition Service Recommended; 935 cycles; full-charge capacity 3357 (unit not reported)"
+      },
+      {
+        "label": "Disk · acme-macbook-4 · 2026-05-14 11:14Z",
+        "ref": "acme-001/MT7PJB7N5LRE@2026-05-14T11:14:00Z#disk",
+        "value": "36.8 GiB free of 512.0 GiB (7.2% free)"
+      },
+      {
+        "label": "Disk · acme-macbook-4 · 2026-05-24 11:03Z",
+        "ref": "acme-001/MT7PJB7N5LRE@2026-05-24T11:03:00Z#disk",
+        "value": "26.0 GiB free of 512.0 GiB (5.1% free)"
+      },
+      {
+        "label": "Disk · acme-macbook-4 · 2026-06-02 11:19Z",
+        "ref": "acme-001/MT7PJB7N5LRE@2026-06-02T11:19:00Z#disk",
+        "value": "16.3 GiB free of 512.0 GiB (3.2% free)"
+      },
+      {
+        "label": "Disk · acme-macbook-4 · 2026-06-12 08:39Z",
+        "ref": "acme-001/MT7PJB7N5LRE@2026-06-12T08:39:00Z#disk",
+        "value": "10.2 GiB free of 512.0 GiB (2.0% free)"
+      },
+      {
+        "label": "Memory · acme-dell-9 · 2026-05-14 08:40Z",
+        "ref": "acme-001/M4XVHUV1MEPZ@2026-05-14T08:40:00Z#memory",
+        "value": "90.9% used (14.6 GiB of 16.0 GiB)"
+      },
+      {
+        "label": "Memory · acme-dell-9 · 2026-05-24 10:05Z",
+        "ref": "acme-001/M4XVHUV1MEPZ@2026-05-24T10:05:00Z#memory",
+        "value": "96.7% used (15.5 GiB of 16.0 GiB)"
+      },
+      {
+        "label": "Memory · acme-dell-9 · 2026-06-02 09:17Z",
+        "ref": "acme-001/M4XVHUV1MEPZ@2026-06-02T09:17:00Z#memory",
+        "value": "99.0% used (15.8 GiB of 16.0 GiB)"
+      },
+      {
+        "label": "Memory · acme-dell-9 · 2026-06-12 11:00Z",
+        "ref": "acme-001/M4XVHUV1MEPZ@2026-06-12T11:00:00Z#memory",
+        "value": "99.0% used (15.8 GiB of 16.0 GiB)"
+      },
+      {
+        "label": "Disk · acme-thinkpad-8 · 2026-05-29 11:16Z",
+        "ref": "acme-001/8NM23J95R5I6@2026-05-29T11:16:00Z#disk",
+        "value": "99.1 GiB free of 1.0 TiB (9.7% free)"
+      },
+      {
+        "label": "Disk · acme-thinkpad-8 · 2026-06-03 08:42Z",
+        "ref": "acme-001/8NM23J95R5I6@2026-06-03T08:42:00Z#disk",
+        "value": "73.2 GiB free of 1.0 TiB (7.1% free)"
+      },
+      {
+        "label": "Disk · acme-thinkpad-8 · 2026-06-07 10:35Z",
+        "ref": "acme-001/8NM23J95R5I6@2026-06-07T10:35:00Z#disk",
+        "value": "52.4 GiB free of 1.0 TiB (5.1% free)"
+      },
+      {
+        "label": "Disk · acme-thinkpad-8 · 2026-06-12 09:02Z",
+        "ref": "acme-001/8NM23J95R5I6@2026-06-12T09:02:00Z#disk",
+        "value": "26.5 GiB free of 1.0 TiB (2.6% free)"
+      },
+      {
+        "label": "Compliance · acme-macbook-2 · 2026-05-21 09:45Z",
+        "ref": "acme-001/1LYSSFD074BB@2026-05-21T09:45:00Z#compliance[screen_lock]",
+        "value": "screen_lock: pass (medium severity)"
+      },
+      {
+        "label": "Compliance · acme-macbook-2 · 2026-05-22 09:41Z",
+        "ref": "acme-001/1LYSSFD074BB@2026-05-22T09:41:00Z#compliance[screen_lock]",
+        "value": "screen_lock: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · acme-macbook-2 · 2026-06-12 09:47Z",
+        "ref": "acme-001/1LYSSFD074BB@2026-06-12T09:47:00Z#compliance[screen_lock]",
+        "value": "screen_lock: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · acme-thinkpad-8 · 2026-05-29 11:16Z",
+        "ref": "acme-001/8NM23J95R5I6@2026-05-29T11:16:00Z#compliance[screen_lock]",
+        "value": "screen_lock: pass (medium severity)"
+      },
+      {
+        "label": "Compliance · acme-thinkpad-8 · 2026-05-30 08:38Z",
+        "ref": "acme-001/8NM23J95R5I6@2026-05-30T08:38:00Z#compliance[screen_lock]",
+        "value": "screen_lock: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · acme-thinkpad-8 · 2026-06-12 09:02Z",
+        "ref": "acme-001/8NM23J95R5I6@2026-06-12T09:02:00Z#compliance[screen_lock]",
+        "value": "screen_lock: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · acme-mac-5 · 2026-05-31 09:37Z",
+        "ref": "acme-001/DLT35MHGTH2D@2026-05-31T09:37:00Z#compliance[screen_lock]",
+        "value": "screen_lock: pass (medium severity)"
+      },
+      {
+        "label": "Compliance · acme-mac-5 · 2026-06-01 10:14Z",
+        "ref": "acme-001/DLT35MHGTH2D@2026-06-01T10:14:00Z#compliance[screen_lock]",
+        "value": "screen_lock: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · acme-mac-5 · 2026-06-12 09:36Z",
+        "ref": "acme-001/DLT35MHGTH2D@2026-06-12T09:36:00Z#compliance[screen_lock]",
+        "value": "screen_lock: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · acme-macbook-3 · 2026-05-31 10:31Z",
+        "ref": "acme-001/DSYPSES7SKBB@2026-05-31T10:31:00Z#compliance[screen_lock]",
+        "value": "screen_lock: pass (medium severity)"
+      },
+      {
+        "label": "Compliance · acme-macbook-3 · 2026-06-01 10:20Z",
+        "ref": "acme-001/DSYPSES7SKBB@2026-06-01T10:20:00Z#compliance[screen_lock]",
+        "value": "screen_lock: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · acme-macbook-3 · 2026-06-12 10:57Z",
+        "ref": "acme-001/DSYPSES7SKBB@2026-06-12T10:57:00Z#compliance[screen_lock]",
+        "value": "screen_lock: fail (medium severity)"
+      }
+    ],
+    "explanation": null,
+    "follow_ups": [
+      {
+        "label": "What should we do about these?",
+        "request": "What should we do about these devices?"
+      }
+    ],
+    "headline": "7 devices need attention at Acme: 4 act soon, 3 to watch.",
+    "insights": [
+      {
+        "category": "battery",
+        "device_id": "7VP16KHV88LM",
+        "evidence_kv": [
+          {
+            "label": "Capacity vs its first reading",
+            "value": "-4.2%"
+          },
+          {
+            "label": "Capacity index now",
+            "value": "95.8 (first reading = 100)"
+          },
+          {
+            "label": "Rate",
+            "value": "-0.14 index points per day"
+          },
+          {
+            "label": "Cycles",
+            "value": "1049"
+          },
+          {
+            "label": "Vendor condition",
+            "value": "Service Recommended since 2026-05-30 (14 readings)"
+          }
+        ],
+        "finding": "acme-macbook-1's battery is estimated to reach our service threshold around Jul 22.",
+        "fit": {
+          "n": 30,
+          "r2": 0.9999628796092843,
+          "slope_per_day": -0.1444222039588905
+        },
+        "label": "acme-macbook-1",
+        "method": "Estimate · straight-line fit · 30 snapshots",
+        "projection": {
+          "earliest": "2026-07-22",
+          "estimate": "2026-07-22",
+          "latest": "2026-07-22",
+          "status": "projected"
+        },
+        "refs": [
+          "acme-001/7VP16KHV88LM@2026-05-14T11:09:00Z#battery",
+          "acme-001/7VP16KHV88LM@2026-06-12T10:41:00Z#battery",
+          "acme-001/7VP16KHV88LM@2026-05-30T09:16:00Z#battery"
+        ],
+        "series": {
+          "points": [
+            {
+              "at": "2026-05-14T11:09:00Z",
+              "value": 100.0
+            },
+            {
+              "at": "2026-05-15T11:24:00Z",
+              "value": 99.862
+            },
+            {
+              "at": "2026-05-16T09:11:00Z",
+              "value": 99.724
+            },
+            {
+              "at": "2026-05-17T09:42:00Z",
+              "value": 99.563
+            },
+            {
+              "at": "2026-05-18T10:30:00Z",
+              "value": 99.425
+            },
+            {
+              "at": "2026-05-19T08:53:00Z",
+              "value": 99.287
+            },
+            {
+              "at": "2026-05-20T11:18:00Z",
+              "value": 99.149
+            },
+            {
+              "at": "2026-05-21T09:52:00Z",
+              "value": 98.988
+            },
+            {
+              "at": "2026-05-22T09:42:00Z",
+              "value": 98.85
+            },
+            {
+              "at": "2026-05-23T09:35:00Z",
+              "value": 98.712
+            },
+            {
+              "at": "2026-05-24T08:48:00Z",
+              "value": 98.574
+            },
+            {
+              "at": "2026-05-25T08:55:00Z",
+              "value": 98.413
+            },
+            {
+              "at": "2026-05-26T08:53:00Z",
+              "value": 98.275
+            },
+            {
+              "at": "2026-05-27T09:51:00Z",
+              "value": 98.137
+            },
+            {
+              "at": "2026-05-28T11:28:00Z",
+              "value": 97.976
+            },
+            {
+              "at": "2026-05-29T09:23:00Z",
+              "value": 97.838
+            },
+            {
+              "at": "2026-05-30T09:16:00Z",
+              "value": 97.7
+            },
+            {
+              "at": "2026-05-31T09:02:00Z",
+              "value": 97.562
+            },
+            {
+              "at": "2026-06-01T08:57:00Z",
+              "value": 97.401
+            },
+            {
+              "at": "2026-06-02T08:34:00Z",
+              "value": 97.263
+            },
+            {
+              "at": "2026-06-03T09:19:00Z",
+              "value": 97.125
+            },
+            {
+              "at": "2026-06-04T09:14:00Z",
+              "value": 96.964
+            },
+            {
+              "at": "2026-06-05T09:39:00Z",
+              "value": 96.826
+            },
+            {
+              "at": "2026-06-06T10:03:00Z",
+              "value": 96.688
+            },
+            {
+              "at": "2026-06-07T09:52:00Z",
+              "value": 96.55
+            },
+            {
+              "at": "2026-06-08T10:04:00Z",
+              "value": 96.389
+            },
+            {
+              "at": "2026-06-09T11:05:00Z",
+              "value": 96.251
+            },
+            {
+              "at": "2026-06-10T11:17:00Z",
+              "value": 96.113
+            },
+            {
+              "at": "2026-06-11T10:28:00Z",
+              "value": 95.952
+            },
+            {
+              "at": "2026-06-12T10:41:00Z",
+              "value": 95.814
+            }
+          ],
+          "threshold": {
+            "label": "Our service threshold (90% of its first reading)",
+            "source": "policy",
+            "value": 90.0
+          },
+          "unit": "Capacity index (the battery's first reading in the window = 100)"
+        },
+        "severity": "act_soon",
+        "suggested_action_types": [
+          "replacement_flag",
+          "employee_notification"
+        ],
+        "why": "The vendor flagged Service Recommended on the last 14 readings in a row, which meets our rule of 3. Capacity is 4.2% below its first reading in the window."
+      },
+      {
+        "category": "battery",
+        "device_id": "8NM23J95R5I6",
+        "evidence_kv": [
+          {
+            "label": "Capacity vs its first reading",
+            "value": "-4.2%"
+          },
+          {
+            "label": "Capacity index now",
+            "value": "95.8 (first reading = 100)"
+          },
+          {
+            "label": "Rate",
+            "value": "-0.15 index points per day"
+          },
+          {
+            "label": "Cycles",
+            "value": "1157"
+          },
+          {
+            "label": "Vendor condition",
+            "value": "Service Recommended since 2026-05-23 (21 readings)"
+          }
+        ],
+        "finding": "acme-thinkpad-8's battery is estimated to reach our service threshold between Jul 21 and Jul 22.",
+        "fit": {
+          "n": 30,
+          "r2": 0.9999500882036504,
+          "slope_per_day": -0.14582678589512768
+        },
+        "label": "acme-thinkpad-8",
+        "method": "Estimate · straight-line fit · 30 snapshots",
+        "projection": {
+          "earliest": "2026-07-21",
+          "estimate": "2026-07-21",
+          "latest": "2026-07-22",
+          "status": "projected"
+        },
+        "refs": [
+          "acme-001/8NM23J95R5I6@2026-05-14T10:10:00Z#battery",
+          "acme-001/8NM23J95R5I6@2026-06-12T09:02:00Z#battery",
+          "acme-001/8NM23J95R5I6@2026-05-23T09:01:00Z#battery"
+        ],
+        "series": {
+          "points": [
+            {
+              "at": "2026-05-14T10:10:00Z",
+              "value": 100.0
+            },
+            {
+              "at": "2026-05-15T11:14:00Z",
+              "value": 99.852
+            },
+            {
+              "at": "2026-05-16T08:44:00Z",
+              "value": 99.703
+            },
+            {
+              "at": "2026-05-17T11:05:00Z",
+              "value": 99.555
+            },
+            {
+              "at": "2026-05-18T09:25:00Z",
+              "value": 99.406
+            },
+            {
+              "at": "2026-05-19T08:42:00Z",
+              "value": 99.258
+            },
+            {
+              "at": "2026-05-20T10:19:00Z",
+              "value": 99.134
+            },
+            {
+              "at": "2026-05-21T09:34:00Z",
+              "value": 98.986
+            },
+            {
+              "at": "2026-05-22T08:54:00Z",
+              "value": 98.837
+            },
+            {
+              "at": "2026-05-23T09:01:00Z",
+              "value": 98.689
+            },
+            {
+              "at": "2026-05-24T08:40:00Z",
+              "value": 98.541
+            },
+            {
+              "at": "2026-05-25T11:23:00Z",
+              "value": 98.392
+            },
+            {
+              "at": "2026-05-26T08:38:00Z",
+              "value": 98.244
+            },
+            {
+              "at": "2026-05-27T10:29:00Z",
+              "value": 98.095
+            },
+            {
+              "at": "2026-05-28T09:56:00Z",
+              "value": 97.947
+            },
+            {
+              "at": "2026-05-29T11:16:00Z",
+              "value": 97.799
+            },
+            {
+              "at": "2026-05-30T08:38:00Z",
+              "value": 97.675
+            },
+            {
+              "at": "2026-05-31T10:03:00Z",
+              "value": 97.527
+            },
+            {
+              "at": "2026-06-01T11:06:00Z",
+              "value": 97.378
+            },
+            {
+              "at": "2026-06-02T11:09:00Z",
+              "value": 97.23
+            },
+            {
+              "at": "2026-06-03T08:42:00Z",
+              "value": 97.081
+            },
+            {
+              "at": "2026-06-04T09:44:00Z",
+              "value": 96.933
+            },
+            {
+              "at": "2026-06-05T08:42:00Z",
+              "value": 96.785
+            },
+            {
+              "at": "2026-06-06T08:49:00Z",
+              "value": 96.636
+            },
+            {
+              "at": "2026-06-07T10:35:00Z",
+              "value": 96.488
+            },
+            {
+              "at": "2026-06-08T11:06:00Z",
+              "value": 96.364
+            },
+            {
+              "at": "2026-06-09T08:35:00Z",
+              "value": 96.216
+            },
+            {
+              "at": "2026-06-10T08:39:00Z",
+              "value": 96.067
+            },
+            {
+              "at": "2026-06-11T08:32:00Z",
+              "value": 95.919
+            },
+            {
+              "at": "2026-06-12T09:02:00Z",
+              "value": 95.77
+            }
+          ],
+          "threshold": {
+            "label": "Our service threshold (90% of its first reading)",
+            "source": "policy",
+            "value": 90.0
+          },
+          "unit": "Capacity index (the battery's first reading in the window = 100)"
+        },
+        "severity": "act_soon",
+        "suggested_action_types": [
+          "replacement_flag",
+          "employee_notification"
+        ],
+        "why": "The vendor flagged Service Recommended on the last 21 readings in a row, which meets our rule of 3. Capacity is 4.2% below its first reading in the window."
+      },
+      {
+        "category": "battery",
+        "device_id": "M4XVHUV1MEPZ",
+        "evidence_kv": [
+          {
+            "label": "Capacity vs its first reading",
+            "value": "-4.2%"
+          },
+          {
+            "label": "Capacity index now",
+            "value": "95.8 (first reading = 100)"
+          },
+          {
+            "label": "Rate",
+            "value": "-0.15 index points per day"
+          },
+          {
+            "label": "Cycles",
+            "value": "948"
+          },
+          {
+            "label": "Vendor condition",
+            "value": "Service Recommended since 2026-05-24 (20 readings)"
+          }
+        ],
+        "finding": "acme-dell-9's battery is estimated to reach our service threshold around Jul 22.",
+        "fit": {
+          "n": 30,
+          "r2": 0.9999389746824018,
+          "slope_per_day": -0.14550421873876915
+        },
+        "label": "acme-dell-9",
+        "method": "Estimate · straight-line fit · 30 snapshots",
+        "projection": {
+          "earliest": "2026-07-22",
+          "estimate": "2026-07-22",
+          "latest": "2026-07-22",
+          "status": "projected"
+        },
+        "refs": [
+          "acme-001/M4XVHUV1MEPZ@2026-05-14T08:40:00Z#battery",
+          "acme-001/M4XVHUV1MEPZ@2026-06-12T11:00:00Z#battery",
+          "acme-001/M4XVHUV1MEPZ@2026-05-24T10:05:00Z#battery"
+        ],
+        "series": {
+          "points": [
+            {
+              "at": "2026-05-14T08:40:00Z",
+              "value": 100.0
+            },
+            {
+              "at": "2026-05-15T11:19:00Z",
+              "value": 99.853
+            },
+            {
+              "at": "2026-05-16T08:56:00Z",
+              "value": 99.706
+            },
+            {
+              "at": "2026-05-17T09:09:00Z",
+              "value": 99.56
+            },
+            {
+              "at": "2026-05-18T10:02:00Z",
+              "value": 99.413
+            },
+            {
+              "at": "2026-05-19T09:03:00Z",
+              "value": 99.266
+            },
+            {
+              "at": "2026-05-20T09:26:00Z",
+              "value": 99.119
+            },
+            {
+              "at": "2026-05-21T11:13:00Z",
+              "value": 98.972
+            },
+            {
+              "at": "2026-05-22T11:25:00Z",
+              "value": 98.855
+            },
+            {
+              "at": "2026-05-23T09:02:00Z",
+              "value": 98.708
+            },
+            {
+              "at": "2026-05-24T10:05:00Z",
+              "value": 98.561
+            },
+            {
+              "at": "2026-05-25T11:29:00Z",
+              "value": 98.415
+            },
+            {
+              "at": "2026-05-26T09:54:00Z",
+              "value": 98.268
+            },
+            {
+              "at": "2026-05-27T09:10:00Z",
+              "value": 98.121
+            },
+            {
+              "at": "2026-05-28T11:01:00Z",
+              "value": 97.974
+            },
+            {
+              "at": "2026-05-29T09:37:00Z",
+              "value": 97.827
+            },
+            {
+              "at": "2026-05-30T10:10:00Z",
+              "value": 97.681
+            },
+            {
+              "at": "2026-05-31T09:06:00Z",
+              "value": 97.534
+            },
+            {
+              "at": "2026-06-01T08:53:00Z",
+              "value": 97.387
+            },
+            {
+              "at": "2026-06-02T09:17:00Z",
+              "value": 97.24
+            },
+            {
+              "at": "2026-06-03T09:53:00Z",
+              "value": 97.093
+            },
+            {
+              "at": "2026-06-04T09:14:00Z",
+              "value": 96.947
+            },
+            {
+              "at": "2026-06-05T09:17:00Z",
+              "value": 96.8
+            },
+            {
+              "at": "2026-06-06T09:19:00Z",
+              "value": 96.653
+            },
+            {
+              "at": "2026-06-07T10:00:00Z",
+              "value": 96.506
+            },
+            {
+              "at": "2026-06-08T10:51:00Z",
+              "value": 96.359
+            },
+            {
+              "at": "2026-06-09T10:59:00Z",
+              "value": 96.213
+            },
+            {
+              "at": "2026-06-10T10:18:00Z",
+              "value": 96.066
+            },
+            {
+              "at": "2026-06-11T11:30:00Z",
+              "value": 95.919
+            },
+            {
+              "at": "2026-06-12T11:00:00Z",
+              "value": 95.772
+            }
+          ],
+          "threshold": {
+            "label": "Our service threshold (90% of its first reading)",
+            "source": "policy",
+            "value": 90.0
+          },
+          "unit": "Capacity index (the battery's first reading in the window = 100)"
+        },
+        "severity": "act_soon",
+        "suggested_action_types": [
+          "replacement_flag",
+          "employee_notification"
+        ],
+        "why": "The vendor flagged Service Recommended on the last 20 readings in a row, which meets our rule of 3. Capacity is 4.2% below its first reading in the window."
+      },
+      {
+        "category": "disk",
+        "device_id": "MT7PJB7N5LRE",
+        "evidence_kv": [
+          {
+            "label": "Free space now",
+            "value": "2.0%"
+          },
+          {
+            "label": "Snapshots past the limit",
+            "value": "30 of 30"
+          },
+          {
+            "label": "Pattern",
+            "value": "Sustained"
+          },
+          {
+            "label": "Window",
+            "value": "30 days"
+          }
+        ],
+        "finding": "acme-macbook-4 has had disk space under 10% free in 30 of 30 snapshots over the last 30 days, and still does (2.0% free).",
+        "fit": null,
+        "label": "acme-macbook-4",
+        "method": "Observed · 30 of 30 snapshots past the limit (disk space free)",
+        "projection": null,
+        "refs": [
+          "acme-001/MT7PJB7N5LRE@2026-05-14T11:14:00Z#disk",
+          "acme-001/MT7PJB7N5LRE@2026-05-24T11:03:00Z#disk",
+          "acme-001/MT7PJB7N5LRE@2026-06-02T11:19:00Z#disk",
+          "acme-001/MT7PJB7N5LRE@2026-06-12T08:39:00Z#disk"
+        ],
+        "series": {
+          "points": [
+            {
+              "at": "2026-05-14T11:14:00Z",
+              "value": 7.181
+            },
+            {
+              "at": "2026-05-15T10:23:00Z",
+              "value": 6.97
+            },
+            {
+              "at": "2026-05-16T09:28:00Z",
+              "value": 6.76
+            },
+            {
+              "at": "2026-05-17T09:31:00Z",
+              "value": 6.549
+            },
+            {
+              "at": "2026-05-18T09:06:00Z",
+              "value": 6.339
+            },
+            {
+              "at": "2026-05-19T11:13:00Z",
+              "value": 6.128
+            },
+            {
+              "at": "2026-05-20T10:57:00Z",
+              "value": 5.918
+            },
+            {
+              "at": "2026-05-21T10:53:00Z",
+              "value": 5.707
+            },
+            {
+              "at": "2026-05-22T10:09:00Z",
+              "value": 5.497
+            },
+            {
+              "at": "2026-05-23T09:26:00Z",
+              "value": 5.286
+            },
+            {
+              "at": "2026-05-24T11:03:00Z",
+              "value": 5.076
+            },
+            {
+              "at": "2026-05-25T10:55:00Z",
+              "value": 4.866
+            },
+            {
+              "at": "2026-05-26T09:46:00Z",
+              "value": 4.655
+            },
+            {
+              "at": "2026-05-27T10:03:00Z",
+              "value": 4.445
+            },
+            {
+              "at": "2026-05-28T09:32:00Z",
+              "value": 4.234
+            },
+            {
+              "at": "2026-05-29T09:10:00Z",
+              "value": 4.024
+            },
+            {
+              "at": "2026-05-30T10:37:00Z",
+              "value": 3.813
+            },
+            {
+              "at": "2026-05-31T10:28:00Z",
+              "value": 3.603
+            },
+            {
+              "at": "2026-06-01T10:16:00Z",
+              "value": 3.392
+            },
+            {
+              "at": "2026-06-02T11:19:00Z",
+              "value": 3.182
+            },
+            {
+              "at": "2026-06-03T09:28:00Z",
+              "value": 2.971
+            },
+            {
+              "at": "2026-06-04T11:00:00Z",
+              "value": 2.761
+            },
+            {
+              "at": "2026-06-05T10:18:00Z",
+              "value": 2.55
+            },
+            {
+              "at": "2026-06-06T08:53:00Z",
+              "value": 2.34
+            },
+            {
+              "at": "2026-06-07T10:01:00Z",
+              "value": 2.129
+            },
+            {
+              "at": "2026-06-08T10:42:00Z",
+              "value": 2.0
+            },
+            {
+              "at": "2026-06-09T08:30:00Z",
+              "value": 2.0
+            },
+            {
+              "at": "2026-06-10T09:13:00Z",
+              "value": 2.0
+            },
+            {
+              "at": "2026-06-11T09:58:00Z",
+              "value": 2.0
+            },
+            {
+              "at": "2026-06-12T08:39:00Z",
+              "value": 2.0
+            }
+          ],
+          "threshold": {
+            "label": "Low-disk limit (10% free)",
+            "source": "policy",
+            "value": 10.0
+          },
+          "unit": "Free disk space (% of the primary volume)"
+        },
+        "severity": "act_soon",
+        "suggested_action_types": [
+          "upgrade_order",
+          "employee_notification"
+        ],
+        "why": "Sustained: at least 80% of the window's snapshots breached the limit and the latest one does too."
+      },
+      {
+        "category": "memory",
+        "device_id": "M4XVHUV1MEPZ",
+        "evidence_kv": [
+          {
+            "label": "Used now",
+            "value": "99.0%"
+          },
+          {
+            "label": "Snapshots past the limit",
+            "value": "30 of 30"
+          },
+          {
+            "label": "Pattern",
+            "value": "Sustained"
+          },
+          {
+            "label": "Window",
+            "value": "30 days"
+          }
+        ],
+        "finding": "acme-dell-9 has had memory use at or above 85% in 30 of 30 snapshots over the last 30 days, and still does (99.0% used).",
+        "fit": null,
+        "label": "acme-dell-9",
+        "method": "Observed · 30 of 30 snapshots past the limit (memory used)",
+        "projection": null,
+        "refs": [
+          "acme-001/M4XVHUV1MEPZ@2026-05-14T08:40:00Z#memory",
+          "acme-001/M4XVHUV1MEPZ@2026-05-24T10:05:00Z#memory",
+          "acme-001/M4XVHUV1MEPZ@2026-06-02T09:17:00Z#memory",
+          "acme-001/M4XVHUV1MEPZ@2026-06-12T11:00:00Z#memory"
+        ],
+        "series": {
+          "points": [
+            {
+              "at": "2026-05-14T08:40:00Z",
+              "value": 90.938
+            },
+            {
+              "at": "2026-05-15T11:19:00Z",
+              "value": 95.921
+            },
+            {
+              "at": "2026-05-16T08:56:00Z",
+              "value": 86.543
+            },
+            {
+              "at": "2026-05-17T09:09:00Z",
+              "value": 89.551
+            },
+            {
+              "at": "2026-05-18T10:02:00Z",
+              "value": 89.362
+            },
+            {
+              "at": "2026-05-19T09:03:00Z",
+              "value": 96.934
+            },
+            {
+              "at": "2026-05-20T09:26:00Z",
+              "value": 96.435
+            },
+            {
+              "at": "2026-05-21T11:13:00Z",
+              "value": 93.036
+            },
+            {
+              "at": "2026-05-22T11:25:00Z",
+              "value": 98.362
+            },
+            {
+              "at": "2026-05-23T09:02:00Z",
+              "value": 90.611
+            },
+            {
+              "at": "2026-05-24T10:05:00Z",
+              "value": 96.716
+            },
+            {
+              "at": "2026-05-25T11:29:00Z",
+              "value": 93.788
+            },
+            {
+              "at": "2026-05-26T09:54:00Z",
+              "value": 89.541
+            },
+            {
+              "at": "2026-05-27T09:10:00Z",
+              "value": 87.872
+            },
+            {
+              "at": "2026-05-28T11:01:00Z",
+              "value": 93.092
+            },
+            {
+              "at": "2026-05-29T09:37:00Z",
+              "value": 92.572
+            },
+            {
+              "at": "2026-05-30T10:10:00Z",
+              "value": 91.583
+            },
+            {
+              "at": "2026-05-31T09:06:00Z",
+              "value": 95.278
+            },
+            {
+              "at": "2026-06-01T08:53:00Z",
+              "value": 94.852
+            },
+            {
+              "at": "2026-06-02T09:17:00Z",
+              "value": 99.0
+            },
+            {
+              "at": "2026-06-03T09:53:00Z",
+              "value": 99.0
+            },
+            {
+              "at": "2026-06-04T09:14:00Z",
+              "value": 95.318
+            },
+            {
+              "at": "2026-06-05T09:17:00Z",
+              "value": 99.0
+            },
+            {
+              "at": "2026-06-06T09:19:00Z",
+              "value": 96.786
+            },
+            {
+              "at": "2026-06-07T10:00:00Z",
+              "value": 99.0
+            },
+            {
+              "at": "2026-06-08T10:51:00Z",
+              "value": 92.195
+            },
+            {
+              "at": "2026-06-09T10:59:00Z",
+              "value": 90.007
+            },
+            {
+              "at": "2026-06-10T10:18:00Z",
+              "value": 98.248
+            },
+            {
+              "at": "2026-06-11T11:30:00Z",
+              "value": 95.253
+            },
+            {
+              "at": "2026-06-12T11:00:00Z",
+              "value": 99.0
+            }
+          ],
+          "threshold": {
+            "label": "Memory-pressure limit (85% used)",
+            "source": "policy",
+            "value": 85.0
+          },
+          "unit": "Memory used (% of installed memory)"
+        },
+        "severity": "act_soon",
+        "suggested_action_types": [
+          "upgrade_order"
+        ],
+        "why": "Sustained: at least 80% of the window's snapshots breached the limit and the latest one does too."
+      },
+      {
+        "category": "disk",
+        "device_id": "8NM23J95R5I6",
+        "evidence_kv": [
+          {
+            "label": "Free space now",
+            "value": "2.6%"
+          },
+          {
+            "label": "Snapshots past the limit",
+            "value": "15 of 30"
+          },
+          {
+            "label": "Pattern",
+            "value": "Onset"
+          },
+          {
+            "label": "Window",
+            "value": "30 days"
+          }
+        ],
+        "finding": "acme-thinkpad-8 began having disk space under 10% free inside the last 30 days and still does (15 of 30 snapshots; 2.6% free now).",
+        "fit": null,
+        "label": "acme-thinkpad-8",
+        "method": "Observed · 15 of 30 snapshots past the limit (disk space free)",
+        "projection": null,
+        "refs": [
+          "acme-001/8NM23J95R5I6@2026-05-29T11:16:00Z#disk",
+          "acme-001/8NM23J95R5I6@2026-06-03T08:42:00Z#disk",
+          "acme-001/8NM23J95R5I6@2026-06-07T10:35:00Z#disk",
+          "acme-001/8NM23J95R5I6@2026-06-12T09:02:00Z#disk"
+        ],
+        "series": {
+          "points": [
+            {
+              "at": "2026-05-14T10:10:00Z",
+              "value": 17.265
+            },
+            {
+              "at": "2026-05-15T11:14:00Z",
+              "value": 16.759
+            },
+            {
+              "at": "2026-05-16T08:44:00Z",
+              "value": 16.253
+            },
+            {
+              "at": "2026-05-17T11:05:00Z",
+              "value": 15.747
+            },
+            {
+              "at": "2026-05-18T09:25:00Z",
+              "value": 15.241
+            },
+            {
+              "at": "2026-05-19T08:42:00Z",
+              "value": 14.735
+            },
+            {
+              "at": "2026-05-20T10:19:00Z",
+              "value": 14.229
+            },
+            {
+              "at": "2026-05-21T09:34:00Z",
+              "value": 13.723
+            },
+            {
+              "at": "2026-05-22T08:54:00Z",
+              "value": 13.217
+            },
+            {
+              "at": "2026-05-23T09:01:00Z",
+              "value": 12.711
+            },
+            {
+              "at": "2026-05-24T08:40:00Z",
+              "value": 12.205
+            },
+            {
+              "at": "2026-05-25T11:23:00Z",
+              "value": 11.699
+            },
+            {
+              "at": "2026-05-26T08:38:00Z",
+              "value": 11.193
+            },
+            {
+              "at": "2026-05-27T10:29:00Z",
+              "value": 10.687
+            },
+            {
+              "at": "2026-05-28T09:56:00Z",
+              "value": 10.181
+            },
+            {
+              "at": "2026-05-29T11:16:00Z",
+              "value": 9.675
+            },
+            {
+              "at": "2026-05-30T08:38:00Z",
+              "value": 9.168
+            },
+            {
+              "at": "2026-05-31T10:03:00Z",
+              "value": 8.662
+            },
+            {
+              "at": "2026-06-01T11:06:00Z",
+              "value": 8.156
+            },
+            {
+              "at": "2026-06-02T11:09:00Z",
+              "value": 7.65
+            },
+            {
+              "at": "2026-06-03T08:42:00Z",
+              "value": 7.144
+            },
+            {
+              "at": "2026-06-04T09:44:00Z",
+              "value": 6.638
+            },
+            {
+              "at": "2026-06-05T08:42:00Z",
+              "value": 6.132
+            },
+            {
+              "at": "2026-06-06T08:49:00Z",
+              "value": 5.626
+            },
+            {
+              "at": "2026-06-07T10:35:00Z",
+              "value": 5.12
+            },
+            {
+              "at": "2026-06-08T11:06:00Z",
+              "value": 4.614
+            },
+            {
+              "at": "2026-06-09T08:35:00Z",
+              "value": 4.108
+            },
+            {
+              "at": "2026-06-10T08:39:00Z",
+              "value": 3.602
+            },
+            {
+              "at": "2026-06-11T08:32:00Z",
+              "value": 3.096
+            },
+            {
+              "at": "2026-06-12T09:02:00Z",
+              "value": 2.59
+            }
+          ],
+          "threshold": {
+            "label": "Low-disk limit (10% free)",
+            "source": "policy",
+            "value": 10.0
+          },
+          "unit": "Free disk space (% of the primary volume)"
+        },
+        "severity": "watch",
+        "suggested_action_types": [
+          "upgrade_order",
+          "employee_notification"
+        ],
+        "why": "Onset: the breach began inside the window and is still going."
+      },
+      {
+        "category": "compliance",
+        "device_id": "1LYSSFD074BB",
+        "evidence_kv": [
+          {
+            "label": "Check",
+            "value": "screen_lock"
+          },
+          {
+            "label": "Severity",
+            "value": "medium"
+          },
+          {
+            "label": "Failing since",
+            "value": "2026-05-22"
+          }
+        ],
+        "finding": "acme-macbook-2's screen_lock check changed from pass to fail on 2026-05-22 and still fails.",
+        "fit": null,
+        "label": "acme-macbook-2",
+        "method": "Observed · 30 snapshots",
+        "projection": null,
+        "refs": [
+          "acme-001/1LYSSFD074BB@2026-05-21T09:45:00Z#compliance[screen_lock]",
+          "acme-001/1LYSSFD074BB@2026-05-22T09:41:00Z#compliance[screen_lock]",
+          "acme-001/1LYSSFD074BB@2026-06-12T09:47:00Z#compliance[screen_lock]"
+        ],
+        "series": {
+          "points": [
+            {
+              "at": "2026-05-14T09:54:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-15T09:11:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-16T09:14:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-17T11:08:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-18T10:40:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-19T09:26:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-20T08:39:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-21T09:45:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-22T09:41:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-05-23T10:45:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-05-24T10:21:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-05-25T09:29:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-05-26T08:31:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-05-27T09:22:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-05-28T08:53:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-05-29T08:53:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-05-30T08:44:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-05-31T11:13:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-01T10:10:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-02T09:09:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-03T08:53:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-04T08:57:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-05T09:33:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-06T09:52:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-07T10:22:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-08T09:18:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-09T10:58:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-10T10:22:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-11T09:20:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-12T09:47:00Z",
+              "value": 0.0
+            }
+          ],
+          "threshold": null,
+          "unit": "Check result per snapshot (1 = pass, 0 = fail)"
+        },
+        "severity": "watch",
+        "suggested_action_types": [
+          "remediation_ticket",
+          "employee_notification"
+        ],
+        "why": "The medium-severity screen_lock check passed earlier in the window and fails at the latest snapshot."
+      },
+      {
+        "category": "compliance",
+        "device_id": "8NM23J95R5I6",
+        "evidence_kv": [
+          {
+            "label": "Check",
+            "value": "screen_lock"
+          },
+          {
+            "label": "Severity",
+            "value": "medium"
+          },
+          {
+            "label": "Failing since",
+            "value": "2026-05-30"
+          }
+        ],
+        "finding": "acme-thinkpad-8's screen_lock check changed from pass to fail on 2026-05-30 and still fails.",
+        "fit": null,
+        "label": "acme-thinkpad-8",
+        "method": "Observed · 30 snapshots",
+        "projection": null,
+        "refs": [
+          "acme-001/8NM23J95R5I6@2026-05-29T11:16:00Z#compliance[screen_lock]",
+          "acme-001/8NM23J95R5I6@2026-05-30T08:38:00Z#compliance[screen_lock]",
+          "acme-001/8NM23J95R5I6@2026-06-12T09:02:00Z#compliance[screen_lock]"
+        ],
+        "series": {
+          "points": [
+            {
+              "at": "2026-05-14T10:10:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-15T11:14:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-16T08:44:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-17T11:05:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-18T09:25:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-19T08:42:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-20T10:19:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-21T09:34:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-22T08:54:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-23T09:01:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-24T08:40:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-25T11:23:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-26T08:38:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-27T10:29:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-28T09:56:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-29T11:16:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-30T08:38:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-05-31T10:03:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-01T11:06:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-02T11:09:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-03T08:42:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-04T09:44:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-05T08:42:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-06T08:49:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-07T10:35:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-08T11:06:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-09T08:35:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-10T08:39:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-11T08:32:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-12T09:02:00Z",
+              "value": 0.0
+            }
+          ],
+          "threshold": null,
+          "unit": "Check result per snapshot (1 = pass, 0 = fail)"
+        },
+        "severity": "watch",
+        "suggested_action_types": [
+          "remediation_ticket",
+          "employee_notification"
+        ],
+        "why": "The medium-severity screen_lock check passed earlier in the window and fails at the latest snapshot."
+      },
+      {
+        "category": "compliance",
+        "device_id": "DLT35MHGTH2D",
+        "evidence_kv": [
+          {
+            "label": "Check",
+            "value": "screen_lock"
+          },
+          {
+            "label": "Severity",
+            "value": "medium"
+          },
+          {
+            "label": "Failing since",
+            "value": "2026-06-01"
+          }
+        ],
+        "finding": "acme-mac-5's screen_lock check changed from pass to fail on 2026-06-01 and still fails.",
+        "fit": null,
+        "label": "acme-mac-5",
+        "method": "Observed · 30 snapshots",
+        "projection": null,
+        "refs": [
+          "acme-001/DLT35MHGTH2D@2026-05-31T09:37:00Z#compliance[screen_lock]",
+          "acme-001/DLT35MHGTH2D@2026-06-01T10:14:00Z#compliance[screen_lock]",
+          "acme-001/DLT35MHGTH2D@2026-06-12T09:36:00Z#compliance[screen_lock]"
+        ],
+        "series": {
+          "points": [
+            {
+              "at": "2026-05-14T10:10:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-15T10:08:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-16T08:53:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-17T09:54:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-18T09:41:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-19T08:38:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-20T09:57:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-21T10:39:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-22T10:51:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-23T08:36:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-24T09:26:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-25T11:27:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-26T11:04:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-27T10:38:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-28T08:50:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-29T11:26:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-30T09:50:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-31T09:37:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-06-01T10:14:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-02T10:34:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-03T09:56:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-04T10:39:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-05T11:29:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-06T11:10:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-07T11:16:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-08T09:42:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-09T10:45:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-10T09:26:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-11T08:57:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-12T09:36:00Z",
+              "value": 0.0
+            }
+          ],
+          "threshold": null,
+          "unit": "Check result per snapshot (1 = pass, 0 = fail)"
+        },
+        "severity": "watch",
+        "suggested_action_types": [
+          "remediation_ticket",
+          "employee_notification"
+        ],
+        "why": "The medium-severity screen_lock check passed earlier in the window and fails at the latest snapshot."
+      },
+      {
+        "category": "compliance",
+        "device_id": "DSYPSES7SKBB",
+        "evidence_kv": [
+          {
+            "label": "Check",
+            "value": "screen_lock"
+          },
+          {
+            "label": "Severity",
+            "value": "medium"
+          },
+          {
+            "label": "Failing since",
+            "value": "2026-06-01"
+          }
+        ],
+        "finding": "acme-macbook-3's screen_lock check changed from pass to fail on 2026-06-01 and still fails.",
+        "fit": null,
+        "label": "acme-macbook-3",
+        "method": "Observed · 30 snapshots",
+        "projection": null,
+        "refs": [
+          "acme-001/DSYPSES7SKBB@2026-05-31T10:31:00Z#compliance[screen_lock]",
+          "acme-001/DSYPSES7SKBB@2026-06-01T10:20:00Z#compliance[screen_lock]",
+          "acme-001/DSYPSES7SKBB@2026-06-12T10:57:00Z#compliance[screen_lock]"
+        ],
+        "series": {
+          "points": [
+            {
+              "at": "2026-05-14T10:39:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-15T10:55:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-16T10:10:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-17T09:15:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-18T10:06:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-19T08:44:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-20T10:39:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-21T08:44:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-22T09:09:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-23T09:30:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-24T10:59:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-25T11:25:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-26T10:10:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-27T08:31:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-28T10:48:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-29T08:35:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-30T10:40:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-31T10:31:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-06-01T10:20:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-02T10:47:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-03T10:36:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-04T10:45:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-05T09:10:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-06T10:58:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-07T09:08:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-08T09:37:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-09T11:17:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-10T09:20:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-11T10:50:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-12T10:57:00Z",
+              "value": 0.0
+            }
+          ],
+          "threshold": null,
+          "unit": "Check result per snapshot (1 = pass, 0 = fail)"
+        },
+        "severity": "watch",
+        "suggested_action_types": [
+          "remediation_ticket",
+          "employee_notification"
+        ],
+        "why": "The medium-severity screen_lock check passed earlier in the window and fails at the latest snapshot."
+      }
+    ],
+    "needs": [],
+    "notes": [
+      "Showing the 10 most urgent of 11 findings, ranked act soon first, then by category.",
+      "1 laptop had no battery reading in the latest snapshot (the newest earlier reading was used): MT7PJB7N5LRE."
+    ],
+    "offer_switch_company": false,
+    "outcome": "answer",
+    "proposal": null,
+    "reason_code": null,
+    "repeat_of": null,
+    "scope": {
+      "as_of": "2026-06-12T11:00:00Z",
+      "calculation": "7 distinct devices across 4 claims; at most 10 supporting readings are cited per device",
+      "company_id": "acme-001",
+      "population": 10,
+      "rule": "battery wear against our 90% service threshold, low disk (under 10% free), memory pressure (85% used or more) and compliance failures and changes over the last 30 days"
+    },
+    "scope_line": {
+      "as_of": "2026-06-12T11:00:00Z",
+      "basis": "last 30 days of snapshots",
+      "checked": 10,
+      "company_name": "Acme",
+      "matched": 7,
+      "not_checked": 0,
+      "ok": 3,
+      "ok_label": "with nothing to flag"
+    },
+    "suggested_actions": [],
+    "summary": "",
+    "table": null,
+    "trace_id": "replay-acme-001-fleet_health"
+  },
+  "meta": {
+    "keywords": [
+      "fleet health",
+      "summary",
+      "needs attention",
+      "overview"
+    ],
+    "note": "",
+    "question": "Give me a fleet health summary",
+    "scenario": "fleet_health",
+    "synthetic": false,
+    "tenant": "acme-001"
+  },
+  "trace": [
+    {
+      "data": {
+        "company_id": "acme-001"
+      },
+      "kind": "scope",
+      "latency_ms": null,
+      "seq": 0,
+      "summary": "Turn started",
+      "tool": null,
+      "trace_id": "replay-acme-001-fleet_health"
+    },
+    {
+      "data": {
+        "has_reference": false,
+        "intent": "answer",
+        "reference_kind": null,
+        "window_days": null
+      },
+      "kind": "plan",
+      "latency_ms": null,
+      "seq": 1,
+      "summary": "Planned the turn",
+      "tool": null,
+      "trace_id": "replay-acme-001-fleet_health"
+    },
+    {
+      "data": {
+        "args": {}
+      },
+      "kind": "tool_call",
+      "latency_ms": null,
+      "seq": 2,
+      "summary": "Calling fleet_health",
+      "tool": "fleet_health",
+      "trace_id": "replay-acme-001-fleet_health"
+    },
+    {
+      "data": {
+        "matches": 11,
+        "population": 10,
+        "status": "ok"
+      },
+      "kind": "tool_result",
+      "latency_ms": null,
+      "seq": 3,
+      "summary": "fleet_health returned",
+      "tool": "fleet_health",
+      "trace_id": "replay-acme-001-fleet_health"
+    },
+    {
+      "data": {
+        "claims": 4,
+        "evidence": 33,
+        "outcome": "answer",
+        "records": 1
+      },
+      "kind": "compose",
+      "latency_ms": null,
+      "seq": 4,
+      "summary": "Composed the answer from tool records",
+      "tool": null,
+      "trace_id": "replay-acme-001-fleet_health"
+    },
+    {
+      "data": {
+        "ok": true
+      },
+      "kind": "explain",
+      "latency_ms": null,
+      "seq": 5,
+      "summary": "Model wrote a headline and explanation",
+      "tool": null,
+      "trace_id": "replay-acme-001-fleet_health"
+    },
+    {
+      "data": {
+        "evidence_ok": true,
+        "explanation_shown": false,
+        "headline_from_model": true,
+        "model_prose": true,
+        "problems": []
+      },
+      "kind": "verify",
+      "latency_ms": null,
+      "seq": 6,
+      "summary": "Checked the answer against the evidence",
+      "tool": null,
+      "trace_id": "replay-acme-001-fleet_health"
+    },
+    {
+      "data": {
+        "claims": 4,
+        "evidence": 33,
+        "outcome": "answer",
+        "reason_code": null
+      },
+      "kind": "respond",
+      "latency_ms": null,
+      "seq": 7,
+      "summary": "Answer ready",
+      "tool": null,
+      "trace_id": "replay-acme-001-fleet_health"
+    }
+  ]
+}

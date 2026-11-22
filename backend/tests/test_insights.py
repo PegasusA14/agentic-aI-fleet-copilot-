@@ -487,6 +487,22 @@ def test_a_date_that_the_code_did_not_write_is_rejected(battery_answer):
     assert any(p.startswith("explanation:") for p in verdict.problems)
 
 
+def test_the_act_soon_label_may_be_repeated_but_not_a_prediction_with_soon(battery_answer):
+    comp, _ = battery_answer
+    assert "act soon" in comp.estimates
+    ok = verify_prose(
+        comp,
+        AS_OF,
+        headline="3 of 9 laptops show battery wear signals over the last 30 days",
+        explanation="Three of your batteries act soon in our ranking.",
+    )
+    assert ok.problems == ()
+    bad = verify_prose(
+        comp, AS_OF, headline=None, explanation="Three batteries will run flat soon."
+    )
+    assert "explanation:predictive" in bad.problems
+
+
 def test_a_stated_date_may_be_named_by_month_and_day_but_no_other(battery_answer):
     comp, _ = battery_answer
     stated = verify_prose(
@@ -521,3 +537,13 @@ def test_estimates_are_not_needed_for_an_answer_without_insights(real_db_path, r
     assert (
         composition_of(comp.to_envelope(company_id=ACME, as_of=AS_OF, trace_id="t")).estimates == []
     )
+
+
+def test_the_act_prompt_has_one_line_directing_health_questions_to_fleet_health():
+    from fleet_copilot.agent.prompts import ACT_SYSTEM
+    from fleet_copilot.agent.tools import TOOLS
+
+    lines = [line for line in ACT_SYSTEM.split("\n") if "fleet_health" in line]
+    assert len(lines) == 1 and "what needs attention" in lines[0]
+    tool = next(t for t in TOOLS if t.name == "fleet_health")
+    assert "ranked overview across battery, disk, memory and compliance" in tool.description

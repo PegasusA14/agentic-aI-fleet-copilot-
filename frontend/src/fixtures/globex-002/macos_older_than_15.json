@@ -110,6 +110,7 @@
       }
     ],
     "headline": "2 of 5 macOS devices run a version older than macOS 15",
+    "insights": [],
     "needs": [],
     "notes": [
       "3 devices are out of scope for this check: CUXW0BQSV1B7, E4V0SB5I0MYU, JRZSGXVMKE6M."

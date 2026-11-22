@@ -94,6 +94,7 @@
       }
     ],
     "headline": "There are not enough snapshots in that window to report a trend.",
+    "insights": [],
     "needs": [],
     "notes": [
       "10 devices have fewer than 3 snapshots in the window, so no trend is reported: 1LYSSFD074BB, 7VP16KHV88LM, 8NM23J95R5I6, 9MXJVZ1I0DKA, DLT35MHGTH2D, DSYPSES7SKBB, M4XVHUV1MEPZ, MT7PJB7N5LRE, Q3VUITEGQ400, XSU9UUDGU6AC."

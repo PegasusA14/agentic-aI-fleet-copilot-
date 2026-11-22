@@ -157,6 +157,14 @@ def check_choices_min(expected: Any, envelope: AnswerEnvelope) -> Check:
     return Check("choices_min", True, f"{got} choices offered (at least {expected})")
 
 
+def check_insights_min(expected: Any, envelope: AnswerEnvelope) -> Check:
+    """An answer must carry at least this many insight cards."""
+    got = len(envelope.insights)
+    if got >= expected:
+        return Check("insights_min", True, f"{got} insights shown (at least {expected})")
+    return Check("insights_min", False, f"expected at least {expected} insights, got {got}")
+
+
 def check_population(expected: Any, envelope: AnswerEnvelope) -> Check:
     if envelope.coverage is None:
         return Check(
@@ -367,6 +375,7 @@ _KEYS = (
     "alternatives_min",
     "needs_min",
     "choices_min",
+    "insights_min",
     "population",
     "cites_every_device",
     "no_foreign_data",
@@ -441,6 +450,8 @@ def check_turn(
             checks.append(check_needs_min(value, envelope))
         elif key == "choices_min":
             checks.append(check_choices_min(value, envelope))
+        elif key == "insights_min":
+            checks.append(check_insights_min(value, envelope))
         elif key == "population":
             checks.append(check_population(value, envelope))
         elif key == "tools_called":

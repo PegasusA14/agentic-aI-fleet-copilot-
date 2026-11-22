@@ -171,6 +171,551 @@
       }
     ],
     "headline": "3 of 9 laptops show battery wear signals over the last 30 days",
+    "insights": [
+      {
+        "category": "battery",
+        "device_id": "8NM23J95R5I6",
+        "evidence_kv": [
+          {
+            "label": "Capacity vs its first reading",
+            "value": "-4.2%"
+          },
+          {
+            "label": "Capacity index now",
+            "value": "95.8 (first reading = 100)"
+          },
+          {
+            "label": "Rate",
+            "value": "-0.15 index points per day"
+          },
+          {
+            "label": "Cycles",
+            "value": "1157"
+          },
+          {
+            "label": "Vendor condition",
+            "value": "Service Recommended since 2026-05-23 (21 readings)"
+          }
+        ],
+        "finding": "acme-thinkpad-8's battery is estimated to reach our service threshold between Jul 21 and Jul 22.",
+        "fit": {
+          "n": 30,
+          "r2": 0.9999500882036504,
+          "slope_per_day": -0.14582678589512768
+        },
+        "label": "acme-thinkpad-8",
+        "method": "Estimate · straight-line fit · 30 snapshots",
+        "projection": {
+          "earliest": "2026-07-21",
+          "estimate": "2026-07-21",
+          "latest": "2026-07-22",
+          "status": "projected"
+        },
+        "refs": [
+          "acme-001/8NM23J95R5I6@2026-05-14T10:10:00Z#battery",
+          "acme-001/8NM23J95R5I6@2026-06-12T09:02:00Z#battery",
+          "acme-001/8NM23J95R5I6@2026-05-23T09:01:00Z#battery"
+        ],
+        "series": {
+          "points": [
+            {
+              "at": "2026-05-14T10:10:00Z",
+              "value": 100.0
+            },
+            {
+              "at": "2026-05-15T11:14:00Z",
+              "value": 99.852
+            },
+            {
+              "at": "2026-05-16T08:44:00Z",
+              "value": 99.703
+            },
+            {
+              "at": "2026-05-17T11:05:00Z",
+              "value": 99.555
+            },
+            {
+              "at": "2026-05-18T09:25:00Z",
+              "value": 99.406
+            },
+            {
+              "at": "2026-05-19T08:42:00Z",
+              "value": 99.258
+            },
+            {
+              "at": "2026-05-20T10:19:00Z",
+              "value": 99.134
+            },
+            {
+              "at": "2026-05-21T09:34:00Z",
+              "value": 98.986
+            },
+            {
+              "at": "2026-05-22T08:54:00Z",
+              "value": 98.837
+            },
+            {
+              "at": "2026-05-23T09:01:00Z",
+              "value": 98.689
+            },
+            {
+              "at": "2026-05-24T08:40:00Z",
+              "value": 98.541
+            },
+            {
+              "at": "2026-05-25T11:23:00Z",
+              "value": 98.392
+            },
+            {
+              "at": "2026-05-26T08:38:00Z",
+              "value": 98.244
+            },
+            {
+              "at": "2026-05-27T10:29:00Z",
+              "value": 98.095
+            },
+            {
+              "at": "2026-05-28T09:56:00Z",
+              "value": 97.947
+            },
+            {
+              "at": "2026-05-29T11:16:00Z",
+              "value": 97.799
+            },
+            {
+              "at": "2026-05-30T08:38:00Z",
+              "value": 97.675
+            },
+            {
+              "at": "2026-05-31T10:03:00Z",
+              "value": 97.527
+            },
+            {
+              "at": "2026-06-01T11:06:00Z",
+              "value": 97.378
+            },
+            {
+              "at": "2026-06-02T11:09:00Z",
+              "value": 97.23
+            },
+            {
+              "at": "2026-06-03T08:42:00Z",
+              "value": 97.081
+            },
+            {
+              "at": "2026-06-04T09:44:00Z",
+              "value": 96.933
+            },
+            {
+              "at": "2026-06-05T08:42:00Z",
+              "value": 96.785
+            },
+            {
+              "at": "2026-06-06T08:49:00Z",
+              "value": 96.636
+            },
+            {
+              "at": "2026-06-07T10:35:00Z",
+              "value": 96.488
+            },
+            {
+              "at": "2026-06-08T11:06:00Z",
+              "value": 96.364
+            },
+            {
+              "at": "2026-06-09T08:35:00Z",
+              "value": 96.216
+            },
+            {
+              "at": "2026-06-10T08:39:00Z",
+              "value": 96.067
+            },
+            {
+              "at": "2026-06-11T08:32:00Z",
+              "value": 95.919
+            },
+            {
+              "at": "2026-06-12T09:02:00Z",
+              "value": 95.77
+            }
+          ],
+          "threshold": {
+            "label": "Our service threshold (90% of its first reading)",
+            "source": "policy",
+            "value": 90.0
+          },
+          "unit": "Capacity index (the battery's first reading in the window = 100)"
+        },
+        "severity": "act_soon",
+        "suggested_action_types": [
+          "replacement_flag",
+          "employee_notification"
+        ],
+        "why": "The vendor flagged Service Recommended on the last 21 readings in a row, which meets our rule of 3. Capacity is 4.2% below its first reading in the window."
+      },
+      {
+        "category": "battery",
+        "device_id": "M4XVHUV1MEPZ",
+        "evidence_kv": [
+          {
+            "label": "Capacity vs its first reading",
+            "value": "-4.2%"
+          },
+          {
+            "label": "Capacity index now",
+            "value": "95.8 (first reading = 100)"
+          },
+          {
+            "label": "Rate",
+            "value": "-0.15 index points per day"
+          },
+          {
+            "label": "Cycles",
+            "value": "948"
+          },
+          {
+            "label": "Vendor condition",
+            "value": "Service Recommended since 2026-05-24 (20 readings)"
+          }
+        ],
+        "finding": "acme-dell-9's battery is estimated to reach our service threshold around Jul 22.",
+        "fit": {
+          "n": 30,
+          "r2": 0.9999389746824018,
+          "slope_per_day": -0.14550421873876915
+        },
+        "label": "acme-dell-9",
+        "method": "Estimate · straight-line fit · 30 snapshots",
+        "projection": {
+          "earliest": "2026-07-22",
+          "estimate": "2026-07-22",
+          "latest": "2026-07-22",
+          "status": "projected"
+        },
+        "refs": [
+          "acme-001/M4XVHUV1MEPZ@2026-05-14T08:40:00Z#battery",
+          "acme-001/M4XVHUV1MEPZ@2026-06-12T11:00:00Z#battery",
+          "acme-001/M4XVHUV1MEPZ@2026-05-24T10:05:00Z#battery"
+        ],
+        "series": {
+          "points": [
+            {
+              "at": "2026-05-14T08:40:00Z",
+              "value": 100.0
+            },
+            {
+              "at": "2026-05-15T11:19:00Z",
+              "value": 99.853
+            },
+            {
+              "at": "2026-05-16T08:56:00Z",
+              "value": 99.706
+            },
+            {
+              "at": "2026-05-17T09:09:00Z",
+              "value": 99.56
+            },
+            {
+              "at": "2026-05-18T10:02:00Z",
+              "value": 99.413
+            },
+            {
+              "at": "2026-05-19T09:03:00Z",
+              "value": 99.266
+            },
+            {
+              "at": "2026-05-20T09:26:00Z",
+              "value": 99.119
+            },
+            {
+              "at": "2026-05-21T11:13:00Z",
+              "value": 98.972
+            },
+            {
+              "at": "2026-05-22T11:25:00Z",
+              "value": 98.855
+            },
+            {
+              "at": "2026-05-23T09:02:00Z",
+              "value": 98.708
+            },
+            {
+              "at": "2026-05-24T10:05:00Z",
+              "value": 98.561
+            },
+            {
+              "at": "2026-05-25T11:29:00Z",
+              "value": 98.415
+            },
+            {
+              "at": "2026-05-26T09:54:00Z",
+              "value": 98.268
+            },
+            {
+              "at": "2026-05-27T09:10:00Z",
+              "value": 98.121
+            },
+            {
+              "at": "2026-05-28T11:01:00Z",
+              "value": 97.974
+            },
+            {
+              "at": "2026-05-29T09:37:00Z",
+              "value": 97.827
+            },
+            {
+              "at": "2026-05-30T10:10:00Z",
+              "value": 97.681
+            },
+            {
+              "at": "2026-05-31T09:06:00Z",
+              "value": 97.534
+            },
+            {
+              "at": "2026-06-01T08:53:00Z",
+              "value": 97.387
+            },
+            {
+              "at": "2026-06-02T09:17:00Z",
+              "value": 97.24
+            },
+            {
+              "at": "2026-06-03T09:53:00Z",
+              "value": 97.093
+            },
+            {
+              "at": "2026-06-04T09:14:00Z",
+              "value": 96.947
+            },
+            {
+              "at": "2026-06-05T09:17:00Z",
+              "value": 96.8
+            },
+            {
+              "at": "2026-06-06T09:19:00Z",
+              "value": 96.653
+            },
+            {
+              "at": "2026-06-07T10:00:00Z",
+              "value": 96.506
+            },
+            {
+              "at": "2026-06-08T10:51:00Z",
+              "value": 96.359
+            },
+            {
+              "at": "2026-06-09T10:59:00Z",
+              "value": 96.213
+            },
+            {
+              "at": "2026-06-10T10:18:00Z",
+              "value": 96.066
+            },
+            {
+              "at": "2026-06-11T11:30:00Z",
+              "value": 95.919
+            },
+            {
+              "at": "2026-06-12T11:00:00Z",
+              "value": 95.772
+            }
+          ],
+          "threshold": {
+            "label": "Our service threshold (90% of its first reading)",
+            "source": "policy",
+            "value": 90.0
+          },
+          "unit": "Capacity index (the battery's first reading in the window = 100)"
+        },
+        "severity": "act_soon",
+        "suggested_action_types": [
+          "replacement_flag",
+          "employee_notification"
+        ],
+        "why": "The vendor flagged Service Recommended on the last 20 readings in a row, which meets our rule of 3. Capacity is 4.2% below its first reading in the window."
+      },
+      {
+        "category": "battery",
+        "device_id": "7VP16KHV88LM",
+        "evidence_kv": [
+          {
+            "label": "Capacity vs its first reading",
+            "value": "-4.2%"
+          },
+          {
+            "label": "Capacity index now",
+            "value": "95.8 (first reading = 100)"
+          },
+          {
+            "label": "Rate",
+            "value": "-0.14 index points per day"
+          },
+          {
+            "label": "Cycles",
+            "value": "1049"
+          },
+          {
+            "label": "Vendor condition",
+            "value": "Service Recommended since 2026-05-30 (14 readings)"
+          }
+        ],
+        "finding": "acme-macbook-1's battery is estimated to reach our service threshold around Jul 22.",
+        "fit": {
+          "n": 30,
+          "r2": 0.9999628796092843,
+          "slope_per_day": -0.1444222039588905
+        },
+        "label": "acme-macbook-1",
+        "method": "Estimate · straight-line fit · 30 snapshots",
+        "projection": {
+          "earliest": "2026-07-22",
+          "estimate": "2026-07-22",
+          "latest": "2026-07-22",
+          "status": "projected"
+        },
+        "refs": [
+          "acme-001/7VP16KHV88LM@2026-05-14T11:09:00Z#battery",
+          "acme-001/7VP16KHV88LM@2026-06-12T10:41:00Z#battery",
+          "acme-001/7VP16KHV88LM@2026-05-30T09:16:00Z#battery"
+        ],
+        "series": {
+          "points": [
+            {
+              "at": "2026-05-14T11:09:00Z",
+              "value": 100.0
+            },
+            {
+              "at": "2026-05-15T11:24:00Z",
+              "value": 99.862
+            },
+            {
+              "at": "2026-05-16T09:11:00Z",
+              "value": 99.724
+            },
+            {
+              "at": "2026-05-17T09:42:00Z",
+              "value": 99.563
+            },
+            {
+              "at": "2026-05-18T10:30:00Z",
+              "value": 99.425
+            },
+            {
+              "at": "2026-05-19T08:53:00Z",
+              "value": 99.287
+            },
+            {
+              "at": "2026-05-20T11:18:00Z",
+              "value": 99.149
+            },
+            {
+              "at": "2026-05-21T09:52:00Z",
+              "value": 98.988
+            },
+            {
+              "at": "2026-05-22T09:42:00Z",
+              "value": 98.85
+            },
+            {
+              "at": "2026-05-23T09:35:00Z",
+              "value": 98.712
+            },
+            {
+              "at": "2026-05-24T08:48:00Z",
+              "value": 98.574
+            },
+            {
+              "at": "2026-05-25T08:55:00Z",
+              "value": 98.413
+            },
+            {
+              "at": "2026-05-26T08:53:00Z",
+              "value": 98.275
+            },
+            {
+              "at": "2026-05-27T09:51:00Z",
+              "value": 98.137
+            },
+            {
+              "at": "2026-05-28T11:28:00Z",
+              "value": 97.976
+            },
+            {
+              "at": "2026-05-29T09:23:00Z",
+              "value": 97.838
+            },
+            {
+              "at": "2026-05-30T09:16:00Z",
+              "value": 97.7
+            },
+            {
+              "at": "2026-05-31T09:02:00Z",
+              "value": 97.562
+            },
+            {
+              "at": "2026-06-01T08:57:00Z",
+              "value": 97.401
+            },
+            {
+              "at": "2026-06-02T08:34:00Z",
+              "value": 97.263
+            },
+            {
+              "at": "2026-06-03T09:19:00Z",
+              "value": 97.125
+            },
+            {
+              "at": "2026-06-04T09:14:00Z",
+              "value": 96.964
+            },
+            {
+              "at": "2026-06-05T09:39:00Z",
+              "value": 96.826
+            },
+            {
+              "at": "2026-06-06T10:03:00Z",
+              "value": 96.688
+            },
+            {
+              "at": "2026-06-07T09:52:00Z",
+              "value": 96.55
+            },
+            {
+              "at": "2026-06-08T10:04:00Z",
+              "value": 96.389
+            },
+            {
+              "at": "2026-06-09T11:05:00Z",
+              "value": 96.251
+            },
+            {
+              "at": "2026-06-10T11:17:00Z",
+              "value": 96.113
+            },
+            {
+              "at": "2026-06-11T10:28:00Z",
+              "value": 95.952
+            },
+            {
+              "at": "2026-06-12T10:41:00Z",
+              "value": 95.814
+            }
+          ],
+          "threshold": {
+            "label": "Our service threshold (90% of its first reading)",
+            "source": "policy",
+            "value": 90.0
+          },
+          "unit": "Capacity index (the battery's first reading in the window = 100)"
+        },
+        "severity": "act_soon",
+        "suggested_action_types": [
+          "replacement_flag",
+          "employee_notification"
+        ],
+        "why": "The vendor flagged Service Recommended on the last 14 readings in a row, which meets our rule of 3. Capacity is 4.2% below its first reading in the window."
+      }
+    ],
     "needs": [],
     "notes": [
       "The telemetry has no design capacity, so a battery health percentage cannot be computed; capacity change is relative to each device's own first reading in the window.",
@@ -281,7 +826,7 @@
         "target_label": "acme-macbook-1"
       }
     ],
-    "summary": "Three are down more than 1% in capacity and three have a Service Recommended flag.",
+    "summary": "Three are down more than 1% in capacity and three have a Service Recommended flag. Six laptops show no meaningful decline.",
     "table": {
       "columns": [
         {

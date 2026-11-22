@@ -1,0 +1,1352 @@
+{
+  "envelope": {
+    "alternatives": [],
+    "claims": [
+      {
+        "count": 2,
+        "device_ids": [
+          "E4V0SB5I0MYU",
+          "JRZSGXVMKE6M"
+        ],
+        "refs": [
+          "globex-002/E4V0SB5I0MYU@2026-05-27T10:22:00Z#disk",
+          "globex-002/E4V0SB5I0MYU@2026-06-01T08:48:00Z#disk",
+          "globex-002/E4V0SB5I0MYU@2026-06-07T10:49:00Z#disk",
+          "globex-002/E4V0SB5I0MYU@2026-06-12T08:54:00Z#disk",
+          "globex-002/JRZSGXVMKE6M@2026-05-21T10:05:00Z#disk",
+          "globex-002/JRZSGXVMKE6M@2026-05-28T11:00:00Z#disk",
+          "globex-002/JRZSGXVMKE6M@2026-06-05T11:03:00Z#disk",
+          "globex-002/JRZSGXVMKE6M@2026-06-12T10:46:00Z#disk"
+        ],
+        "text": "Disk space: 2 devices to look at. globex-dell-7 began having disk space under 10% free inside the last 30 days and still does (17 of 30 snapshots; 2.4% free now). globex-thinkpad-8 began having disk space under 10% free inside the last 30 days and still does (23 of 30 snapshots; 2.0% free now)."
+      },
+      {
+        "count": 2,
+        "device_ids": [
+          "CUXW0BQSV1B7",
+          "JRZSGXVMKE6M"
+        ],
+        "refs": [
+          "globex-002/CUXW0BQSV1B7@2026-05-14T11:14:00Z#memory",
+          "globex-002/CUXW0BQSV1B7@2026-05-27T09:52:00Z#memory",
+          "globex-002/CUXW0BQSV1B7@2026-06-05T09:11:00Z#memory",
+          "globex-002/CUXW0BQSV1B7@2026-06-12T10:47:00Z#memory",
+          "globex-002/JRZSGXVMKE6M@2026-05-14T11:30:00Z#memory",
+          "globex-002/JRZSGXVMKE6M@2026-05-25T10:30:00Z#memory",
+          "globex-002/JRZSGXVMKE6M@2026-06-05T11:03:00Z#memory",
+          "globex-002/JRZSGXVMKE6M@2026-06-12T10:46:00Z#memory"
+        ],
+        "text": "Memory: 2 devices to look at. globex-thinkpad-6 has had memory use at or above 85% on and off over the last 30 days (13 of 30 snapshots; 87.7% used now). globex-thinkpad-8 has had memory use at or above 85% on and off over the last 30 days (23 of 30 snapshots; 88.8% used now)."
+      },
+      {
+        "count": 2,
+        "device_ids": [
+          "CUXW0BQSV1B7",
+          "JRZSGXVMKE6M"
+        ],
+        "refs": [
+          "globex-002/CUXW0BQSV1B7@2026-06-04T10:23:00Z#compliance[screen_lock]",
+          "globex-002/CUXW0BQSV1B7@2026-06-05T09:11:00Z#compliance[screen_lock]",
+          "globex-002/CUXW0BQSV1B7@2026-06-12T10:47:00Z#compliance[screen_lock]",
+          "globex-002/JRZSGXVMKE6M@2026-05-29T09:24:00Z#compliance[screen_lock]",
+          "globex-002/JRZSGXVMKE6M@2026-05-30T11:27:00Z#compliance[screen_lock]",
+          "globex-002/JRZSGXVMKE6M@2026-06-12T10:46:00Z#compliance[screen_lock]"
+        ],
+        "text": "Compliance: 2 devices to look at. globex-thinkpad-6's screen_lock check changed from pass to fail on 2026-06-05 and still fails. globex-thinkpad-8's screen_lock check changed from pass to fail on 2026-05-30 and still fails."
+      }
+    ],
+    "clarification": null,
+    "coverage": {
+      "excluded": {},
+      "excluded_devices": [],
+      "missing_latest": [],
+      "population": 8,
+      "stale": []
+    },
+    "entity_lists": [
+      {
+        "items": [
+          {
+            "device_id": "E4V0SB5I0MYU",
+            "label": "globex-dell-7",
+            "rank": 1
+          },
+          {
+            "device_id": "JRZSGXVMKE6M",
+            "label": "globex-thinkpad-8",
+            "rank": 2
+          },
+          {
+            "device_id": "CUXW0BQSV1B7",
+            "label": "globex-thinkpad-6",
+            "rank": 3
+          }
+        ],
+        "list_id": "replay-globex-002-fleet_health/fleet_health-1",
+        "title": "Needs attention"
+      }
+    ],
+    "evidence": [
+      {
+        "label": "Disk · globex-dell-7 · 2026-05-27 10:22Z",
+        "ref": "globex-002/E4V0SB5I0MYU@2026-05-27T10:22:00Z#disk",
+        "value": "50.5 GiB free of 512.0 GiB (9.9% free)"
+      },
+      {
+        "label": "Disk · globex-dell-7 · 2026-06-01 08:48Z",
+        "ref": "globex-002/E4V0SB5I0MYU@2026-06-01T08:48:00Z#disk",
+        "value": "38.6 GiB free of 512.0 GiB (7.5% free)"
+      },
+      {
+        "label": "Disk · globex-dell-7 · 2026-06-07 10:49Z",
+        "ref": "globex-002/E4V0SB5I0MYU@2026-06-07T10:49:00Z#disk",
+        "value": "24.2 GiB free of 512.0 GiB (4.7% free)"
+      },
+      {
+        "label": "Disk · globex-dell-7 · 2026-06-12 08:54Z",
+        "ref": "globex-002/E4V0SB5I0MYU@2026-06-12T08:54:00Z#disk",
+        "value": "12.2 GiB free of 512.0 GiB (2.4% free)"
+      },
+      {
+        "label": "Disk · globex-thinkpad-8 · 2026-05-21 10:05Z",
+        "ref": "globex-002/JRZSGXVMKE6M@2026-05-21T10:05:00Z#disk",
+        "value": "99.2 GiB free of 1.0 TiB (9.7% free)"
+      },
+      {
+        "label": "Disk · globex-thinkpad-8 · 2026-05-28 11:00Z",
+        "ref": "globex-002/JRZSGXVMKE6M@2026-05-28T11:00:00Z#disk",
+        "value": "73.6 GiB free of 1.0 TiB (7.2% free)"
+      },
+      {
+        "label": "Disk · globex-thinkpad-8 · 2026-06-05 11:03Z",
+        "ref": "globex-002/JRZSGXVMKE6M@2026-06-05T11:03:00Z#disk",
+        "value": "44.3 GiB free of 1.0 TiB (4.3% free)"
+      },
+      {
+        "label": "Disk · globex-thinkpad-8 · 2026-06-12 10:46Z",
+        "ref": "globex-002/JRZSGXVMKE6M@2026-06-12T10:46:00Z#disk",
+        "value": "20.5 GiB free of 1.0 TiB (2.0% free)"
+      },
+      {
+        "label": "Memory · globex-thinkpad-6 · 2026-05-14 11:14Z",
+        "ref": "globex-002/CUXW0BQSV1B7@2026-05-14T11:14:00Z#memory",
+        "value": "87.9% used (14.1 GiB of 16.0 GiB)"
+      },
+      {
+        "label": "Memory · globex-thinkpad-6 · 2026-05-27 09:52Z",
+        "ref": "globex-002/CUXW0BQSV1B7@2026-05-27T09:52:00Z#memory",
+        "value": "88.9% used (14.2 GiB of 16.0 GiB)"
+      },
+      {
+        "label": "Memory · globex-thinkpad-6 · 2026-06-05 09:11Z",
+        "ref": "globex-002/CUXW0BQSV1B7@2026-06-05T09:11:00Z#memory",
+        "value": "89.1% used (14.3 GiB of 16.0 GiB)"
+      },
+      {
+        "label": "Memory · globex-thinkpad-6 · 2026-06-12 10:47Z",
+        "ref": "globex-002/CUXW0BQSV1B7@2026-06-12T10:47:00Z#memory",
+        "value": "87.7% used (14.0 GiB of 16.0 GiB)"
+      },
+      {
+        "label": "Memory · globex-thinkpad-8 · 2026-05-14 11:30Z",
+        "ref": "globex-002/JRZSGXVMKE6M@2026-05-14T11:30:00Z#memory",
+        "value": "86.2% used (13.8 GiB of 16.0 GiB)"
+      },
+      {
+        "label": "Memory · globex-thinkpad-8 · 2026-05-25 10:30Z",
+        "ref": "globex-002/JRZSGXVMKE6M@2026-05-25T10:30:00Z#memory",
+        "value": "88.2% used (14.1 GiB of 16.0 GiB)"
+      },
+      {
+        "label": "Memory · globex-thinkpad-8 · 2026-06-05 11:03Z",
+        "ref": "globex-002/JRZSGXVMKE6M@2026-06-05T11:03:00Z#memory",
+        "value": "85.3% used (13.6 GiB of 16.0 GiB)"
+      },
+      {
+        "label": "Memory · globex-thinkpad-8 · 2026-06-12 10:46Z",
+        "ref": "globex-002/JRZSGXVMKE6M@2026-06-12T10:46:00Z#memory",
+        "value": "88.8% used (14.2 GiB of 16.0 GiB)"
+      },
+      {
+        "label": "Compliance · globex-thinkpad-6 · 2026-06-04 10:23Z",
+        "ref": "globex-002/CUXW0BQSV1B7@2026-06-04T10:23:00Z#compliance[screen_lock]",
+        "value": "screen_lock: pass (medium severity)"
+      },
+      {
+        "label": "Compliance · globex-thinkpad-6 · 2026-06-05 09:11Z",
+        "ref": "globex-002/CUXW0BQSV1B7@2026-06-05T09:11:00Z#compliance[screen_lock]",
+        "value": "screen_lock: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · globex-thinkpad-6 · 2026-06-12 10:47Z",
+        "ref": "globex-002/CUXW0BQSV1B7@2026-06-12T10:47:00Z#compliance[screen_lock]",
+        "value": "screen_lock: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · globex-thinkpad-8 · 2026-05-29 09:24Z",
+        "ref": "globex-002/JRZSGXVMKE6M@2026-05-29T09:24:00Z#compliance[screen_lock]",
+        "value": "screen_lock: pass (medium severity)"
+      },
+      {
+        "label": "Compliance · globex-thinkpad-8 · 2026-05-30 11:27Z",
+        "ref": "globex-002/JRZSGXVMKE6M@2026-05-30T11:27:00Z#compliance[screen_lock]",
+        "value": "screen_lock: fail (medium severity)"
+      },
+      {
+        "label": "Compliance · globex-thinkpad-8 · 2026-06-12 10:46Z",
+        "ref": "globex-002/JRZSGXVMKE6M@2026-06-12T10:46:00Z#compliance[screen_lock]",
+        "value": "screen_lock: fail (medium severity)"
+      }
+    ],
+    "explanation": null,
+    "follow_ups": [
+      {
+        "label": "What should we do about these?",
+        "request": "What should we do about these devices?"
+      }
+    ],
+    "headline": "3 devices need attention at Globex: 3 to watch.",
+    "insights": [
+      {
+        "category": "disk",
+        "device_id": "E4V0SB5I0MYU",
+        "evidence_kv": [
+          {
+            "label": "Free space now",
+            "value": "2.4%"
+          },
+          {
+            "label": "Snapshots past the limit",
+            "value": "17 of 30"
+          },
+          {
+            "label": "Pattern",
+            "value": "Onset"
+          },
+          {
+            "label": "Window",
+            "value": "30 days"
+          }
+        ],
+        "finding": "globex-dell-7 began having disk space under 10% free inside the last 30 days and still does (17 of 30 snapshots; 2.4% free now).",
+        "fit": null,
+        "label": "globex-dell-7",
+        "method": "Observed · 17 of 30 snapshots past the limit (disk space free)",
+        "projection": null,
+        "refs": [
+          "globex-002/E4V0SB5I0MYU@2026-05-27T10:22:00Z#disk",
+          "globex-002/E4V0SB5I0MYU@2026-06-01T08:48:00Z#disk",
+          "globex-002/E4V0SB5I0MYU@2026-06-07T10:49:00Z#disk",
+          "globex-002/E4V0SB5I0MYU@2026-06-12T08:54:00Z#disk"
+        ],
+        "series": {
+          "points": [
+            {
+              "at": "2026-05-14T11:24:00Z",
+              "value": 15.947
+            },
+            {
+              "at": "2026-05-15T09:20:00Z",
+              "value": 15.479
+            },
+            {
+              "at": "2026-05-16T10:05:00Z",
+              "value": 15.012
+            },
+            {
+              "at": "2026-05-17T09:43:00Z",
+              "value": 14.544
+            },
+            {
+              "at": "2026-05-18T11:18:00Z",
+              "value": 14.077
+            },
+            {
+              "at": "2026-05-19T11:11:00Z",
+              "value": 13.61
+            },
+            {
+              "at": "2026-05-20T09:51:00Z",
+              "value": 13.142
+            },
+            {
+              "at": "2026-05-21T11:28:00Z",
+              "value": 12.675
+            },
+            {
+              "at": "2026-05-22T09:19:00Z",
+              "value": 12.207
+            },
+            {
+              "at": "2026-05-23T10:22:00Z",
+              "value": 11.74
+            },
+            {
+              "at": "2026-05-24T10:45:00Z",
+              "value": 11.273
+            },
+            {
+              "at": "2026-05-25T09:37:00Z",
+              "value": 10.805
+            },
+            {
+              "at": "2026-05-26T11:25:00Z",
+              "value": 10.338
+            },
+            {
+              "at": "2026-05-27T10:22:00Z",
+              "value": 9.87
+            },
+            {
+              "at": "2026-05-28T11:19:00Z",
+              "value": 9.403
+            },
+            {
+              "at": "2026-05-29T10:16:00Z",
+              "value": 8.936
+            },
+            {
+              "at": "2026-05-30T11:19:00Z",
+              "value": 8.468
+            },
+            {
+              "at": "2026-05-31T11:14:00Z",
+              "value": 8.001
+            },
+            {
+              "at": "2026-06-01T08:48:00Z",
+              "value": 7.533
+            },
+            {
+              "at": "2026-06-02T10:49:00Z",
+              "value": 7.066
+            },
+            {
+              "at": "2026-06-03T09:29:00Z",
+              "value": 6.599
+            },
+            {
+              "at": "2026-06-04T09:30:00Z",
+              "value": 6.131
+            },
+            {
+              "at": "2026-06-05T11:26:00Z",
+              "value": 5.664
+            },
+            {
+              "at": "2026-06-06T09:55:00Z",
+              "value": 5.196
+            },
+            {
+              "at": "2026-06-07T10:49:00Z",
+              "value": 4.729
+            },
+            {
+              "at": "2026-06-08T10:49:00Z",
+              "value": 4.262
+            },
+            {
+              "at": "2026-06-09T11:04:00Z",
+              "value": 3.794
+            },
+            {
+              "at": "2026-06-10T09:50:00Z",
+              "value": 3.327
+            },
+            {
+              "at": "2026-06-11T08:49:00Z",
+              "value": 2.859
+            },
+            {
+              "at": "2026-06-12T08:54:00Z",
+              "value": 2.392
+            }
+          ],
+          "threshold": {
+            "label": "Low-disk limit (10% free)",
+            "source": "policy",
+            "value": 10.0
+          },
+          "unit": "Free disk space (% of the primary volume)"
+        },
+        "severity": "watch",
+        "suggested_action_types": [
+          "upgrade_order",
+          "employee_notification"
+        ],
+        "why": "Onset: the breach began inside the window and is still going."
+      },
+      {
+        "category": "disk",
+        "device_id": "JRZSGXVMKE6M",
+        "evidence_kv": [
+          {
+            "label": "Free space now",
+            "value": "2.0%"
+          },
+          {
+            "label": "Snapshots past the limit",
+            "value": "23 of 30"
+          },
+          {
+            "label": "Pattern",
+            "value": "Onset"
+          },
+          {
+            "label": "Window",
+            "value": "30 days"
+          }
+        ],
+        "finding": "globex-thinkpad-8 began having disk space under 10% free inside the last 30 days and still does (23 of 30 snapshots; 2.0% free now).",
+        "fit": null,
+        "label": "globex-thinkpad-8",
+        "method": "Observed · 23 of 30 snapshots past the limit (disk space free)",
+        "projection": null,
+        "refs": [
+          "globex-002/JRZSGXVMKE6M@2026-05-21T10:05:00Z#disk",
+          "globex-002/JRZSGXVMKE6M@2026-05-28T11:00:00Z#disk",
+          "globex-002/JRZSGXVMKE6M@2026-06-05T11:03:00Z#disk",
+          "globex-002/JRZSGXVMKE6M@2026-06-12T10:46:00Z#disk"
+        ],
+        "series": {
+          "points": [
+            {
+              "at": "2026-05-14T11:30:00Z",
+              "value": 12.189
+            },
+            {
+              "at": "2026-05-15T11:12:00Z",
+              "value": 11.832
+            },
+            {
+              "at": "2026-05-16T10:30:00Z",
+              "value": 11.474
+            },
+            {
+              "at": "2026-05-17T10:51:00Z",
+              "value": 11.117
+            },
+            {
+              "at": "2026-05-18T09:48:00Z",
+              "value": 10.76
+            },
+            {
+              "at": "2026-05-19T09:16:00Z",
+              "value": 10.403
+            },
+            {
+              "at": "2026-05-20T10:07:00Z",
+              "value": 10.045
+            },
+            {
+              "at": "2026-05-21T10:05:00Z",
+              "value": 9.688
+            },
+            {
+              "at": "2026-05-22T09:24:00Z",
+              "value": 9.331
+            },
+            {
+              "at": "2026-05-23T08:53:00Z",
+              "value": 8.973
+            },
+            {
+              "at": "2026-05-24T10:00:00Z",
+              "value": 8.616
+            },
+            {
+              "at": "2026-05-25T10:30:00Z",
+              "value": 8.259
+            },
+            {
+              "at": "2026-05-26T09:21:00Z",
+              "value": 7.902
+            },
+            {
+              "at": "2026-05-27T09:23:00Z",
+              "value": 7.544
+            },
+            {
+              "at": "2026-05-28T11:00:00Z",
+              "value": 7.187
+            },
+            {
+              "at": "2026-05-29T09:24:00Z",
+              "value": 6.83
+            },
+            {
+              "at": "2026-05-30T11:27:00Z",
+              "value": 6.473
+            },
+            {
+              "at": "2026-05-31T08:53:00Z",
+              "value": 6.115
+            },
+            {
+              "at": "2026-06-01T09:21:00Z",
+              "value": 5.758
+            },
+            {
+              "at": "2026-06-02T08:30:00Z",
+              "value": 5.401
+            },
+            {
+              "at": "2026-06-03T11:24:00Z",
+              "value": 5.044
+            },
+            {
+              "at": "2026-06-04T10:25:00Z",
+              "value": 4.686
+            },
+            {
+              "at": "2026-06-05T11:03:00Z",
+              "value": 4.329
+            },
+            {
+              "at": "2026-06-06T11:22:00Z",
+              "value": 3.972
+            },
+            {
+              "at": "2026-06-07T11:14:00Z",
+              "value": 3.615
+            },
+            {
+              "at": "2026-06-08T10:52:00Z",
+              "value": 3.257
+            },
+            {
+              "at": "2026-06-09T11:19:00Z",
+              "value": 2.9
+            },
+            {
+              "at": "2026-06-10T09:36:00Z",
+              "value": 2.543
+            },
+            {
+              "at": "2026-06-11T10:26:00Z",
+              "value": 2.186
+            },
+            {
+              "at": "2026-06-12T10:46:00Z",
+              "value": 2.0
+            }
+          ],
+          "threshold": {
+            "label": "Low-disk limit (10% free)",
+            "source": "policy",
+            "value": 10.0
+          },
+          "unit": "Free disk space (% of the primary volume)"
+        },
+        "severity": "watch",
+        "suggested_action_types": [
+          "upgrade_order",
+          "employee_notification"
+        ],
+        "why": "Onset: the breach began inside the window and is still going."
+      },
+      {
+        "category": "memory",
+        "device_id": "CUXW0BQSV1B7",
+        "evidence_kv": [
+          {
+            "label": "Used now",
+            "value": "87.7%"
+          },
+          {
+            "label": "Snapshots past the limit",
+            "value": "13 of 30"
+          },
+          {
+            "label": "Pattern",
+            "value": "Intermittent"
+          },
+          {
+            "label": "Window",
+            "value": "30 days"
+          }
+        ],
+        "finding": "globex-thinkpad-6 has had memory use at or above 85% on and off over the last 30 days (13 of 30 snapshots; 87.7% used now).",
+        "fit": null,
+        "label": "globex-thinkpad-6",
+        "method": "Observed · 13 of 30 snapshots past the limit (memory used)",
+        "projection": null,
+        "refs": [
+          "globex-002/CUXW0BQSV1B7@2026-05-14T11:14:00Z#memory",
+          "globex-002/CUXW0BQSV1B7@2026-05-27T09:52:00Z#memory",
+          "globex-002/CUXW0BQSV1B7@2026-06-05T09:11:00Z#memory",
+          "globex-002/CUXW0BQSV1B7@2026-06-12T10:47:00Z#memory"
+        ],
+        "series": {
+          "points": [
+            {
+              "at": "2026-05-14T11:14:00Z",
+              "value": 87.921
+            },
+            {
+              "at": "2026-05-15T10:53:00Z",
+              "value": 80.075
+            },
+            {
+              "at": "2026-05-16T11:05:00Z",
+              "value": 81.238
+            },
+            {
+              "at": "2026-05-17T10:07:00Z",
+              "value": 77.796
+            },
+            {
+              "at": "2026-05-18T10:27:00Z",
+              "value": 82.939
+            },
+            {
+              "at": "2026-05-19T09:00:00Z",
+              "value": 87.248
+            },
+            {
+              "at": "2026-05-20T10:41:00Z",
+              "value": 83.248
+            },
+            {
+              "at": "2026-05-21T09:23:00Z",
+              "value": 78.203
+            },
+            {
+              "at": "2026-05-22T09:12:00Z",
+              "value": 83.599
+            },
+            {
+              "at": "2026-05-23T10:32:00Z",
+              "value": 87.357
+            },
+            {
+              "at": "2026-05-24T09:17:00Z",
+              "value": 82.696
+            },
+            {
+              "at": "2026-05-25T10:14:00Z",
+              "value": 80.297
+            },
+            {
+              "at": "2026-05-26T09:14:00Z",
+              "value": 89.71
+            },
+            {
+              "at": "2026-05-27T09:52:00Z",
+              "value": 88.861
+            },
+            {
+              "at": "2026-05-28T08:41:00Z",
+              "value": 84.384
+            },
+            {
+              "at": "2026-05-29T08:47:00Z",
+              "value": 87.669
+            },
+            {
+              "at": "2026-05-30T09:52:00Z",
+              "value": 91.312
+            },
+            {
+              "at": "2026-05-31T09:53:00Z",
+              "value": 84.103
+            },
+            {
+              "at": "2026-06-01T10:56:00Z",
+              "value": 83.998
+            },
+            {
+              "at": "2026-06-02T08:47:00Z",
+              "value": 82.478
+            },
+            {
+              "at": "2026-06-03T10:35:00Z",
+              "value": 80.766
+            },
+            {
+              "at": "2026-06-04T10:23:00Z",
+              "value": 85.487
+            },
+            {
+              "at": "2026-06-05T09:11:00Z",
+              "value": 89.092
+            },
+            {
+              "at": "2026-06-06T09:50:00Z",
+              "value": 83.022
+            },
+            {
+              "at": "2026-06-07T09:46:00Z",
+              "value": 82.309
+            },
+            {
+              "at": "2026-06-08T10:43:00Z",
+              "value": 89.855
+            },
+            {
+              "at": "2026-06-09T09:18:00Z",
+              "value": 84.27
+            },
+            {
+              "at": "2026-06-10T10:17:00Z",
+              "value": 92.831
+            },
+            {
+              "at": "2026-06-11T10:27:00Z",
+              "value": 88.981
+            },
+            {
+              "at": "2026-06-12T10:47:00Z",
+              "value": 87.654
+            }
+          ],
+          "threshold": {
+            "label": "Memory-pressure limit (85% used)",
+            "source": "policy",
+            "value": 85.0
+          },
+          "unit": "Memory used (% of installed memory)"
+        },
+        "severity": "watch",
+        "suggested_action_types": [
+          "upgrade_order"
+        ],
+        "why": "Intermittent: the limit was breached on and off, with no sustained run."
+      },
+      {
+        "category": "memory",
+        "device_id": "JRZSGXVMKE6M",
+        "evidence_kv": [
+          {
+            "label": "Used now",
+            "value": "88.8%"
+          },
+          {
+            "label": "Snapshots past the limit",
+            "value": "23 of 30"
+          },
+          {
+            "label": "Pattern",
+            "value": "Intermittent"
+          },
+          {
+            "label": "Window",
+            "value": "30 days"
+          }
+        ],
+        "finding": "globex-thinkpad-8 has had memory use at or above 85% on and off over the last 30 days (23 of 30 snapshots; 88.8% used now).",
+        "fit": null,
+        "label": "globex-thinkpad-8",
+        "method": "Observed · 23 of 30 snapshots past the limit (memory used)",
+        "projection": null,
+        "refs": [
+          "globex-002/JRZSGXVMKE6M@2026-05-14T11:30:00Z#memory",
+          "globex-002/JRZSGXVMKE6M@2026-05-25T10:30:00Z#memory",
+          "globex-002/JRZSGXVMKE6M@2026-06-05T11:03:00Z#memory",
+          "globex-002/JRZSGXVMKE6M@2026-06-12T10:46:00Z#memory"
+        ],
+        "series": {
+          "points": [
+            {
+              "at": "2026-05-14T11:30:00Z",
+              "value": 86.242
+            },
+            {
+              "at": "2026-05-15T11:12:00Z",
+              "value": 82.229
+            },
+            {
+              "at": "2026-05-16T10:30:00Z",
+              "value": 79.468
+            },
+            {
+              "at": "2026-05-17T10:51:00Z",
+              "value": 82.451
+            },
+            {
+              "at": "2026-05-18T09:48:00Z",
+              "value": 86.409
+            },
+            {
+              "at": "2026-05-19T09:16:00Z",
+              "value": 88.324
+            },
+            {
+              "at": "2026-05-20T10:07:00Z",
+              "value": 85.54
+            },
+            {
+              "at": "2026-05-21T10:05:00Z",
+              "value": 90.783
+            },
+            {
+              "at": "2026-05-22T09:24:00Z",
+              "value": 85.368
+            },
+            {
+              "at": "2026-05-23T08:53:00Z",
+              "value": 90.269
+            },
+            {
+              "at": "2026-05-24T10:00:00Z",
+              "value": 80.908
+            },
+            {
+              "at": "2026-05-25T10:30:00Z",
+              "value": 88.232
+            },
+            {
+              "at": "2026-05-26T09:21:00Z",
+              "value": 89.758
+            },
+            {
+              "at": "2026-05-27T09:23:00Z",
+              "value": 90.237
+            },
+            {
+              "at": "2026-05-28T11:00:00Z",
+              "value": 89.51
+            },
+            {
+              "at": "2026-05-29T09:24:00Z",
+              "value": 84.437
+            },
+            {
+              "at": "2026-05-30T11:27:00Z",
+              "value": 84.121
+            },
+            {
+              "at": "2026-05-31T08:53:00Z",
+              "value": 86.352
+            },
+            {
+              "at": "2026-06-01T09:21:00Z",
+              "value": 84.72
+            },
+            {
+              "at": "2026-06-02T08:30:00Z",
+              "value": 87.609
+            },
+            {
+              "at": "2026-06-03T11:24:00Z",
+              "value": 91.352
+            },
+            {
+              "at": "2026-06-04T10:25:00Z",
+              "value": 85.741
+            },
+            {
+              "at": "2026-06-05T11:03:00Z",
+              "value": 85.31
+            },
+            {
+              "at": "2026-06-06T11:22:00Z",
+              "value": 89.02
+            },
+            {
+              "at": "2026-06-07T11:14:00Z",
+              "value": 94.074
+            },
+            {
+              "at": "2026-06-08T10:52:00Z",
+              "value": 89.836
+            },
+            {
+              "at": "2026-06-09T11:19:00Z",
+              "value": 93.423
+            },
+            {
+              "at": "2026-06-10T09:36:00Z",
+              "value": 93.13
+            },
+            {
+              "at": "2026-06-11T10:26:00Z",
+              "value": 93.002
+            },
+            {
+              "at": "2026-06-12T10:46:00Z",
+              "value": 88.808
+            }
+          ],
+          "threshold": {
+            "label": "Memory-pressure limit (85% used)",
+            "source": "policy",
+            "value": 85.0
+          },
+          "unit": "Memory used (% of installed memory)"
+        },
+        "severity": "watch",
+        "suggested_action_types": [
+          "upgrade_order"
+        ],
+        "why": "Intermittent: the limit was breached on and off, with no sustained run."
+      },
+      {
+        "category": "compliance",
+        "device_id": "CUXW0BQSV1B7",
+        "evidence_kv": [
+          {
+            "label": "Check",
+            "value": "screen_lock"
+          },
+          {
+            "label": "Severity",
+            "value": "medium"
+          },
+          {
+            "label": "Failing since",
+            "value": "2026-06-05"
+          }
+        ],
+        "finding": "globex-thinkpad-6's screen_lock check changed from pass to fail on 2026-06-05 and still fails.",
+        "fit": null,
+        "label": "globex-thinkpad-6",
+        "method": "Observed · 30 snapshots",
+        "projection": null,
+        "refs": [
+          "globex-002/CUXW0BQSV1B7@2026-06-04T10:23:00Z#compliance[screen_lock]",
+          "globex-002/CUXW0BQSV1B7@2026-06-05T09:11:00Z#compliance[screen_lock]",
+          "globex-002/CUXW0BQSV1B7@2026-06-12T10:47:00Z#compliance[screen_lock]"
+        ],
+        "series": {
+          "points": [
+            {
+              "at": "2026-05-14T11:14:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-15T10:53:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-16T11:05:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-17T10:07:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-18T10:27:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-19T09:00:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-20T10:41:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-21T09:23:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-22T09:12:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-23T10:32:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-24T09:17:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-25T10:14:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-26T09:14:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-27T09:52:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-28T08:41:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-29T08:47:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-30T09:52:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-31T09:53:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-06-01T10:56:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-06-02T08:47:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-06-03T10:35:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-06-04T10:23:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-06-05T09:11:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-06T09:50:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-07T09:46:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-08T10:43:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-09T09:18:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-10T10:17:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-11T10:27:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-12T10:47:00Z",
+              "value": 0.0
+            }
+          ],
+          "threshold": null,
+          "unit": "Check result per snapshot (1 = pass, 0 = fail)"
+        },
+        "severity": "watch",
+        "suggested_action_types": [
+          "remediation_ticket",
+          "employee_notification"
+        ],
+        "why": "The medium-severity screen_lock check passed earlier in the window and fails at the latest snapshot."
+      },
+      {
+        "category": "compliance",
+        "device_id": "JRZSGXVMKE6M",
+        "evidence_kv": [
+          {
+            "label": "Check",
+            "value": "screen_lock"
+          },
+          {
+            "label": "Severity",
+            "value": "medium"
+          },
+          {
+            "label": "Failing since",
+            "value": "2026-05-30"
+          }
+        ],
+        "finding": "globex-thinkpad-8's screen_lock check changed from pass to fail on 2026-05-30 and still fails.",
+        "fit": null,
+        "label": "globex-thinkpad-8",
+        "method": "Observed · 30 snapshots",
+        "projection": null,
+        "refs": [
+          "globex-002/JRZSGXVMKE6M@2026-05-29T09:24:00Z#compliance[screen_lock]",
+          "globex-002/JRZSGXVMKE6M@2026-05-30T11:27:00Z#compliance[screen_lock]",
+          "globex-002/JRZSGXVMKE6M@2026-06-12T10:46:00Z#compliance[screen_lock]"
+        ],
+        "series": {
+          "points": [
+            {
+              "at": "2026-05-14T11:30:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-15T11:12:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-16T10:30:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-17T10:51:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-18T09:48:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-19T09:16:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-20T10:07:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-21T10:05:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-22T09:24:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-23T08:53:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-24T10:00:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-25T10:30:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-26T09:21:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-27T09:23:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-28T11:00:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-29T09:24:00Z",
+              "value": 1.0
+            },
+            {
+              "at": "2026-05-30T11:27:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-05-31T08:53:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-01T09:21:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-02T08:30:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-03T11:24:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-04T10:25:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-05T11:03:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-06T11:22:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-07T11:14:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-08T10:52:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-09T11:19:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-10T09:36:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-11T10:26:00Z",
+              "value": 0.0
+            },
+            {
+              "at": "2026-06-12T10:46:00Z",
+              "value": 0.0
+            }
+          ],
+          "threshold": null,
+          "unit": "Check result per snapshot (1 = pass, 0 = fail)"
+        },
+        "severity": "watch",
+        "suggested_action_types": [
+          "remediation_ticket",
+          "employee_notification"
+        ],
+        "why": "The medium-severity screen_lock check passed earlier in the window and fails at the latest snapshot."
+      }
+    ],
+    "needs": [],
+    "notes": [],
+    "offer_switch_company": false,
+    "outcome": "answer",
+    "proposal": null,
+    "reason_code": null,
+    "repeat_of": null,
+    "scope": {
+      "as_of": "2026-06-12T11:00:00Z",
+      "calculation": "3 distinct devices across 3 claims; at most 11 supporting readings are cited per device",
+      "company_id": "globex-002",
+      "population": 8,
+      "rule": "battery wear against our 90% service threshold, low disk (under 10% free), memory pressure (85% used or more) and compliance failures and changes over the last 30 days"
+    },
+    "scope_line": {
+      "as_of": "2026-06-12T11:00:00Z",
+      "basis": "last 30 days of snapshots",
+      "checked": 8,
+      "company_name": "Globex",
+      "matched": 3,
+      "not_checked": 0,
+      "ok": 5,
+      "ok_label": "with nothing to flag"
+    },
+    "suggested_actions": [],
+    "summary": "",
+    "table": null,
+    "trace_id": "replay-globex-002-fleet_health"
+  },
+  "meta": {
+    "keywords": [
+      "fleet health",
+      "summary",
+      "needs attention",
+      "overview"
+    ],
+    "note": "",
+    "question": "Give me a fleet health summary",
+    "scenario": "fleet_health",
+    "synthetic": false,
+    "tenant": "globex-002"
+  },
+  "trace": [
+    {
+      "data": {
+        "company_id": "globex-002"
+      },
+      "kind": "scope",
+      "latency_ms": null,
+      "seq": 0,
+      "summary": "Turn started",
+      "tool": null,
+      "trace_id": "replay-globex-002-fleet_health"
+    },
+    {
+      "data": {
+        "has_reference": false,
+        "intent": "answer",
+        "reference_kind": null,
+        "window_days": null
+      },
+      "kind": "plan",
+      "latency_ms": null,
+      "seq": 1,
+      "summary": "Planned the turn",
+      "tool": null,
+      "trace_id": "replay-globex-002-fleet_health"
+    },
+    {
+      "data": {
+        "args": {}
+      },
+      "kind": "tool_call",
+      "latency_ms": null,
+      "seq": 2,
+      "summary": "Calling fleet_health",
+      "tool": "fleet_health",
+      "trace_id": "replay-globex-002-fleet_health"
+    },
+    {
+      "data": {
+        "matches": 6,
+        "population": 8,
+        "status": "ok"
+      },
+      "kind": "tool_result",
+      "latency_ms": null,
+      "seq": 3,
+      "summary": "fleet_health returned",
+      "tool": "fleet_health",
+      "trace_id": "replay-globex-002-fleet_health"
+    },
+    {
+      "data": {
+        "claims": 3,
+        "evidence": 22,
+        "outcome": "answer",
+        "records": 1
+      },
+      "kind": "compose",
+      "latency_ms": null,
+      "seq": 4,
+      "summary": "Composed the answer from tool records",
+      "tool": null,
+      "trace_id": "replay-globex-002-fleet_health"
+    },
+    {
+      "data": {
+        "ok": true
+      },
+      "kind": "explain",
+      "latency_ms": null,
+      "seq": 5,
+      "summary": "Model wrote a headline and explanation",
+      "tool": null,
+      "trace_id": "replay-globex-002-fleet_health"
+    },
+    {
+      "data": {
+        "evidence_ok": true,
+        "explanation_shown": false,
+        "headline_from_model": true,
+        "model_prose": true,
+        "problems": []
+      },
+      "kind": "verify",
+      "latency_ms": null,
+      "seq": 6,
+      "summary": "Checked the answer against the evidence",
+      "tool": null,
+      "trace_id": "replay-globex-002-fleet_health"
+    },
+    {
+      "data": {
+        "claims": 3,
+        "evidence": 22,
+        "outcome": "answer",
+        "reason_code": null
+      },
+      "kind": "respond",
+      "latency_ms": null,
+      "seq": 7,
+      "summary": "Answer ready",
+      "tool": null,
+      "trace_id": "replay-globex-002-fleet_health"
+    }
+  ]
+}

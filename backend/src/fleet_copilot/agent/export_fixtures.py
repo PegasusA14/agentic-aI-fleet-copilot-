@@ -149,6 +149,14 @@ SCENARIOS: tuple[Scenario, ...] = (
         (("trend", {"metric": "battery"}),),
     ),
     Scenario(
+        "fleet_health",
+        "Give me a fleet health summary",
+        ("fleet health", "summary", "needs attention", "overview"),
+        "tools",
+        "Rank what needs attention across battery, disk, memory and compliance.",
+        (("fleet_health", {}),),
+    ),
+    Scenario(
         "inventory_by_model",
         "How many Macs do we have, by model?",
         ("inventory", "how many", "models", "by model"),

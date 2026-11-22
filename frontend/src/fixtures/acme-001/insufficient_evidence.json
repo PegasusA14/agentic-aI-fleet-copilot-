@@ -18,6 +18,7 @@
     "explanation": null,
     "follow_ups": [],
     "headline": "That action is not supported by the current evidence, so no proposal was made.",
+    "insights": [],
     "needs": [
       "Battery reports 'Service Recommended' in 3 or more consecutive readings",
       "A battery reading from the last 48 hours"
