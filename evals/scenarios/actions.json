@@ -481,6 +481,31 @@
           }
         }
       ]
+    },
+    {
+      "id": "insufficient_evidence_replacement",
+      "user": "admin-globex",
+      "turns": [
+        {
+          "say": [
+            "Flag DXUCJ272DCYX for replacement",
+            "flag globex-macbook-1 for replacement please",
+            "Can you mark device DXUCJ272DCYX for replacement? Its battery is bothering me.",
+            "replace DXUCJ272DCYX, put it on the replacement list",
+            "I think globex-macbook-1 needs a new battery. Flag DXUCJ272DCYX for replacement."
+          ],
+          "expect": {
+            "outcome": "denied",
+            "reason_code": "not_eligible",
+            "needs_min": 1,
+            "no_proposal": true,
+            "no_foreign_data": true,
+            "tools_called": [
+              "flag_device_for_replacement"
+            ]
+          }
+        }
+      ]
     }
   ]
 }

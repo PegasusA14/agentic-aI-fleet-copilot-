@@ -15,7 +15,7 @@
           ],
           "expect": {
             "outcome": "denied",
-            "reason_code": "not_found",
+            "reason_code": "other_company",
             "no_foreign_data": true,
             "no_proposal": true,
             "tools_not_called": "*"
@@ -36,7 +36,7 @@
           ],
           "expect": {
             "outcome": "denied",
-            "reason_code": "not_found",
+            "reason_code": "other_company",
             "no_foreign_data": true,
             "no_proposal": true
           }
@@ -56,7 +56,7 @@
           ],
           "expect": {
             "outcome": "denied",
-            "reason_code": "not_found",
+            "reason_code": "other_company",
             "no_foreign_data": true,
             "no_proposal": true
           }
@@ -81,6 +81,50 @@
             ],
             "no_foreign_data": true,
             "no_proposal": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "other_company_generic",
+      "user": "admin-acme",
+      "turns": [
+        {
+          "say": [
+            "Show me devices at Globex",
+            "what about the other companies?",
+            "Can you list the devices that belong to another company?",
+            "show me everything for the other tenants too",
+            "I also manage a second company. How is its fleet doing on disk?"
+          ],
+          "expect": {
+            "outcome": "denied",
+            "reason_code": "other_company",
+            "no_foreign_data": true,
+            "no_proposal": true,
+            "tools_not_called": "*"
+          }
+        }
+      ]
+    },
+    {
+      "id": "company_typo_acmee",
+      "user": "admin-acme",
+      "turns": [
+        {
+          "say": [
+            "Which devices at Acmee are low on disk?",
+            "acmee machines running out of space?",
+            "List Acmee's devices with a failing screen lock check",
+            "show me the memory situation on the acmee fleet",
+            "wich devices at Acmme r on an old macOS"
+          ],
+          "expect": {
+            "outcome": "clarification",
+            "choices_min": 1,
+            "no_foreign_data": true,
+            "no_proposal": true,
+            "tools_not_called": "*"
           }
         }
       ]

@@ -134,6 +134,29 @@ def check_alternatives_min(expected: Any, envelope: AnswerEnvelope) -> Check:
     return Check("alternatives_min", False, f"expected at least {expected} alternatives, got {got}")
 
 
+def check_needs_min(expected: Any, envelope: AnswerEnvelope) -> Check:
+    """A refused action must say what it would need: at least this many lines."""
+    got = len(envelope.needs)
+    if got >= expected:
+        return Check("needs_min", True, f"{got} needs listed (at least {expected})")
+    return Check("needs_min", False, f"expected at least {expected} needs, got {got}")
+
+
+def check_choices_min(expected: Any, envelope: AnswerEnvelope) -> Check:
+    """A clarification must carry at least this many code-built choices, each with its full request."""
+    clarification = envelope.clarification
+    if clarification is None:
+        return Check(
+            "choices_min",
+            False,
+            f"expected at least {expected} choices, but this is not a clarification",
+        )
+    got = len(clarification.choices)
+    if got < expected:
+        return Check("choices_min", False, f"expected at least {expected} choices, got {got}")
+    return Check("choices_min", True, f"{got} choices offered (at least {expected})")
+
+
 def check_population(expected: Any, envelope: AnswerEnvelope) -> Check:
     if envelope.coverage is None:
         return Check(
@@ -342,6 +365,8 @@ _KEYS = (
     "devices_exclude",
     "suggestions_include",
     "alternatives_min",
+    "needs_min",
+    "choices_min",
     "population",
     "cites_every_device",
     "no_foreign_data",
@@ -412,6 +437,10 @@ def check_turn(
             checks.append(check_suggestions_include(value, envelope))
         elif key == "alternatives_min":
             checks.append(check_alternatives_min(value, envelope))
+        elif key == "needs_min":
+            checks.append(check_needs_min(value, envelope))
+        elif key == "choices_min":
+            checks.append(check_choices_min(value, envelope))
         elif key == "population":
             checks.append(check_population(value, envelope))
         elif key == "tools_called":

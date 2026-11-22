@@ -394,6 +394,28 @@
           }
         }
       ]
+    },
+    {
+      "id": "ambiguous_macbook_initech",
+      "user": "admin-initech",
+      "turns": [
+        {
+          "say": [
+            "How is the macbook doing on battery?",
+            "macbook battery status?",
+            "is the macbook ok on battery",
+            "check the macbook's battery health please",
+            "how's the macbook battery looking these days"
+          ],
+          "expect": {
+            "outcome": "clarification",
+            "choices_min": 3,
+            "no_foreign_data": true,
+            "no_proposal": true,
+            "tools_not_called": "*"
+          }
+        }
+      ]
     }
   ]
 }

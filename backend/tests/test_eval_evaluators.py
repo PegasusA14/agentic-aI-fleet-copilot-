@@ -641,6 +641,53 @@ def test_alternatives_min_passes_when_enough_alternatives_are_offered():
     assert "3 alternatives" in check.detail
 
 
+def with_needs(count):
+    return refusal("denied", "not_eligible", needs=[f"Need {i}" for i in range(count)])
+
+
+def test_needs_min_passes_when_the_refusal_lists_enough_needs():
+    check = run({"needs_min": 2}, with_needs(3))[0]
+    assert check.name == "needs_min" and check.passed
+    assert "3 needs" in check.detail
+
+
+def test_needs_min_fails_readably_when_the_refusal_lists_too_few():
+    check = run({"needs_min": 2}, with_needs(1))[0]
+    assert not check.passed
+    assert "expected at least 2" in check.detail and "got 1" in check.detail
+    assert not run({"needs_min": 1}, refusal("denied", "not_eligible"))[0].passed
+
+
+def with_choices(count):
+    choices = [{"label": f"L{i}", "request": f"Ask {i}?"} for i in range(count)]
+    return AnswerEnvelope.model_validate(
+        {
+            "outcome": "clarification",
+            "trace_id": "t5",
+            "headline": "One detail",
+            "scope": {"company_id": TENANT, "as_of": "2026-06-12T09:00:00Z"},
+            "clarification": {
+                "question": "Which one?",
+                "options": [c["label"] for c in choices],
+                "choices": choices,
+            },
+        }
+    )
+
+
+def test_choices_min_passes_when_the_clarification_carries_enough_choices():
+    check = run({"choices_min": 3}, with_choices(4))[0]
+    assert check.name == "choices_min" and check.passed
+    assert "4 choices" in check.detail
+
+
+def test_choices_min_fails_readably_for_too_few_choices_or_no_clarification():
+    few = run({"choices_min": 3}, with_choices(1))[0]
+    assert not few.passed and "expected at least 3" in few.detail and "got 1" in few.detail
+    plain_options = run({"choices_min": 1}, refusal("denied", "not_found"))[0]
+    assert not plain_options.passed and "not a clarification" in plain_options.detail
+
+
 def test_alternatives_min_fails_readably_when_too_few_are_offered():
     check = run({"alternatives_min": 3}, with_alternatives(1))[0]
     assert not check.passed

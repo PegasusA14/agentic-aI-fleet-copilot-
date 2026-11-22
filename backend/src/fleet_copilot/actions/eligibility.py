@@ -230,9 +230,14 @@ def _replacement(repo: FleetRepository, as_of: datetime, device: Device) -> Elig
         run.append(snap)
     run.reverse()
     if len(run) < policy.REPLACEMENT_MIN_SNAPSHOTS:
+        needed = f"at least {policy.REPLACEMENT_MIN_SNAPSHOTS} consecutive readings are needed."
+        if not run:
+            return _no(
+                f"The latest battery reading does not report {SERVICE_RECOMMENDED}; {needed}"
+            )
         return _no(
-            f"Only the last {len(run)} battery readings report {SERVICE_RECOMMENDED}; "
-            f"at least {policy.REPLACEMENT_MIN_SNAPSHOTS} consecutive readings are needed."
+            f"Only the last {len(run)} battery {'reading reports' if len(run) == 1 else 'readings report'} "
+            f"{SERVICE_RECOMMENDED}; {needed}"
         )
     refs = _cap([str(run[0].ref("battery")), *(str(s.ref("battery")) for s in run[-5:])])
     return Eligible(

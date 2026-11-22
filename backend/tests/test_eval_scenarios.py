@@ -133,6 +133,12 @@ def test_suites_load_in_a_stable_order_and_other_files_are_ignored(tmp_path):
         (lambda c: c["turns"][0].update(expect={"alternatives_min": 5}), "alternatives_min"),
         (lambda c: c["turns"][0].update(expect={"alternatives_min": "2"}), "alternatives_min"),
         (lambda c: c["turns"][0].update(expect={"alternatives_min": True}), "alternatives_min"),
+        (lambda c: c["turns"][0].update(expect={"needs_min": 0}), "needs_min"),
+        (lambda c: c["turns"][0].update(expect={"needs_min": 5}), "needs_min"),
+        (lambda c: c["turns"][0].update(expect={"needs_min": "1"}), "needs_min"),
+        (lambda c: c["turns"][0].update(expect={"choices_min": 0}), "choices_min"),
+        (lambda c: c["turns"][0].update(expect={"choices_min": 7}), "choices_min"),
+        (lambda c: c["turns"][0].update(expect={"choices_min": True}), "choices_min"),
         (lambda c: c["turns"][0].update(expect={"suggestions_include": []}), "suggestions_include"),
         (
             lambda c: c["turns"][0].update(expect={"suggestions_include": "A"}),
@@ -548,3 +554,16 @@ def test_alternatives_min_is_a_valid_expect_key(tmp_path):
     write_suite(tmp_path, cases=[ok])
     (scenario,) = load_suites(tmp_path)
     assert scenario.cases[0].turns[0].expect["alternatives_min"] == 3
+
+
+def test_needs_min_and_choices_min_are_valid_expect_keys(tmp_path):
+    ok = case(
+        turns=[
+            {"say": "q", "expect": {"outcome": "denied", "needs_min": 1}},
+            {"say": "r", "expect": {"outcome": "clarification", "choices_min": 3}},
+        ]
+    )
+    write_suite(tmp_path, cases=[ok])
+    (scenario,) = load_suites(tmp_path)
+    assert scenario.cases[0].turns[0].expect["needs_min"] == 1
+    assert scenario.cases[0].turns[1].expect["choices_min"] == 3

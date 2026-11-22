@@ -42,6 +42,8 @@ _EXPECT_KEYS = frozenset(
         "decisions",
         "suggestions_include",
         "alternatives_min",
+        "needs_min",
+        "choices_min",
         "tools_called",
         "tools_not_called",
         *_BOOLEAN_KEYS,
@@ -265,6 +267,11 @@ def _check_expect(expect: Any, *, last: bool) -> None:
         count = expect["alternatives_min"]
         if not isinstance(count, int) or isinstance(count, bool) or not 1 <= count <= 4:
             raise ScenarioError("expect.alternatives_min must be a whole number from 1 to 4")
+    for key, most in (("needs_min", 4), ("choices_min", 6)):
+        if key in expect:
+            count = expect[key]
+            if not isinstance(count, int) or isinstance(count, bool) or not 1 <= count <= most:
+                raise ScenarioError(f"expect.{key} must be a whole number from 1 to {most}")
     for key in ("tools_called", "tools_not_called"):
         if key in expect:
             _check_tools(key, expect[key])
