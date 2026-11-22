@@ -210,12 +210,16 @@ company and the user come from the signed-in session. No tool approves, rejects 
 | `find_devices` | read | Inventory lookup by OS, model, form factor or hostname | `os_name`, `model_name`, `form_factor`, `hostname`, `group_by`, `device_ids` |
 | `device_history` | read | One device's readings for one metric over a window | `device_id`, `metric`, `window_days`, `check_id` |
 | `software_inventory` | read | Installed apps, or apps newly installed in a window that are not common in the fleet; never labels an app as risky | `view`, `app_name`, `window_days`, `device_ids` |
-| `propose_action` | proposal (needs approval) | Proposes one action for one device: a remediation ticket, a replacement flag, a memory or storage upgrade order, or an employee notification. Code checks the evidence and writes the proposal | `action_type`, `device_id`, `check_id`, `component`, `topic` |
+| `create_upgrade_order` | proposal (needs approval) | Proposes a memory or storage upgrade order for one device. The target size is computed by code from the current size | `device_id`, `component` (`memory`, `storage`) |
+| `open_remediation_ticket` | proposal (needs approval) | Proposes a remediation ticket for one device's failing compliance check. The note is written by code from the failing reading | `device_id`, `check_id` |
+| `flag_device_for_replacement` | proposal (needs approval) | Proposes flagging one device for replacement. The reason is written by code from the battery readings | `device_id` |
+| `notify_employee` | proposal (needs approval) | Proposes a notification to the employee assigned to one device. The recipient comes from the device record and the message is a fixed template per topic | `device_id`, `topic`, `employee_id` (optional, must be the assigned employee), `check_id` (optional, for `failing_check`) |
 | `recommend_actions` | advice (called by code) | Lists the actions the current evidence supports for the devices in focus; proposes nothing | `device_ids` |
 
-The details of a proposal (the upgrade spec, the ticket note, the replacement reason, the employee and the
-message) are written by code from the evidence, never by the model. That keeps a model mistake from reaching an
-order or a message. Read tools return to the model only a summary: the rule applied, the counts and at most 30
+The four proposal tools share one runner, run only on a `propose` plan, and make at most one proposal per turn.
+None of them takes free text: the details of a proposal (the upgrade spec, the ticket note, the replacement
+reason, the employee and the message) are written by code from the evidence, never by the model. That keeps a
+model mistake from reaching an order or a message. Every proposal card also carries a code-written risk note. Read tools return to the model only a summary: the rule applied, the counts and at most 30
 device ids. The full records go to the code that composes the answer.
 
 ## Grounding

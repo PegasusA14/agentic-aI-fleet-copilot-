@@ -120,8 +120,8 @@ The model has four action tools, `create_upgrade_order(device_id, component)`,
 `notify_employee(device_id, topic, employee_id?, check_id?)`. Each proposes ONE action for ONE device through
 one shared runner and works only when the planner classed the turn as `propose`; on any other turn it is an
 input error. At most one proposal is made per turn across all four tools (extra calls in the same message are
-dropped), and a request that resolves to several devices ("flag all of them") is refused as `unsupported_action`. Eligibility is decided
-in `actions/eligibility.py` from the signed-in company's own data, as of the dataset's pinned time. A latest
+dropped), and a request that resolves to several devices ("flag all of them") is refused as `unsupported_action`. Eligibility is decided in
+`actions/eligibility.py` from the signed-in company's own data, as of the dataset's pinned time. A latest
 reading older than `STALE_HOURS` (48 h) before that time is `insufficient_evidence`.
 
 | Action | Parameters (all code-derived) | Eligible when |
