@@ -1888,7 +1888,7 @@ number-flow-react {
 }
 
 .modal[data-state="closed"] {
-  animation: modal-out 140ms ease-in forwards;
+  animation: modal-out 140ms var(--ease-out) forwards;
 }
 
 @keyframes modal-in {
@@ -2412,7 +2412,7 @@ a.link-btn {
 }
 
 .overlay--fades[data-state="closed"] {
-  animation: fade-out 140ms ease-in forwards;
+  animation: fade-out 140ms var(--ease-out) forwards;
 }
 
 @keyframes fade {
@@ -4099,12 +4099,6 @@ p.evidence__raw {
   }
 }
 
-@media (pointer: coarse) {
-  .rcard .chip {
-    min-height: 44px;
-  }
-}
-
 @media (max-width: 520px) {
   .rcard {
     padding: 16px;
@@ -4835,4 +4829,17 @@ p.evidence__raw {
 /* in a refusal card the code's own note sits under the reply, one step quieter */
 .reply[data-in-card] + .rcard__note {
   color: var(--ink-2);
+}
+
+/* Touch: every chip and text control reaches 44px; last in the file so no component rule above shortens it. */
+@media (pointer: coarse) {
+  .chip,
+  .chips .chip,
+  .chip--action[data-compact],
+  .insight__history,
+  .insight__more,
+  .audit__id,
+  .filters__input {
+    min-height: 44px;
+  }
 }

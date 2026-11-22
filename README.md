@@ -36,6 +36,11 @@ output saved under `frontend/src/fixtures`:
 cd frontend && VITE_FLEET_DATA=fixtures npm run dev
 ```
 
+With that server up, `node frontend/scripts/shell-check.mjs` drives headless Chrome through a long conversation with an
+approved proposal and checks the page never scrolls (the document is exactly one window tall and the composer sits on the
+chat column's bottom edge) at 1440x900 and 390x844. jsdom cannot lay anything out, so this is the real-browser half of the
+shell guard in `frontend/src/styles.test.ts`.
+
 Other commands:
 
 ```bash
