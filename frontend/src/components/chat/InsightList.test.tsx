@@ -72,7 +72,7 @@ describe("InsightList", () => {
     expect(fold).toHaveTextContent("6 with no wear signal");
     expect(fold).toHaveAttribute("aria-expanded", "false");
     await user.click(fold);
-    expect(screen.getByText("9 devices checked · 6 with no wear signal")).toBeInTheDocument();
+    expect(screen.getByText("9 laptops checked · 6 with no wear signal")).toBeInTheDocument();
   });
 
   it("has no Everything else when the scope line leaves nothing out", () => {

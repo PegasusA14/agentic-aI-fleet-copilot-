@@ -193,8 +193,11 @@ export function sourceNumber(row: Row, numbered: NumberedEvidence[]): number | n
 
 /** "Macs" for a macOS check, else "devices", the noun the scope line counts. */
 export function checkedNoun(count: number, table: AnswerTable | null, headline: string): string {
-  const mac = /\bmacOS\b/i.test(`${table?.title ?? ""} ${headline}`);
-  return mac ? (count === 1 ? "Mac" : "Macs") : count === 1 ? "device" : "devices";
+  const words = `${table?.title ?? ""} ${headline}`;
+  if (/\b(macOS|Macs?)\b/.test(words)) return count === 1 ? "Mac" : "Macs";
+  if (/\blaptops?\b/i.test(words)) return count === 1 ? "laptop" : "laptops";
+  if (/\bdesktops?\b/i.test(words)) return count === 1 ? "desktop" : "desktops";
+  return count === 1 ? "device" : "devices";
 }
 
 /** The two footer lines under a table. Counts that are zero or unknown are left out; the second line names the company and the moment. */

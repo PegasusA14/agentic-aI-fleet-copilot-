@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  checkedNoun,
   copyText,
   countPill,
   notesFor,
@@ -221,5 +222,15 @@ describe("numberRefs", () => {
   it("still reads a reference with no stored value as the reading it names", () => {
     const [row] = numberRefs(["acme-001/DEV1@2026-06-12T09:54:00Z#compliance[screen_lock]"]);
     expect(row).toMatchObject({ n: 1, field: "Reading", value: "Compliance: screen lock" });
+  });
+});
+
+describe("checkedNoun", () => {
+  it("names what was checked the way the headline does", () => {
+    expect(checkedNoun(5, null, "4 of your 5 Macs are behind macOS 15.")).toBe("Macs");
+    expect(checkedNoun(1, null, "1 of your 1 Macs is behind macOS 15.")).toBe("Mac");
+    expect(checkedNoun(9, null, "3 of your 9 laptops show signs of battery wear in the last 30 days.")).toBe("laptops");
+    expect(checkedNoun(2, null, "None of your 2 desktops fail a check.")).toBe("desktops");
+    expect(checkedNoun(10, null, "2 of your 10 devices are under 10% free disk space.")).toBe("devices");
   });
 });

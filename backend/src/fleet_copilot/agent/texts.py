@@ -74,7 +74,6 @@ PROMPT_INJECTION = (
     "I can't follow instructions that change how I work. I answer from your fleet's telemetry only."
 )
 STEP_LIMIT = "I couldn't gather enough evidence within the allowed number of steps."
-INSUFFICIENT_HISTORY = "There are not enough snapshots in that window to report a trend."
 PARTIAL_NOT_FOUND = "Part of the request referred to a device that could not be found, so that part was not answered."
 
 
@@ -86,7 +85,7 @@ DEFAULT_CLARIFICATION = "I need one more detail to answer that. What would you l
 CLARIFICATION_HEADLINE = "I need one detail to answer that"
 NO_SUGGESTIONS = "None of these devices supports one of the four actions right now."
 ADVISE_NEEDS_DEVICES = "Which devices do you want recommendations for?"
-ADVISE_HEADLINE = "Recommended next steps from the current evidence"
+ADVISE_HEADLINE = "Here are the next steps the current readings support."
 ADVISE_RULE = (
     "An action is suggested only where the eligibility rules for a remediation ticket, a replacement "
     "flag, a hardware upgrade or an employee notification are met by current readings"
@@ -152,7 +151,3 @@ def proposal_headline(action_label: str, target_label: str) -> str:
         f"Proposed: {action_label} for {target_label}. "
         "It waits for your approval; nothing has changed yet."
     )
-
-
-def no_match(population: int) -> str:
-    return f"No devices matched ({population} evaluated)"

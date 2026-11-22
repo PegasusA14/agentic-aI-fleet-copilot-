@@ -95,7 +95,7 @@ describe("everythingElse", () => {
     const rest = everythingElse(BATTERY);
     expect(rest).not.toBeNull();
     expect(rest!.meta).toBe("6 with no wear signal");
-    expect(rest!.counts).toBe("9 devices checked · 6 with no wear signal");
+    expect(rest!.counts).toBe("9 laptops checked · 6 with no wear signal");
   });
   it("is absent when nothing was left out", () => {
     expect(everythingElse({ ...BATTERY, scope_line: { ...BATTERY.scope_line!, ok: 0 } })).toBeNull();
