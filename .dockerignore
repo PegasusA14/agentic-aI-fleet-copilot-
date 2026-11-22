@@ -1,0 +1,24 @@
+# Secrets and local state never enter the image.
+.env
+.env.*
+!.env.example
+var/
+**/.venv/
+**/node_modules/
+**/__pycache__/
+**/.pytest_cache/
+**/.ruff_cache/
+frontend/dist/
+evals/reports/
+
+# Repository and tooling folders the image does not need.
+.git/
+.github/
+.claude/
+.superpowers/
+.impeccable/
+docs/
+HANDOFF.md
+PRODUCT.md
+DESIGN.md
+AUDIT_REPORT.md

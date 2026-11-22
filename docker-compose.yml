@@ -1,0 +1,20 @@
+# docker compose up --build   ->   http://127.0.0.1:8000
+services:
+  app:
+    build: .
+    image: fleet-copilot:local
+    env_file:
+      - path: .env
+        required: false # without .env the app runs in replay mode from the committed cassette
+    environment:
+      # Replay answers come from the committed evaluation cassette unless .env points elsewhere.
+      FLEET_CASSETTE_PATH: ${FLEET_CASSETTE_PATH:-/app/evals/cassettes/eval.jsonl}
+    ports:
+      # Published on this machine's loopback only: nothing else on the network can reach it.
+      - "127.0.0.1:8000:8000"
+    volumes:
+      - fleet-state:/app/var # database, conversations, proposals, audit log, traces
+    restart: unless-stopped
+
+volumes:
+  fleet-state:

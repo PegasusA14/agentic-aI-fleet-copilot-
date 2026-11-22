@@ -1,4 +1,4 @@
-.PHONY: setup load-data api ask doctor live-check eval eval-live eval-results test lint golden contracts fixtures frontend-install frontend-dev frontend-build frontend-test dev demo
+.PHONY: docker-up docker-down docker-eval setup load-data api ask doctor live-check eval eval-live eval-results test lint golden contracts fixtures frontend-install frontend-dev frontend-build frontend-test dev demo
 
 setup:
 	cd backend && uv sync
@@ -60,3 +60,13 @@ dev:
 
 demo: frontend-build
 	$(MAKE) api
+
+docker-up:
+	docker compose up --build -d
+	@echo "Fleet Copilot: http://127.0.0.1:8000"
+
+docker-down:
+	docker compose down
+
+docker-eval:
+	docker compose run --rm app eval

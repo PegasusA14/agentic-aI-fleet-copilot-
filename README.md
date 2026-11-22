@@ -16,6 +16,35 @@ Contents: [Quick start](#quick-start) · [Configuration](#configuration) · [Run
 
 ## Quick start
 
+### With Docker (Windows, macOS or Linux)
+
+Requirements: Docker Desktop, or any Docker engine with Compose v2. Nothing else is installed on your machine.
+
+```bash
+cp .env.example .env          # optional: fill in one model provider for live answers (see Configuration)
+docker compose up --build     # first build takes a few minutes; then open http://127.0.0.1:8000
+```
+
+- Without a `.env` the app runs in replay mode from the committed `evals/cassettes/eval.jsonl`: a first question
+  worded like one in `evals/scenarios/` (for example "Which devices are low on disk space?") is answered from the
+  recording, and any other question gets a fixed error reply. Fill in a provider in `.env` and set
+  `FLEET_MODEL_MODE=live` to ask anything.
+- The port is published on `127.0.0.1` only, so the app is reachable from this machine and nothing else.
+- Conversations, proposals, the audit log and traces live in the `fleet-state` volume and survive restarts.
+  `docker compose down -v` deletes them.
+- Other commands run in the same image:
+
+  ```bash
+  docker compose run --rm app eval                          # offline evaluation (make docker-eval)
+  docker compose run --rm app ask "Which devices are low on disk space?"
+  docker compose run --rm app doctor                        # which settings are present, never their values
+  ```
+
+- To record a new cassette with `eval-live --refresh`, mount the evals folder so the file lands in your checkout:
+  `docker compose run --rm -v "$PWD/evals:/app/evals" app eval-live --refresh`.
+
+### Without Docker
+
 Requirements: [`uv`](https://docs.astral.sh/uv/) (it installs Python 3.14) and Node.js 22 with npm.
 
 ```bash
@@ -396,5 +425,6 @@ All of these live in `backend/tests/`.
 | `evals/` | Scenario suites, the golden oracle and its output, the recorded cassette, `RESULTS.md` |
 | `contracts/` | JSON Schemas generated from the typed answer and trace models |
 | `scripts/` | `dev.sh`, used by `make dev` |
+| `Dockerfile`, `docker-compose.yml`, `docker/` | The container image (web app, API and evaluations) and its entry point |
 | `.github/workflows/` | CI |
 | `var/` | Git-ignored runtime state: database, checkpoints, traces, proposals, evaluation runs |
