@@ -296,12 +296,15 @@ def test_qualitative_claims_that_contradict_the_answer_are_rejected(low_disk):
 
 def test_a_headline_must_restate_every_number_of_the_code_headline(low_disk):
     comp, as_of = low_disk
-    assert comp.fallback_headline == "2 of 10 devices have under 10% disk space free"
+    assert comp.fallback_headline == "2 of your 10 devices are under 10% free disk space."
     faithful = verify_prose(
-        comp, as_of, headline="Two of 10 devices have under 10% disk space free", explanation=None
+        comp,
+        as_of,
+        headline="Two of your 10 devices are under 10% free disk space.",
+        explanation=None,
     )
     assert faithful.problems == ()
-    assert faithful.headline == "Two of 10 devices have under 10% disk space free"
+    assert faithful.headline == "Two of your 10 devices are under 10% free disk space."
     # Grounded numbers alone are not enough: a headline that drops the count or the population says less
     # than the answer, and a vague one can be wrong without containing a single wrong number.
     for vague in (
@@ -365,7 +368,7 @@ def test_the_deny_list_does_not_apply_when_there_is_no_answer(low_disk):
         comp,
         outcome="no_match",
         reason_code="no_matching_records",
-        fallback_headline="No devices matched (10 evaluated)",
+        fallback_headline="None of your 10 devices matched.",
     )
     ok = verify_prose(
         no_match, as_of, headline="None of the 10 devices matched", explanation="No device is low."
@@ -604,13 +607,13 @@ def test_the_speculation_rules_apply_to_a_model_headline_and_to_every_outcome(lo
     verdict = verify_prose(
         comp,
         as_of,
-        headline="2 of 10 devices have under 10% disk space free, probably because of updates",
+        headline="2 of your 10 devices are under 10% free disk space, probably because of updates",
         explanation=None,
     )
     assert verdict.headline == comp.fallback_headline
     assert {"headline:causal", "headline:predictive"} <= set(verdict.problems)
     no_match = dataclasses.replace(
-        comp, outcome="no_match", fallback_headline="No devices matched (10 evaluated)"
+        comp, outcome="no_match", fallback_headline="None of your 10 devices matched."
     )
     assert (
         "explanation:causal"
@@ -671,7 +674,7 @@ def test_a_device_serial_in_the_explanation_is_rejected_but_a_hostname_is_not(lo
 
 def test_the_headline_may_still_carry_a_serial_it_is_grounded(low_disk):
     comp, as_of = low_disk
-    wording = "2 of 10 devices have under 10% disk space free, led by MT7PJB7N5LRE"
+    wording = "2 of your 10 devices are under 10% free disk space, led by MT7PJB7N5LRE"
     assert verify_prose(comp, as_of, headline=wording, explanation=None).problems == ()
 
 

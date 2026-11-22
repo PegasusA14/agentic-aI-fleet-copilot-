@@ -75,7 +75,7 @@
     ],
     "explanation": null,
     "follow_ups": [],
-    "headline": "2 new installs on 2 of 10 devices in the last 30 days (not in the common set)",
+    "headline": "2 of your 10 devices got 2 new installs in the last 30 days.",
     "insights": [],
     "needs": [],
     "notes": [],
@@ -207,7 +207,7 @@
           ]
         }
       ],
-      "title": "New software (30 d)",
+      "title": "New software, last 30 days",
       "total_rows": 2
     },
     "trace_id": "replay-acme-001-new_software"

@@ -75,7 +75,7 @@ async def test_reassuring_prose_over_a_real_answer_is_replaced_in_the_user_visib
     result = await ask(make_service(real_db_path, llm), "low disk?")
     envelope = result.envelope
     assert envelope.outcome == "answer"
-    assert envelope.headline == "2 of 10 devices have under 10% disk space free"
+    assert envelope.headline == "2 of your 10 devices are under 10% free disk space."
     assert envelope.explanation is None
     verify = next(e for e in result.trace if e.kind == "verify")
     assert set(verify.data["problems"]) == {

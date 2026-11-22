@@ -44,7 +44,7 @@ def test_low_disk_answer_is_fully_composed_by_code(real_db_path, real_conn):
     assert comp.coverage.population == 10
     assert comp.entity_lists[0].items[0].device_id == "MT7PJB7N5LRE"
     assert comp.entity_lists[0].items[0].label == "acme-macbook-4"
-    assert comp.fallback_headline == "2 of 10 devices have under 10% disk space free"
+    assert comp.fallback_headline == "2 of your 10 devices are under 10% free disk space."
 
 
 def test_every_claim_ref_has_resolved_evidence_rendered_by_code(real_db_path, real_conn):
@@ -78,7 +78,7 @@ def test_macos_check_scopes_to_macos_and_discloses_the_rest(real_db_path, real_c
         "M4XVHUV1MEPZ",
     ]
     assert any("3 devices are out of scope" in n for n in comp.notes)
-    assert comp.fallback_headline == "4 of 7 macOS devices run a version older than macOS 15"
+    assert comp.fallback_headline == "4 of your 7 Macs are behind macOS 15."
 
 
 def test_high_severity_has_no_match_and_says_what_was_evaluated(real_db_path, real_conn):
@@ -90,7 +90,7 @@ def test_high_severity_has_no_match_and_says_what_was_evaluated(real_db_path, re
     assert (comp.outcome, comp.reason_code) == ("no_match", "no_matching_records")
     assert comp.claims == [] and comp.evidence == []
     assert comp.coverage.population == 9
-    assert comp.fallback_headline == "No devices matched (9 evaluated)"
+    assert comp.fallback_headline == "None of your 9 laptops fail a high-severity check."
     envelope = as_envelope(comp, real_conn)
     assert envelope.outcome == "no_match" and envelope.reason_code == "no_matching_records"
 
@@ -297,7 +297,7 @@ def test_differing_populations_are_disclosed_and_headlines_are_joined(real_db_pa
         in comp.notes
     )
     assert comp.fallback_headline == (
-        "2 of 10 devices have under 10% disk space free; 4 of 7 macOS devices run a version older than macOS 15"
+        "2 of your 10 devices are under 10% free disk space. 4 of your 7 Macs are behind macOS 15."
     )
     assert as_envelope(comp, real_conn).scope.population == 10
 
@@ -754,7 +754,7 @@ def test_a_find_used_only_to_narrow_a_macos_check_keeps_the_macs_as_the_populati
     assert len(comp.entity_lists) == 1
     assert comp.coverage.population == 7
     assert not any("Populations differ" in n for n in comp.notes)
-    assert comp.fallback_headline == "4 of 7 macOS devices run a version older than macOS 15"
+    assert comp.fallback_headline == "4 of your 7 Macs are behind macOS 15."
 
 
 def test_a_narrowed_call_with_no_findings_is_no_match_not_a_list_of_the_find(

@@ -114,7 +114,7 @@
         "request": "What should we do about these devices?"
       }
     ],
-    "headline": "2 of 7 devices have under 10% disk space free",
+    "headline": "2 of your 7 devices are under 10% free disk space.",
     "insights": [],
     "needs": [],
     "notes": [],
@@ -269,7 +269,7 @@
           ]
         }
       ],
-      "title": "Low disk (<10% free)",
+      "title": "Low on disk (under 10% free)",
       "total_rows": 2
     },
     "trace_id": "replay-initech-003-low_disk"

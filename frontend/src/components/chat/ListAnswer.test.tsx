@@ -45,7 +45,7 @@ describe("a list answer", () => {
 
   it("renders the table, the scope line, and no Details toggle", () => {
     setup(MACOS);
-    expect(screen.getByRole("table", { name: "macOS older than 15" })).toBeInTheDocument();
+    expect(screen.getByRole("table", { name: "Macs behind macOS 15" })).toBeInTheDocument();
     expect(screen.getByText("5 Macs checked · 1 up to date · 2 not checked")).toBeInTheDocument();
     expect(screen.getByText("Initech · latest snapshot per device · as of 2026-06-12 11:00 UTC")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Details" })).not.toBeInTheDocument();
@@ -309,7 +309,7 @@ describe("a repeated answer", () => {
     const { user } = setup(REPEAT, { onJump: vi.fn() });
     await user.click(screen.getByRole("button", { name: "Show again" }));
     expect(screen.queryByText(/Same answer as above/)).not.toBeInTheDocument();
-    expect(screen.getByRole("table", { name: "macOS older than 15" })).toBeInTheDocument();
+    expect(screen.getByRole("table", { name: "Macs behind macOS 15" })).toBeInTheDocument();
     expect(document.querySelector(".msg__lead")).toHaveTextContent(MACOS.headline);
   });
 });

@@ -93,7 +93,7 @@
     ],
     "explanation": null,
     "follow_ups": [],
-    "headline": "3 new installs on 3 of 7 devices in the last 30 days (not in the common set)",
+    "headline": "3 of your 7 devices got 3 new installs in the last 30 days.",
     "insights": [],
     "needs": [],
     "notes": [],
@@ -260,7 +260,7 @@
           ]
         }
       ],
-      "title": "New software (30 d)",
+      "title": "New software, last 30 days",
       "total_rows": 3
     },
     "trace_id": "replay-initech-003-new_software"

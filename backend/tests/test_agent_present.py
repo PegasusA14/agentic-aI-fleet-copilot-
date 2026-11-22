@@ -43,7 +43,7 @@ def initech_macos(real_db_path, real_conn):
 
 def test_the_macos_table_lists_the_four_older_macs_oldest_first(initech_macos):
     table = initech_macos.table
-    assert table.title == "macOS older than 15"
+    assert table.title == "Macs behind macOS 15"
     assert column_keys(table) == ["device", "macos", "behind"]
     assert [r.device_id for r in table.rows] == [
         "SPKRRDF0L786",

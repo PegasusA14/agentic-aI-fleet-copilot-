@@ -32,7 +32,7 @@ CALLS = [
 
 def default_order(table, group_check=None):
     """The device ids of a table in its default row order, each once (a device can have several rows)."""
-    rows = [r for r in table.rows if group_check is None or r.cells["check"].display == group_check]
+    rows = [r for r in table.rows if group_check is None or r.cells["check"].value == group_check]
     return list(dict.fromkeys(r.device_id for r in rows))
 
 
@@ -80,7 +80,7 @@ def test_the_compliance_lists_order_each_check_by_that_checks_rows(real_db_path,
     assert len(comp.entity_lists) >= 2
     for entity_list in comp.entity_lists:
         check = entity_list.title.removesuffix(" failures")
-        rows = [r.device_id for r in comp.table.rows if r.cells["check"].display == check]
+        rows = [r.device_id for r in comp.table.rows if r.cells["check"].value == check]
         assert [i.device_id for i in entity_list.items] == rows
 
 

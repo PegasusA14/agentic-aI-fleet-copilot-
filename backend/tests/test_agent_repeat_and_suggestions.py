@@ -57,7 +57,7 @@ async def test_the_same_question_twice_marks_the_second_answer_and_skips_its_exp
     assert len(llm.calls_of("explain")) == 1  # the model explained the answer once, in total
     assert llm.remaining["explain"] == 1
     # the code-written headline stands, the explanation is empty, the facts are the same
-    assert second.envelope.headline == "2 of 10 devices have under 10% disk space free"
+    assert second.envelope.headline == "2 of your 10 devices are under 10% free disk space."
     assert second.envelope.explanation is None
     assert [c.model_dump() for c in second.envelope.claims] == [
         c.model_dump() for c in first.envelope.claims
@@ -247,7 +247,7 @@ async def test_a_macos_answer_gets_whatever_recommend_returns_for_its_devices(
     llm = ScriptedLLM(
         plans=[answer_plan()],
         acts=[tool_calls_message(("macos_version_check", {"older_than": "15"})), final_message()],
-        explains=[explanation(headline="4 of 5 macOS devices run a version older than macOS 15")],
+        explains=[explanation(headline="4 of your 5 Macs are behind macOS 15.")],
     )
     result = await ask(make_service(real_db_path, llm), "old macs?", identity=INITECH_ADMIN)
     ids = [i.device_id for i in result.envelope.entity_lists[0].items]

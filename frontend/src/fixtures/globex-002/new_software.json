@@ -49,7 +49,7 @@
     ],
     "explanation": null,
     "follow_ups": [],
-    "headline": "1 new install on 1 of 8 devices in the last 30 days (not in the common set)",
+    "headline": "1 of your 8 devices got 1 new install in the last 30 days.",
     "insights": [],
     "needs": [],
     "notes": [],
@@ -146,7 +146,7 @@
           ]
         }
       ],
-      "title": "New software (30 d)",
+      "title": "New software, last 30 days",
       "total_rows": 1
     },
     "trace_id": "replay-globex-002-new_software"

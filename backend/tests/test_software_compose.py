@@ -60,7 +60,7 @@ def test_new_installs_are_one_claim_per_app_with_dates_counts_and_the_rule(real_
     assert "uTorrent 3.6; first seen 2026-05-31 11:13Z" in utorrent.text
     assert "7VP16KHV88LM (acme-" in cleanmymac.text
     assert comp.fallback_headline == (
-        "2 new installs on 2 of 10 devices in the last 30 days (not in the common set)"
+        "2 of your 10 devices got 2 new installs in the last 30 days."
     )
     assert comp.coverage.population == 10
     (rule,) = comp.rules
@@ -107,7 +107,7 @@ def test_no_new_install_in_a_short_window_is_a_no_match_that_still_states_the_ru
     assert (comp.outcome, comp.reason_code) == ("no_match", "no_matching_records")
     assert comp.claims == [] and comp.evidence == []
     assert comp.coverage.population == 10
-    assert comp.fallback_headline == "No devices matched (10 evaluated)"
+    assert comp.fallback_headline == "None of your 10 devices got new installs in the last 7 days."
     assert "last 7 days" in comp.rules[0]
 
 
@@ -153,7 +153,7 @@ def test_holders_are_listed_with_their_version(real_db_path, real_conn):
     assert claim.device_ids == ["1LYSSFD074BB"]
     assert claim.text.startswith("uTorrent is installed at the latest snapshot on 1 of 10 devices.")
     assert "uTorrent 3.6" in claim.text
-    assert comp.fallback_headline == "uTorrent is installed on 1 of 10 devices"
+    assert comp.fallback_headline == "1 of your 10 devices has uTorrent installed."
     assert comp.entity_lists[0].title == "Devices with uTorrent"
     (item,) = comp.evidence
     assert item.value == "uTorrent 3.6, published by Rainberry Inc"
@@ -186,7 +186,7 @@ def test_the_inventory_is_one_claim_that_flags_the_apps_not_on_every_device(
     assert "6 apps; not on every device: CleanMyMac X 4.15" in claim.text
     assert claim.text.count("5 apps") == 8
     assert "Google Chrome 126.0" in comp.rules[0]
-    assert comp.fallback_headline == "10 of 10 devices report installed software"
+    assert comp.fallback_headline == "10 of your 10 devices reported their installed software."
     # the entity list follows the table (hostname order); the claim keeps the device-id order
     assert [i.device_id for i in comp.entity_lists[0].items] == [
         r.device_id for r in comp.table.rows
@@ -276,7 +276,7 @@ def test_prose_that_names_apps_versions_devices_and_dates_from_the_facts_passes(
     got = verdict(
         comp,
         real_conn,
-        headline="2 new installs on 2 of 10 devices in the last 30 days: uTorrent 3.6 and CleanMyMac X 4.15",
+        headline="2 of your 10 devices got 2 new installs in the last 30 days: uTorrent 3.6 and CleanMyMac X 4.15",
         explanation=(
             "uTorrent 3.6 first appeared on acme-macbook-2 on 2026-05-31, and CleanMyMac X 4.15 on "
             "acme-macbook-1 on 2026-05-25. Neither is in the common set of 1Password, Google Chrome, Slack, "
@@ -294,7 +294,7 @@ def test_prose_that_names_a_shared_app_and_its_version_passes_on_the_inventory(
     got = verdict(
         comp,
         real_conn,
-        headline="10 of 10 devices report installed software",
+        headline="10 of your 10 devices reported their installed software.",
         explanation="Google Chrome 126.0, Zoom 6.1.1, 1Password 8.10 and Visual Studio Code 1.90 are shared.",
     )
     assert got.problems == ()

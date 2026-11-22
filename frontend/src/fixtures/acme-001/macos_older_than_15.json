@@ -153,7 +153,7 @@
         "request": "What should we do about these devices?"
       }
     ],
-    "headline": "4 of 7 macOS devices run a version older than macOS 15",
+    "headline": "4 of your 7 Macs are behind macOS 15.",
     "insights": [],
     "needs": [],
     "notes": [
@@ -352,7 +352,7 @@
           ]
         }
       ],
-      "title": "macOS older than 15",
+      "title": "Macs behind macOS 15",
       "total_rows": 4
     },
     "trace_id": "replay-acme-001-macos_older_than_15"

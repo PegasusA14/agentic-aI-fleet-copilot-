@@ -14,6 +14,8 @@ from fleet_copilot.agent.insights import battery_insight, estimates_of, insight_
 from fleet_copilot.agent.present import (
     GENERIC_EXCLUDED_TEXT,
     ScopeParts,
+    check_title,
+    check_words,
     present,
     representative,
 )
@@ -231,6 +233,18 @@ def _path_title(path: str) -> str:
     return _PATH_TITLES.get(evidence_kind(path), path)
 
 
+def _are(n: int) -> str:
+    return "is" if n == 1 else "are"
+
+
+def _verb(n: int, plural: str, singular: str) -> str:
+    return singular if n == 1 else plural
+
+
+def _devices(n: int) -> str:
+    return noun(n, "device")
+
+
 def _item(finding: FindingRecord, detail: str) -> str:
     return f"{finding.device_id} ({finding.hostname}; {detail})"
 
@@ -425,7 +439,7 @@ def _low_disk(rec: ToolRecord, idx: int, b: _Builder) -> None:
         rec.findings,
     )
     b.entity_list(f"{rec.tool}-{idx}", f"Low disk (<{thr:g}% free)", rec.findings)
-    b.set_headline(f"{k} of {n} {noun(n, 'device')} have under {thr:g}% disk space free")
+    b.set_headline(f"{k} of your {n} {_devices(n)} {_are(k)} under {thr:g}% free disk space.")
 
 
 def _macos(rec: ToolRecord, idx: int, b: _Builder) -> None:
@@ -442,7 +456,7 @@ def _macos(rec: ToolRecord, idx: int, b: _Builder) -> None:
         rec.findings,
     )
     b.entity_list(f"{rec.tool}-{idx}", f"macOS older than {target}", rec.findings)
-    b.set_headline(f"{k} of {n} macOS {noun(n, 'device')} run a version older than macOS {target}")
+    b.set_headline(f"{k} of your {n} {noun(n, 'Mac')} {_are(k)} behind macOS {target}.")
 
 
 def _compliance_now(rec: ToolRecord, idx: int, b: _Builder) -> None:
@@ -453,7 +467,9 @@ def _compliance_now(rec: ToolRecord, idx: int, b: _Builder) -> None:
     for f in rec.findings:
         for failing, ref in zip(f.values["failing"], f.refs, strict=True):
             by_check.setdefault(failing["check_id"], []).append((f, failing["severity"], ref))
-    scope_noun = "laptops" if rec.args.get("form_factor") == "laptop" else "devices"
+    scope_noun = {"laptop": "laptops", "desktop": "desktops"}.get(
+        rec.args.get("form_factor") or "", "devices"
+    )
     for check in sorted(by_check):
         rows = by_check[check]
         findings = [row[0] for row in rows]
@@ -466,13 +482,15 @@ def _compliance_now(rec: ToolRecord, idx: int, b: _Builder) -> None:
             refs_by_device={f.device_id: [ref] for f, _, ref in rows},
         )
         b.entity_list(f"{rec.tool}-{idx}-{check}", f"{check} failures", findings, check)
+    severity = rec.args.get("severity")
     if len(by_check) == 1:
         check = next(iter(by_check))
-        b.set_headline(f"{len(by_check[check])} of {rec.population} {scope_noun} fail {check}")
+        k, what = len(by_check[check]), f"the {check_words(check)} check"
     else:
-        b.set_headline(
-            f"{len(rec.findings)} of {rec.population} {scope_noun} fail at least one compliance check"
-        )
+        k = len(rec.findings)
+        what = f"a {severity}-severity check" if severity else "at least one check"
+    verb = _verb(k, "fail", "fails")
+    b.set_headline(f"{k} of your {rec.population} {scope_noun} {verb} {what}.")
 
 
 def _memory_now(rec: ToolRecord, idx: int, b: _Builder) -> None:
@@ -496,7 +514,7 @@ def _memory_now(rec: ToolRecord, idx: int, b: _Builder) -> None:
         rec.findings,
     )
     b.entity_list(f"{rec.tool}-{idx}", f"High memory (>={thr:g}% used)", rec.findings)
-    b.set_headline(f"{k} of {n} {noun(n, 'device')} use at least {thr:g}% of memory")
+    b.set_headline(f"{k} of your {n} {_devices(n)} {_are(k)} using {thr:g}% or more memory.")
 
 
 def _trend(rec: ToolRecord, idx: int, b: _Builder) -> None:
@@ -517,13 +535,14 @@ def _trend_breach(rec: ToolRecord, idx: int, b: _Builder, metric: str) -> None:
     if metric == "memory":
         thr = rec.args.get("threshold_pct") or policy.MEMORY_USED_PCT
         what, latest_label = f"memory use at or above {thr:g}%", "used"
+        phrase = f"hit {thr:g}% or more memory use"
     else:
         thr = rec.args.get("threshold_pct") or policy.LOW_DISK_FREE_PCT
         what, latest_label = f"free disk space under {thr:g}%", "free"
+        phrase = f"dipped under {thr:g}% free disk"
     groups: dict[str, list[FindingRecord]] = {}
     for f in rec.findings:
         groups.setdefault(f.values["trend"], []).append(f)
-    summary = []
     for cls in _CLASS_ORDER:
         group = groups.get(cls)
         if not group:
@@ -542,10 +561,9 @@ def _trend_breach(rec: ToolRecord, idx: int, b: _Builder, metric: str) -> None:
             group,
         )
         b.entity_list(f"{rec.tool}-{idx}-{cls}", f"{cls} {metric} ({days} d)", group)
-        summary.append(f"{len(group)} {cls}")
+    k, n = len(rec.findings), rec.population
     b.set_headline(
-        f"{len(rec.findings)} of {rec.population} devices breached {what} in the last {days} days "
-        f"({', '.join(summary)})"
+        f"{k} of your {n} {_devices(n)} {phrase} in the last {days} {noun(days, 'day')}."
     )
 
 
@@ -558,7 +576,6 @@ def _trend_compliance(rec: ToolRecord, idx: int, b: _Builder) -> None:
     groups: dict[str, list[FindingRecord]] = {}
     for f in rec.findings:
         groups.setdefault(f.values["kind"], []).append(f)
-    summary = []
     for kind in ("persistent_failure", "transition", "recovered"):
         group = groups.get(kind)
         if not group:
@@ -577,9 +594,10 @@ def _trend_compliance(rec: ToolRecord, idx: int, b: _Builder) -> None:
             group,
         )
         b.entity_list(f"{rec.tool}-{idx}-{kind}", f"{check} {kind.replace('_', ' ')}", group)
-        summary.append(f"{len(group)} {kind.replace('_', ' ')}")
+    words = check_words(rec.args["check_id"]) if rec.args.get("check_id") else "check"
+    k, n = len(rec.findings), rec.population
     b.set_headline(
-        f"{len(rec.findings)} of {rec.population} devices have a {check} change or failure ({', '.join(summary)})"
+        f"{k} of your {n} {_devices(n)} had {words} failures in the last {days} {noun(days, 'day')}."
     )
 
 
@@ -616,7 +634,8 @@ def _trend_battery(rec: ToolRecord, idx: int, b: _Builder) -> None:
     )
     b.entity_list(f"{rec.tool}-{idx}-battery", f"Battery wear ({days} d)", rec.findings)
     b.set_headline(
-        f"{k} of {n} {noun(n, 'laptop')} show battery wear signals over the last {days} days"
+        f"{k} of your {n} {noun(n, 'laptop')} {_verb(k, 'show', 'shows')} signs of battery wear "
+        f"in the last {days} {noun(days, 'day')}."
     )
     # Most urgent first, then the steepest decline (the most negative rate), then device id.
     ordered = sorted(
@@ -649,7 +668,12 @@ def _find(rec: ToolRecord, idx: int, b: _Builder) -> None:
             f"Devices by {group_by.replace('_', ' ')}: {k} of {n} {noun(n, 'device')}. {listing}.",
             rec.findings,
         )
-        b.set_headline(f"{k} {noun(k, 'device')} grouped by {group_by.replace('_', ' ')}")
+        by = {"os": "OS", "model": "model", "form_factor": "form factor"}[group_by]
+        b.set_headline(
+            f"Your {k} {_devices(k)}, grouped by {by}."
+            if k == n
+            else f"{k} of your {n} {_devices(n)}, grouped by {by}."
+        )
     else:
         items = [
             _item(f, f"{f.values['os_name']} {f.values['os_version']}; {f.values['model_name']}")
@@ -659,7 +683,7 @@ def _find(rec: ToolRecord, idx: int, b: _Builder) -> None:
             f"Matching devices: {k} of {n} {noun(n, 'device')}. " + "; ".join(items) + ".",
             rec.findings,
         )
-        b.set_headline(f"{k} of {n} {noun(n, 'device')} match")
+        b.set_headline(f"{k} of your {n} {_devices(n)} {_verb(k, 'match', 'matches')}.")
     b.entity_list(f"{rec.tool}-{idx}", "Matching devices", rec.findings)
 
 
@@ -673,10 +697,17 @@ def _history(rec: ToolRecord, idx: int, b: _Builder) -> None:
     first, last = points[0], points[-1]
     span = f"over {v['snapshots']} snapshots from {fmt_ts(first['at'])} to {fmt_ts(last['at'])}"
     metric = v["metric"]
+    shown = display_hostname(f.hostname, f.device_id)
+    host = "that device" if shown == f.device_id else shown
     if metric == "compliance":
         counts = Counter(p["value"] for p in points)
         detail = f"pass in {counts.get('pass', 0)} and fail in {counts.get('fail', 0)} snapshots; latest {last['value']}"
         label = f"Compliance {v['check_id']}"
+        said = (
+            f"{check_title(v['check_id'])} on {host}: passed in {counts.get('pass', 0)} "
+            f"and failed in {counts.get('fail', 0)} snapshots, now "
+            f"{'passing' if last['value'] == 'pass' else 'failing'}."
+        )
     else:
         values = [p["value"] for p in points]
         if metric in ("disk_free_pct", "memory_used_pct"):
@@ -686,9 +717,16 @@ def _history(rec: ToolRecord, idx: int, b: _Builder) -> None:
             fmt = str
             label = "Full-charge capacity (unit not reported)"
         detail = f"first {fmt(values[0])}, latest {fmt(values[-1])}, lowest {fmt(min(values))}, highest {fmt(max(values))}"
+        short = {"disk_free_pct": "Free disk space", "memory_used_pct": "Memory use"}.get(
+            metric, "Battery capacity"
+        )
+        said = (
+            f"{short} on {host}: started at {fmt(values[0])}, now {fmt(values[-1])} "
+            f"(low {fmt(min(values))}, high {fmt(max(values))})."
+        )
     b.claim(f"{label} for {f.device_id} ({f.hostname}) {span}: {detail}.", [f])
     b.entity_list(f"{rec.tool}-{idx}", "Device", [f])
-    b.set_headline(f"{label} for {f.hostname}: {detail}")
+    b.set_headline(said)
 
 
 def _software(rec: ToolRecord, idx: int, b: _Builder) -> None:
@@ -733,8 +771,8 @@ def _new_installs(rec: ToolRecord, idx: int, b: _Builder) -> None:
     b.entity_list(f"{rec.tool}-{idx}", f"New software ({days} d)", devices)
     k, n = len(rec.findings), rec.population
     b.set_headline(
-        f"{k} new {noun(k, 'install')} on {len(devices)} of {n} {noun(n, 'device')} in the last "
-        f"{days} days (not in the common set)"
+        f"{len(devices)} of your {n} {_devices(n)} got {k} new {noun(k, 'install')} "
+        f"in the last {days} {noun(days, 'day')}."
     )
 
 
@@ -749,7 +787,7 @@ def _software_holders(rec: ToolRecord, idx: int, b: _Builder) -> None:
         rec.findings,
     )
     b.entity_list(f"{rec.tool}-{idx}", f"Devices with {name}", rec.findings)
-    b.set_headline(f"{name} is installed on {k} of {n} {noun(n, 'device')}")
+    b.set_headline(f"{k} of your {n} {_devices(n)} {_verb(k, 'have', 'has')} {name} installed.")
 
 
 def _software_inventory(rec: ToolRecord, idx: int, b: _Builder) -> None:
@@ -770,7 +808,7 @@ def _software_inventory(rec: ToolRecord, idx: int, b: _Builder) -> None:
         refs_by_device={f.device_id: list(f.refs) for f in rec.findings},
     )
     b.entity_list(f"{rec.tool}-{idx}", "Installed software", rec.findings)
-    b.set_headline(f"{k} of {n} {noun(n, 'device')} report installed software")
+    b.set_headline(f"{k} of your {n} {_devices(n)} reported their installed software.")
 
 
 _CATEGORY_TITLE = {
@@ -950,6 +988,77 @@ def _scaffolding(usable: Sequence[ToolRecord]) -> set[int]:
     return hidden
 
 
+def _no_match_headline(rec: ToolRecord | None, population: int) -> str:
+    """The plain line for a check that found nothing, in the same words as the answer it would have given."""
+    if population <= 0:
+        return "There are no devices to check."
+    n, devices = population, f"your {population} {_devices(population)}"
+    none = f"None of {devices} {{}}."
+    if rec is None:
+        return none.format("matched")
+    args = rec.args
+    days = args.get("window_days")
+    match rec.tool:
+        case "low_disk_devices":
+            thr = args.get("threshold_pct") or policy.LOW_DISK_FREE_PCT
+            return none.format(f"are under {thr:g}% free disk space")
+        case "macos_version_check":
+            return f"None of your {n} {noun(n, 'Mac')} are behind macOS {args.get('older_than') or '15'}."
+        case "compliance_failures_now":
+            if args.get("severity"):
+                what = f"a {args['severity']}-severity check"
+            elif args.get("check_id"):
+                what = f"the {check_words(args['check_id'])} check"
+            else:
+                what = "any check"
+            kind = {"laptop": "laptops", "desktop": "desktops"}.get(args.get("form_factor") or "")
+            return f"None of your {n} {kind or _devices(n)} fail {what}."
+        case "memory_pressure_now":
+            thr = args.get("threshold_pct") or policy.MEMORY_USED_PCT
+            return none.format(f"are using {thr:g}% or more memory")
+        case "trend":
+            metric = args.get("metric")
+            if metric == "memory":
+                thr = args.get("threshold_pct") or policy.MEMORY_USED_PCT
+                days = days or policy.TREND_WINDOW_DAYS
+                return none.format(
+                    f"hit {thr:g}% or more memory use in the last {days} {noun(days, 'day')}"
+                )
+            if metric == "disk":
+                thr = args.get("threshold_pct") or policy.LOW_DISK_FREE_PCT
+                days = days or policy.TREND_WINDOW_DAYS
+                return none.format(
+                    f"dipped under {thr:g}% free disk in the last {days} {noun(days, 'day')}"
+                )
+            if metric == "compliance":
+                days = days or policy.COMPLIANCE_WINDOW_DAYS
+                words = check_words(args["check_id"]) if args.get("check_id") else "check"
+                return none.format(f"had {words} failures in the last {days} {noun(days, 'day')}")
+            days = days or policy.BATTERY_WINDOW_DAYS
+            return (
+                f"None of your {n} {noun(n, 'laptop')} show signs of battery wear "
+                f"in the last {days} {noun(days, 'day')}."
+            )
+        case "software_inventory":
+            if args.get("view") == "new_installs":
+                days = days or policy.SOFTWARE_WINDOW_DAYS
+                return none.format(f"got new installs in the last {days} {noun(days, 'day')}")
+            if args.get("app_name"):
+                return none.format(f"have {args['app_name']} installed")
+            return none.format("reported any installed software")
+        case "fleet_health":
+            return f"Nothing needs attention across {devices}."
+    return none.format("matched")
+
+
+def _insufficient_headline(population: int) -> str:
+    """When no device has enough snapshots in the window for a trend."""
+    return (
+        "Not enough snapshots in that window to show a trend for "
+        f"your {population} {_devices(population)}."
+    )
+
+
 def compose(
     records: Sequence[ToolRecord],
     *,
@@ -1050,7 +1159,7 @@ def compose(
             coverage,
             builder.lists,
             builder.notes,
-            "; ".join(builder.headlines) or builder.claims[0].text.split(":")[0],
+            " ".join(builder.headlines) or builder.claims[0].text.split(":")[0],
             builder.rules,
             insights=builder.insights,
             estimates=estimates_of(builder.insights),
@@ -1067,7 +1176,7 @@ def compose(
             "insufficient_history",
             coverage=coverage,
             notes=builder.notes,
-            fallback_headline=texts.INSUFFICIENT_HISTORY,
+            fallback_headline=_insufficient_headline(population),
             rules=builder.rules,
             **ui,
         )
@@ -1076,7 +1185,7 @@ def compose(
         "no_matching_records",
         coverage=coverage,
         notes=builder.notes,
-        fallback_headline=texts.no_match(population),
+        fallback_headline=_no_match_headline(shown[0] if len(shown) == 1 else None, population),
         rules=builder.rules,
         **ui,
     )

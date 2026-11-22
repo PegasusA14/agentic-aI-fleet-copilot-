@@ -50,7 +50,7 @@ describe("sign-in and company boundary", () => {
   it("answers only from the signed-in company's data", async () => {
     const user = await signInAs("Globex");
     await ask(user, "Which devices are low on disk space?");
-    expect(await screen.findByText("2 of 8 devices have under 10% disk space free")).toBeInTheDocument();
+    expect(await screen.findByText("2 of your 8 devices are under 10% free disk space.")).toBeInTheDocument();
     expect(document.body.textContent).not.toMatch(/acme-001|initech-003/);
   });
 
@@ -65,12 +65,12 @@ describe("the working thread", () => {
   it("docks into a thread on the first question and shows the answer first", async () => {
     const user = await signInAs("Acme");
     await user.click(screen.getByRole("button", { name: "Which devices are low on disk?" }));
-    const headline = await screen.findByText("2 of 10 devices have under 10% disk space free");
+    const headline = await screen.findByText("2 of your 10 devices are under 10% free disk space.");
     const reply = headline.closest("article") as HTMLElement;
     expect(within(reply).queryByText("Answer")).not.toBeInTheDocument();
     expect(within(reply).queryByText(/Evaluated/)).not.toBeInTheDocument();
     // A list answer is a table with its scope line and three folded disclosures, not a sentence and chips.
-    expect(within(reply).getByRole("table", { name: "Low disk (<10% free)" })).toBeInTheDocument();
+    expect(within(reply).getByRole("table", { name: "Low on disk (under 10% free)" })).toBeInTheDocument();
     expect(within(reply).getByText("10 devices checked · 8 healthy")).toBeInTheDocument();
     expect(within(reply).queryByRole("button", { name: "Details" })).not.toBeInTheDocument();
     expect(within(reply).getByRole("button", { name: /^Evidence 2 records$/ })).toHaveAttribute("aria-expanded", "false");
@@ -127,7 +127,7 @@ describe("the working thread", () => {
     const user = await signInAs("Acme");
     await ask(user, "Which devices need attention?");
     await user.click(await screen.findByRole("button", { name: "Outdated macOS" }));
-    expect(await screen.findByText(/^4 of 7 macOS devices/)).toBeInTheDocument();
+    expect(await screen.findByText(/^4 of your 7 Macs are behind macOS 15\./)).toBeInTheDocument();
   });
 
   it("makes approval deliberate and labels the outcome as simulated", async () => {
@@ -202,7 +202,7 @@ describe("navigation", () => {
   it("keeps Approvals and Audit in the sidebar and leaves the top bar to brand, company, as-of and Switch company", async () => {
     const user = await signInAs("Acme");
     await ask(user, "Which devices are low on disk space?");
-    await screen.findByText("2 of 10 devices have under 10% disk space free");
+    await screen.findByText("2 of your 10 devices are under 10% free disk space.");
     const bar = screen.getByRole("banner");
     const sidebar = screen.getByRole("navigation", { name: "Conversation history" });
     expect(within(bar).queryByRole("link")).not.toBeInTheDocument();
@@ -227,7 +227,7 @@ describe("navigation", () => {
   it("starts over from New chat: no thread, a fresh home", async () => {
     const user = await signInAs("Acme");
     await ask(user, "Which devices are low on disk space?");
-    await screen.findByText("2 of 10 devices have under 10% disk space free");
+    await screen.findByText("2 of your 10 devices are under 10% free disk space.");
     await user.click(screen.getByRole("button", { name: "New chat" }));
     expect(screen.queryByRole("article")).not.toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Ask your fleet anything." })).toBeInTheDocument();
@@ -268,14 +268,14 @@ describe("conversation history", () => {
     render(<App transport={transport} />);
     await user.click(await screen.findByRole("button", { name: /Acme/ }));
     await ask(user, LOW_DISK);
-    await screen.findByText("2 of 10 devices have under 10% disk space free");
+    await screen.findByText("2 of your 10 devices are under 10% free disk space.");
     await user.click(screen.getByRole("button", { name: "New chat" }));
     await ask(user, "Which laptops show battery wear?");
     await screen.findAllByRole("article");
     expect(await transport.conversations()).toHaveLength(2);
 
     await user.click(await within(sidebar()).findByRole("button", { name: LOW_DISK }));
-    expect(await screen.findByText("2 of 10 devices have under 10% disk space free")).toBeInTheDocument();
+    expect(await screen.findByText("2 of your 10 devices are under 10% free disk space.")).toBeInTheDocument();
     expect(screen.getByRole("region", { name: `Question: ${LOW_DISK}` })).toBeInTheDocument();
     expect(screen.queryByRole("region", { name: "Question: Which laptops show battery wear?" })).not.toBeInTheDocument();
     expect(within(sidebar()).getByRole("button", { name: LOW_DISK })).toHaveAttribute("aria-current", "true");
@@ -304,7 +304,7 @@ describe("conversation history", () => {
     render(<App transport={transport} />);
     await user.click(await screen.findByRole("button", { name: /Acme/ }));
     await ask(user, LOW_DISK);
-    await screen.findByText("2 of 10 devices have under 10% disk space free");
+    await screen.findByText("2 of your 10 devices are under 10% free disk space.");
     await user.click(await within(sidebar()).findByRole("button", { name: `Delete conversation: ${LOW_DISK}` }));
     await user.click(within(sidebar()).getByRole("button", { name: "Cancel" }));
     expect(await transport.conversations()).toHaveLength(1);
@@ -361,7 +361,7 @@ describe("the sidebar drawer on small screens", () => {
   it("reopens a conversation from the drawer and closes it", async () => {
     const user = await signInAs("Acme");
     await ask(user, "Which devices are low on disk space?");
-    await screen.findByText("2 of 10 devices have under 10% disk space free");
+    await screen.findByText("2 of your 10 devices are under 10% free disk space.");
     await user.click(screen.getByRole("button", { name: "Open menu" }));
     await user.click(await screen.findByRole("button", { name: "New chat" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
@@ -369,7 +369,7 @@ describe("the sidebar drawer on small screens", () => {
     await user.click(screen.getByRole("button", { name: "Open menu" }));
     await user.click(await screen.findByRole("button", { name: "Which devices are low on disk space?" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
-    expect(await screen.findByText("2 of 10 devices have under 10% disk space free")).toBeInTheDocument();
+    expect(await screen.findByText("2 of your 10 devices are under 10% free disk space.")).toBeInTheDocument();
   });
 });
 
@@ -444,7 +444,7 @@ describe("the composer", () => {
     const box = screen.getByLabelText(/ask a question about your fleet/i);
     expect(box).toHaveAttribute("placeholder", "Ask about your fleet…");
     await ask(user, "Which devices are low on disk space?");
-    await screen.findByText("2 of 10 devices have under 10% disk space free");
+    await screen.findByText("2 of your 10 devices are under 10% free disk space.");
     expect(screen.getByLabelText(/ask a question about your fleet/i)).toHaveAttribute(
       "placeholder",
       "Ask a follow-up, or ask what to do…",

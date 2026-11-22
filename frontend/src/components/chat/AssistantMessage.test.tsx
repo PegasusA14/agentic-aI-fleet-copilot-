@@ -184,8 +184,8 @@ describe("a refused action", () => {
 
 describe("outcomes that are not an answer", () => {
   const CASES: Array<[string, string, string]> = [
-    ["compliance_high_no_match", "No match", "No devices matched (10 evaluated)"],
-    ["insufficient_trend", "Not enough data", "There are not enough snapshots in that window to report a trend."],
+    ["compliance_high_no_match", "No match", "None of your 10 devices fail a high-severity check."],
+    ["insufficient_trend", "Not enough data", "Not enough snapshots in that window to show a trend for your 10 devices."],
     ["device_not_found", "Not found", "I can't find that in your fleet."],
     ["unsupported", "Not something I can do", "I can only answer questions about this company's managed devices."],
     ["tool_error", "Lookup failed", "A data lookup failed, so I can't answer reliably. No changes were made."],
@@ -495,7 +495,7 @@ describe("a reply's motion and ticking numbers", () => {
   it("reads a code-written count once, as the whole sentence, with the numbers set to tick", () => {
     const { container } = setup(LOW_DISK);
     const lead = container.querySelector(".msg__lead") as HTMLElement;
-    expect(screen.getByText("2 of 10 devices have under 10% disk space free")).toHaveClass("sr-only");
+    expect(screen.getByText("2 of your 10 devices are under 10% free disk space.")).toHaveClass("sr-only");
     expect(lead.querySelector("[aria-hidden='true']")).not.toBeNull();
     expect(lead.textContent).toContain("2");
   });

@@ -27,7 +27,7 @@ describe("numbers never count up from zero", () => {
     setReducedMotion(false);
     const envelope = getFixture("acme-001", "low_disk").envelope;
     render(<AssistantMessage envelope={envelope} busy={false} onOpenEvidence={vi.fn()} onOpenTrace={vi.fn()} onAsk={vi.fn()} />);
-    expect(envelope.headline).toMatch(/^2 of 10 /);
+    expect(envelope.headline).toMatch(/^2 of your 10 /);
     expect(seen).toEqual([2, 10]);
   });
 

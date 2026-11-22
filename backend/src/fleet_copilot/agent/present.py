@@ -53,6 +53,24 @@ _KIND_SENTENCE = {
 _WORDS = ("zero", "one", "two", "three", "four", "five", "six", "seven", "eight", "nine", "ten")
 _SAFE_TEXT = re.compile(r"[\w .+()/-]{1,60}")
 _LATEST_SNAPSHOT = "latest snapshot per device"
+# What each compliance check is called in a sentence or a table, instead of its id.
+_CHECK_WORDS = {
+    "disk_encryption": "disk encryption",
+    "screen_lock": "screen lock",
+    "os_up_to_date": "OS update",
+}
+
+
+def check_words(check_id: str) -> str:
+    """A compliance check named in plain words: `screen_lock` is `screen lock`."""
+    return _CHECK_WORDS.get(check_id, check_id.replace("_", " "))
+
+
+def check_title(check_id: str) -> str:
+    """The same words starting a sentence or a label: `Screen lock`, `OS update`."""
+    words = check_words(check_id)
+    return f"{words[:1].upper()}{words[1:]}"
+
 
 DEVICE = Column(key="device", label="Device", kind="device")
 
@@ -231,7 +249,7 @@ def _macos(rec: ToolRecord) -> Presentation:
     return Presentation(
         order=_order(rows),
         table=_table(
-            f"macOS older than {target}",
+            f"Macs behind macOS {target}",
             columns,
             rows,
             SortSpec(key="macos", direction="asc"),
@@ -275,7 +293,7 @@ def _low_disk(rec: ToolRecord) -> Presentation:
     return Presentation(
         order=_order(rows),
         table=_table(
-            f"Low disk (<{thr:g}% free)",
+            f"Low on disk (under {thr:g}% free)",
             [
                 Column(key="free", label="Free", kind="percent"),
                 Column(key="space", label="Free space", kind="text"),
@@ -323,7 +341,7 @@ def _memory(rec: ToolRecord) -> Presentation:
     return Presentation(
         order=_order(rows),
         table=_table(
-            f"High memory (>={thr:g}% used)",
+            f"High memory use ({thr:g}% or more)",
             [
                 Column(key="used", label="Used", kind="percent"),
                 Column(key="memory", label="Memory in use", kind="text"),
@@ -352,7 +370,7 @@ def _compliance_now(rec: ToolRecord) -> Presentation:
         _row(
             f,
             [ref],
-            check=Cell(display=check, value=check),
+            check=Cell(display=check_title(check), value=check),
             severity=Cell(
                 display=severity.capitalize(),
                 value=_SEVERITY_RANK.get(severity, 0),
@@ -364,7 +382,10 @@ def _compliance_now(rec: ToolRecord) -> Presentation:
     ]
     by_check = Counter(check for _, check, _, _ in pairs)
     ranked = sorted(by_check.items(), key=lambda kv: (-kv[1], kv[0]))
-    clauses = [f"{_word(k)} fail{'s' if k == 1 else ''} {check}" for check, k in ranked[:3]]
+    clauses = [
+        f"{_word(k)} fail{'s' if k == 1 else ''} the {check_words(check)} check"
+        for check, k in ranked[:3]
+    ]
     if len(ranked) > 3:
         m = len(ranked) - 3
         clauses.append(f"{_word(m)} other {noun(m, 'check')} also fail{'s' if m == 1 else ''}")
@@ -380,7 +401,9 @@ def _compliance_now(rec: ToolRecord) -> Presentation:
     return Presentation(
         order=_order(rows, [check for _, check, _, _ in pairs]),
         table=_table(
-            "Failing compliance checks",
+            f"{check_title(next(iter(by_check)))} failures"
+            if len(by_check) == 1
+            else "Devices failing a check",
             [
                 Column(key="check", label="Check", kind="text"),
                 Column(key="severity", label="Severity", kind="pill"),
@@ -435,7 +458,7 @@ def _trend_breach(rec: ToolRecord, metric: str) -> Presentation:
     return Presentation(
         order=_order(rows),
         table=_table(
-            f"{'Memory' if metric == 'memory' else 'Disk'} trend ({days} d)",
+            f"{'Memory use' if metric == 'memory' else 'Free disk'}, last {days} {noun(days, 'day')}",
             [
                 Column(key="pattern", label="Pattern", kind="pill"),
                 Column(key="breached", label="Breached", kind="text"),
@@ -483,7 +506,7 @@ def _trend_compliance(rec: ToolRecord) -> Presentation:
     return Presentation(
         order=_order(rows),
         table=_table(
-            f"{check} ({days} d)",
+            f"{check_title(check)}, last {days} {noun(days, 'day')}",
             [
                 Column(key="pattern", label="Pattern", kind="pill"),
                 Column(key="since", label="Since", kind="date"),
@@ -559,7 +582,7 @@ def _battery(rec: ToolRecord) -> Presentation:
     return Presentation(
         order=_order(rows),
         table=_table(
-            f"Battery wear ({days} d)",
+            f"Battery wear, last {days} {noun(days, 'day')}",
             [
                 Column(key="capacity", label="Capacity change", kind="percent"),
                 Column(key="cycles", label="Cycles", kind="number"),
@@ -763,7 +786,7 @@ def _new_installs(rec: ToolRecord) -> Presentation:
     return Presentation(
         order=_order(rows),
         table=_table(
-            f"New software ({days} d)",
+            f"New software, last {days} {noun(days, 'day')}",
             [
                 Column(key="app", label="App", kind="text"),
                 Column(key="version", label="Version", kind="version"),

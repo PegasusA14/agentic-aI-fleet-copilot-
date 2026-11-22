@@ -87,7 +87,7 @@ async def test_who_has_an_app_resolves_a_follow_up_to_the_listed_device(real_db_
             *one_call("software_inventory", {"view": "current", "app_name": "utorrent"}),
             *one_call("software_inventory", {"view": "new_installs"}),
         ],
-        explains=[explanation(headline="uTorrent is installed on 2 of 7 devices")],
+        explains=[explanation(headline="2 of your 7 devices have uTorrent installed.")],
     )
     service = make_service(real_db_path, llm)
     first = await service.run_turn(INITECH_ADMIN, "c1", "Which devices have uTorrent?")
@@ -153,7 +153,7 @@ async def test_an_app_that_only_another_company_has_is_an_input_error_the_model_
             tool_calls_message(("software_inventory", {"view": "current", "app_name": "uTorrent"})),
             final_message(),
         ],
-        explains=[explanation(headline="uTorrent is installed on 1 of 10 devices")],
+        explains=[explanation(headline="1 of your 10 devices has uTorrent installed.")],
     )
     result = await make_service(real_db_path, llm).run_turn(ACME_ADMIN, "c1", "Who has TeamViewer?")
     assert_clean(result, llm)
@@ -175,12 +175,16 @@ async def test_model_prose_that_names_apps_and_versions_from_the_facts_is_kept(r
         plans=[answer_plan()],
         acts=one_call(*NEW),
         explains=[
-            explanation(headline="2 new installs on 2 of 10 devices in the last 30 days", text=text)
+            explanation(
+                headline="2 of your 10 devices got 2 new installs in the last 30 days.", text=text
+            )
         ],
     )
     result = await make_service(real_db_path, llm).run_turn(ACME_ADMIN, "c1", QUESTION)
     assert result.envelope.explanation == text
-    assert result.envelope.headline == "2 new installs on 2 of 10 devices in the last 30 days"
+    assert (
+        result.envelope.headline == "2 of your 10 devices got 2 new installs in the last 30 days."
+    )
 
 
 @pytest.mark.parametrize(
@@ -195,9 +199,11 @@ async def test_model_prose_that_adds_a_version_a_label_or_a_device_is_dropped(re
     llm = ScriptedLLM(
         plans=[answer_plan()],
         acts=one_call(*NEW),
-        explains=[explanation(headline="2 new installs on 2 of 10 devices", text=text)],
+        explains=[explanation(headline="2 of your 10 devices got 2 new installs", text=text)],
     )
     result = await make_service(real_db_path, llm).run_turn(ACME_ADMIN, "c1", QUESTION)
     assert result.envelope.explanation is None
-    assert result.envelope.headline.startswith("2 new installs on 2 of 10 devices in the last 30")
+    assert result.envelope.headline.startswith(
+        "2 of your 10 devices got 2 new installs in the last 30"
+    )
     assert text not in blob_of(result)

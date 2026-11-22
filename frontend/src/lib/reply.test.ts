@@ -78,6 +78,18 @@ describe("leadCount", () => {
     expect(leadCount("3 of the 8 laptops")).toMatchObject({ n: 3, m: 8, joiner: " of the " });
   });
 
+  it("ticks every N-of-M headline the composer writes, in its plain wording", () => {
+    for (const [text, n, m] of [
+      ["2 of your 10 devices are under 10% free disk space.", 2, 10],
+      ["1 of your 10 devices is using 85% or more memory.", 1, 10],
+      ["3 of your 10 devices fail the screen lock check.", 3, 10],
+      ["3 of your 9 laptops show signs of battery wear in the last 30 days.", 3, 9],
+    ] as const) {
+      expect(leadCount(text)).toMatchObject({ kind: "of", n, m, joiner: " of your " });
+    }
+    expect(leadCount("None of your 9 laptops fail a high-severity check.")).toBeNull();
+  });
+
   it("never ticks an identifier or a version", () => {
     expect(leadCount("14.5 of 15 is the version")).toBeNull();
     expect(leadCount("4 of your 5.2 Macs")).toBeNull();

@@ -152,7 +152,7 @@
         "request": "What should we do about these devices?"
       }
     ],
-    "headline": "5 of 8 devices fail at least one compliance check",
+    "headline": "5 of your 8 devices fail at least one check.",
     "insights": [],
     "needs": [],
     "notes": [],
@@ -252,7 +252,7 @@
         "target_label": "globex-thinkpad-8"
       }
     ],
-    "summary": "Four fail os_up_to_date and two fail screen_lock.",
+    "summary": "Four fail the OS update check and two fail the screen lock check.",
     "table": {
       "columns": [
         {
@@ -284,7 +284,7 @@
         {
           "cells": {
             "check": {
-              "display": "os_up_to_date",
+              "display": "OS update",
               "tone": null,
               "value": "os_up_to_date"
             },
@@ -313,7 +313,7 @@
         {
           "cells": {
             "check": {
-              "display": "os_up_to_date",
+              "display": "OS update",
               "tone": null,
               "value": "os_up_to_date"
             },
@@ -342,7 +342,7 @@
         {
           "cells": {
             "check": {
-              "display": "os_up_to_date",
+              "display": "OS update",
               "tone": null,
               "value": "os_up_to_date"
             },
@@ -371,7 +371,7 @@
         {
           "cells": {
             "check": {
-              "display": "os_up_to_date",
+              "display": "OS update",
               "tone": null,
               "value": "os_up_to_date"
             },
@@ -400,7 +400,7 @@
         {
           "cells": {
             "check": {
-              "display": "screen_lock",
+              "display": "Screen lock",
               "tone": null,
               "value": "screen_lock"
             },
@@ -429,7 +429,7 @@
         {
           "cells": {
             "check": {
-              "display": "screen_lock",
+              "display": "Screen lock",
               "tone": null,
               "value": "screen_lock"
             },
@@ -456,7 +456,7 @@
           ]
         }
       ],
-      "title": "Failing compliance checks",
+      "title": "Devices failing a check",
       "total_rows": 6
     },
     "trace_id": "replay-globex-002-compliance_failures"

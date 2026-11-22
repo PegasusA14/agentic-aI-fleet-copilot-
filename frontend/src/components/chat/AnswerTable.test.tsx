@@ -33,8 +33,8 @@ const hostnames = () =>
 describe("the answer table", () => {
   it("is a real table named by its title, with the count beside it", () => {
     render(<Harness />);
-    const table = screen.getByRole("table", { name: "macOS older than 15" });
-    expect(table.querySelector("caption")).toHaveTextContent("macOS older than 15");
+    const table = screen.getByRole("table", { name: "Macs behind macOS 15" });
+    expect(table.querySelector("caption")).toHaveTextContent("Macs behind macOS 15");
     expect(table.querySelector("caption")).toHaveTextContent("4 devices");
     const heads = within(table).getAllByRole("columnheader");
     expect(heads.map((h) => h.textContent)).toEqual(["Device", "macOS", "Behind 15", "Source"]);

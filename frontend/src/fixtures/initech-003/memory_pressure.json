@@ -77,7 +77,7 @@
         "request": "What should we do about these devices?"
       }
     ],
-    "headline": "1 of 7 devices use at least 85% of memory",
+    "headline": "1 of your 7 devices is using 85% or more memory.",
     "insights": [],
     "needs": [],
     "notes": [],
@@ -170,7 +170,7 @@
           ]
         }
       ],
-      "title": "High memory (>=85% used)",
+      "title": "High memory use (85% or more)",
       "total_rows": 1
     },
     "trace_id": "replay-initech-003-memory_pressure"

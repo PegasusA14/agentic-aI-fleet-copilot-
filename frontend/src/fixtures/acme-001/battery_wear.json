@@ -170,7 +170,7 @@
         "request": "What should we do about these devices?"
       }
     ],
-    "headline": "3 of 9 laptops show battery wear signals over the last 30 days",
+    "headline": "3 of your 9 laptops show signs of battery wear in the last 30 days.",
     "insights": [
       {
         "category": "battery",
@@ -949,7 +949,7 @@
           ]
         }
       ],
-      "title": "Battery wear (30 d)",
+      "title": "Battery wear, last 30 days",
       "total_rows": 3
     },
     "trace_id": "replay-acme-001-battery_wear"

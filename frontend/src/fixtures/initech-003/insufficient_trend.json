@@ -72,7 +72,7 @@
         "request": "Which devices were not checked, and why?"
       }
     ],
-    "headline": "There are not enough snapshots in that window to report a trend.",
+    "headline": "Not enough snapshots in that window to show a trend for your 7 devices.",
     "insights": [],
     "needs": [],
     "notes": [

@@ -89,7 +89,7 @@
         "request": "What should we do about these devices?"
       }
     ],
-    "headline": "2 of 8 devices use at least 85% of memory",
+    "headline": "2 of your 8 devices are using 85% or more memory.",
     "insights": [],
     "needs": [],
     "notes": [],
@@ -206,7 +206,7 @@
           ]
         }
       ],
-      "title": "High memory (>=85% used)",
+      "title": "High memory use (85% or more)",
       "total_rows": 2
     },
     "trace_id": "replay-globex-002-memory_pressure"
