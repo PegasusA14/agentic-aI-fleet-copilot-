@@ -3886,6 +3886,10 @@ p.evidence__raw {
     padding: 12px 8px 12px 16px;
   }
 
+  .atable__summary {
+    padding: 0 16px 12px;
+  }
+
   .chip--action[data-compact] {
     justify-content: flex-start;
   }
@@ -4834,4 +4838,9 @@ p.evidence__raw {
   .notes__btn {
     min-height: 44px;
   }
+}
+
+/* in a refusal card the code's own note sits under the reply, one step quieter */
+.reply[data-in-card] + .rcard__note {
+  color: var(--ink-2);
 }
