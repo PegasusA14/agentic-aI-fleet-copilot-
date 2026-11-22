@@ -163,7 +163,7 @@ export function ProposalView({
   const riskId = useId();
   const sentence = actionSentence(proposal);
   const busy = outcome?.kind === "busy";
-  /** Once decided, the buttons go: a dark disabled Approve would still read as available. */
+  /** Once decided, the buttons go: a faded Approve would still read as available. */
   const decided = closed || status !== "pending";
   const locked = busy || decided || checking;
   const shown = proposalResult(proposal, status, byYou);

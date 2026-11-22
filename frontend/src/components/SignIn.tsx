@@ -75,7 +75,6 @@ export function SignIn({ transport, onSignedIn, notice }: SignInProps) {
   return (
     <section className="signin" aria-labelledby="signin-title">
       <div className="hero">
-        <p className="hero__label">Fleet Copilot · Demo sign-in</p>
         <div className="hero__display">
           <h1 className="hero__title" id="signin-title">
             Whose fleet are you looking after?

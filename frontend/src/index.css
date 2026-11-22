@@ -1,52 +1,54 @@
-/* Fleet Copilot — tokens first, then the shell, then components. One dark theme, Neon's language:
-   hairlines and mono labels carry structure; no gradients, glows or panel shadows anywhere. */
+/* Fleet Copilot: tokens first, then the shell, then components. One light theme: white ground, hairlines and mono labels
+   carry the structure, one blue accent, square corners; no gradients, and shadows only on floating layers. */
 
 :root {
-  color-scheme: dark;
-  /* ground and panels */
-  --bg: #0a0a0a;
-  --panel: #111111;
-  --panel-2: #171717;
-  /* hairlines: --line divides, --line-strong edges a panel, --line-hover is one step up, --line-ctl bounds a text field (3:1) */
-  --line: #1f1f1f;
-  --line-strong: #2e2e2e;
-  --line-hover: #4a4a4a;
-  --line-ctl: #6e6e6e;
-  /* ink */
-  --ink: #ededed;
-  --ink-2: #a3a3a3;
-  --ink-3: #8a8a8a;
-  /* white-filled primary, with its black text */
-  --solid: #ffffff;
-  --solid-hover: #dcdcdc;
-  --on-solid: #0a0a0a;
-  /* accent: live data, pass, the active state, the focus ring and label markers only */
-  --accent: #00e599;
-  --on-accent: #0a0a0a;
+  color-scheme: light;
+  /* ground and surfaces: white page, a muted grey surface for the user bubble, wells and hovers */
+  --bg: #ffffff;
+  --panel: #ffffff;
+  --surface: #f4f4f4;
+  /* hairlines: --line-subtle divides inside a panel, --line edges a panel, --line-hover is one step up, --line-ctl bounds a text field (3:1) */
+  --line-subtle: #f0f0f0;
+  --line: #e6e6e6;
+  --line-hover: #c4c4c4;
+  --line-ctl: #8f8f8f;
+  /* ink: text is ink or muted ink (5.3:1 on white, 4.8:1 on the surface) */
+  --ink: #0a0a0a;
+  --ink-2: #6b6b6b;
+  /* the ink-filled button (send, sign in) and its text */
+  --solid: #0a0a0a;
+  --solid-hover: #2e2e2e;
+  --on-solid: #ffffff;
+  /* accent, blue: the one filled control (Approve), the primary next step, links, selection, the focus ring, live data */
+  --accent: #155dfc;
+  --accent-hover: #0f4fe0;
+  --accent-wash: #eff6ff;
+  --accent-line: #b7cffd;
+  --on-accent: #ffffff;
   --focus: var(--accent);
-  /* state tones (text on #0a0a0a is 6.8:1 or better); washes are the tone at 12% over --panel */
-  --pass: #00e599;
-  --attention: #f5b740;
-  --alert: #ff6369;
-  --denied: #a3a3a3;
-  --action: #7ca8ff;
-  --pass-wash: #0f2a21;
-  --attention-wash: #2c2517;
-  --alert-wash: #2e1b1c;
-  --denied-wash: #232323;
-  --action-wash: #1e232e;
-  /* a pending proposal: an amber hairline and the faintest warm ground behind its header */
-  --attention-line: #4d3f1a;
-  --attention-tint: #16130c;
-  --accent-hover: #33ebaa;
-  /* type */
-  --font: "Hanken Grotesk Variable", "Hanken Grotesk", system-ui, sans-serif;
-  --mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, monospace;
-  /* shape: panels 12, controls are pills, inputs 12 */
-  --r-panel: 12px;
-  --r-input: 12px;
-  /* the one shadow: floating layers only (dialog, drawer, menus) */
-  --shadow-float: 0 24px 64px -16px rgba(0, 0, 0, 0.8);
+  /* state tones: a mark (graphic, 3:1 on white or better) and an ink for words (4.5:1 on white or better), each with a wash */
+  --pass: #009767;
+  --pass-ink: #00704b;
+  --pass-wash: #ecfdf5;
+  --attention: #dd7400;
+  --attention-ink: #a85400;
+  --attention-wash: #fffbeb;
+  --attention-line: #f0cf91;
+  --alert: #c62828;
+  --alert-wash: #fef2f2;
+  --denied: #6b6b6b;
+  --denied-wash: #f4f4f4;
+  /* type: Geist for text, Geist Mono for labels, numbers, ids and code, Instrument Serif italic for one word in a big heading */
+  --font: "Geist Variable", "Geist", system-ui, sans-serif;
+  --mono: "Geist Mono Variable", "Geist Mono", ui-monospace, monospace;
+  --serif: "Instrument Serif", "Iowan Old Style", Georgia, serif;
+  /* shape: square corners everywhere; only dots and spinners are round */
+  --r-panel: 0;
+  --r-input: 0;
+  --r-hair: 2px;
+  /* the one shadow: floating layers only (dialog, drawer, menus), very soft */
+  --shadow-float: 0 12px 32px -12px rgba(10, 10, 10, 0.16);
+  --scrim: rgba(10, 10, 10, 0.32);
   /* motion */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
   --dock: 900ms;
@@ -62,6 +64,11 @@ html,
 body,
 #root {
   height: 100%;
+}
+
+/* The page is one app shell the height of the window: the document itself never scrolls. */
+html {
+  overscroll-behavior: none;
 }
 
 body {
@@ -100,7 +107,7 @@ input {
 
 * {
   scrollbar-width: thin;
-  scrollbar-color: var(--line-strong) transparent;
+  scrollbar-color: var(--line) transparent;
 }
 
 :focus-visible {
@@ -124,10 +131,9 @@ input {
 }
 
 /* ---------------------------------------------------------------- mono labels
-   Section and context labels: JetBrains Mono, uppercase, tracked, with the accent ▶ marker. */
+   Section and context labels: Geist Mono, uppercase, tracked, with the grey ▶ marker. */
 
 .label,
-.hero__label,
 .sidebar__label,
 .devlist__title,
 .approvals__count,
@@ -144,7 +150,6 @@ input {
 }
 
 .label,
-.hero__label,
 .sidebar__label,
 .devlist__title,
 .approvals__count,
@@ -157,7 +162,6 @@ input {
 }
 
 .label::before,
-.hero__label::before,
 .sidebar__label::before,
 .devlist__title::before,
 .approvals__count::before,
@@ -169,7 +173,7 @@ input {
   width: 7px;
   height: 8px;
   flex: none;
-  background: var(--accent);
+  background: var(--ink-2);
   clip-path: polygon(0 0, 100% 50%, 0 100%);
 }
 
@@ -182,7 +186,10 @@ input {
 
 .app {
   position: relative;
-  height: 100%;
+  height: 100vh;
+  height: 100dvh;
+  /* clip, not hidden: a clipped box cannot be scrolled by focus or scrollIntoView, so nothing can push the shell off the window */
+  overflow: clip;
   display: grid;
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: auto minmax(0, 1fr);
@@ -199,7 +206,7 @@ input {
   justify-content: space-between;
   gap: 12px;
   padding: 12px clamp(16px, 3vw, 32px);
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--line-subtle);
 }
 
 .topbar__left,
@@ -234,9 +241,9 @@ input {
   gap: 7px;
   height: 34px;
   padding: 0 14px;
-  border-radius: 999px;
+  border-radius: 0;
   background: transparent;
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--line);
   font-size: 0.875rem;
   font-weight: 500;
   white-space: nowrap;
@@ -299,6 +306,8 @@ button.pill:disabled {
 
 .stage[data-view="thread"] .stage__main {
   flex: 1;
+  /* the only scroller in the chat column; relative so the visually hidden text inside it scrolls with it */
+  position: relative;
   overflow-y: auto;
   display: flex;
   justify-content: center;
@@ -322,10 +331,6 @@ button.pill:disabled {
   width: 100%;
   text-align: left;
   margin: 0 0 32px;
-}
-
-.hero__label {
-  margin: 0 0 20px;
 }
 
 /* One display sentence in two tones: the clause in ink, the rest in grey. The h1 and the paragraph flow as one,
@@ -353,6 +358,15 @@ button.pill:disabled {
 
 .hero__sub {
   color: var(--ink-2);
+}
+
+/* the one emphasised word in the big heading: Instrument Serif italic, a touch larger to match the sans x-height */
+.hero__em {
+  font-family: var(--serif);
+  font-style: italic;
+  font-weight: 400;
+  font-size: 1.12em;
+  letter-spacing: -0.015em;
 }
 
 .nowrap {
@@ -387,8 +401,8 @@ button.pill:disabled {
   display: block;
   width: 100%;
   height: 100%;
-  border-radius: 1px;
-  background: var(--line-strong);
+  border-radius: 50%;
+  background: var(--line);
 }
 
 .pulse__dot[data-lit] .pulse__core {
@@ -425,7 +439,7 @@ button.pill:disabled {
   width: 7px;
   height: 8px;
   flex: none;
-  background: var(--accent);
+  background: var(--ink-2);
   clip-path: polygon(0 0, 100% 50%, 0 100%);
 }
 
@@ -454,8 +468,8 @@ number-flow-react {
 .chip {
   height: 38px;
   padding: 0 16px;
-  border-radius: 999px;
-  border: 1px solid var(--line-strong);
+  border-radius: 0;
+  border: 1px solid var(--line);
   background: transparent;
   font-size: 0.9375rem;
   font-weight: 400;
@@ -476,7 +490,7 @@ number-flow-react {
   width: min(760px, 100%);
   position: relative;
   background: var(--panel);
-  border: 1px solid var(--line-ctl);
+  border: 1px solid var(--line-hover);
   border-radius: var(--r-input);
   padding: 18px 16px 12px 20px;
   display: flex;
@@ -500,9 +514,8 @@ number-flow-react {
   display: contents;
 }
 
-/* The accent ring plus the accent edge: 11:1 against the panel and the ground. */
+/* The 2px accent ring, offset 2px: 5:1 against the white ground. */
 .composer:focus-within {
-  border-color: var(--accent);
   outline: 2px solid var(--accent);
   outline-offset: 2px;
 }
@@ -533,7 +546,7 @@ number-flow-react {
 }
 
 .composer__input::placeholder {
-  color: var(--ink-3);
+  color: var(--ink-2);
   opacity: 1;
 }
 
@@ -553,8 +566,8 @@ number-flow-react {
 .icon-btn {
   width: 40px;
   height: 40px;
-  border-radius: 999px;
-  border: 1px solid var(--line-strong);
+  border-radius: 0;
+  border: 1px solid var(--line);
   background: transparent;
   color: var(--ink);
   display: grid;
@@ -569,11 +582,11 @@ number-flow-react {
   transform: scale(0.98);
 }
 
-/* Send: a white filled circle when there is something to send. */
+/* Send: an ink-filled square when there is something to send. */
 .send {
   width: 44px;
   height: 44px;
-  border-radius: 999px;
+  border-radius: 0;
   border: 0;
   background: var(--solid);
   color: var(--on-solid);
@@ -591,8 +604,8 @@ number-flow-react {
 }
 
 .send:disabled {
-  background: var(--panel-2);
-  color: var(--ink-3);
+  background: var(--surface);
+  color: var(--ink-2);
   cursor: not-allowed;
 }
 
@@ -605,7 +618,7 @@ number-flow-react {
   padding: 8px;
   list-style: none;
   background: var(--panel);
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--line);
   border-radius: var(--r-panel);
   box-shadow: var(--shadow-float);
   transform-origin: bottom left;
@@ -630,7 +643,7 @@ number-flow-react {
   content: "";
   width: 7px;
   height: 8px;
-  background: var(--accent);
+  background: var(--ink-2);
   clip-path: polygon(0 0, 100% 50%, 0 100%);
 }
 
@@ -640,13 +653,13 @@ number-flow-react {
   border: 0;
   background: transparent;
   padding: 10px 12px;
-  border-radius: 8px;
+  border-radius: 0;
   font-size: 0.9375rem;
 }
 
 .menu button:hover,
 .menu button:focus-visible {
-  background: var(--panel-2);
+  background: var(--surface);
 }
 
 @keyframes pop {
@@ -664,7 +677,7 @@ number-flow-react {
   min-height: 0;
   display: flex;
   background: var(--bg);
-  border-right: 1px solid var(--line);
+  border-right: 1px solid var(--line-subtle);
 }
 
 .sidebar {
@@ -683,8 +696,8 @@ number-flow-react {
   gap: 8px;
   height: 40px;
   padding: 0 14px;
-  border-radius: 999px;
-  border: 1px solid var(--line-strong);
+  border-radius: 0;
+  border: 1px solid var(--line);
   background: transparent;
   font-weight: 500;
   font-size: 0.9375rem;
@@ -745,27 +758,16 @@ number-flow-react {
   margin: 0;
 }
 
-/* A history row is plain text; the open one is raised a step and carries the 2px accent marker. */
+/* A history row is plain text; the open one is raised a step and is marked by the surface tone and ink. */
 .convo {
   position: relative;
   display: flex;
   align-items: center;
-  border-radius: 8px;
+  border-radius: 0;
 }
 
 .convo[data-active="true"] {
-  background: var(--panel-2);
-}
-
-.convo[data-active="true"]::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 8px;
-  bottom: 8px;
-  width: 2px;
-  border-radius: 2px;
-  background: var(--accent);
+  background: var(--surface);
 }
 
 .convo__open {
@@ -773,7 +775,7 @@ number-flow-react {
   min-width: 0;
   padding: 8px 4px 8px 12px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 0;
   background: none;
   text-align: left;
   font-size: 0.9375rem;
@@ -806,7 +808,7 @@ number-flow-react {
   display: grid;
   place-items: center;
   border: 0;
-  border-radius: 8px;
+  border-radius: 0;
   background: none;
   color: var(--ink-2);
   opacity: 0;
@@ -853,7 +855,7 @@ number-flow-react {
 .convo__btn {
   height: 32px;
   padding: 0 14px;
-  border-radius: 999px;
+  border-radius: 0;
   border: 1px solid var(--line-hover);
   background: transparent;
   font-size: 0.875rem;
@@ -889,7 +891,7 @@ number-flow-react {
   flex-direction: column;
   gap: 2px;
   padding-top: 10px;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--line-subtle);
 }
 
 .sidebar__link {
@@ -898,7 +900,7 @@ number-flow-react {
   align-items: center;
   gap: 10px;
   padding: 9px 12px;
-  border-radius: 8px;
+  border-radius: 0;
   color: var(--ink-2);
   text-decoration: none;
   font-size: 0.9375rem;
@@ -906,19 +908,8 @@ number-flow-react {
 }
 
 .sidebar__link[aria-current="page"] {
-  background: var(--panel-2);
+  background: var(--surface);
   color: var(--ink);
-}
-
-.sidebar__link[aria-current="page"]::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  top: 8px;
-  bottom: 8px;
-  width: 2px;
-  border-radius: 2px;
-  background: var(--accent);
 }
 
 .sidebar__link .pill__count {
@@ -933,8 +924,8 @@ number-flow-react {
   display: grid;
   place-items: center;
   flex: none;
-  border-radius: 999px;
-  border: 1px solid var(--line-strong);
+  border-radius: 0;
+  border: 1px solid var(--line);
   background: transparent;
 }
 
@@ -948,7 +939,7 @@ number-flow-react {
   display: flex;
   flex-direction: column;
   background: var(--bg);
-  border-right: 1px solid var(--line-strong);
+  border-right: 1px solid var(--line);
   box-shadow: var(--shadow-float);
   animation: drawer-nav-in 260ms var(--ease-out);
 }
@@ -980,7 +971,7 @@ number-flow-react {
   display: grid;
   place-items: center;
   border: 0;
-  border-radius: 999px;
+  border-radius: 0;
   background: none;
 }
 
@@ -1025,7 +1016,7 @@ number-flow-react {
   margin: 0;
   padding: 10px 16px;
   border-radius: var(--r-panel);
-  background: var(--panel-2);
+  background: var(--surface);
   color: var(--ink);
   line-height: 1.5;
   white-space: pre-wrap;
@@ -1121,8 +1112,8 @@ number-flow-react {
 .dotmatrix__dot {
   position: relative;
   display: block;
-  border-radius: 1px;
-  background: var(--line-strong);
+  border-radius: var(--r-hair);
+  background: var(--line);
 }
 
 .dotmatrix__dot::after {
@@ -1192,7 +1183,7 @@ number-flow-react {
   --tone: var(--denied);
 }
 .mark[data-tone="action"] {
-  --tone: var(--action);
+  --tone: var(--accent);
 }
 .mark[data-tone="neutral"] {
   --tone: var(--ink-2);
@@ -1226,8 +1217,8 @@ number-flow-react {
   gap: 10px;
   min-height: 34px;
   padding: 3px 14px 3px 12px;
-  border: 1px solid var(--line-strong);
-  border-radius: 999px;
+  border: 1px solid var(--line);
+  border-radius: 0;
   background: transparent;
   font-size: 0.875rem;
   max-width: 100%;
@@ -1249,7 +1240,7 @@ number-flow-react {
 }
 
 .devchip__id {
-  color: var(--ink-3);
+  color: var(--ink-2);
 }
 
 .token {
@@ -1257,9 +1248,9 @@ number-flow-react {
   align-items: center;
   height: 24px;
   padding: 0 8px;
-  border-radius: 6px;
+  border-radius: 0;
   background: transparent;
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--line);
   color: var(--ink-2);
 }
 
@@ -1287,12 +1278,12 @@ number-flow-react {
   gap: 2px;
   padding: 8px 16px;
   border-radius: var(--r-panel);
-  border-color: var(--line);
+  border-color: var(--line-subtle);
   background: var(--panel);
 }
 
 .chip--action .chip__label::before {
-  background: var(--ink-3);
+  background: var(--ink-2);
   transition: background-color 160ms var(--ease-out);
 }
 
@@ -1316,9 +1307,9 @@ number-flow-react {
   line-height: 1.3;
 }
 
-/* Asked for already: still there to ask again, marked by its green check. */
+/* Asked for already: still there to ask again, marked by its blue check. */
 .chip[data-asked="true"] {
-  border-color: var(--line-strong);
+  border-color: var(--line);
 }
 
 /* A waiting chip reads as waiting by its ink, not by fading. */
@@ -1326,7 +1317,7 @@ number-flow-react {
 .chip:disabled .chip__label,
 .chip:disabled .chip__device,
 .chip:disabled .chip__reason {
-  color: var(--ink-3);
+  color: var(--ink-2);
 }
 
 .chip:disabled {
@@ -1350,7 +1341,7 @@ number-flow-react {
   height: 32px;
   padding: 0 10px 0 0;
   border: 0;
-  border-radius: 6px;
+  border-radius: 0;
   background: transparent;
   transition: color 160ms var(--ease-out);
 }
@@ -1379,7 +1370,7 @@ number-flow-react {
   margin-top: 6px;
   padding: 16px;
   background: var(--panel);
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--line);
   border-radius: var(--r-panel);
 }
 
@@ -1406,8 +1397,8 @@ number-flow-react {
   gap: 6px;
   height: 34px;
   padding: 0 14px;
-  border-radius: 999px;
-  border: 1px solid var(--line-strong);
+  border-radius: 0;
+  border: 1px solid var(--line);
   background: transparent;
   font-size: 0.875rem;
   font-weight: 500;
@@ -1428,7 +1419,7 @@ number-flow-react {
   gap: 14px 20px;
   margin: 0;
   padding-top: 16px;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--line-subtle);
 }
 
 .facts dt {
@@ -1437,7 +1428,7 @@ number-flow-react {
   font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--ink-3);
+  color: var(--ink-2);
 }
 
 .facts dd {
@@ -1466,7 +1457,7 @@ number-flow-react {
   flex-direction: column;
   overflow: hidden;
   border-radius: var(--r-panel);
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--line);
   background: var(--panel);
 }
 
@@ -1481,11 +1472,11 @@ number-flow-react {
   flex-wrap: wrap;
   gap: 6px 16px;
   padding: 14px 20px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--line-subtle);
 }
 
 .proposal[data-status="pending"] .proposal__bar {
-  background: var(--attention-tint);
+  background: var(--attention-wash);
   border-bottom-color: var(--attention-line);
 }
 
@@ -1502,7 +1493,7 @@ number-flow-react {
 
 .proposal__title svg {
   flex: none;
-  color: var(--ink-3);
+  color: var(--ink-2);
 }
 
 .proposal[data-status="pending"] .proposal__title svg {
@@ -1536,7 +1527,7 @@ number-flow-react {
   font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--ink-3);
+  color: var(--ink-2);
 }
 
 .pfields dd {
@@ -1558,7 +1549,7 @@ number-flow-react {
 .pfields__sub {
   font-size: 0.75rem;
   letter-spacing: 0.04em;
-  color: var(--ink-3);
+  color: var(--ink-2);
 }
 
 .pblock {
@@ -1606,7 +1597,7 @@ number-flow-react {
 
 .pev__when {
   font-size: 0.8125rem;
-  color: var(--ink-3);
+  color: var(--ink-2);
   font-variant-numeric: tabular-nums;
 }
 
@@ -1617,8 +1608,8 @@ number-flow-react {
   gap: 12px;
   margin: 0;
   padding: 12px 14px;
-  border: 1px solid var(--line);
-  border-radius: 10px;
+  border: 1px solid var(--line-subtle);
+  border-radius: 0;
   font-size: 0.875rem;
   line-height: 1.5;
   color: var(--ink-2);
@@ -1627,7 +1618,7 @@ number-flow-react {
 .pnote svg {
   flex: none;
   margin-top: 2px;
-  color: var(--ink-3);
+  color: var(--ink-2);
 }
 
 .proposal__target {
@@ -1642,7 +1633,7 @@ number-flow-react {
 .proposal__hash {
   margin: 0;
   font-size: 0.8125rem;
-  color: var(--ink-3);
+  color: var(--ink-2);
 }
 
 .proposal__facts {
@@ -1658,7 +1649,7 @@ number-flow-react {
   justify-content: space-between;
   gap: 8px 16px;
   padding: 14px 20px;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--line-subtle);
 }
 
 .proposal__decide {
@@ -1682,14 +1673,14 @@ number-flow-react {
 }
 
 .proposal__edit:disabled {
-  color: var(--ink-3);
+  color: var(--ink-2);
   cursor: default;
 }
 
 .btn {
   height: 44px;
   padding: 0 22px;
-  border-radius: 999px;
+  border-radius: 0;
   border: 1px solid var(--line-hover);
   background: transparent;
   color: var(--ink);
@@ -1704,14 +1695,14 @@ number-flow-react {
   transform: scale(0.98);
 }
 
-/* Primary: white fill, black text. */
+/* Primary: ink fill, white text. */
 .btn--primary {
   background: var(--solid);
   color: var(--on-solid);
   border-color: var(--solid);
 }
 
-/* Approve is the one green fill: the product's own decision is to say yes in the accent. */
+/* Approve is the one blue fill: the product's own decision is to say yes in the accent. */
 .btn--approve {
   display: inline-flex;
   align-items: center;
@@ -1734,9 +1725,9 @@ number-flow-react {
   align-items: center;
   gap: 8px 14px;
   padding: 14px 20px;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--line-subtle);
   --tone: var(--ink-2);
-  --tone-wash: var(--panel-2);
+  --tone-wash: var(--surface);
 }
 
 .presult:focus-visible {
@@ -1762,7 +1753,7 @@ number-flow-react {
   place-items: center;
   width: 32px;
   height: 32px;
-  border-radius: 50%;
+  border-radius: 0;
   background: var(--tone-wash);
   color: var(--tone);
 }
@@ -1802,7 +1793,7 @@ number-flow-react {
 .proposal__notice {
   margin: 0;
   padding: 14px 20px;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--line-subtle);
   font-size: 0.9375rem;
   color: var(--ink-2);
 }
@@ -1890,7 +1881,7 @@ number-flow-react {
   gap: 14px;
   padding: 24px;
   background: var(--panel);
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--line);
   border-radius: var(--r-panel);
   box-shadow: var(--shadow-float);
   animation: modal-in 280ms var(--ease-out);
@@ -1945,6 +1936,7 @@ number-flow-react {
 /* The approvals view */
 
 .stage[data-view="approvals"] {
+  position: relative;
   justify-content: flex-start;
   overflow-y: auto;
 }
@@ -2002,8 +1994,8 @@ number-flow-react {
   min-width: 22px;
   height: 22px;
   padding: 0 6px;
-  border-radius: 999px;
-  background: var(--action);
+  border-radius: 0;
+  background: var(--accent);
   color: var(--on-solid);
   font-family: var(--mono);
   font-size: 0.75rem;
@@ -2012,7 +2004,7 @@ number-flow-react {
 }
 
 .pill[aria-current="page"] {
-  background: var(--panel-2);
+  background: var(--surface);
   border-color: var(--line-hover);
 }
 
@@ -2085,7 +2077,7 @@ a.link-btn {
   list-style: none;
   display: flex;
   flex-direction: column;
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--line);
   border-radius: var(--r-panel);
   background: var(--panel);
 }
@@ -2099,7 +2091,7 @@ a.link-btn {
 }
 
 .audit__row + .audit__row {
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--line-subtle);
 }
 
 .audit__time {
@@ -2117,7 +2109,7 @@ a.link-btn {
   font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--ink-3);
+  color: var(--ink-2);
 }
 
 .audit__what {
@@ -2153,7 +2145,7 @@ a.link-btn {
 
 .audit__serial {
   font-size: 0.8125rem;
-  color: var(--ink-3);
+  color: var(--ink-2);
 }
 
 .audit__links {
@@ -2174,8 +2166,8 @@ a.link-btn {
   height: 28px;
   line-height: 26px;
   padding: 0 10px;
-  border-radius: 6px;
-  border: 1px solid var(--line-strong);
+  border-radius: 0;
+  border: 1px solid var(--line);
   background: transparent;
   color: var(--ink);
   max-width: 100%;
@@ -2216,6 +2208,7 @@ a.link-btn {
 /* The operator console */
 
 .stage[data-view="observe"] {
+  position: relative;
   justify-content: flex-start;
   overflow-y: auto;
 }
@@ -2262,7 +2255,7 @@ a.link-btn {
 .obs__scroll {
   position: relative;
   overflow-x: auto;
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--line);
   border-radius: var(--r-panel);
   background: var(--panel);
 }
@@ -2288,12 +2281,12 @@ a.link-btn {
   font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--ink-3);
-  border-bottom: 1px solid var(--line-strong);
+  color: var(--ink-2);
+  border-bottom: 1px solid var(--line);
 }
 
 .obs__table tbody tr + tr > * {
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--line-subtle);
 }
 
 .obs__table tbody th {
@@ -2301,7 +2294,7 @@ a.link-btn {
 }
 
 .obs__table tbody tr[data-selected="true"] {
-  background: var(--action-wash);
+  background: var(--accent-wash);
 }
 
 .obs__table .obs__num {
@@ -2316,7 +2309,7 @@ a.link-btn {
   padding: 4px 8px;
   margin: -4px -8px;
   border: 0;
-  border-radius: 6px;
+  border-radius: 0;
   background: transparent;
   color: var(--ink);
   text-decoration: underline;
@@ -2327,7 +2320,7 @@ a.link-btn {
 
 .obs__open[aria-pressed="true"] {
   font-weight: 500;
-  text-decoration-color: var(--action);
+  text-decoration-color: var(--accent);
 }
 
 .obs__trace {
@@ -2335,7 +2328,7 @@ a.link-btn {
   flex-direction: column;
   gap: 12px;
   padding: 18px 20px;
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--line);
   border-radius: var(--r-panel);
   background: var(--panel);
 }
@@ -2367,8 +2360,8 @@ a.link-btn {
   grid-template-columns: 28px minmax(0, 1fr);
   gap: 10px;
   padding: 12px 14px;
-  border-radius: 8px;
-  background: var(--panel-2);
+  border-radius: 0;
+  background: var(--surface);
 }
 
 .timeline__step[data-kind="error"] {
@@ -2414,7 +2407,7 @@ a.link-btn {
   position: fixed;
   inset: 0;
   z-index: 40;
-  background: rgba(0, 0, 0, 0.6);
+  background: var(--scrim);
   animation: fade 200ms var(--ease-out);
 }
 
@@ -2444,7 +2437,7 @@ a.link-btn {
   display: flex;
   flex-direction: column;
   background: var(--panel);
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--line);
   border-radius: var(--r-panel);
   box-shadow: var(--shadow-float);
 }
@@ -2475,7 +2468,7 @@ a.link-btn {
   display: flex;
   gap: 22px;
   padding: 16px 22px 0;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--line-subtle);
 }
 
 .tab {
@@ -2491,7 +2484,7 @@ a.link-btn {
 }
 
 .tab::before {
-  background: var(--ink-3);
+  background: var(--ink-2);
   transition: background-color 160ms var(--ease-out);
 }
 
@@ -2522,15 +2515,15 @@ a.link-btn {
 
 .evidence {
   padding: 14px 16px;
-  border-radius: 8px;
-  background: var(--panel-2);
+  border-radius: 0;
+  background: var(--surface);
   border: 1px solid transparent;
   scroll-margin: 12px;
 }
 
 .evidence[data-focused="true"] {
-  background: var(--action-wash);
-  border-color: var(--action);
+  background: var(--accent-wash);
+  border-color: var(--accent);
 }
 
 .evidence__label {
@@ -2554,8 +2547,8 @@ a.link-btn {
   grid-template-columns: 26px 1fr;
   gap: 10px;
   padding: 12px 14px;
-  border-radius: 8px;
-  background: var(--panel-2);
+  border-radius: 0;
+  background: var(--surface);
 }
 
 .trace__seq {
@@ -2599,7 +2592,7 @@ a.link-btn {
 .evidence__raw {
   margin: 10px 0 0;
   padding-top: 10px;
-  border-top: 1px solid var(--line-strong);
+  border-top: 1px solid var(--line);
   display: grid;
   grid-template-columns: auto 1fr;
   gap: 2px 12px;
@@ -2650,11 +2643,12 @@ p.evidence__raw {
 }
 
 .company {
-  width: 220px;
+  flex: 1 1 160px;
+  max-width: 240px;
   padding: 18px 20px;
   text-align: left;
   border-radius: var(--r-panel);
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--line);
   background: var(--panel);
   display: flex;
   flex-direction: column;
@@ -2690,9 +2684,9 @@ p.evidence__raw {
 .signin__notice {
   margin: 0 0 12px;
   padding: 8px 16px;
-  border-radius: 8px;
+  border-radius: 0;
   background: var(--attention-wash);
-  color: var(--attention);
+  color: var(--attention-ink);
   font-weight: 500;
 }
 
@@ -2757,9 +2751,9 @@ p.evidence__raw {
   width: min(760px, 100%);
   margin: 0;
   padding: 10px 18px;
-  border-radius: 8px;
+  border-radius: 0;
   background: var(--attention-wash);
-  color: var(--attention);
+  color: var(--attention-ink);
   font-weight: 500;
   font-size: 0.9375rem;
 }
@@ -2856,13 +2850,13 @@ p.evidence__raw {
   .convo__btn:not(:disabled):not(.convo__btn--danger):hover,
   .company:not(:disabled):hover,
   .btn:not(.btn--primary):not(.btn--approve):not(:disabled):hover {
-    background: var(--panel-2);
+    background: var(--surface);
     border-color: var(--line-hover);
   }
 
   .chip--action:not(:disabled):hover {
     background: var(--panel);
-    border-color: var(--line-strong);
+    border-color: var(--line);
   }
 
   .chip--action:not(:disabled):hover .chip__label::before {
@@ -2909,16 +2903,16 @@ p.evidence__raw {
 
   .obs__open:hover,
   .audit__id:not(.audit__id--text):hover {
-    background: var(--panel-2);
+    background: var(--surface);
     border-color: var(--line-hover);
   }
 
   .obs__table tbody tr:hover {
-    background: var(--panel-2);
+    background: var(--surface);
   }
 
   .menu button:hover {
-    background: var(--panel-2);
+    background: var(--surface);
   }
 }
 
@@ -3057,8 +3051,8 @@ p.evidence__raw {
 }
 
 .evals__traces .link-btn[aria-pressed="true"] {
-  background: var(--action-wash);
-  border-color: var(--action);
+  background: var(--accent-wash);
+  border-color: var(--accent);
 }
 
 /* A run's aggregate figures: one hairline-divided row of cells; the two hard gates carry a mark and a word. */
@@ -3073,9 +3067,9 @@ p.evidence__raw {
   grid-template-columns: repeat(auto-fit, minmax(176px, 1fr));
   gap: 1px;
   margin: 0;
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--line);
   border-radius: var(--r-panel);
-  background: var(--line-strong);
+  background: var(--line);
   overflow: hidden;
 }
 
@@ -3094,7 +3088,7 @@ p.evidence__raw {
   font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--ink-3);
+  color: var(--ink-2);
 }
 
 .evals__figure dd {
@@ -3145,7 +3139,7 @@ p.evidence__raw {
   align-self: stretch;
   min-width: 0;
   background: var(--panel);
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--line);
   border-radius: var(--r-panel);
 }
 
@@ -3179,24 +3173,24 @@ p.evidence__raw {
   align-items: center;
   height: 22px;
   padding: 0 8px;
-  border-radius: 999px;
-  background: var(--pass-wash);
+  border-radius: 0;
+  background: var(--surface);
   font-family: var(--mono);
   font-size: 0.75rem;
-  color: var(--pass);
+  color: var(--ink);
 }
 
 .atable thead th {
   padding: 10px 20px;
-  border-top: 1px solid var(--line);
-  border-bottom: 1px solid var(--line);
+  border-top: 1px solid var(--line-subtle);
+  border-bottom: 1px solid var(--line-subtle);
   font-family: var(--mono);
   font-size: 0.6875rem;
   font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   text-align: left;
-  color: var(--ink-3);
+  color: var(--ink-2);
 }
 
 .atable thead th[data-kind="percent"],
@@ -3216,7 +3210,7 @@ p.evidence__raw {
 .atable tbody th,
 .atable tbody td {
   padding: 14px 20px;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--line-subtle);
   text-align: left;
   vertical-align: middle;
 }
@@ -3248,7 +3242,7 @@ p.evidence__raw {
   font-size: 0.75rem;
   line-height: 1.4;
   text-transform: uppercase;
-  color: var(--ink-3);
+  color: var(--ink-2);
 }
 
 .atable__val {
@@ -3261,7 +3255,7 @@ p.evidence__raw {
 }
 
 .atable__none {
-  color: var(--ink-3);
+  color: var(--ink-2);
 }
 
 /* an attention or ok value that is not a pill: the number keeps its word and gains a small square mark */
@@ -3271,7 +3265,7 @@ p.evidence__raw {
   height: 6px;
   margin-right: 8px;
   vertical-align: middle;
-  background: var(--ink-3);
+  background: var(--ink-2);
 }
 
 .atable td[data-tone="attention"] .atable__tonedot {
@@ -3279,7 +3273,7 @@ p.evidence__raw {
 }
 
 .atable td[data-tone="attention"] .atable__val {
-  color: var(--attention);
+  color: var(--attention-ink);
 }
 
 .atable td[data-tone="ok"] .atable__tonedot {
@@ -3287,7 +3281,7 @@ p.evidence__raw {
 }
 
 .atable td[data-tone="ok"] .atable__val {
-  color: var(--pass);
+  color: var(--pass-ink);
 }
 
 .apill {
@@ -3295,8 +3289,8 @@ p.evidence__raw {
   align-items: center;
   min-height: 26px;
   padding: 0 11px;
-  border: 1px solid var(--line-strong);
-  border-radius: 999px;
+  border: 1px solid var(--line);
+  border-radius: 0;
   font-size: 0.8125rem;
   font-weight: 500;
   line-height: 1.2;
@@ -3307,13 +3301,13 @@ p.evidence__raw {
 .apill[data-tone="attention"] {
   border-color: var(--attention);
   background: var(--attention-wash);
-  color: var(--attention);
+  color: var(--attention-ink);
 }
 
 .apill[data-tone="ok"] {
   border-color: var(--pass);
   background: var(--pass-wash);
-  color: var(--pass);
+  color: var(--pass-ink);
 }
 
 /* the numbered source: a small square, the same one the Evidence row wears */
@@ -3325,8 +3319,8 @@ p.evidence__raw {
   width: 26px;
   height: 26px;
   padding: 0;
-  border: 1px solid var(--pass);
-  border-radius: 6px;
+  border: 1px solid var(--accent-line);
+  border-radius: 0;
   background: transparent;
   font-family: var(--mono);
   font-size: 0.75rem;
@@ -3346,7 +3340,7 @@ p.evidence__raw {
   flex: none;
   width: 24px;
   height: 24px;
-  border-color: var(--line-strong);
+  border-color: var(--line);
   color: var(--ink);
 }
 
@@ -3364,7 +3358,7 @@ p.evidence__raw {
   height: 34px;
   padding: 0 12px;
   border: 0;
-  border-radius: 999px;
+  border-radius: 0;
   background: transparent;
   font-size: 0.875rem;
   color: var(--ink-2);
@@ -3387,8 +3381,8 @@ p.evidence__raw {
   padding: 4px;
   display: flex;
   flex-direction: column;
-  background: var(--panel-2);
-  border: 1px solid var(--line-strong);
+  background: var(--panel);
+  border: 1px solid var(--line);
   border-radius: var(--r-panel);
   box-shadow: var(--shadow-float);
   transform-origin: top right;
@@ -3409,7 +3403,7 @@ p.evidence__raw {
   min-height: 36px;
   padding: 0 12px;
   border: 0;
-  border-radius: 8px;
+  border-radius: 0;
   background: transparent;
   font-size: 0.875rem;
   text-align: left;
@@ -3437,7 +3431,7 @@ p.evidence__raw {
 
 .atable__scope {
   padding: 14px 20px;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--line-subtle);
 }
 
 .atable__scope p {
@@ -3447,7 +3441,7 @@ p.evidence__raw {
   line-height: 1.9;
   letter-spacing: 0.07em;
   text-transform: uppercase;
-  color: var(--ink-3);
+  color: var(--ink-2);
   overflow-wrap: anywhere;
 }
 
@@ -3456,12 +3450,12 @@ p.evidence__raw {
 .discs {
   align-self: stretch;
   background: var(--panel);
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--line);
   border-radius: var(--r-panel);
 }
 
 .disc + .disc {
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--line-subtle);
 }
 
 .disc__toggle {
@@ -3480,7 +3474,7 @@ p.evidence__raw {
 
 .disc__chevron {
   flex: none;
-  color: var(--ink-3);
+  color: var(--ink-2);
   transition: transform 200ms var(--ease-out);
 }
 
@@ -3496,7 +3490,7 @@ p.evidence__raw {
 .disc__meta {
   font-family: var(--mono);
   font-size: 0.75rem;
-  color: var(--ink-3);
+  color: var(--ink-2);
 }
 
 .disc__panel {
@@ -3538,8 +3532,7 @@ p.evidence__raw {
   gap: 4px 12px;
   margin: 0 -10px;
   padding: 6px 10px;
-  border-left: 2px solid transparent;
-  border-radius: 6px;
+  border-radius: 0;
   font-size: 0.9375rem;
   transition: background-color 200ms var(--ease-out);
 }
@@ -3549,8 +3542,7 @@ p.evidence__raw {
 }
 
 .evlist__row[data-hot] {
-  background: var(--panel-2);
-  border-left-color: var(--accent);
+  background: var(--accent-wash);
 }
 
 .evlist__host {
@@ -3567,7 +3559,7 @@ p.evidence__raw {
 .evlist__when {
   font-family: var(--mono);
   font-size: 0.75rem;
-  color: var(--ink-3);
+  color: var(--ink-2);
 }
 
 .nclist__row {
@@ -3586,7 +3578,7 @@ p.evidence__raw {
 
 .nclist__serial {
   text-transform: uppercase;
-  color: var(--ink-3);
+  color: var(--ink-2);
 }
 
 .nclist__why {
@@ -3605,7 +3597,7 @@ p.evidence__raw {
   font-weight: 500;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  color: var(--ink-3);
+  color: var(--ink-2);
 }
 
 .how dd {
@@ -3649,7 +3641,7 @@ p.evidence__raw {
   align-items: center;
   gap: 6px;
   padding-left: 12px;
-  border-left: 1px solid var(--line-strong);
+  border-left: 1px solid var(--line);
   font-size: 0.75rem;
   font-weight: 400;
   line-height: 1.3;
@@ -3663,8 +3655,8 @@ p.evidence__raw {
   min-height: 40px;
   padding: 6px 16px;
   gap: 2px 10px;
-  border-radius: 22px;
-  border-color: var(--line-strong);
+  border-radius: 0;
+  border-color: var(--line);
   background: transparent;
 }
 
@@ -3679,8 +3671,8 @@ p.evidence__raw {
 }
 
 .chip--action[data-primary] {
-  border-color: var(--pass);
-  background: var(--pass-wash);
+  border-color: var(--accent);
+  background: var(--accent-wash);
 }
 
 .chip--action[data-primary] .chip__label {
@@ -3688,11 +3680,11 @@ p.evidence__raw {
 }
 
 .chip--action[data-primary] .chip__approval {
-  border-left-color: var(--pass);
+  border-left-color: var(--accent-line);
 }
 
 .chip--action:disabled[data-primary] .chip__label {
-  color: var(--ink-3);
+  color: var(--ink-2);
 }
 
 /* copy and retry */
@@ -3711,9 +3703,9 @@ p.evidence__raw {
   height: 34px;
   padding: 0;
   border: 0;
-  border-radius: 8px;
+  border-radius: 0;
   background: transparent;
-  color: var(--ink-3);
+  color: var(--ink-2);
   transition:
     color 160ms var(--ease-out),
     background-color 160ms var(--ease-out),
@@ -3758,9 +3750,9 @@ p.evidence__raw {
   left: 0;
   bottom: calc(100% + 6px);
   padding: 4px 8px;
-  border: 1px solid var(--line-strong);
-  border-radius: 6px;
-  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 0;
+  background: var(--surface);
   font-size: 0.75rem;
   white-space: nowrap;
   color: var(--ink);
@@ -3782,7 +3774,7 @@ p.evidence__raw {
   gap: 12px;
   padding: 14px 18px;
   background: var(--panel);
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--line);
   border-radius: var(--r-panel);
 }
 
@@ -3801,15 +3793,15 @@ p.evidence__raw {
 @media (hover: hover) and (pointer: fine) {
   .sortmenu__button:hover {
     color: var(--ink);
-    background: var(--panel-2);
+    background: var(--surface);
   }
 
   .sortmenu__item:hover {
-    background: var(--line);
+    background: var(--line-subtle);
   }
 
   .srcchip:hover {
-    background: var(--pass-wash);
+    background: var(--accent-wash);
   }
 
   .disc__toggle:hover .disc__chevron {
@@ -3817,12 +3809,12 @@ p.evidence__raw {
   }
 
   .atable tbody tr:hover > * {
-    background: var(--panel-2);
+    background: var(--surface);
   }
 
   .tool:hover:not(:disabled) {
     color: var(--ink);
-    background: var(--panel-2);
+    background: var(--surface);
   }
 
   .tool[data-tip]:hover::after {
@@ -3831,8 +3823,8 @@ p.evidence__raw {
   }
 
   .chip--action[data-primary]:hover:not(:disabled) {
-    background: var(--pass-wash);
-    border-color: var(--accent);
+    background: var(--accent-wash);
+    border-color: var(--accent-hover);
   }
 }
 
@@ -3900,7 +3892,7 @@ p.evidence__raw {
     align-items: center;
     gap: 8px 16px;
     padding: 14px 16px;
-    border-top: 1px solid var(--line);
+    border-top: 1px solid var(--line-subtle);
   }
 
   .atable tbody th,
@@ -3941,7 +3933,7 @@ p.evidence__raw {
     font-size: 0.6875rem;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--ink-3);
+    color: var(--ink-2);
   }
 
   .atable tbody tr:last-child > * {
@@ -3984,7 +3976,7 @@ p.evidence__raw {
 
 /* ---------------------------------------------------------------- refusal and clarification cards
    One bordered card for a reply that says no, or needs one more detail: the words, then what to do about it.
-   Amber marks a refusal more evidence could change; a plain ring marks the rest; green is only the "All of them" choice. */
+   Amber marks a refusal more evidence could change; a plain ring marks the rest; blue is only the "All of them" choice. */
 
 .rcard {
   align-self: stretch;
@@ -3992,7 +3984,7 @@ p.evidence__raw {
   flex-direction: column;
   gap: 12px;
   padding: 18px 20px;
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--line);
   border-radius: var(--r-panel);
   background: var(--panel);
   min-width: 0;
@@ -4017,15 +4009,15 @@ p.evidence__raw {
   place-items: center;
   width: 32px;
   height: 32px;
-  border-radius: 50%;
-  border: 1px solid var(--line-strong);
-  background: var(--panel-2);
+  border-radius: 0;
+  border: 1px solid var(--line);
+  background: var(--surface);
   color: var(--ink-2);
 }
 
 .rcard[data-kind="evidence"] .rcard__mark {
   border-color: var(--attention-line);
-  background: var(--attention-tint);
+  background: var(--attention-wash);
   color: var(--attention);
 }
 
@@ -4093,17 +4085,17 @@ p.evidence__raw {
   flex: none;
 }
 
-/* "All of them": the choice that covers every match, outlined and tinted green. */
+/* "All of them": the choice that covers every match, outlined and washed in the accent. */
 .chip[data-strong] {
-  border-color: color-mix(in srgb, var(--accent) 55%, var(--line-strong));
-  background: var(--pass-wash);
+  border-color: var(--accent);
+  background: var(--accent-wash);
   color: var(--accent);
 }
 
 @media (hover: hover) and (pointer: fine) {
   .chip[data-strong]:not(:disabled):hover {
-    border-color: var(--accent);
-    background: var(--pass-wash);
+    border-color: var(--accent-hover);
+    background: var(--accent-wash);
   }
 }
 
@@ -4141,7 +4133,7 @@ p.evidence__raw {
   flex-direction: column;
   gap: 16px;
   padding: 20px 22px 22px;
-  border: 1px solid var(--line-strong);
+  border: 1px solid var(--line);
   border-radius: var(--r-panel);
   background: var(--panel);
 }
@@ -4149,7 +4141,7 @@ p.evidence__raw {
 .insight[data-compact] {
   gap: 10px;
   padding: 16px 22px;
-  border-color: var(--line);
+  border-color: var(--line-subtle);
 }
 
 .insight__head {
@@ -4165,9 +4157,9 @@ p.evidence__raw {
   gap: 6px;
   height: 26px;
   padding: 0 11px 0 9px;
-  border: 1px solid var(--line-strong);
-  border-radius: 999px;
-  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 0;
+  background: var(--surface);
   font-size: 0.8125rem;
   font-weight: 500;
   line-height: 1;
@@ -4181,13 +4173,13 @@ p.evidence__raw {
 .insight__pill[data-severity="act_soon"] {
   border-color: var(--attention-line);
   background: var(--attention-wash);
-  color: var(--attention);
+  color: var(--attention-ink);
 }
 
 .insight__pill[data-severity="ok"] {
   border-color: var(--pass-wash);
   background: var(--pass-wash);
-  color: var(--pass);
+  color: var(--pass-ink);
 }
 
 .insight__cat {
@@ -4202,7 +4194,7 @@ p.evidence__raw {
 
 .insight__serial {
   margin-left: auto;
-  color: var(--ink-3);
+  color: var(--ink-2);
   letter-spacing: 0.04em;
 }
 
@@ -4287,7 +4279,7 @@ p.evidence__raw {
   justify-content: space-between;
   gap: 4px 16px;
   padding: 9px 0;
-  border-bottom: 1px solid var(--line);
+  border-bottom: 1px solid var(--line-subtle);
 }
 
 .insight__kv > div:first-child {
@@ -4337,7 +4329,7 @@ p.evidence__raw {
   flex-direction: column;
   gap: 12px;
   padding-top: 14px;
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--line-subtle);
 }
 
 .insight__method {
@@ -4367,7 +4359,7 @@ p.evidence__raw {
   gap: 8px;
   min-height: 40px;
   padding: 6px 16px;
-  border-color: var(--line-strong);
+  border-color: var(--line);
 }
 
 .insight__history svg {
@@ -4421,7 +4413,7 @@ p.evidence__raw {
 .spark__chart {
   position: relative;
   width: 100%;
-  border-radius: 6px;
+  border-radius: 0;
   cursor: crosshair;
   touch-action: pan-y;
 }
@@ -4479,9 +4471,9 @@ p.evidence__raw {
   flex-direction: column;
   gap: 1px;
   padding: 6px 10px;
-  border: 1px solid var(--line-strong);
-  border-radius: 8px;
-  background: var(--panel-2);
+  border: 1px solid var(--line);
+  border-radius: 0;
+  background: var(--surface);
   white-space: nowrap;
   pointer-events: none;
   transform: translateX(-50%);
@@ -4654,8 +4646,8 @@ p.evidence__raw {
   gap: 8px;
   height: 30px;
   padding: 0 12px;
-  border: 1px solid var(--line-strong);
-  border-radius: 999px;
+  border: 1px solid var(--line);
+  border-radius: 0;
   background: transparent;
   font-size: 0.8125rem;
   font-weight: 500;
@@ -4688,8 +4680,8 @@ p.evidence__raw {
   display: flex;
   flex-direction: column;
   gap: 8px;
-  background: var(--panel-2);
-  border: 1px solid var(--line-strong);
+  background: var(--panel);
+  border: 1px solid var(--line);
   border-radius: var(--r-panel);
   box-shadow: var(--shadow-float);
   transform-origin: bottom left;
@@ -4733,11 +4725,11 @@ p.evidence__raw {
   gap: 8px;
   min-height: 40px;
   padding: 6px 4px 6px 8px;
-  border-radius: 8px;
+  border-radius: 0;
 }
 
 .notes__item + .notes__item {
-  border-top: 1px solid var(--line);
+  border-top: 1px solid var(--line-subtle);
   border-top-left-radius: 0;
   border-top-right-radius: 0;
 }
@@ -4758,7 +4750,7 @@ p.evidence__raw {
   width: 32px;
   height: 32px;
   border: 0;
-  border-radius: 50%;
+  border-radius: 0;
   background: transparent;
   color: var(--ink-2);
   transition:
@@ -4782,7 +4774,7 @@ p.evidence__raw {
   height: 30px;
   padding: 0 12px;
   border: 1px solid var(--line-hover);
-  border-radius: 999px;
+  border-radius: 0;
   background: transparent;
   font-size: 0.8125rem;
   font-weight: 500;
@@ -4817,11 +4809,11 @@ p.evidence__raw {
 
   .notes__remove:hover {
     color: var(--ink);
-    background: var(--line);
+    background: var(--line-subtle);
   }
 
   .notes__btn:hover {
-    background: var(--line);
+    background: var(--line-subtle);
   }
 }
 

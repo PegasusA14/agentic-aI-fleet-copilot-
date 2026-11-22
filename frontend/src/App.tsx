@@ -530,7 +530,7 @@ export default function App({ transport: given }: AppProps) {
                 onOpenTrace={(turn) => setDrawer({ turnId: turn.id, tab: "trace", refs: [] })}
               />
             ) : (
-              <Hero asOf={asOf} fleet={fleet} />
+              <Hero fleet={fleet} />
             )}
           </div>
           <motion.div layout="position" transition={DOCK} className="stage__composer">

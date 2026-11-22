@@ -34,9 +34,9 @@ describe("sign-in and company boundary", () => {
     expect(screen.getByRole("heading", { name: "Ask your fleet anything." })).toBeInTheDocument();
   });
 
-  it("opens home with a mono label that names the pinned date, above the headline and the three starters", async () => {
+  it("opens home with the pinned date in the top bar, the headline and the three starters", async () => {
     await signInAs("Acme");
-    expect(document.querySelector(".hero__label")).toHaveTextContent("Fleet Copilot · As of 2026-06-12");
+    expect(screen.getByTitle("As of 2026-06-12 11:00 UTC")).toBeInTheDocument();
     expect(within(screen.getByRole("group", { name: "Suggested questions" })).getAllByRole("button")).toHaveLength(3);
   });
 
