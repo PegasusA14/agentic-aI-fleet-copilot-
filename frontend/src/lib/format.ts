@@ -34,6 +34,7 @@ export const REASON_TEXT: Partial<Record<string, string>> = {
   insufficient_evidence: "Not enough evidence in the readings to support that action",
   already_done: "Already done",
   too_many_pending: "Too many proposals waiting",
+  other_company: "Another company; this session sees only its own",
 };
 
 /** A reason code as a plain phrase; a code with no entry reads as its words, and none at all as a dash. */

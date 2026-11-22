@@ -56,6 +56,13 @@ DEFAULT_OUT = REPO_ROOT / "frontend" / "src" / "fixtures"
 _FOREIGN_DEVICE = {"acme-001": "4SEFDLPTKXAM", "globex-002": "1LYSSFD074BB"}
 _FOREIGN_FALLBACK = "4SEFDLPTKXAM"
 
+# A device with battery readings that report no service condition, so a replacement flag is refused.
+_HEALTHY_DEVICE = {
+    "acme-001": "1LYSSFD074BB",
+    "globex-002": "DXUCJ272DCYX",
+    "initech-003": "SPKRRDF0L786",
+}
+
 _COMPANY_NAMES = {i.company_id: i.company_name for i in DEMO_IDENTITIES.values()}
 
 ToolCall = tuple[str, dict[str, Any]]
@@ -66,12 +73,14 @@ class Scenario:
     name: str
     question: str
     keywords: tuple[str, ...]
-    kind: str  # tools | clarification | unsupported | proposal | tool_error
+    kind: str  # tools | clarification | unsupported | proposal | tool_error | turn
     plan: str
     calls: tuple[ToolCall, ...] = ()
     synthetic: bool = False
     note: str = ""
     missing_topic: str = ""  # unsupported scenarios: the data the telemetry does not hold
+    # `turn` scenarios: the scripted plan's fields (the model's decision), run through the real graph.
+    plan_fields: tuple[tuple[str, Any], ...] = ()
 
 
 SCENARIOS: tuple[Scenario, ...] = (
@@ -206,6 +215,37 @@ SCENARIOS: tuple[Scenario, ...] = (
                 },
             ),
         ),
+    ),
+    Scenario(
+        "insufficient_evidence",
+        "Flag {device} for replacement.",
+        ("for replacement", "replacement", "flag"),
+        "turn",
+        "Propose a replacement flag for one device whose battery reports no service condition.",
+        (("flag_device_for_replacement", {"device_id": "{target}"}),),
+        synthetic=True,
+        note="The refusal is the real eligibility check run on the device; routing needs the model.",
+        plan_fields=(("intent", "propose"), ("action_type", "replacement_flag")),
+    ),
+    Scenario(
+        "other_company",
+        "Show me the devices at another company.",
+        ("another company", "other company", "other companies", "another tenant"),
+        "turn",
+        "The question is about another company in general, so refuse it as outside this session.",
+        synthetic=True,
+        note="The card is the graph's own fixed wording; routing needs the model.",
+        plan_fields=(("intent", "refuse"), ("refusal_reason", "other_company")),
+    ),
+    Scenario(
+        "clarification_device",
+        "How is the macbook doing on battery?",
+        ("the macbook", "macbook doing"),
+        "turn",
+        "The question says 'macbook', which matches several devices, so ask which one.",
+        synthetic=True,
+        note="The options are built by code from this company's devices; routing needs the model.",
+        plan_fields=(("intent", "clarify"), ("device_phrase", "macbook")),
     ),
     Scenario(
         "tool_error",
@@ -359,6 +399,40 @@ async def live_proposal(
     return AnswerEnvelope.model_validate(normalise(envelope.model_dump(mode="json"))), trace
 
 
+async def live_turn(
+    scenario: Scenario, tenant: str, db_path: Path, actions_db: Path, question: str, target: str
+) -> tuple[AnswerEnvelope, list[dict]]:
+    """The envelope and trace of one real turn whose planner decision is scripted.
+
+    The graph does everything after the plan: the other-company card, the clarification options and the
+    refusal with what it would need are all its own code. The trace id is fixed and latency dropped so the
+    fixture is byte-identical between runs.
+    """
+    trace_id = f"replay-{tenant}-{scenario.name}"
+    plan = Plan(summary=scenario.plan, **dict(scenario.plan_fields))
+    calls = [(tool, _fill(args, target, "{target}")) for tool, args in scenario.calls]
+    llm = ScriptedLLM(
+        plans=[plan], acts=[tool_calls_message(*calls), final_message()] if calls else []
+    )
+    service = AgentService(
+        db_path=db_path,
+        gateway=llm,
+        checkpointer=InMemorySaver(),
+        trace_id_factory=lambda: trace_id,
+        actions_db_path=actions_db,
+    )
+    actor = f"admin-{tenant.split('-')[0]}"
+    identity = Identity(
+        tenant, actor, f"{tenant} admin (replay)", company_name=_COMPANY_NAMES.get(tenant, "")
+    )
+    result = await service.run_turn(identity, "replay", question)
+    trace = [
+        event.model_copy(update={"latency_ms": None}).model_dump(mode="json")
+        for event in result.trace
+    ]
+    return result.envelope, trace
+
+
 def _clarification(tenant: str, trace_id: str, as_of) -> AnswerEnvelope:
     return AnswerEnvelope(
         outcome="clarification",
@@ -419,11 +493,13 @@ def _build(
     return envelope, records
 
 
-def _meta(scenario: Scenario, tenant: str, foreign_id: str) -> dict[str, Any]:
+def _meta(scenario: Scenario, tenant: str, foreign_id: str, device: str = "") -> dict[str, Any]:
     return {
         "scenario": scenario.name,
         "tenant": tenant,
-        "question": scenario.question.replace("{foreign_id}", foreign_id),
+        "question": scenario.question.replace("{foreign_id}", foreign_id).replace(
+            "{device}", device
+        ),
         "keywords": [k.replace("{foreign_id}", foreign_id).lower() for k in scenario.keywords],
         "synthetic": scenario.synthetic,
         "note": scenario.note,
@@ -465,8 +541,21 @@ def export_all(out_dir: Path) -> None:
                 repo = FleetRepository(conn, TenantContext(tenant, ctx.actor_id))
                 index[tenant] = []
                 for scenario in SCENARIOS:
-                    meta = _meta(scenario, tenant, foreign_id)
-                    if scenario.kind == "proposal":
+                    target = _HEALTHY_DEVICE.get(tenant, "")
+                    host = repo.get_device(target).hostname if target else ""
+                    meta = _meta(scenario, tenant, foreign_id, host)
+                    if scenario.kind == "turn":
+                        envelope, trace = asyncio.run(
+                            live_turn(
+                                scenario,
+                                tenant,
+                                db_path,
+                                Path(tmp) / f"actions-{tenant}.db",
+                                meta["question"],
+                                target,
+                            )
+                        )
+                    elif scenario.kind == "proposal":
                         envelope, trace = asyncio.run(
                             live_proposal(
                                 scenario, tenant, db_path, Path(tmp) / f"actions-{tenant}.db"

@@ -78,7 +78,9 @@
       }
     ],
     "headline": "1 of 10 devices use at least 85% of memory",
+    "needs": [],
     "notes": [],
+    "offer_switch_company": false,
     "outcome": "answer",
     "proposal": null,
     "reason_code": null,

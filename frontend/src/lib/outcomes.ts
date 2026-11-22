@@ -27,6 +27,7 @@ export const OUTCOMES: Record<Outcome, OutcomeStyle> = {
  */
 export function outcomeStyle(outcome: Outcome, reasonCode?: string | null): OutcomeStyle {
   if (outcome === "denied") {
+    if (reasonCode === "other_company") return { word: "Outside this company", tone: "denied", mark: "lock" };
     if (reasonCode === "not_eligible") return { word: "Not supported yet", tone: "neutral", mark: "hollow" };
     if (reasonCode === "insufficient_evidence") return { word: "Not enough evidence", tone: "attention", mark: "triangle" };
   }

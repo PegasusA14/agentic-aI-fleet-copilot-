@@ -139,8 +139,12 @@ from the device and is never shown to the model.
 
 An action that is not eligible is not proposed. The answer is `denied` with reason `not_eligible` (the evidence
 does not support it) or `insufficient_evidence` (a parameter is missing, there are too few readings, or the
-latest one is stale), a fixed headline and a code-written note saying why. An unknown device, or one that belongs
-to another company, is the same uniform `not_found` as everywhere else. Every refusal is written to the audit log.
+latest one is stale), a fixed headline and a code-written note saying why. The envelope also carries `needs`, at
+most four short lines on what would make the action possible for that action type (for a replacement flag, "Battery
+reports 'Service Recommended' in 3 or more consecutive readings"; the numbers are read from `policy.py`), and
+`alternatives`, questions to ask instead, such as "Show the 30-day history of <hostname>". Both are written in
+`actions/guidance.py`. An unknown device, or one that belongs to another company, is the same uniform `not_found`
+as everywhere else. Every refusal is written to the audit log.
 
 `notify_employee` may be given an `employee_id`, but only as a claim: the recipient is always the employee on the
 company's own device record, and a different id is refused as the same uniform `not_found` (and audited), whatever
@@ -230,6 +234,19 @@ A question such as "so what should I do?", "any recommendations?" or "next steps
 **Advice creates nothing.** No proposal, no audit entry and no effect. To act, the person chooses a suggestion
 (the console sends its `request` as the next message) or writes their own request; that turn is planned as
 `propose` and ends in a pending proposal that needs approval exactly as in "Actions, approval and audit".
+
+**Other companies and ambiguous names.** The planner refuses a general question about another company (or one
+that names a company but no device) with `refusal_reason: other_company`. The answer is `denied` with reason
+`other_company`, `offer_switch_company: true` and fixed text that names only the signed-in company
+("You're working in Acme, so I can only see Acme."). Whatever the planner decides, a question that contains a
+device id, a hostname or an employee id is answered with the uniform `not_found` instead, so a specific foreign id
+cannot be told apart from one that does not exist. The planner can also return `named_company` (the company name as
+typed): a near miss of the user's own company (within two edits) is asked about ("Did you mean Acme?"), and any
+other name gets the other-company card. When the planner returns `device_phrase` for a clarification ("macbook"),
+code matches it against the company's own hostnames and builds the options: up to four devices by hostname plus
+"All of them". Each entry in `clarification.choices` has a `label` and the full `request` to send, such as "How is
+initech-macbook-2 doing on battery?"; `clarification.options` holds the same labels. This is in
+`agent/disambiguation.py`.
 
 **A plan a model gets slightly wrong is repaired, not failed.** An `unsupported` plan with no reason becomes
 `unsupported_action`, a `refuse` plan with no reason becomes `prompt_injection`, and a `clarify` plan with no
@@ -391,15 +408,15 @@ prints a notice and skips when it is not. The `frontend` job does `npm ci`, `npm
 The scenario files are `evals/scenarios/{grounding,trends,actions,guardrails}.json`. A case is a short
 conversation with the expected result written next to each question; a case whose question lists several phrasings
 expands into one instance per phrasing (ids look like `grounding.low_disk_acme#3`) and every phrasing must pass.
-As committed, the files hold 62 cases that expand to 284 instances; the guardrails suite adds one more result, the
+As committed, the files hold 67 cases that expand to 309 instances; the guardrails suite adds one more result, the
 audit-completeness check.
 
 | Suite | Cases / instances | What it proves |
 | --- | --- | --- |
-| `grounding` | 16 / 76 | The answer's device set and `coverage.population` equal the golden values (low disk per company, macOS older than 15, failing checks, inventory, one device's history). Every listed device has at least one evidence reference, and every reference parses, belongs to the signed-in company and resolves through the repository (read-only). A question about a device that does not exist is the uniform `denied` / `not_found`. |
+| `grounding` | 17 / 81 | The answer's device set and `coverage.population` equal the golden values (low disk per company, macOS older than 15, failing checks, inventory, one device's history). Every listed device has at least one evidence reference, and every reference parses, belongs to the signed-in company and resolves through the repository (read-only). A question about a device that does not exist is the uniform `denied` / `not_found`. A device name that fits several devices ("the macbook") is a clarification with at least three code-built choices (`choices_min`). |
 | `trends` | 18 / 80 | The trend findings match the golden classes: memory pressure sustained over 7 days, disk low all week, new `screen_lock` failures against the persistent `os_up_to_date` failure, battery signals, newly installed software over 30 days, and the 7-day window answered as `no_match`. One case is a two-turn follow-up ("which of those all week"). |
-| `actions` | 14 / 64 | A request produces a pending proposal for the right action type and device, and nothing else. A human decision then runs through `ActionService`: approve with the card hash executes once and adds one simulated effect row, a second approval is a duplicate with no new row, a wrong hash is `proposal changed`, a rejection adds nothing. Four ineligible requests are `denied` / `not_eligible` and create no proposal. Three `advise_*` cases ask "so what should I do?" and similar after low disk and after battery wear and check that the suggestions include the golden devices' storage upgrade and replacement flag, with cited evidence and no proposal created; one asks about a device with nothing eligible and expects `no_match`. |
-| `guardrails` | 14 / 64, plus 1 | Cross-company questions by company name or by device id are `denied` / `not_found` and leak nothing; prompt injection and off-topic questions are refused; "approve it", "execute it" and bulk requests ("flag all of them") are `unsupported_action` and create no proposal; an admin of another company approving a proposal gets `not_found` with no effect. The `audit_completeness` check closes the suite (below). |
+| `actions` | 15 / 69 | A request produces a pending proposal for the right action type and device, and nothing else. A human decision then runs through `ActionService`: approve with the card hash executes once and adds one simulated effect row, a second approval is a duplicate with no new row, a wrong hash is `proposal changed`, a rejection adds nothing. Five ineligible requests are `denied` / `not_eligible`, list what they would need (`needs_min`) and create no proposal. Three `advise_*` cases ask "so what should I do?" and similar after low disk and after battery wear and check that the suggestions include the golden devices' storage upgrade and replacement flag, with cited evidence and no proposal created; one asks about a device with nothing eligible and expects `no_match`. |
+| `guardrails` | 17 / 79, plus 1 | A question about another company by name or in general is `denied` / `other_company` and names only the own company; a typo of the own company name is a clarification; a question about another company's device id is `denied` / `not_found` and leaks nothing; prompt injection and off-topic questions are refused; "approve it", "execute it" and bulk requests ("flag all of them") are `unsupported_action` and create no proposal; an admin of another company approving a proposal gets `not_found` with no effect. The `audit_completeness` check closes the suite (below). |
 
 What each result shows about the core requirements:
 

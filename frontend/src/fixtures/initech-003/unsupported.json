@@ -22,9 +22,11 @@
     "explanation": null,
     "follow_ups": [],
     "headline": "I can only answer questions about this company's managed devices.",
+    "needs": [],
     "notes": [
       "I can answer from hardware, OS, memory, disk, battery, installed software and compliance data."
     ],
+    "offer_switch_company": false,
     "outcome": "unsupported",
     "proposal": null,
     "reason_code": "off_topic",

@@ -19,6 +19,17 @@ export type DeviceIds = string[];
 export type Refs = [string, ...string[]];
 export type Text = string;
 export type Claims = Claim[];
+/**
+ * @maxItems 6
+ */
+export type Choices =
+  | []
+  | [Alternative]
+  | [Alternative, Alternative]
+  | [Alternative, Alternative, Alternative]
+  | [Alternative, Alternative, Alternative, Alternative]
+  | [Alternative, Alternative, Alternative, Alternative, Alternative]
+  | [Alternative, Alternative, Alternative, Alternative, Alternative, Alternative];
 export type Options = string[];
 export type Question = string;
 export type DeviceId = string;
@@ -57,7 +68,12 @@ export type FollowUps =
   | [Alternative, Alternative, Alternative]
   | [Alternative, Alternative, Alternative, Alternative];
 export type Headline = string;
+/**
+ * @maxItems 4
+ */
+export type Needs = [] | [string] | [string, string] | [string, string, string] | [string, string, string, string];
 export type Notes = string[];
+export type OfferSwitchCompany = boolean;
 export type Outcome =
   "answer" | "no_match" | "insufficient_data" | "clarification" | "proposal" | "denied" | "unsupported" | "tool_error";
 export type ActionType = "remediation_ticket" | "replacement_flag" | "upgrade_order" | "employee_notification";
@@ -89,6 +105,7 @@ export type ReasonCode =
       | "already_done"
       | "too_many_pending"
       | "data_unavailable"
+      | "other_company"
     )
   | null;
 export type RepeatOf = string | null;
@@ -165,7 +182,9 @@ export interface AnswerEnvelope {
   explanation: Explanation;
   follow_ups: FollowUps;
   headline: Headline;
+  needs: Needs;
   notes: Notes;
+  offer_switch_company: OfferSwitchCompany;
   outcome: Outcome;
   proposal: ProposalCard | null;
   reason_code: ReasonCode;
@@ -191,6 +210,7 @@ export interface Claim {
   text: Text;
 }
 export interface Clarification {
+  choices: Choices;
   options: Options;
   question: Question;
 }

@@ -188,6 +188,42 @@
     },
     {
       "keywords": [
+        "for replacement",
+        "replacement",
+        "flag"
+      ],
+      "note": "The refusal is the real eligibility check run on the device; routing needs the model.",
+      "question": "Flag acme-macbook-2 for replacement.",
+      "scenario": "insufficient_evidence",
+      "synthetic": true,
+      "tenant": "acme-001"
+    },
+    {
+      "keywords": [
+        "another company",
+        "other company",
+        "other companies",
+        "another tenant"
+      ],
+      "note": "The card is the graph's own fixed wording; routing needs the model.",
+      "question": "Show me the devices at another company.",
+      "scenario": "other_company",
+      "synthetic": true,
+      "tenant": "acme-001"
+    },
+    {
+      "keywords": [
+        "the macbook",
+        "macbook doing"
+      ],
+      "note": "The options are built by code from this company's devices; routing needs the model.",
+      "question": "How is the macbook doing on battery?",
+      "scenario": "clarification_device",
+      "synthetic": true,
+      "tenant": "acme-001"
+    },
+    {
+      "keywords": [
         "simulate",
         "lookup failure",
         "outage"
@@ -388,6 +424,42 @@
     },
     {
       "keywords": [
+        "for replacement",
+        "replacement",
+        "flag"
+      ],
+      "note": "The refusal is the real eligibility check run on the device; routing needs the model.",
+      "question": "Flag globex-macbook-1 for replacement.",
+      "scenario": "insufficient_evidence",
+      "synthetic": true,
+      "tenant": "globex-002"
+    },
+    {
+      "keywords": [
+        "another company",
+        "other company",
+        "other companies",
+        "another tenant"
+      ],
+      "note": "The card is the graph's own fixed wording; routing needs the model.",
+      "question": "Show me the devices at another company.",
+      "scenario": "other_company",
+      "synthetic": true,
+      "tenant": "globex-002"
+    },
+    {
+      "keywords": [
+        "the macbook",
+        "macbook doing"
+      ],
+      "note": "The options are built by code from this company's devices; routing needs the model.",
+      "question": "How is the macbook doing on battery?",
+      "scenario": "clarification_device",
+      "synthetic": true,
+      "tenant": "globex-002"
+    },
+    {
+      "keywords": [
         "simulate",
         "lookup failure",
         "outage"
@@ -584,6 +656,42 @@
       "question": "Open a ticket for the first one",
       "scenario": "proposal",
       "synthetic": false,
+      "tenant": "initech-003"
+    },
+    {
+      "keywords": [
+        "for replacement",
+        "replacement",
+        "flag"
+      ],
+      "note": "The refusal is the real eligibility check run on the device; routing needs the model.",
+      "question": "Flag initech-macbook-2 for replacement.",
+      "scenario": "insufficient_evidence",
+      "synthetic": true,
+      "tenant": "initech-003"
+    },
+    {
+      "keywords": [
+        "another company",
+        "other company",
+        "other companies",
+        "another tenant"
+      ],
+      "note": "The card is the graph's own fixed wording; routing needs the model.",
+      "question": "Show me the devices at another company.",
+      "scenario": "other_company",
+      "synthetic": true,
+      "tenant": "initech-003"
+    },
+    {
+      "keywords": [
+        "the macbook",
+        "macbook doing"
+      ],
+      "note": "The options are built by code from this company's devices; routing needs the model.",
+      "question": "How is the macbook doing on battery?",
+      "scenario": "clarification_device",
+      "synthetic": true,
       "tenant": "initech-003"
     },
     {

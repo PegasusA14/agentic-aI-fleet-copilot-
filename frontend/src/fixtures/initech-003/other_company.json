@@ -1,0 +1,88 @@
+{
+  "envelope": {
+    "alternatives": [],
+    "claims": [],
+    "clarification": null,
+    "coverage": null,
+    "entity_lists": [],
+    "evidence": [],
+    "explanation": null,
+    "follow_ups": [],
+    "headline": "You're working in Initech, so I can only see Initech.",
+    "needs": [],
+    "notes": [
+      "I can't read or act on another company's devices from this session. To look at a different company, switch to it first."
+    ],
+    "offer_switch_company": true,
+    "outcome": "denied",
+    "proposal": null,
+    "reason_code": "other_company",
+    "repeat_of": null,
+    "scope": {
+      "as_of": "2026-06-12T11:00:00Z",
+      "calculation": null,
+      "company_id": "initech-003",
+      "population": null,
+      "rule": null
+    },
+    "scope_line": null,
+    "suggested_actions": [],
+    "summary": "",
+    "table": null,
+    "trace_id": "replay-initech-003-other_company"
+  },
+  "meta": {
+    "keywords": [
+      "another company",
+      "other company",
+      "other companies",
+      "another tenant"
+    ],
+    "note": "The card is the graph's own fixed wording; routing needs the model.",
+    "question": "Show me the devices at another company.",
+    "scenario": "other_company",
+    "synthetic": true,
+    "tenant": "initech-003"
+  },
+  "trace": [
+    {
+      "data": {
+        "company_id": "initech-003"
+      },
+      "kind": "scope",
+      "latency_ms": null,
+      "seq": 0,
+      "summary": "Turn started",
+      "tool": null,
+      "trace_id": "replay-initech-003-other_company"
+    },
+    {
+      "data": {
+        "has_reference": false,
+        "intent": "refuse",
+        "reference_kind": null,
+        "window_days": null
+      },
+      "kind": "plan",
+      "latency_ms": null,
+      "seq": 1,
+      "summary": "Planned the turn",
+      "tool": null,
+      "trace_id": "replay-initech-003-other_company"
+    },
+    {
+      "data": {
+        "claims": 0,
+        "evidence": 0,
+        "outcome": "denied",
+        "reason_code": "other_company"
+      },
+      "kind": "respond",
+      "latency_ms": null,
+      "seq": 2,
+      "summary": "Answer ready",
+      "tool": null,
+      "trace_id": "replay-initech-003-other_company"
+    }
+  ]
+}

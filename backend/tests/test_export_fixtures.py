@@ -72,7 +72,15 @@ def test_outcomes_cover_every_state_the_ui_renders(exported):
 
 def test_meta_marks_synthetic_fixtures_and_carries_router_keywords(exported):
     synthetic = {s.name for s in SCENARIOS if s.synthetic}
-    assert synthetic == {"clarification", "unsupported", "unsupported_wifi", "tool_error"}
+    assert synthetic == {
+        "clarification",
+        "unsupported",
+        "unsupported_wifi",
+        "tool_error",
+        "insufficient_evidence",
+        "other_company",
+        "clarification_device",
+    }
     for scenario in SCENARIOS:
         meta = load(exported, "acme-001", scenario.name)["meta"]
         assert meta["synthetic"] is scenario.synthetic
@@ -224,6 +232,47 @@ def test_the_proposal_fixture_holds_no_random_ids(exported):
     for tenant in TENANTS:
         text = (exported / tenant / "proposal.json").read_text(encoding="utf-8")
         assert text.count("prp_") == 0
+
+
+def test_the_insufficient_evidence_fixture_is_a_real_refusal_with_needs_and_alternatives(exported):
+    for tenant in TENANTS:
+        fixture = load(exported, tenant, "insufficient_evidence")
+        envelope = AnswerEnvelope.model_validate(fixture["envelope"])
+        assert (envelope.outcome, envelope.reason_code) == ("denied", "not_eligible")
+        assert envelope.notes and envelope.needs and envelope.proposal is None
+        assert envelope.alternatives[0].request.startswith("Show the 30-day history of ")
+        assert fixture["meta"]["question"].startswith("Flag ")
+        calls = [e for e in fixture["trace"] if e["kind"] == "tool_call"]
+        assert [c["tool"] for c in calls] == ["flag_device_for_replacement"]
+
+
+def test_the_other_company_fixture_names_only_the_own_company(exported):
+    names = {"acme-001": "Acme", "globex-002": "Globex", "initech-003": "Initech"}
+    for tenant in TENANTS:
+        fixture = load(exported, tenant, "other_company")
+        envelope = AnswerEnvelope.model_validate(fixture["envelope"])
+        assert (envelope.outcome, envelope.reason_code) == ("denied", "other_company")
+        assert envelope.headline == (
+            f"You're working in {names[tenant]}, so I can only see {names[tenant]}."
+        )
+        assert envelope.offer_switch_company is True and envelope.alternatives == []
+        text = json.dumps(fixture).lower()
+        assert not any(name.lower() in text for t, name in names.items() if t != tenant)
+        assert not any(e["kind"] == "tool_call" for e in fixture["trace"])
+
+
+def test_the_device_clarification_fixture_is_built_from_the_tenants_own_devices(exported):
+    for tenant in TENANTS:
+        envelope = AnswerEnvelope.model_validate(
+            load(exported, tenant, "clarification_device")["envelope"]
+        )
+        asked = envelope.clarification
+        assert envelope.outcome == "clarification" and asked is not None
+        assert asked.choices[-1].label == "All of them"
+        assert asked.options == [c.label for c in asked.choices]
+        host = tenant.split("-")[0]
+        assert all(c.label.startswith(f"{host}-") for c in asked.choices[:-1])
+        assert all(c.request for c in asked.choices)
 
 
 def test_the_missing_data_fixture_is_the_fixed_refusal_with_alternatives(exported):

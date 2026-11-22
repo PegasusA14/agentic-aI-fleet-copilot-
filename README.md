@@ -255,6 +255,9 @@ prose, are the source of truth.
    the agent opens the database read-only.
 3. Another company's device, employee or proposal gets the same "not found" as one that does not exist, so a
    reply never confirms that another tenant's data exists.
+   A general question about another company ("show me the devices at another company") gets a short card that
+   names only your own company and offers to switch; it never repeats the other company's name. A question that
+   names one device id, hostname or employee id of another company stays "not found".
 4. Checkpoints, conversation history, proposals, audit, evidence and traces are all scoped to the company, and
    history also to the administrator.
 

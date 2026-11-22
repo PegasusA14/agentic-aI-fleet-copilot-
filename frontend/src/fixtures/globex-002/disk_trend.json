@@ -131,7 +131,9 @@
       }
     ],
     "headline": "2 of 8 devices breached free disk space under 10% in the last 7 days (2 sustained)",
+    "needs": [],
     "notes": [],
+    "offer_switch_company": false,
     "outcome": "answer",
     "proposal": null,
     "reason_code": null,

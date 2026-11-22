@@ -13,6 +13,14 @@ describe("outcomeStyle", () => {
     expect(outcomeStyle("denied", "not_found")).toMatchObject({ word: "Not found", mark: "lock", tone: "denied" });
   });
 
+  it("calls a general question about another company Outside this company, with the lock", () => {
+    expect(outcomeStyle("denied", "other_company")).toMatchObject({
+      word: "Outside this company",
+      mark: "lock",
+      tone: "denied",
+    });
+  });
+
   it("calls an action that is not eligible Not supported yet, with a neutral mark", () => {
     expect(outcomeStyle("denied", "not_eligible")).toMatchObject({
       word: "Not supported yet",

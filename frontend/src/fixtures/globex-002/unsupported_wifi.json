@@ -22,9 +22,11 @@
     "explanation": null,
     "follow_ups": [],
     "headline": "Wi-Fi and network quality aren't something the fleet data records.",
+    "needs": [],
     "notes": [
       "I can answer from hardware, OS, memory, disk, battery, installed software and compliance data."
     ],
+    "offer_switch_company": false,
     "outcome": "unsupported",
     "proposal": null,
     "reason_code": "data_unavailable",

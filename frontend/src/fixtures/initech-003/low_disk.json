@@ -115,7 +115,9 @@
       }
     ],
     "headline": "2 of 7 devices have under 10% disk space free",
+    "needs": [],
     "notes": [],
+    "offer_switch_company": false,
     "outcome": "answer",
     "proposal": null,
     "reason_code": null,

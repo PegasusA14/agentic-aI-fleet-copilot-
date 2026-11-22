@@ -1,0 +1,115 @@
+{
+  "envelope": {
+    "alternatives": [],
+    "claims": [],
+    "clarification": {
+      "choices": [
+        {
+          "label": "globex-macbook-1",
+          "request": "How is globex-macbook-1 doing on battery?"
+        },
+        {
+          "label": "globex-macbook-2",
+          "request": "How is globex-macbook-2 doing on battery?"
+        },
+        {
+          "label": "globex-macbook-3",
+          "request": "How is globex-macbook-3 doing on battery?"
+        },
+        {
+          "label": "globex-macbook-4",
+          "request": "How is globex-macbook-4 doing on battery?"
+        },
+        {
+          "label": "All of them",
+          "request": "How are all macbooks doing on battery?"
+        }
+      ],
+      "options": [
+        "globex-macbook-1",
+        "globex-macbook-2",
+        "globex-macbook-3",
+        "globex-macbook-4",
+        "All of them"
+      ],
+      "question": "'macbook' matches 5 devices. Which one do you mean?"
+    },
+    "coverage": null,
+    "entity_lists": [],
+    "evidence": [],
+    "explanation": null,
+    "follow_ups": [],
+    "headline": "I need one detail to answer that",
+    "needs": [],
+    "notes": [],
+    "offer_switch_company": false,
+    "outcome": "clarification",
+    "proposal": null,
+    "reason_code": null,
+    "repeat_of": null,
+    "scope": {
+      "as_of": "2026-06-12T11:00:00Z",
+      "calculation": null,
+      "company_id": "globex-002",
+      "population": null,
+      "rule": null
+    },
+    "scope_line": null,
+    "suggested_actions": [],
+    "summary": "",
+    "table": null,
+    "trace_id": "replay-globex-002-clarification_device"
+  },
+  "meta": {
+    "keywords": [
+      "the macbook",
+      "macbook doing"
+    ],
+    "note": "The options are built by code from this company's devices; routing needs the model.",
+    "question": "How is the macbook doing on battery?",
+    "scenario": "clarification_device",
+    "synthetic": true,
+    "tenant": "globex-002"
+  },
+  "trace": [
+    {
+      "data": {
+        "company_id": "globex-002"
+      },
+      "kind": "scope",
+      "latency_ms": null,
+      "seq": 0,
+      "summary": "Turn started",
+      "tool": null,
+      "trace_id": "replay-globex-002-clarification_device"
+    },
+    {
+      "data": {
+        "has_reference": false,
+        "intent": "clarify",
+        "reference_kind": null,
+        "window_days": null
+      },
+      "kind": "plan",
+      "latency_ms": null,
+      "seq": 1,
+      "summary": "Planned the turn",
+      "tool": null,
+      "trace_id": "replay-globex-002-clarification_device"
+    },
+    {
+      "data": {
+        "claims": 0,
+        "evidence": 0,
+        "outcome": "clarification",
+        "reason_code": null
+      },
+      "kind": "respond",
+      "latency_ms": null,
+      "seq": 2,
+      "summary": "Answer ready",
+      "tool": null,
+      "trace_id": "replay-globex-002-clarification_device"
+    }
+  ]
+}

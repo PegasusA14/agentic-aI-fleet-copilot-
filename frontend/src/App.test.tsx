@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import App from "./App";
 import { fixtureTransport } from "./lib/transport";
 import { AssistantMessage } from "./components/chat/AssistantMessage";
-import { OUTCOMES } from "./lib/outcomes";
+import { outcomeStyle } from "./lib/outcomes";
 import { fixturesFor, getFixture } from "./lib/fixtures";
 import { setFinePointer } from "./test/motion";
 
@@ -465,7 +465,9 @@ describe("outcome states", () => {
         expect(container.querySelector(".proposal .mark")).toHaveTextContent("Awaiting your approval");
         seen.set("proposal", "Awaiting your approval");
       } else {
-        expect(mark?.textContent).toBe(OUTCOMES[fixture.envelope.outcome].word);
+        expect(mark?.textContent).toBe(
+          outcomeStyle(fixture.envelope.outcome, fixture.envelope.reason_code).word,
+        );
         expect(mark?.querySelector("svg")).not.toBeNull();
         seen.set(fixture.envelope.outcome, mark?.textContent ?? "");
       }

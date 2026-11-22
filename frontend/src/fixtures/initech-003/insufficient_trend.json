@@ -73,9 +73,11 @@
       }
     ],
     "headline": "There are not enough snapshots in that window to report a trend.",
+    "needs": [],
     "notes": [
       "7 devices have fewer than 3 snapshots in the window, so no trend is reported: 2MAN6T4DJD95, DARFCP0BQM2G, I3JLKILKQTAC, RLD7WV7J82SH, SPKRRDF0L786, W2656QDAE2ZJ, XZYK11QTPWEC."
     ],
+    "offer_switch_company": false,
     "outcome": "insufficient_data",
     "proposal": null,
     "reason_code": "insufficient_history",

@@ -3,6 +3,7 @@
     "alternatives": [],
     "claims": [],
     "clarification": {
+      "choices": [],
       "options": [
         "Low disk space",
         "Outdated macOS",
@@ -17,7 +18,9 @@
     "explanation": null,
     "follow_ups": [],
     "headline": "Which check should I run?",
+    "needs": [],
     "notes": [],
+    "offer_switch_company": false,
     "outcome": "clarification",
     "proposal": null,
     "reason_code": null,

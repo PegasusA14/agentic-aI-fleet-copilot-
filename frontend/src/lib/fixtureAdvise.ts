@@ -107,6 +107,8 @@ export function adviseFixture(tenantId: string): Fixture | null {
   }));
   const envelope: AnswerEnvelope = {
     alternatives: [],
+    needs: [],
+    offer_switch_company: false,
     follow_ups: [],
     repeat_of: null,
     scope_line: null,
@@ -179,6 +181,8 @@ export function upgradeFixture(tenantId: string, name: string): Fixture | null {
   };
   const envelope: AnswerEnvelope = {
     alternatives: [],
+    needs: [],
+    offer_switch_company: false,
     follow_ups: [],
     repeat_of: null,
     scope_line: null,

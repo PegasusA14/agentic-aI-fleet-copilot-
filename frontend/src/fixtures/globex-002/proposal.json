@@ -20,7 +20,9 @@
     "explanation": null,
     "follow_ups": [],
     "headline": "Proposed: open a remediation ticket for globex-thinkpad-6. It waits for your approval; nothing has changed yet.",
+    "needs": [],
     "notes": [],
+    "offer_switch_company": false,
     "outcome": "proposal",
     "proposal": {
       "action_type": "remediation_ticket",

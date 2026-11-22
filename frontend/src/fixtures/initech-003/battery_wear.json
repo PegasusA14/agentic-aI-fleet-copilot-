@@ -15,9 +15,11 @@
     "explanation": null,
     "follow_ups": [],
     "headline": "No devices matched (5 evaluated)",
+    "needs": [],
     "notes": [
       "The telemetry has no design capacity, so a battery health percentage cannot be computed; capacity change is relative to each device's own first reading in the window."
     ],
+    "offer_switch_company": false,
     "outcome": "no_match",
     "proposal": null,
     "reason_code": "no_matching_records",

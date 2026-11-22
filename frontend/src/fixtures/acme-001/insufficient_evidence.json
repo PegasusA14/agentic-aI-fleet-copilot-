@@ -1,0 +1,139 @@
+{
+  "envelope": {
+    "alternatives": [
+      {
+        "label": "Show its 30-day health",
+        "request": "Show the 30-day history of acme-macbook-2"
+      },
+      {
+        "label": "Check battery wear",
+        "request": "Which batteries are wearing?"
+      }
+    ],
+    "claims": [],
+    "clarification": null,
+    "coverage": null,
+    "entity_lists": [],
+    "evidence": [],
+    "explanation": null,
+    "follow_ups": [],
+    "headline": "That action is not supported by the current evidence, so no proposal was made.",
+    "needs": [
+      "Battery reports 'Service Recommended' in 3 or more consecutive readings",
+      "A battery reading from the last 48 hours"
+    ],
+    "notes": [
+      "The latest battery reading does not report Service Recommended; at least 3 consecutive readings are needed."
+    ],
+    "offer_switch_company": false,
+    "outcome": "denied",
+    "proposal": null,
+    "reason_code": "not_eligible",
+    "repeat_of": null,
+    "scope": {
+      "as_of": "2026-06-12T11:00:00Z",
+      "calculation": null,
+      "company_id": "acme-001",
+      "population": null,
+      "rule": null
+    },
+    "scope_line": null,
+    "suggested_actions": [],
+    "summary": "",
+    "table": null,
+    "trace_id": "replay-acme-001-insufficient_evidence"
+  },
+  "meta": {
+    "keywords": [
+      "for replacement",
+      "replacement",
+      "flag"
+    ],
+    "note": "The refusal is the real eligibility check run on the device; routing needs the model.",
+    "question": "Flag acme-macbook-2 for replacement.",
+    "scenario": "insufficient_evidence",
+    "synthetic": true,
+    "tenant": "acme-001"
+  },
+  "trace": [
+    {
+      "data": {
+        "company_id": "acme-001"
+      },
+      "kind": "scope",
+      "latency_ms": null,
+      "seq": 0,
+      "summary": "Turn started",
+      "tool": null,
+      "trace_id": "replay-acme-001-insufficient_evidence"
+    },
+    {
+      "data": {
+        "has_reference": false,
+        "intent": "propose",
+        "reference_kind": null,
+        "window_days": null
+      },
+      "kind": "plan",
+      "latency_ms": null,
+      "seq": 1,
+      "summary": "Planned the turn",
+      "tool": null,
+      "trace_id": "replay-acme-001-insufficient_evidence"
+    },
+    {
+      "data": {
+        "args": {
+          "device_id": "applied"
+        }
+      },
+      "kind": "tool_call",
+      "latency_ms": null,
+      "seq": 2,
+      "summary": "Calling flag_device_for_replacement",
+      "tool": "flag_device_for_replacement",
+      "trace_id": "replay-acme-001-insufficient_evidence"
+    },
+    {
+      "data": {
+        "matches": 0,
+        "population": 0,
+        "status": "refused"
+      },
+      "kind": "tool_result",
+      "latency_ms": null,
+      "seq": 3,
+      "summary": "flag_device_for_replacement returned",
+      "tool": "flag_device_for_replacement",
+      "trace_id": "replay-acme-001-insufficient_evidence"
+    },
+    {
+      "data": {
+        "claims": 0,
+        "evidence": 0,
+        "outcome": "denied",
+        "records": 1
+      },
+      "kind": "compose",
+      "latency_ms": null,
+      "seq": 4,
+      "summary": "Composed the answer from tool records",
+      "tool": null,
+      "trace_id": "replay-acme-001-insufficient_evidence"
+    },
+    {
+      "data": {
+        "claims": 0,
+        "evidence": 0,
+        "outcome": "denied",
+        "reason_code": "not_eligible"
+      },
+      "kind": "respond",
+      "latency_ms": null,
+      "seq": 5,
+      "summary": "Answer ready",
+      "tool": null,
+      "trace_id": "replay-acme-001-insufficient_evidence"
+    }
+  ]
+}
