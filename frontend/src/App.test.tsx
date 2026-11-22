@@ -135,7 +135,7 @@ describe("the working thread", () => {
     await ask(user, "Open a ticket for the first one");
     expect(await screen.findByText("Awaiting your approval")).toBeInTheDocument();
     expect(screen.getByText("I'd open a screen lock ticket for acme-macbook-2.")).toBeInTheDocument();
-    expect(screen.getByText(/Nothing is sent until you approve it\.$/)).toBeInTheDocument();
+    expect(screen.getByText(/ticket proposal is ready for your review, and it stays pending until you approve it\./)).toBeInTheDocument();
     const card = screen.getByRole("region", { name: "Proposed action" });
     await user.click(screen.getByRole("button", { name: "Approve" }));
     const dialog = await screen.findByRole("dialog");
@@ -464,6 +464,36 @@ describe("the composer", () => {
   });
 });
 
+describe("a conversational turn", () => {
+  it("answers 'thanks' with a plain message and no remembered-notes control", async () => {
+    const user = await signInAs("Acme");
+    await ask(user, "Thanks!");
+    await waitFor(() => expect(document.querySelector(".msg--assistant .reply__p")).toHaveTextContent(/^You're welcome\./));
+    expect(document.querySelector(".msg--assistant .msg__lead, .msg--assistant .atable, .msg--assistant .mark")).toBeNull();
+    expect(screen.queryByRole("button", { name: /Remembered/ })).not.toBeInTheDocument();
+  });
+
+  it("shows the remembered-notes control once a note is kept, lists it, and takes it away on confirmation", async () => {
+    const user = await signInAs("Acme");
+    await ask(user, "I only care about laptops");
+    expect(await screen.findByText(/I'll keep to laptops/)).toBeInTheDocument();
+    await user.click(await screen.findByRole("button", { name: "Remembered · 1 note" }));
+    const dialog = await screen.findByRole("dialog", { name: "Remembered notes" });
+    expect(await within(dialog).findByText("I only care about laptops")).toBeInTheDocument();
+    await user.click(within(dialog).getByRole("button", { name: "Remove note: I only care about laptops" }));
+    await user.click(within(dialog).getByRole("button", { name: "Remove" }));
+    await waitFor(() => expect(screen.queryByRole("button", { name: /Remembered/ })).not.toBeInTheDocument());
+  });
+
+  it("drops the control when the next answer says nothing is remembered any more", async () => {
+    const user = await signInAs("Acme");
+    await ask(user, "I only care about laptops");
+    expect(await screen.findByRole("button", { name: "Remembered · 1 note" })).toBeInTheDocument();
+    await ask(user, "Forget that");
+    await waitFor(() => expect(screen.queryByRole("button", { name: /Remembered/ })).not.toBeInTheDocument());
+  });
+});
+
 describe("outcome states", () => {
   it("gives every outcome except a plain answer its own mark and word", () => {
     const seen = new Map<string, string>();
@@ -472,7 +502,7 @@ describe("outcome states", () => {
         <AssistantMessage envelope={fixture.envelope} busy={false} onOpenEvidence={noop} onOpenTrace={noop} onAsk={noop} />,
       );
       const mark = container.querySelector(".msg__state .mark") as HTMLElement | null;
-      if (fixture.envelope.outcome === "answer") {
+      if (fixture.envelope.outcome === "answer" || fixture.envelope.outcome === "chat") {
         expect(mark).toBeNull();
       } else if (fixture.envelope.outcome === "proposal") {
         // The proposal card owns the state: no second mark above it.

@@ -135,7 +135,7 @@ function TurnView({ turn, earlier, last, busy, onOpenEvidence, onOpenTrace, onAs
       const words =
         turn.status === "done" && envelope
           ? envelope.repeat_of && !envelope.proposal
-            ? repeatText(envelope.scope_line?.as_of ?? envelope.scope.as_of)
+            ? repeatText(envelope.scope_line?.as_of ?? envelope.scope.as_of, envelope.reply)
             : replyOf(envelope).lead
           : (turn.failure ?? "");
       setAnnouncement(`Reply ready. ${firstSentence(words)}`.trim());

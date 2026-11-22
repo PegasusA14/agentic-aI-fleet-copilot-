@@ -10,7 +10,7 @@ import { AssistantMessage } from "./AssistantMessage";
 import { SuggestionChips } from "./SuggestionChips";
 import type { SuggestedAction } from "../../types/AnswerEnvelope";
 
-const envelopeOf = (scenario: string): AnswerEnvelope => getFixture("acme-001", scenario).envelope;
+const envelopeOf = (scenario: string): AnswerEnvelope => ({ ...getFixture("acme-001", scenario).envelope, reply: "", explanation: null });
 /** A list answer as the composer writes it today: a table, a scope line, disclosures. */
 const LIST = envelopeOf("low_disk");
 /** The same answer with no table: the shape of every answer before lists became tables, and of any answer that has none. */

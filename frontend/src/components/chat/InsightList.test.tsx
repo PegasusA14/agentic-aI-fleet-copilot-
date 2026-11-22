@@ -7,8 +7,8 @@ import type { AnswerEnvelope } from "../../lib/types";
 import { AssistantMessage } from "./AssistantMessage";
 import { InsightList } from "./InsightList";
 
-const BATTERY = getFixture("acme-001", "battery_wear").envelope;
-const HEALTH = getFixture("acme-001", "fleet_health").envelope;
+const BATTERY = { ...getFixture("acme-001", "battery_wear").envelope, reply: "", explanation: null };
+const HEALTH = { ...getFixture("acme-001", "fleet_health").envelope, reply: "", explanation: null };
 
 function list(envelope: AnswerEnvelope) {
   const onAsk = vi.fn();

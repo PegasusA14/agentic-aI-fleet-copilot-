@@ -24,6 +24,8 @@ interface AnswerTableProps {
   onSource: (n: number, row: Row) => void;
   /** The two footer lines (counts, then company and moment), already worded. */
   scope: { counts: string; source: string } | null;
+  /** The composer's one-sentence summary, set under the title when a reply leads the message. */
+  summary?: string | null;
   /** Stored in an earlier session: the rows are simply there. */
   reopened?: boolean;
 }
@@ -147,7 +149,7 @@ function CellValue({ column, cell }: { column: Column; cell: Cell | undefined })
 const ariaSort = (sort: SortState) => (sort.direction === "asc" ? "ascending" : "descending");
 
 /** The list answer as a card: title and count, a sort menu, a real table, then the scope line. */
-export function AnswerTable({ table, sort, onSort, numbered, onSource, scope, reopened = false }: AnswerTableProps) {
+export function AnswerTable({ table, sort, onSort, numbered, onSource, scope, summary = null, reopened = false }: AnswerTableProps) {
   const reduce = usePrefersReducedMotion();
   const titleId = useId();
   const choices = useMemo(() => sortChoices(table), [table]);
@@ -168,6 +170,7 @@ export function AnswerTable({ table, sort, onSort, numbered, onSource, scope, re
             <span className="atable__count">{countPill(table)}</span>
             <SortMenu choices={choices} sort={sort} onSort={onSort} />
           </div>
+          {summary ? <p className="atable__summary">{summary}</p> : null}
         </caption>
         <thead>
           <tr>

@@ -234,6 +234,13 @@ export interface StoredConversation {
   turns: StoredTurn[];
 }
 
+/** Something the person asked the copilot to remember in a conversation. `index` is what forgets it. */
+export interface RememberedNote {
+  index: number;
+  text: string;
+  turn: number;
+}
+
 export interface Transport {
   /** "live" talks to the API; "fixtures" is the offline replay with simulated decisions. */
   readonly mode: "live" | "fixtures";
@@ -249,6 +256,10 @@ export interface Transport {
   conversation(id: string): Promise<StoredConversation>;
   /** Forgets a conversation and its stored turns. Rejects with a 404 `ApiError` when it is not this admin's. */
   deleteConversation(id: string): Promise<void>;
+  /** What a conversation was asked to remember, oldest first. Rejects with a 404 `ApiError` when it is not this admin's. */
+  notes(conversationId: string): Promise<RememberedNote[]>;
+  /** Forgets one note by its `index`. Rejects with a 404 `ApiError` when there is no such note. */
+  forgetNote(conversationId: string, index: number): Promise<void>;
   /** Streams trace steps through `onTrace`, then resolves with the answer. Rejects with `ApiError`. */
   ask(
     conversationId: string,
@@ -293,6 +304,8 @@ export const liveTransport: Transport = {
   conversations: (limit) => getJson("/api/conversations", { limit: limit?.toString() }),
   conversation: (id) => getJson(`/api/conversations/${enc(id)}`),
   deleteConversation: (id) => del(`/api/conversations/${enc(id)}`),
+  notes: (id) => getJson(`/api/conversations/${enc(id)}/notes`),
+  forgetNote: (id, index) => del(`/api/conversations/${enc(id)}/notes/${index}`),
   async ask(conversationId, question, onTrace) {
     const response = await send("/api/chat", {
       method: "POST",
@@ -421,6 +434,8 @@ export function fixtureTransport(stepMs = 380): Transport {
   const traces = new Map<string, TraceEvent[]>();
   /** Which stored answers each conversation has been given, so a second identical question reads as a repeat. */
   const answered = new Map<string, string[]>();
+  /** What each conversation was asked to remember: the person's own words, oldest first. */
+  const noted = new Map<string, string[]>();
   /** What a replayed repeat's trace id adds to the stored answer's. */
   const REPEAT_MARK = "~again";
   const effects: EffectCounts = Object.fromEntries(
@@ -591,23 +606,38 @@ export function fixtureTransport(stepMs = 380): Transport {
       if (at < 0) throw notFound();
       chats.splice(at, 1);
     },
+    async notes(conversationId) {
+      who("admin");
+      return (noted.get(conversationId) ?? []).map((text, index) => ({ index, text, turn: index + 1 }));
+    },
+    async forgetNote(conversationId, index) {
+      who("admin");
+      const list = noted.get(conversationId) ?? [];
+      if (!Number.isInteger(index) || index < 0 || index >= list.length) throw notFound();
+      noted.set(conversationId, list.filter((_, at) => at !== index));
+    },
     async ask(conversationId, question, onTrace) {
       const { user, session } = who("admin");
       const started = Date.now();
       const fixture = routeQuestion(session.company_id, question);
+      // The live agent keeps a statement for later and drops the last one on request; the replay does the same in memory.
+      const kept = noted.get(conversationId) ?? [];
+      if (fixture.meta.scenario === "chat_note") noted.set(conversationId, [...kept, question.trim()]);
+      if (fixture.meta.scenario === "chat_forget") noted.set(conversationId, kept.slice(0, -1));
       for (const event of fixture.trace) {
         if (event.kind !== "respond") await wait(stepMs);
         onTrace(event);
       }
-      let envelope = fixture.envelope;
+      let envelope = { ...fixture.envelope, notes_count: (noted.get(conversationId) ?? []).length };
       // The live agent notices the same question answered again with nothing new; the replay does the same by trace id.
       const before = answered.get(conversationId) ?? [];
-      if (before.includes(envelope.trace_id) && !envelope.proposal) {
+      if (before.includes(envelope.trace_id) && !envelope.proposal && envelope.outcome !== "chat") {
         envelope = {
           ...envelope,
           trace_id: `${envelope.trace_id}${REPEAT_MARK}${before.length}`,
           repeat_of: envelope.trace_id,
           explanation: null,
+          reply: "",
         };
       }
       answered.set(conversationId, [...before, fixture.envelope.trace_id]);

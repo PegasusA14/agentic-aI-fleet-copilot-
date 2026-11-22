@@ -24,6 +24,26 @@ describe("routeQuestion", () => {
     expect(scenario(acme, "Which devices have a weak Wi-Fi signal?")).toBe("unsupported_wifi");
   });
 
+  it("sends small talk to a plain chat reply from the capability card, never to a data answer", () => {
+    for (const tenant of TENANTS) {
+      expect(scenario(tenant.id, "thanks")).toBe("chat_thanks");
+      expect(scenario(tenant.id, "Thanks!")).toBe("chat_thanks");
+      expect(scenario(tenant.id, "hello")).toBe("chat_hello");
+      expect(scenario(tenant.id, "Hello there")).toBe("chat_hello");
+      expect(scenario(tenant.id, "what can you do?")).toBe("chat_capabilities");
+      expect(scenario(tenant.id, "I only care about laptops")).toBe("chat_note");
+      expect(scenario(tenant.id, "Forget that")).toBe("chat_forget");
+      const chat = routeQuestion(tenant.id, "what can you do?").envelope;
+      expect(chat.outcome).toBe("chat");
+      expect(chat.reply).toMatch(/hardware, OS versions, memory, disk, battery/);
+      expect(chat.table).toBeNull();
+    }
+  });
+
+  it("still routes a data question that thanks or greets", () => {
+    expect(scenario("acme-001", "Thanks, which devices are low on disk space?")).toBe("low_disk");
+  });
+
   it("sends a replacement flag, another company and an ambiguous device to their cards", () => {
     for (const tenant of TENANTS) {
       expect(scenario(tenant.id, "Flag initech-mac-4 for replacement.")).toBe("insufficient_evidence");

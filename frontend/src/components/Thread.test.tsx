@@ -129,7 +129,7 @@ describe("Thread repeats", () => {
   });
   const again: TurnData = turn({
     id: "2",
-    envelope: { ...LOW.envelope, trace_id: "second-trace", repeat_of: LOW.envelope.trace_id },
+    envelope: { ...LOW.envelope, trace_id: "second-trace", repeat_of: LOW.envelope.trace_id, reply: "" },
   });
 
   it("collapses the repeat to a card and announces it", () => {

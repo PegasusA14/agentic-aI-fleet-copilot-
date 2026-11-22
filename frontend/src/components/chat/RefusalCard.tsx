@@ -1,7 +1,9 @@
 import { Ban, LogOut, Lock, TriangleAlert } from "lucide-react";
 import { useId } from "react";
+import { paragraphsOf } from "../../lib/reply";
 import type { RefusalKind } from "../../lib/refusal";
 import type { AnswerEnvelope } from "../../types/AnswerEnvelope";
+import { ReplyText } from "./ChatReply";
 import { AlternativeChips } from "./SuggestionChips";
 
 interface RefusalCardProps {
@@ -42,6 +44,8 @@ export function RefusalCard({ envelope, kind, busy, onAsk, onSwitchCompany }: Re
           {envelope.headline}
         </p>
       </div>
+
+      <ReplyText paragraphs={paragraphsOf(envelope.reply)} inCard />
 
       {envelope.notes.map((note) => (
         <p key={note} className="rcard__note">

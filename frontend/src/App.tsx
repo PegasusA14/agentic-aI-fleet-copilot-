@@ -4,6 +4,7 @@ import { ApprovalsView } from "./components/ApprovalsView";
 import { AuditView } from "./components/AuditView";
 import { Composer } from "./components/Composer";
 import { EvidenceDrawer, type DrawerTab } from "./components/EvidenceDrawer";
+import { NotesHint } from "./components/NotesHint";
 import { Hero, Suggestions, type FleetInfo } from "./components/Home";
 import { ObserveView } from "./components/observe/ObserveView";
 import { Sidebar } from "./components/Sidebar";
@@ -422,6 +423,8 @@ export default function App({ transport: given }: AppProps) {
   }, [company, isTenantAdmin, transport]);
   const fleet: FleetInfo = summary && summary.company === company ? summary.info : { status: "loading" };
   const running = turns.some((turn) => turn.status === "working");
+  /** What the latest answer said it is remembering in this conversation; the notes control follows it. */
+  const noteCount = [...turns].reverse().find((turn) => turn.envelope)?.envelope?.notes_count ?? 0;
   const docked = turns.length > 0;
 
   if (booting) {
@@ -535,6 +538,15 @@ export default function App({ transport: given }: AppProps) {
               <p className="banner" role="status">
                 {banner}
               </p>
+            ) : null}
+            {docked && activeId && noteCount > 0 ? (
+              <NotesHint
+                key={`${activeId}:${noteCount}`}
+                transport={transport}
+                conversationId={activeId}
+                count={noteCount}
+                onSessionEnded={sessionEnded}
+              />
             ) : null}
             <Composer
               docked={docked}

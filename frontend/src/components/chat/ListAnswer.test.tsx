@@ -6,8 +6,8 @@ import type { AnswerEnvelope } from "../../lib/types";
 import { AssistantMessage } from "./AssistantMessage";
 import { COPIED_MS } from "./ReplyTools";
 
-const MACOS = getFixture("initech-003", "macos_older_than_15").envelope;
-const LOW_DISK = getFixture("acme-001", "low_disk").envelope;
+const MACOS = { ...getFixture("initech-003", "macos_older_than_15").envelope, reply: "", explanation: null };
+const LOW_DISK = { ...getFixture("acme-001", "low_disk").envelope, reply: "", explanation: null };
 const QUESTION = "Which Macs need a macOS update?";
 
 function setup(envelope: AnswerEnvelope, extra: Partial<React.ComponentProps<typeof AssistantMessage>> = {}) {

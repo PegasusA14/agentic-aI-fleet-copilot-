@@ -16,9 +16,9 @@ import {
 } from "./answerTable";
 import { getFixture } from "./fixtures";
 
-const MACOS = getFixture("initech-003", "macos_older_than_15").envelope;
-const LOW_DISK = getFixture("acme-001", "low_disk").envelope;
-const COMPLIANCE = getFixture("acme-001", "compliance_failures").envelope;
+const MACOS = { ...getFixture("initech-003", "macos_older_than_15").envelope, reply: "", explanation: null };
+const LOW_DISK = { ...getFixture("acme-001", "low_disk").envelope, reply: "", explanation: null };
+const COMPLIANCE = { ...getFixture("acme-001", "compliance_failures").envelope, reply: "", explanation: null };
 const table = MACOS.table!;
 
 describe("sortChoices", () => {

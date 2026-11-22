@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
 import { getFixture } from "./fixtures";
 import { firstSentence, leadCount, replyOf } from "./reply";
+import type { AnswerEnvelope } from "./types";
 
-const PROPOSAL = getFixture("acme-001", "proposal").envelope;
-const LOW_DISK = getFixture("acme-001", "low_disk").envelope;
+/** The stored answers as they read when the reply model wrote nothing: code's words alone. */
+const unspoken = (envelope: AnswerEnvelope): AnswerEnvelope => ({ ...envelope, reply: "", explanation: null });
+const PROPOSAL = unspoken(getFixture("acme-001", "proposal").envelope);
+const LOW_DISK = unspoken(getFixture("acme-001", "low_disk").envelope);
 
 describe("replyOf", () => {
   it("leads a waiting proposal with what the copilot would do, written by code from the card", () => {

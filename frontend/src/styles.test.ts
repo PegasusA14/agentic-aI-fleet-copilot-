@@ -57,6 +57,20 @@ describe("the Neon-style dark world", () => {
     }
   });
 
+  it("sets the model's reply in ink at a reading measure, with no gradient and no weight above 500", () => {
+    const rule = css.match(/\.reply__p\s*\{[^}]*\}/)?.[0] ?? "";
+    expect(rule).toContain("color: var(--ink)");
+    expect(rule).toMatch(/line-height:\s*1\.[56]/);
+    expect(css.match(/\.reply\s*\{[^}]*\}/)?.[0]).toContain("max-width: 68ch");
+    expect(rule).not.toContain("var(--ink-2)");
+  });
+
+  it("keeps the notes popover a floating layer: its shadow is the float shadow and it grows from its corner", () => {
+    const panel = css.match(/\.notes__panel\s*\{[^}]*\}/)?.[0] ?? "";
+    expect(panel).toContain("box-shadow: var(--shadow-float)");
+    expect(panel).toContain("transform-origin: bottom left");
+  });
+
   it("marks a pending proposal with an amber hairline and the awaiting label in amber", () => {
     expect(css).toMatch(/\.proposal\[data-status="pending"\]\s*\{[^}]*border-color:\s*var\(--attention-line\)/);
     expect(css).toContain("--attention-line:");

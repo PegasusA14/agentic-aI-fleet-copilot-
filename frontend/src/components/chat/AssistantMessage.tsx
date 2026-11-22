@@ -9,6 +9,7 @@ import { leadCount, replyOf } from "../../lib/reply";
 import { refusalKind } from "../../lib/refusal";
 import type { AnswerEnvelope, EntityList, ProposalCard } from "../../lib/types";
 import { Count, CountedText } from "../Count";
+import { ReplyText } from "./ChatReply";
 import { ProposalView, type Decide } from "../ProposalView";
 import { StateMark } from "../StateMark";
 import { AnswerDisclosures, HOT_MS, type HotSource } from "./AnswerDisclosures";
@@ -205,13 +206,15 @@ export function AssistantMessage({
   /** An advice reply says each action in its claims and chips. A list answer may carry suggestions too, and keeps its table. */
   const isAdvice = suggestions.length > 0 && !table && !hasInsights;
   /** The reply carries the claims only when nothing else already says them: no table, no explanation, no chips that name each action. */
-  const claimsInReply = !hasTable && !explanation && !envelope.proposal && !isAdvice && envelope.claims.length > 0;
+  const spoken = reply.body.length > 0;
+  const claimsInReply = !hasTable && !explanation && !spoken && !envelope.proposal && !isAdvice && envelope.claims.length > 0;
   const lists = isAdvice || hasTable ? [] : envelope.entity_lists;
   /** A proposal's card owns its state, so the reply carries no second mark above it. */
   /** A refusal or a clarification is one bordered card that carries its own mark, words and chips. */
   const refusal = refusalKind(envelope);
   const carded = refusal !== null || Boolean(clarification);
-  const markShown = outcome !== "answer" && outcome !== "proposal";
+  const chat = outcome === "chat";
+  const markShown = outcome !== "answer" && outcome !== "proposal" && !chat;
   const repeated = Boolean(envelope.repeat_of) && !envelope.proposal && !expanded;
 
   const numbered = useMemo(() => numberEvidence(envelope), [envelope]);
@@ -251,7 +254,7 @@ export function AssistantMessage({
       followUps={followUps}
       busy={busy}
       onAsk={onAsk}
-      withReason={!explanation && !hasTable}
+      withReason={!explanation && !spoken && !hasTable}
       compact={hasTable}
     />
   );
@@ -269,7 +272,17 @@ export function AssistantMessage({
     >
       {repeated ? (
         <>
-          <RepeatCard asOf={envelope.scope_line?.as_of ?? envelope.scope.as_of} onJump={onJump} onShowAgain={() => setExpanded(true)} />
+          <RepeatCard asOf={envelope.scope_line?.as_of ?? envelope.scope.as_of} reply={envelope.reply} onJump={onJump} onShowAgain={() => setExpanded(true)} />
+          {nextSteps}
+        </>
+      ) : chat ? (
+        <>
+          {spoken ? (
+            <ReplyText paragraphs={reply.body} alone />
+          ) : (
+            <Lead text={envelope.headline} counted={false} withList={false} headline={false} />
+          )}
+          <AlternativeChips alternatives={envelope.alternatives ?? []} busy={busy} onAsk={onAsk} />
           {nextSteps}
         </>
       ) : (
@@ -296,6 +309,8 @@ export function AssistantMessage({
 
           {support && !carded ? <p className="msg__support">{support}</p> : null}
 
+          {carded ? null : <ReplyText paragraphs={reply.body} />}
+
           {claimsInReply ? <Claims claims={envelope.claims} /> : null}
 
           {hasInsights ? (
@@ -321,6 +336,7 @@ export function AssistantMessage({
                 numbered={numbered}
                 onSource={showSource}
                 scope={scope}
+                summary={reply.tableSummary}
                 reopened={reopened}
               />
               <AnswerDisclosures

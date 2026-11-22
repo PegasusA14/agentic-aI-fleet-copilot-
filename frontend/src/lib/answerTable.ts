@@ -230,7 +230,10 @@ function insightsAsText(envelope: AnswerEnvelope): string {
 
 /** What the Copy button puts on the clipboard: the headline, the supporting sentence, then the table as the person sees it. */
 export function copyText(envelope: AnswerEnvelope, rows?: Row[]): string {
-  const head = [envelope.headline, envelope.summary].map((s) => s?.trim()).filter(Boolean).join("\n");
+  const reply = envelope.reply?.trim();
+  // Small talk is its reply alone; any other answer opens with its headline, then the reply and the summary under it.
+  const lines = envelope.outcome === "chat" && reply ? [reply] : [envelope.headline, reply, envelope.summary];
+  const head = lines.map((s) => s?.trim()).filter(Boolean).join("\n");
   const body = envelope.insights.length > 0 ? insightsAsText(envelope) : envelope.table ? tableAsText(envelope.table, rows) : "";
   return [head, body].filter(Boolean).join("\n\n");
 }
