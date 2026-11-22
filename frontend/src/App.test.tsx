@@ -117,7 +117,8 @@ describe("the working thread", () => {
     const user = await signInAs("Acme");
     await ask(user, "Open a ticket for the first one");
     expect(await screen.findByText("Awaiting your approval")).toBeInTheDocument();
-    expect(screen.getByText("Here is the proposal. Nothing changes until you approve it.")).toBeInTheDocument();
+    expect(screen.getByText("I'd open a screen lock ticket for acme-macbook-2.")).toBeInTheDocument();
+    expect(screen.getByText(/Nothing is sent until you approve it\.$/)).toBeInTheDocument();
     const card = screen.getByRole("region", { name: "Proposed action" });
     await user.click(screen.getByRole("button", { name: "Approve" }));
     const dialog = await screen.findByRole("dialog");
@@ -143,8 +144,8 @@ describe("the working thread", () => {
     const chips = within(group).getAllByRole("button");
     const part = (chip: HTMLElement, name: string) => chip.querySelector(`.chip__${name}`)?.textContent;
     expect(chips.map((chip) => [part(chip, "label"), part(chip, "device")])).toEqual([
-      ["Order a storage upgrade (512 GiB → 1 TiB)", "acme-macbook-4"],
-      ["Order a storage upgrade (1 TiB → 2 TiB)", "acme-thinkpad-8"],
+      ["Order a storage upgrade (512 GiB → 1 TiB) for acme-macbook-4", undefined],
+      ["Order a storage upgrade (1 TiB → 2 TiB) for acme-thinkpad-8", undefined],
     ]);
     expect(part(chips[0], "reason")).toBe("10.2 GiB free of 512.0 GiB (2.0% free) in the latest reading.");
     // The advice is the chips; the claims behind them wait under Details.
@@ -156,7 +157,8 @@ describe("the working thread", () => {
     await user.click(chips[1]);
     expect(screen.getByRole("region", { name: "Question: Order a storage upgrade for acme-thinkpad-8" })).toBeInTheDocument();
     const card = await screen.findByRole("region", { name: "Proposed action" });
-    expect(card).toHaveTextContent("Order a storage upgrade for acme-thinkpad-8");
+    expect(card).toHaveTextContent("Create upgrade order");
+    expect(card).toHaveTextContent("acme-thinkpad-8");
     expect(card).toHaveTextContent("1 TiB → 2 TiB");
     expect(card).not.toHaveTextContent(/hardware/i);
     expect(chips[1]).toHaveAccessibleName(/\(asked\)/);
@@ -170,7 +172,7 @@ describe("the working thread", () => {
     await ask(user, "Open a ticket for the first one");
     await user.click(await screen.findByRole("button", { name: "Reject" }));
     const card = screen.getByRole("region", { name: "Proposed action" });
-    expect(await within(card).findByRole("status")).toHaveTextContent("Nothing was executed.");
+    expect(await within(card).findByRole("status")).toHaveTextContent("Nothing was changed. The rejection is logged.");
     expect(within(card).getByText("Rejected")).toBeInTheDocument();
   });
 });
@@ -378,13 +380,9 @@ describe("approvals", () => {
     expect(await screen.findByRole("heading", { name: "Approvals" })).toBeInTheDocument();
     expect(screen.queryByLabelText(/ask a question about your fleet/i)).not.toBeInTheDocument();
     const card = await screen.findByRole("region", { name: "Proposed action" });
-    await user.click(within(card).getByRole("button", { name: /evidence for this proposal/i }));
-    const drawer = await screen.findByRole("dialog");
-    expect(within(drawer).getByRole("list", { name: "Cited readings" })).toBeInTheDocument();
-    expect(within(drawer).queryByRole("tab", { name: /trace/i })).not.toBeInTheDocument();
-    await user.keyboard("{Escape}");
+    expect(within(card).getByRole("list", { name: "Evidence" })).toBeInTheDocument();
     await user.click(within(card).getByRole("button", { name: "Reject" }));
-    expect(await within(card).findByRole("status")).toHaveTextContent("Nothing was executed.");
+    expect(await within(card).findByRole("status")).toHaveTextContent("Nothing was changed. The rejection is logged.");
     expect(within(card).getByText("Rejected")).toBeInTheDocument();
     await user.click(screen.getByRole("link", { name: /back to chat/i }));
     expect(await screen.findByLabelText(/ask a question about your fleet/i)).toBeInTheDocument();
@@ -515,5 +513,70 @@ describe("outcome states", () => {
     );
     await userEvent.click(screen.getByRole("button", { name: "Details" }));
     expect(screen.getByText(/simulated example/i)).toBeInTheDocument();
+  });
+});
+
+describe("the proposal card in the app", () => {
+  beforeEach(() => {
+    window.location.hash = "";
+  });
+
+  it("puts Edit details in the composer, focused on a fine pointer, and creates nothing", async () => {
+    const user = await signInAs("Acme");
+    await ask(user, "Open a ticket for the first one");
+    const card = await screen.findByRole("region", { name: "Proposed action" });
+    setFinePointer();
+    await user.click(within(card).getByRole("button", { name: "Edit details" }));
+    const box = screen.getByLabelText(/ask a question about your fleet/i) as HTMLTextAreaElement;
+    expect(box.value).toBe("Change the proposal for acme-macbook-2: ");
+    expect(box).toHaveFocus();
+    // Nothing was sent: still one question, and the proposal is still waiting.
+    expect(screen.getAllByRole("region", { name: /^Question:/ })).toHaveLength(1);
+    expect(within(card).getByText("Awaiting your approval")).toBeInTheDocument();
+    expect(within(card).getByRole("button", { name: "Approve" })).toBeEnabled();
+  });
+
+  it("leaves the text in the composer without stealing focus where there is no fine pointer", async () => {
+    const user = await signInAs("Acme");
+    await ask(user, "Open a ticket for the first one");
+    const card = await screen.findByRole("region", { name: "Proposed action" });
+    window.matchMedia = ((query: string) =>
+      ({ matches: false, media: query, addEventListener() {}, removeEventListener() {} }) as unknown as MediaQueryList) as typeof window.matchMedia;
+    await user.click(within(card).getByRole("button", { name: "Edit details" }));
+    const box = screen.getByLabelText(/ask a question about your fleet/i) as HTMLTextAreaElement;
+    expect(box.value).toBe("Change the proposal for acme-macbook-2: ");
+    expect(box).not.toHaveFocus();
+  });
+
+  it("opens the Audit view filtered to the proposal from View in Audit", async () => {
+    const user = await signInAs("Acme");
+    await ask(user, "Open a ticket for the first one");
+    await user.click(await screen.findByRole("button", { name: "Reject" }));
+    const card = screen.getByRole("region", { name: "Proposed action" });
+    await user.click(within(card).getByRole("link", { name: "View in Audit" }));
+    expect(window.location.hash).toMatch(/^#\/audit\?proposal=/);
+    expect(await screen.findByRole("heading", { name: "Audit" })).toBeInTheDocument();
+    const id = decodeURIComponent(window.location.hash.split("proposal=")[1]);
+    expect(await screen.findByLabelText("Proposal id")).toHaveValue(id);
+    const list = await screen.findByRole("list", { name: "Audit entries" });
+    // Only that proposal's entries: proposed, then rejected; the device leads by hostname with its serial quiet.
+    expect(within(list).getAllByRole("listitem")).toHaveLength(2);
+    expect(within(list).getAllByText("acme-macbook-2").length).toBeGreaterThan(0);
+    expect(within(list).getAllByText("1LYSSFD074BB").length).toBeGreaterThan(0);
+  });
+
+  it("folds next steps beyond three behind '+N more', and opens them from the keyboard", async () => {
+    const user = userEvent.setup();
+    render(<App transport={fixtureTransport(0)} />);
+    await user.click(await screen.findByRole("button", { name: /Initech/ }));
+    await ask(user, "Which Macs run a macOS version older than 15?");
+    const group = await screen.findByRole("group", { name: "Suggested actions" });
+    expect(within(group).getAllByRole("button", { name: /^Open an? .* ticket for initech-/ })).toHaveLength(3);
+    const more = within(group).getByRole("button", { name: "+1 more" });
+    expect(more).toHaveAttribute("aria-expanded", "false");
+    more.focus();
+    await user.keyboard("{Enter}");
+    expect(within(group).getAllByRole("button", { name: /^Open an? .* ticket for initech-/ })).toHaveLength(4);
+    expect(within(group).getByRole("button", { name: "Show fewer" })).toHaveAttribute("aria-expanded", "true");
   });
 });

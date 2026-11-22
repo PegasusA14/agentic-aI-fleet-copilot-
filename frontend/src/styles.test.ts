@@ -45,4 +45,20 @@ describe("the Neon-style dark world", () => {
     const shadows = css.match(/box-shadow:[^;]+;/g) ?? [];
     expect(shadows.every((rule: string) => rule.includes("var(--shadow-float)"))).toBe(true);
   });
+
+  // Decision (mockup colours win): Approve is a filled green button, the one solid accent fill on a control. The rule
+  // that kept green to live data, pass and focus now has this single exception. Gradients stay banned (above).
+  it("fills the Approve button with the accent, and no other button", () => {
+    const rule = (selector: string) => css.match(new RegExp(`${selector.replace(/[.]/g, "\\.")}\\s*\\{[^}]*\\}`))?.[0] ?? "";
+    expect(rule(".btn--approve")).toContain("background: var(--accent)");
+    expect(rule(".btn--approve")).toContain("color: var(--on-accent)");
+    for (const other of [".btn", ".btn--primary", ".link-btn", ".chip", ".proposal__edit"]) {
+      expect(rule(other)).not.toMatch(/background:\s*var\(--accent\)/);
+    }
+  });
+
+  it("marks a pending proposal with an amber hairline and the awaiting label in amber", () => {
+    expect(css).toMatch(/\.proposal\[data-status="pending"\]\s*\{[^}]*border-color:\s*var\(--attention-line\)/);
+    expect(css).toContain("--attention-line:");
+  });
 });

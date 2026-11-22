@@ -6,7 +6,9 @@ import { AuditFilters, type FilterField, useAuditFilters } from "./AuditFilters"
 import { AuditList } from "./AuditList";
 
 interface AuditViewProps {
-  transport: Pick<Transport, "audit">;
+  transport: Pick<Transport, "audit"> & Partial<Pick<Transport, "proposals">>;
+  /** Filters the route asked for, such as one proposal's entries when arriving from a card's "View in Audit". */
+  initialFilters?: Record<string, string>;
   /** Opens the evidence drawer on an entry's references; `subject` says which entry they belong to. */
   onOpenEvidence: (refs: string[], subject: string) => void;
   onSessionEnded: () => void;
@@ -23,11 +25,24 @@ const FIELDS: FilterField[] = [
 ];
 
 /** This company's trail, newest first: every proposal, decision and refusal, in words. */
-export function AuditView({ transport, onOpenEvidence, onSessionEnded }: AuditViewProps) {
-  const filters = useAuditFilters();
+export function AuditView({ transport, initialFilters, onOpenEvidence, onSessionEnded }: AuditViewProps) {
+  const filters = useAuditFilters(initialFilters);
   const { applied } = filters;
   const [load, setLoad] = useState<Load>({ state: "loading" });
   const [attempt, setAttempt] = useState(0);
+  /** Hostnames for the devices this company's proposals name, so a row can lead with the name and keep the serial quiet. */
+  const [names, setNames] = useState<Record<string, string>>({});
+
+  useEffect(() => {
+    let alive = true;
+    transport.proposals?.().then(
+      (cards) => alive && setNames(Object.fromEntries(cards.map((card) => [card.target_device_id, card.target_label]))),
+      () => {},
+    );
+    return () => {
+      alive = false;
+    };
+  }, [transport]);
 
   useEffect(() => {
     let alive = true;
@@ -96,6 +111,7 @@ export function AuditView({ transport, onOpenEvidence, onSessionEnded }: AuditVi
       ) : (
         <AuditList
           entries={load.entries}
+          names={names}
           onFilterProposal={(id) => filters.choose("proposal_id", id)}
           onOpenRefs={onOpenEvidence}
         />

@@ -1,6 +1,7 @@
 import { ArrowUp, Lightbulb } from "lucide-react";
 import { type KeyboardEvent, useEffect, useId, useRef, useState } from "react";
 import { SUGGESTIONS } from "../lib/suggestions";
+import { finePointer } from "./chat/SuggestionChips";
 import { useMediaQuery } from "../lib/useMediaQuery";
 
 interface ComposerProps {
@@ -11,11 +12,13 @@ interface ComposerProps {
   error?: string | null;
   /** Put a refused question back in the box so it can be edited. Pass a new object each time. */
   restore?: { text: string } | null;
+  /** A request to finish, placed in the box without being sent. Pass a new object each time. */
+  draft?: { text: string } | null;
   /** Called when the person edits the text, so a stale error can be cleared. */
   onEdit?: () => void;
 }
 
-export function Composer({ docked, busy, onAsk, error = null, restore = null, onEdit }: ComposerProps) {
+export function Composer({ docked, busy, onAsk, error = null, restore = null, draft = null, onEdit }: ComposerProps) {
   const [value, setValue] = useState("");
   const [menuOpen, setMenuOpen] = useState(false);
   const input = useRef<HTMLTextAreaElement>(null);
@@ -38,6 +41,17 @@ export function Composer({ docked, busy, onAsk, error = null, restore = null, on
     setValue(restore.text);
     input.current?.focus();
   }, [restore]);
+
+  useEffect(() => {
+    if (!draft) return;
+    setValue(draft.text);
+    // Only where a keyboard is already physical: focusing on a touch screen would raise the keyboard over the card.
+    if (finePointer()) {
+      const el = input.current;
+      el?.focus();
+      el?.setSelectionRange(draft.text.length, draft.text.length);
+    }
+  }, [draft]);
 
   function submit() {
     if (!canSend) return;

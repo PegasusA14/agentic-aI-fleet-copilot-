@@ -32,6 +32,8 @@ interface AssistantMessageProps {
   /** The answer was stored in an earlier session: its proposal may have been decided since. */
   reopened?: boolean;
   onSessionEnded?: () => void;
+  /** "Edit details" on a proposal: puts a request in the composer for the person to finish. */
+  onEditDetails?: (text: string) => void;
   /** The question this reply answers; Retry asks it again. Without it there is no Retry. */
   question?: string;
   /** Brings the earlier turn this reply repeats into view. Absent when that turn is not in the thread. */
@@ -164,6 +166,7 @@ export function AssistantMessage({
   onDecided,
   reopened,
   onSessionEnded,
+  onEditDetails,
   onArrive,
   question,
   onJump,
@@ -269,7 +272,7 @@ export function AssistantMessage({
             // Only the composer's own headline is read for a count, never the model's words or a question.
             counted={reply.headline}
             withList={claimsInReply}
-            headline={reply.headline && outcome === "answer"}
+            headline={reply.emphatic && (outcome === "answer" || outcome === "proposal")}
           />
 
           {support ? <p className="msg__support">{support}</p> : null}
@@ -319,7 +322,8 @@ export function AssistantMessage({
           {envelope.proposal ? (
             <ProposalView
               proposal={envelope.proposal}
-              onOpenEvidence={onOpenEvidence}
+              evidence={envelope.evidence}
+              onEditDetails={onEditDetails}
               decide={decide}
               recheck={reopened}
               onSynced={(card) => setDecision(card.status)}

@@ -1,14 +1,18 @@
 import { describe, expect, it } from "vitest";
 import { getFixture } from "./fixtures";
-import { PROPOSAL_LEAD, firstSentence, leadCount, replyOf } from "./reply";
+import { firstSentence, leadCount, replyOf } from "./reply";
 
 const PROPOSAL = getFixture("acme-001", "proposal").envelope;
 const LOW_DISK = getFixture("acme-001", "low_disk").envelope;
 
 describe("replyOf", () => {
-  it("leads a waiting proposal with code-written words, not the server's longer headline", () => {
-    expect(replyOf(PROPOSAL).lead).toBe(PROPOSAL_LEAD);
-    expect(PROPOSAL_LEAD).toBe("Here is the proposal. Nothing changes until you approve it.");
+  it("leads a waiting proposal with what the copilot would do, written by code from the card", () => {
+    const reply = replyOf(PROPOSAL);
+    expect(reply.lead).toBe("I'd open a screen lock ticket for acme-macbook-2.");
+    expect(reply.support).toBe(
+      "Screen lock reports fail with medium severity at the latest reading (2026-06-12); the first failing reading in the last 30 days is 2026-05-22. Nothing is sent until you approve it.",
+    );
+    expect(reply).toMatchObject({ headline: false, emphatic: true });
   });
 
   it("leads a decided proposal with the decision", () => {
@@ -40,8 +44,7 @@ describe("replyOf", () => {
     expect(replyOf(echo).support).toBeNull();
   });
 
-  it("gives a clarification or a pending proposal no supporting sentence", () => {
-    expect(replyOf(PROPOSAL).support).toBeNull();
+  it("gives a decided proposal no supporting sentence", () => {
     expect(replyOf(PROPOSAL, "rejected").support).toBeNull();
   });
 });

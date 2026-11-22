@@ -70,8 +70,8 @@ describe("advice in replay mode", () => {
     expect(fixture.meta.note).toMatch(/offline/i);
     const actions = fixture.envelope.suggested_actions;
     expect(actions.map((a) => a.device_id)).toEqual(["MT7PJB7N5LRE", "8NM23J95R5I6"]);
-    expect(actions[0].label).toBe("Order a storage upgrade (512 GiB → 1 TiB)");
-    expect(actions[1].label).toBe("Order a storage upgrade (1 TiB → 2 TiB)");
+    expect(actions[0].label).toBe("Order a storage upgrade (512 GiB → 1 TiB) for acme-macbook-4");
+    expect(actions[1].label).toBe("Order a storage upgrade (1 TiB → 2 TiB) for acme-thinkpad-8");
     expect(actions[0].request).toBe("Order a storage upgrade for acme-macbook-4");
     for (const action of actions) expect(fixture.envelope.evidence.map((e) => e.ref)).toContain(action.refs[0]);
     expect(fixture.envelope.proposal).toBeNull();

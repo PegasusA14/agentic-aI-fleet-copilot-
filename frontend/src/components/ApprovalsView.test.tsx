@@ -34,11 +34,11 @@ function fake(list: ProposalCard[] = [ONE, TWO], overrides: Partial<Transport> =
   } as unknown as Transport;
 }
 
-function renderView(transport: Transport, extra: { onDecided?: () => void; onOpenEvidence?: (refs: string[], subject: string) => void; onSessionEnded?: () => void } = {}) {
+function renderView(transport: Transport, extra: { onDecided?: () => void; onEditDetails?: (text: string) => void; onSessionEnded?: () => void } = {}) {
   return render(
     <ApprovalsView
       transport={transport}
-      onOpenEvidence={extra.onOpenEvidence ?? (() => {})}
+      onEditDetails={extra.onEditDetails}
       onDecided={extra.onDecided ?? (() => {})}
       onSessionEnded={extra.onSessionEnded ?? (() => {})}
     />,
@@ -53,8 +53,10 @@ describe("the approvals view", () => {
     expect(transport.proposals).toHaveBeenCalledWith("pending");
     const cards = await screen.findAllByRole("region", { name: "Proposed action" });
     expect(cards).toHaveLength(2);
-    expect(within(cards[0]).getByText("Open a remediation ticket for acme-macbook-2")).toBeInTheDocument();
-    expect(within(cards[1]).getByText("Flag acme-laptop-9 for replacement")).toBeInTheDocument();
+    expect(within(cards[0]).getByText("Open remediation ticket")).toBeInTheDocument();
+    expect(within(cards[0]).getByText("acme-macbook-2")).toBeInTheDocument();
+    expect(within(cards[1]).getByText("Flag for replacement")).toBeInTheDocument();
+    expect(within(cards[1]).getByText("acme-laptop-9")).toBeInTheDocument();
     expect(screen.getByText("2 proposals awaiting your decision")).toBeInTheDocument();
   });
 
@@ -65,13 +67,14 @@ describe("the approvals view", () => {
     renderView(transport, { onDecided });
     const cards = await screen.findAllByRole("region", { name: "Proposed action" });
     await user.click(within(cards[1]).getByRole("button", { name: "Reject" }));
-    expect(await within(cards[1]).findByRole("status")).toHaveTextContent("Nothing was executed.");
+    expect(await within(cards[1]).findByRole("status")).toHaveTextContent("Nothing was changed. The rejection is logged.");
     expect(screen.getByText("1 proposal awaiting your decision")).toBeInTheDocument();
     expect(onDecided).toHaveBeenCalledTimes(1);
 
     await user.click(within(cards[0]).getByRole("button", { name: "Approve" }));
     await user.click(within(await screen.findByRole("dialog")).getByRole("button", { name: "Approve and execute (simulated)" }));
-    expect(await within(cards[0]).findByText("Executed (simulated)")).toBeInTheDocument();
+    expect(await within(cards[0]).findByText("Remediation ticket approved")).toBeInTheDocument();
+    expect(within(cards[0]).getByText("Executed (simulated)")).toBeInTheDocument();
     for (const card of cards) {
       expect(within(card).queryByRole("button", { name: "Approve" })).not.toBeInTheDocument();
       expect(within(card).queryByRole("button", { name: "Reject" })).not.toBeInTheDocument();
@@ -85,13 +88,31 @@ describe("the approvals view", () => {
     expect(await screen.findByText(/nothing is waiting for your decision/i)).toBeInTheDocument();
   });
 
-  it("opens the evidence for a card's own references", async () => {
-    const user = userEvent.setup();
-    const onOpenEvidence = vi.fn();
-    renderView(fake(), { onOpenEvidence });
+  it("shows each card's own evidence inline, numbered, with no drawer", async () => {
+    renderView(fake());
     const cards = await screen.findAllByRole("region", { name: "Proposed action" });
-    await user.click(within(cards[0]).getByRole("button", { name: /evidence for this proposal/i }));
-    expect(onOpenEvidence).toHaveBeenCalledWith(ONE.evidence_refs, "Open a remediation ticket for acme-macbook-2");
+    const rows = within(cards[0]).getAllByRole("listitem");
+    expect(rows).toHaveLength(ONE.evidence_refs.length);
+    expect(rows[0]).toHaveTextContent("1");
+    expect(within(cards[0]).queryByRole("button", { name: /evidence for this proposal/i })).not.toBeInTheDocument();
+  });
+
+  it("fills a card's evidence with the stored readings when the transport can give them", async () => {
+    const evidence = vi.fn(async (ref: string) => ({ ref, collected_at: "", value: `reading for ${ref.slice(-12)}` }));
+    renderView(fake([ONE], { evidence } as Partial<Transport>));
+    const card = await screen.findByRole("region", { name: "Proposed action" });
+    const rows = await within(card).findAllByText(/^reading for /);
+    expect(rows).toHaveLength(ONE.evidence_refs.length);
+    expect(evidence).toHaveBeenCalledTimes(new Set(ONE.evidence_refs).size);
+  });
+
+  it("hands Edit details to the app, with the request for that device", async () => {
+    const user = userEvent.setup();
+    const onEditDetails = vi.fn();
+    renderView(fake(), { onEditDetails });
+    const cards = await screen.findAllByRole("region", { name: "Proposed action" });
+    await user.click(within(cards[1]).getByRole("button", { name: "Edit details" }));
+    expect(onEditDetails).toHaveBeenCalledWith("Change the proposal for acme-laptop-9: ");
   });
 
   it("offers a retry when the list cannot be loaded", async () => {

@@ -1,9 +1,6 @@
 /** The words that lead a reply, written once so the message and the screen-reader announcement agree. */
-import { decidedSheet } from "./proposals";
+import { decidedSheet, proposalLead } from "./proposals";
 import type { AnswerEnvelope, ProposalCard } from "./types";
-
-/** Code-written: the server's proposal headline also says "nothing has changed", but in a longer sentence. */
-export const PROPOSAL_LEAD = "Here is the proposal. Nothing changes until you approve it.";
 
 /** The first sentence of a reply, for the announcement a screen reader makes when it lands. */
 export function firstSentence(text: string): string {
@@ -20,6 +17,8 @@ export interface Reply {
   explanation: string | null;
   /** The lead is the composer's own headline, so it may carry a ticking count. */
   headline: boolean;
+  /** The lead is set as the reply's bold opening line: an answer's headline, or what the copilot would do. */
+  emphatic: boolean;
 }
 
 /**
@@ -30,15 +29,19 @@ export function replyOf(envelope: AnswerEnvelope, status?: ProposalCard["status"
   const proposal = envelope.proposal;
   const now = status ?? proposal?.status;
   const decided = proposal && now ? decidedSheet(now, proposal) : null;
-  const words = (lead: string): Reply => ({ lead, support: null, explanation: null, headline: false });
-  if (decided) return words(decided.headline);
+  const words = (lead: string): Reply => ({ lead, support: null, explanation: null, headline: false, emphatic: false });
+  if (decided) return { ...words(decided.headline), emphatic: true };
   if (envelope.clarification) return words(envelope.clarification.question);
-  if (proposal && now === "pending") return words(PROPOSAL_LEAD);
+  if (proposal && now === "pending") {
+    // Written by code from the card: what would be done, the first sentence of why, and that nothing is sent yet.
+    const opening = proposalLead(proposal);
+    return { lead: opening.lead, support: opening.support, explanation: null, headline: false, emphatic: true };
+  }
   const explanation = envelope.explanation?.trim() || null;
   const summary = envelope.summary?.trim() || null;
   const sentence = explanation ? firstSentence(explanation) : null;
   const support = summary ?? (sentence && sentence.toLowerCase() !== envelope.headline.trim().toLowerCase() ? sentence : null);
-  return { lead: envelope.headline, support, explanation, headline: true };
+  return { lead: envelope.headline, support, explanation, headline: true, emphatic: true };
 }
 
 /** A headline that opens with a count the composer wrote: "2 of 10 …", "4 of your 5 …" or "3 actions …". */

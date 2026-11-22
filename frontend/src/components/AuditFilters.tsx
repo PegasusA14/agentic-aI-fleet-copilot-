@@ -19,9 +19,9 @@ function trimmed(values: Values): Values {
 }
 
 /** What is typed (`draft`) is applied on submit (`applied`); both hold only the named fields. */
-export function useAuditFilters() {
-  const [draft, setDraft] = useState<Values>({});
-  const [applied, setApplied] = useState<Values>({});
+export function useAuditFilters(initial: Values = {}) {
+  const [draft, setDraft] = useState<Values>(initial);
+  const [applied, setApplied] = useState<Values>(initial);
   const change = useCallback((name: string, value: string) => setDraft((prev) => ({ ...prev, [name]: value })), []);
   const apply = useCallback(() => {
     setDraft((prev) => trimmed(prev));

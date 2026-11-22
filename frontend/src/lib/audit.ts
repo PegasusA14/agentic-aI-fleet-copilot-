@@ -67,3 +67,8 @@ export function actionWords(action: string | null): string | null {
 export function eventStyle(event: string): { word: string; tone: AuditTone; mark: AuditMarkName } {
   return AUDIT_EVENT[event as AuditEventName] ?? UNKNOWN_EVENT;
 }
+
+/** Where Audit shows one proposal's entries: the hash route the Audit view reads its filter from. */
+export function auditLink(proposalId: string): string {
+  return `#/audit?proposal=${encodeURIComponent(proposalId)}`;
+}

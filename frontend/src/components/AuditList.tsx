@@ -19,6 +19,8 @@ function EventMark({ event }: { event: string }) {
 interface AuditListProps {
   /** Newest first, as the server returns them. */
   entries: AuditEntry[];
+  /** Hostnames by device id: a row that has one leads with it, and the serial follows quietly. */
+  names?: Record<string, string>;
   /** The operator's list spans tenants, so each row also says whose it is and who acted. */
   showWho?: boolean;
   /** When given, a proposal id is a button that narrows the list to that proposal. */
@@ -28,7 +30,7 @@ interface AuditListProps {
 }
 
 /** One audit trail, used by the tenant's Audit view and the operator console alike. Codes become words here. */
-export function AuditList({ entries, showWho = false, onFilterProposal, onOpenRefs }: AuditListProps) {
+export function AuditList({ entries, names, showWho = false, onFilterProposal, onOpenRefs }: AuditListProps) {
   return (
     <ol className="audit" aria-label="Audit entries" data-who={showWho}>
       {entries.map((entry) => {
@@ -48,7 +50,14 @@ export function AuditList({ entries, showWho = false, onFilterProposal, onOpenRe
             </div>
             <div className="audit__subject">
               {action ? <span className="audit__action">{action}</span> : null}
-              {entry.target_device_id ? <span className="mono">{entry.target_device_id}</span> : null}
+              {entry.target_device_id && names?.[entry.target_device_id] ? (
+                <>
+                  <span className="audit__host">{names[entry.target_device_id]}</span>
+                  <span className="audit__serial mono">{entry.target_device_id}</span>
+                </>
+              ) : entry.target_device_id ? (
+                <span className="mono">{entry.target_device_id}</span>
+              ) : null}
             </div>
             {showWho ? (
               <div className="audit__who">

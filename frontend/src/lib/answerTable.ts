@@ -1,5 +1,5 @@
 /** Everything the list answer derives from the envelope with no rendering: sort choices, numbered sources, scope line, copy text. */
-import type { AnswerEnvelope } from "../types/AnswerEnvelope";
+import type { AnswerEnvelope, EvidenceItem } from "../types/AnswerEnvelope";
 import type { AnswerTable, Column, Row, ScopeLine } from "../types/AnswerEnvelope";
 import { formatAsOf, parseRef, plural } from "./format";
 
@@ -128,6 +128,21 @@ export function numberEvidence(envelope: AnswerEnvelope): NumberedEvidence[] {
   for (const device of envelope.coverage?.excluded_devices ?? []) names.set(device.device_id, device.label);
 
   const latest = /latest snapshot/i.test(envelope.scope_line?.basis ?? "");
+  return describeRefs(refs, byRef, names, latest);
+}
+
+/** "compliance[screen_lock]" -> "Compliance: screen lock", for a reading whose value this view does not hold. */
+export function pathWords(path: string): string {
+  const spaced = path.replace(/\[([^\]]*)\]/g, ": $1").replaceAll("_", " ");
+  return spaced.charAt(0).toUpperCase() + spaced.slice(1);
+}
+
+function describeRefs(
+  refs: string[],
+  byRef: Map<string, EvidenceItem>,
+  names: Map<string, string>,
+  latest: boolean,
+): NumberedEvidence[] {
   return refs.map((ref, index) => {
     const item = byRef.get(ref);
     const parts = labelParts(item?.label ?? "");
@@ -138,12 +153,33 @@ export function numberEvidence(envelope: AnswerEnvelope): NumberedEvidence[] {
       n: index + 1,
       ref,
       hostname,
-      field: parts.length > 1 ? parts[0] : (item?.label ?? ""),
-      value: item?.value ?? "",
+      field: item ? (parts.length > 1 ? parts[0] : item.label) : "Reading",
+      value: item?.value ?? (parsed ? pathWords(parsed.path) : ""),
       when: latest ? "latest snapshot" : (collected ?? ""),
       collected,
     };
   });
+}
+
+/**
+ * The given readings numbered in the order given, for a card that cites its own references. A reference this view
+ * holds no value for still reads as the reading it names and when it was taken.
+ */
+export function numberRefs(refs: string[], evidence: readonly EvidenceItem[] = []): NumberedEvidence[] {
+  return describeRefs([...new Set(refs)], new Map(evidence.map((item) => [item.ref, item])), new Map(), false);
+}
+
+/**
+ * The value as it follows its label in a row. When the value opens with a product word the label already names
+ * ("OS version" and "macOS 13.6") and a version follows, the repeated word is dropped: "OS version 13.6".
+ */
+export function readingValue(field: string, value: string): string {
+  const match = /^(\S+)\s+(\d.*)$/.exec(value.trim());
+  if (!match) return value;
+  const word = match[1].toLowerCase();
+  const names = field.toLowerCase().split(/\s+/);
+  const repeated = names.some((name) => name.length >= 2 && (word === name || (word.length > name.length && word.endsWith(name))));
+  return repeated ? match[2] : value;
 }
 
 /** The Source number for a row: where its first cited reading sits in the numbered list. */

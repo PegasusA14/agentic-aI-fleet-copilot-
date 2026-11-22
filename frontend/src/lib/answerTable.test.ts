@@ -4,6 +4,8 @@ import {
   countPill,
   notesFor,
   numberEvidence,
+  numberRefs,
+  readingValue,
   rowDelay,
   scopeLineText,
   sortChoices,
@@ -185,5 +187,39 @@ describe("notesFor", () => {
   it("keeps every note when there is no table, and other notes beside a table", () => {
     expect(notesFor({ ...MACOS, table: null })).toEqual(MACOS.notes);
     expect(notesFor({ ...MACOS, notes: [...MACOS.notes, "Readings are 2 days old."] })).toEqual(["Readings are 2 days old."]);
+  });
+});
+
+describe("readingValue", () => {
+  it("does not repeat the label's own product word in front of a version", () => {
+    expect(readingValue("OS version", "macOS 13.6")).toBe("13.6");
+    expect(readingValue("OS version", "macOS 14.5 (23F79)")).toBe("14.5 (23F79)");
+    expect(readingValue("OS", "macOS 13.6")).toBe("13.6");
+  });
+
+  it("leaves a value alone when its first word is not already in the label, or no version follows", () => {
+    expect(readingValue("OS version", "Windows 11")).toBe("Windows 11");
+    expect(readingValue("Browser", "Chrome 126")).toBe("Chrome 126");
+    expect(readingValue("OS version", "Ubuntu")).toBe("Ubuntu");
+    expect(readingValue("Free disk", "10.2 GiB free of 512.0 GiB")).toBe("10.2 GiB free of 512.0 GiB");
+    expect(readingValue("Compliance", "screen_lock: fail (medium severity)")).toBe("screen_lock: fail (medium severity)");
+  });
+});
+
+describe("numberRefs", () => {
+  it("numbers the given references in order, once each, with the reading's value and time", () => {
+    const [a, b] = LOW_DISK.evidence;
+    const rows = numberRefs([b.ref, a.ref, b.ref], LOW_DISK.evidence);
+    expect(rows.map((r) => [r.n, r.ref])).toEqual([
+      [1, b.ref],
+      [2, a.ref],
+    ]);
+    expect(rows[0].value).toBe(b.value);
+    expect(rows[0].when).toMatch(/^\d{4}-\d{2}-\d{2}/);
+  });
+
+  it("still reads a reference with no stored value as the reading it names", () => {
+    const [row] = numberRefs(["acme-001/DEV1@2026-06-12T09:54:00Z#compliance[screen_lock]"]);
+    expect(row).toMatchObject({ n: 1, field: "Reading", value: "Compliance: screen lock" });
   });
 });

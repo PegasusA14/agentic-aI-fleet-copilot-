@@ -7,6 +7,8 @@ import type { AnswerEnvelope, EntityList, ProposalCard } from "../../lib/types";
 import type { Decide } from "../ProposalView";
 import { setReducedMotion } from "../../test/motion";
 import { AssistantMessage } from "./AssistantMessage";
+import { SuggestionChips } from "./SuggestionChips";
+import type { SuggestedAction } from "../../types/AnswerEnvelope";
 
 const envelopeOf = (scenario: string): AnswerEnvelope => getFixture("acme-001", scenario).envelope;
 /** A list answer as the composer writes it today: a table, a scope line, disclosures. */
@@ -441,7 +443,8 @@ describe("a proposal in the thread", () => {
 
   it("reads as waiting while nobody has decided, with one mark and one lead", () => {
     proposal("executed");
-    expect(screen.getByText("Here is the proposal. Nothing changes until you approve it.")).toBeInTheDocument();
+    expect(screen.getByText("I'd open a screen lock ticket for acme-macbook-2.")).toBeInTheDocument();
+    expect(screen.getByText(/Nothing is sent until you approve it\.$/)).toBeInTheDocument();
     expect(marks()).toHaveLength(1);
     expect(cardMark()).toHaveTextContent("Awaiting your approval");
     expect(document.querySelector(".msg__state")).toBeNull();
@@ -553,5 +556,47 @@ describe("a reply's motion and ticking numbers", () => {
     const panel = document.getElementById(toggle.getAttribute("aria-controls") as string) as HTMLElement;
     expect(panel).toHaveAttribute("inert");
     await waitFor(() => expect(screen.queryByText("Evaluated")).not.toBeInTheDocument(), { timeout: 2000 });
+  });
+});
+
+
+describe("next-step chips", () => {
+  const action = (over: Partial<SuggestedAction>): SuggestedAction => ({
+    action_type: "remediation_ticket",
+    device_id: "D1",
+    target_label: "initech-macbook-2",
+    label: "Open an OS update ticket for initech-macbook-2",
+    reason: "initech-macbook-2: os_up_to_date reports fail.",
+    refs: ["r1"],
+    request: "Open a remediation ticket for the OS update check on initech-macbook-2",
+    ...over,
+  });
+
+  it("keeps two tickets for one device as two chips, each saying which check, with the host named once", () => {
+    const actions = [action({}), action({ label: "Open a screen lock ticket for initech-macbook-2" })];
+    render(<SuggestionChips actions={actions} busy={false} onAsk={() => {}} />);
+    const chips = screen.getAllByRole("button");
+    expect(chips.map((chip) => chip.querySelector(".chip__label")?.textContent)).toEqual([
+      "Open an OS update ticket for initech-macbook-2",
+      "Open a screen lock ticket for initech-macbook-2",
+    ]);
+    expect(document.querySelector(".chip__device")).toBeNull();
+  });
+
+  it("shows three chips and folds the rest behind '+N more' that expands and collapses", async () => {
+    const user = userEvent.setup();
+    const actions = [1, 2, 3, 4, 5].map((n) => action({ device_id: `D${n}`, target_label: `host-${n}`, label: `Flag host-${n} for replacement` }));
+    render(<SuggestionChips actions={actions} busy={false} onAsk={() => {}} />);
+    expect(screen.getAllByRole("button", { name: /^Flag host-/ })).toHaveLength(3);
+    await user.click(screen.getByRole("button", { name: "+2 more" }));
+    expect(screen.getAllByRole("button", { name: /^Flag host-/ })).toHaveLength(5);
+    await user.click(screen.getByRole("button", { name: "Show fewer" }));
+    expect(screen.getAllByRole("button", { name: /^Flag host-/ })).toHaveLength(3);
+  });
+
+  it("shows no '+N more' for three or fewer", () => {
+    const actions = [1, 2, 3].map((n) => action({ device_id: `D${n}`, target_label: `host-${n}`, label: `Flag host-${n} for replacement` }));
+    render(<SuggestionChips actions={actions} busy={false} onAsk={() => {}} />);
+    expect(screen.queryByRole("button", { name: /more/ })).not.toBeInTheDocument();
   });
 });

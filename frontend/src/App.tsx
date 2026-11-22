@@ -22,6 +22,14 @@ const DOCK = { duration: 0.9, ease: [0.16, 1, 0.3, 1] as const };
 const OBSERVE_HASH = "#/observe";
 const APPROVALS_HASH = "#/approvals";
 const AUDIT_HASH = "#/audit";
+/** Audit may carry a filter in its route: `#/audit?proposal=<id>` shows one proposal's entries. */
+const isAuditRoute = (hash: string) => hash === AUDIT_HASH || hash.startsWith(`${AUDIT_HASH}?`);
+
+/** The filter an audit route names, in the shape the Audit view applies. */
+function auditFiltersFrom(hash: string): Record<string, string> {
+  const id = new URLSearchParams(hash.split("?")[1] ?? "").get("proposal");
+  return id ? { proposal_id: id } : {};
+}
 const SESSION_ENDED = "Your session ended. Sign in again.";
 /** The server's own limit and words for a question it would refuse; checked here so the thread only docks for one that will be sent. */
 const MAX_QUESTION_CHARS = 2000;
@@ -56,7 +64,8 @@ function fixtureNote(envelope: AnswerEnvelope): string | undefined {
 
 /** Signing out leaves no view behind: a route hash from this session must not carry to the next one. */
 function clearRouteHash() {
-  if ([OBSERVE_HASH, APPROVALS_HASH, AUDIT_HASH].includes(window.location.hash)) {
+  const hash = window.location.hash;
+  if ([OBSERVE_HASH, APPROVALS_HASH].includes(hash) || isAuditRoute(hash)) {
     window.history.replaceState(null, "", window.location.pathname + window.location.search);
   }
 }
@@ -93,6 +102,8 @@ export default function App({ transport: given }: AppProps) {
   const [asOf, setAsOf] = useState<string | null>(transport.mode === "fixtures" ? datasetAsOf() : null);
   const [composerError, setComposerError] = useState<string | null>(null);
   const [restore, setRestore] = useState<{ text: string } | null>(null);
+  /** A request "Edit details" left for the person to finish; the composer takes it without sending it. */
+  const [draft, setDraft] = useState<{ text: string } | null>(null);
   const [banner, setBanner] = useState<string | null>(null);
   /** Bumped whenever the conversation is thrown away, so the drawer drops what it fetched. */
   const [generation, setGeneration] = useState(0);
@@ -293,10 +304,19 @@ export default function App({ transport: given }: AppProps) {
   );
 
   const goToChat = useCallback(() => {
-    if (window.location.hash === APPROVALS_HASH || window.location.hash === AUDIT_HASH) {
+    if (window.location.hash === APPROVALS_HASH || isAuditRoute(window.location.hash)) {
       window.location.hash = CHAT_HASH;
     }
   }, []);
+
+  /** "Edit details" on a proposal: the request goes into the composer (in the chat) and nothing is created. */
+  const editDetails = useCallback(
+    (text: string) => {
+      goToChat();
+      setDraft({ text });
+    },
+    [goToChat],
+  );
 
   const newChat = useCallback(() => {
     resetConversation();
@@ -380,7 +400,7 @@ export default function App({ transport: given }: AppProps) {
     return drawer.refs.map((ref) => readingFor(ref, known));
   }, [turns, drawer]);
   const onApprovals = hash === APPROVALS_HASH;
-  const onAudit = hash === AUDIT_HASH;
+  const onAudit = isAuditRoute(hash);
   const openProposalEvidence = useCallback(
     (refs: string[], subject: string) => setDrawer({ turnId: "", tab: "evidence", refs, proposal: { subject } }),
     [],
@@ -476,14 +496,20 @@ export default function App({ transport: given }: AppProps) {
           <main className="stage" data-view="approvals">
             <ApprovalsView
               transport={transport}
-              onOpenEvidence={openProposalEvidence}
+              onEditDetails={editDetails}
               onDecided={refreshPending}
               onSessionEnded={sessionEnded}
             />
           </main>
         ) : onAudit ? (
           <main className="stage" data-view="approvals">
-            <AuditView transport={transport} onOpenEvidence={openProposalEvidence} onSessionEnded={sessionEnded} />
+            <AuditView
+              key={hash}
+              transport={transport}
+              initialFilters={auditFiltersFrom(hash)}
+              onOpenEvidence={openProposalEvidence}
+              onSessionEnded={sessionEnded}
+            />
           </main>
         ) : (
         <main className="stage" data-view={docked ? "thread" : "home"}>
@@ -495,6 +521,7 @@ export default function App({ transport: given }: AppProps) {
                 decide={transport}
                 onDecided={refreshPending}
                 onSessionEnded={sessionEnded}
+                onEditDetails={editDetails}
                 onOpenEvidence={(turn, refs) => setDrawer({ turnId: turn.id, tab: "evidence", refs: refs ?? [] })}
                 onOpenTrace={(turn) => setDrawer({ turnId: turn.id, tab: "trace", refs: [] })}
               />
@@ -514,6 +541,7 @@ export default function App({ transport: given }: AppProps) {
               onAsk={ask}
               error={composerError}
               restore={restore}
+              draft={draft}
               onEdit={() => setComposerError(null)}
             />
           </motion.div>

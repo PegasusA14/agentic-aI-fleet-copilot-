@@ -1,18 +1,19 @@
 import { ArrowLeft } from "lucide-react";
 import { motion } from "motion/react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { ApiError, UNREACHABLE } from "../lib/api";
+import { pathWords } from "../lib/answerTable";
+import { parseRef } from "../lib/format";
 import { GLIDE, usePrefersReducedMotion } from "../lib/motion";
-import { actionSentence } from "../lib/proposals";
 import type { Transport } from "../lib/transport";
-import type { ProposalCard } from "../lib/types";
+import type { EvidenceItem, ProposalCard } from "../lib/types";
 import { Count, CountedText } from "./Count";
 import { ProposalView } from "./ProposalView";
 
 interface ApprovalsViewProps {
   transport: Transport;
-  /** Opens the evidence drawer on a proposal's own references; `subject` says which proposal they belong to. */
-  onOpenEvidence: (refs: string[], subject: string) => void;
+  /** "Edit details" on a card: takes the request to the composer in the chat. */
+  onEditDetails?: (text: string) => void;
   /** A decision reached the server: the pending count in the navigation is stale. */
   onDecided: () => void;
   onSessionEnded: () => void;
@@ -39,12 +40,32 @@ function WaitingCount({ n }: { n: number }) {
 }
 
 /** Everything in this company waiting for a person: the same card as in the thread, decided in place. */
-export function ApprovalsView({ transport, onOpenEvidence, onDecided, onSessionEnded }: ApprovalsViewProps) {
+export function ApprovalsView({ transport, onEditDetails, onDecided, onSessionEnded }: ApprovalsViewProps) {
   const [load, setLoad] = useState<Load>({ state: "loading" });
   /** Status of each card as decisions came back; the list itself is only fetched once per visit. */
   const [settled, setSettled] = useState<Record<string, ProposalCard["status"]>>({});
   const [attempt, setAttempt] = useState(0);
   const reduce = usePrefersReducedMotion();
+  /** The readings behind the listed cards, looked up once each so a card here shows what an inline one shows. */
+  const [readings, setReadings] = useState<Record<string, EvidenceItem>>({});
+  const asked = useRef(new Set<string>());
+
+  useEffect(() => {
+    if (load.state !== "ready" || typeof transport.evidence !== "function") return;
+    for (const ref of new Set(load.cards.flatMap((card) => card.evidence_refs))) {
+      if (asked.current.has(ref)) continue;
+      asked.current.add(ref);
+      transport.evidence(ref).then(
+        (got) => {
+          // A reading the server returns as a record is left to the card's own words for the reading it names.
+          if (typeof got.value !== "string") return;
+          const name = pathWords(parseRef(ref)?.path ?? "Reading");
+          setReadings((prev) => ({ ...prev, [ref]: { ref, label: name, value: got.value as string } }));
+        },
+        () => {},
+      );
+    }
+  }, [load, transport]);
 
   useEffect(() => {
     let alive = true;
@@ -115,8 +136,9 @@ export function ApprovalsView({ transport, onOpenEvidence, onDecided, onSessionE
               <motion.li key={card.proposal_id} layout={reduce ? false : "position"} transition={GLIDE}>
                 <ProposalView
                   proposal={card}
+                  evidence={card.evidence_refs.flatMap((ref) => (readings[ref] ? [readings[ref]] : []))}
                   decide={transport}
-                  onOpenEvidence={(refs) => onOpenEvidence(refs, actionSentence(card))}
+                  onEditDetails={onEditDetails}
                   onDecided={decided}
                   onSessionEnded={onSessionEnded}
                 />

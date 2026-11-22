@@ -2,7 +2,7 @@ import { ListTree } from "lucide-react";
 import { useEffect, useRef } from "react";
 import { plural } from "../../lib/format";
 import { usePrefersReducedMotion } from "../../lib/motion";
-import type { NumberedEvidence } from "../../lib/answerTable";
+import { readingValue, type NumberedEvidence } from "../../lib/answerTable";
 import type { AnswerEnvelope } from "../../lib/types";
 import { Disclosure } from "./Disclosure";
 
@@ -36,7 +36,7 @@ function EvidenceRows({ items, hot, rowId }: { items: NumberedEvidence[]; hot: H
           <span className="srcchip srcchip--static">{item.n}</span>
           <span className="evlist__host">{item.hostname}</span>
           <span className="evlist__what">
-            {item.field} {item.value}
+            {item.field} {readingValue(item.field, item.value)}
           </span>
           {item.when ? (
             <span className="evlist__when" title={item.collected ? `Collected ${item.collected}` : undefined}>

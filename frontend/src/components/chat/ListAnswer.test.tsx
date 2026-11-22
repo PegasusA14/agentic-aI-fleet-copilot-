@@ -87,7 +87,7 @@ describe("the disclosures", () => {
     expect(rows).toHaveLength(4);
     expect(rows[0]).toHaveTextContent("1");
     expect(rows[0]).toHaveTextContent("initech-macbook-2");
-    expect(rows[0]).toHaveTextContent("OS version macOS 13.6");
+    expect(rows[0]).toHaveTextContent("OS version 13.6");
     expect(rows[0]).toHaveTextContent("latest snapshot");
     expect(rows[3]).toHaveTextContent("initech-mac-4");
     expect(document.body.textContent).not.toMatch(/initech-003\/[A-Z0-9]+@/);

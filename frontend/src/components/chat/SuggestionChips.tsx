@@ -1,6 +1,6 @@
 import { Check, Shield } from "lucide-react";
 import { motion } from "motion/react";
-import { useState } from "react";
+import { useId, useState } from "react";
 import { GLIDE, usePrefersReducedMotion } from "../../lib/motion";
 import type { Alternative, SuggestedAction } from "../../types/AnswerEnvelope";
 
@@ -8,8 +8,12 @@ import type { Alternative, SuggestedAction } from "../../types/AnswerEnvelope";
  * After a pick the composer takes focus, so a disabled chip does not drop focus onto the page. Only where a keyboard is
  * already physical: on a touch screen, focusing the input would raise the on-screen keyboard over the answer.
  */
+export function finePointer(): boolean {
+  return typeof window.matchMedia === "function" && window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+}
+
 export function focusComposer() {
-  if (typeof window.matchMedia !== "function" || !window.matchMedia("(hover: hover) and (pointer: fine)").matches) return;
+  if (!finePointer()) return;
   document.getElementById("ask-input")?.focus();
 }
 
@@ -21,23 +25,44 @@ interface SuggestionChipsProps {
   onAsk: (request: string) => void;
   /** Say why under each action. Left off when the reply's own explanation already does. */
   withReason?: boolean;
-  /** Under a list answer's Next steps: the first chip leads in green, and the device is named only if the label does not. */
+  /** Under a list answer's Next steps: the first chip leads in green. */
   compact?: boolean;
 }
 
-const keyOf = (action: SuggestedAction) => `${action.action_type}:${action.device_id}`;
+const keyOf = (action: SuggestedAction) => `${action.action_type}:${action.device_id}:${action.label}`;
+
+/** The chip label, with the hostname kept whole: a name that wraps at its hyphen reads as two. */
+function LabelText({ action }: { action: SuggestedAction }) {
+  const at = action.label.toLowerCase().indexOf(action.target_label.toLowerCase());
+  if (at < 0 || !action.target_label) return <span>{action.label}</span>;
+  const end = at + action.target_label.length;
+  return (
+    <span>
+      {action.label.slice(0, at)}
+      <span className="nowrap">{action.label.slice(at, end)}</span>
+      {action.label.slice(end)}
+    </span>
+  );
+}
+
+/** Action chips shown before the rest fold behind "+N more". Nothing is dropped: every approvable action stays one press away. */
+export const CHIP_LIMIT = 3;
 
 /** Every suggested action is advice that becomes a proposal, and a proposal waits for a person: each chip says so. */
 export function SuggestionChips({ actions, busy, onAsk, withReason = false, compact = false }: SuggestionChipsProps) {
   /** The suggestions already asked for, so a person can see where they have been. They stay reachable. */
   const reduce = usePrefersReducedMotion();
   const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
+  const [expanded, setExpanded] = useState(false);
+  const moreId = useId();
   if (actions.length === 0) return null;
+  const folded = actions.length > CHIP_LIMIT;
+  const visible = folded && !expanded ? actions.slice(0, CHIP_LIMIT) : actions;
   return (
-    <div className="chips" role="group" aria-label="Suggested actions">
-      {actions.map((action, index) => {
+    <div className="chips" role="group" aria-label="Suggested actions" id={moreId}>
+      {visible.map((action, index) => {
         const used = picked.has(keyOf(action));
-        const named = compact && action.label.toLowerCase().includes(action.target_label.toLowerCase());
+        const named = action.label.toLowerCase().includes(action.target_label.toLowerCase());
         return (
           <motion.button
             key={keyOf(action)}
@@ -61,7 +86,7 @@ export function SuggestionChips({ actions, busy, onAsk, withReason = false, comp
             <span className="chip__main">
               <span className="chip__label">
                 {used ? <Check size={14} strokeWidth={2.6} aria-hidden="true" /> : null}
-                {action.label}
+                <LabelText action={action} />
                 {used ? <span className="sr-only"> (asked)</span> : null}
               </span>
               <span className="chip__approval">
@@ -74,6 +99,19 @@ export function SuggestionChips({ actions, busy, onAsk, withReason = false, comp
           </motion.button>
         );
       })}
+      {folded ? (
+        <motion.button
+          layout={reduce ? false : "position"}
+          transition={GLIDE}
+          type="button"
+          className="chip chip--more"
+          aria-expanded={expanded}
+          aria-controls={moreId}
+          onClick={() => setExpanded((now) => !now)}
+        >
+          {expanded ? "Show fewer" : `+${actions.length - CHIP_LIMIT} more`}
+        </motion.button>
+      ) : null}
     </div>
   );
 }

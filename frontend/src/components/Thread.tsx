@@ -40,6 +40,7 @@ interface TurnViewProps {
   decide?: Decide;
   onDecided?: (card: ProposalCard) => void;
   onSessionEnded?: () => void;
+  onEditDetails?: (text: string) => void;
 }
 
 function FailureMessage({ turn, onAsk }: { turn: TurnData; onAsk: (question: string) => void }) {
@@ -85,7 +86,7 @@ function jumpTo(turnId: string) {
   target.focus({ preventScroll: true });
 }
 
-function TurnView({ turn, earlier, last, busy, onOpenEvidence, onOpenTrace, onAsk, decide, onDecided, onSessionEnded }: TurnViewProps) {
+function TurnView({ turn, earlier, last, busy, onOpenEvidence, onOpenTrace, onAsk, decide, onDecided, onSessionEnded, onEditDetails }: TurnViewProps) {
   const root = useRef<HTMLElement>(null);
   const previous = useRef(turn.status);
   /** What a screen reader hears when the reply lands. The region stays mounted so the change is announced. */
@@ -168,6 +169,7 @@ function TurnView({ turn, earlier, last, busy, onOpenEvidence, onOpenTrace, onAs
             onArrive={turn.fresh ? reveal : undefined}
             onDecided={onDecided}
             onSessionEnded={onSessionEnded}
+            onEditDetails={onEditDetails}
           />
         ) : turn.status === "failed" ? (
           <FailureMessage key="failed" turn={turn} onAsk={onAsk} />
