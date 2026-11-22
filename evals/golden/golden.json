@@ -222,6 +222,9 @@
           }
         }
       },
+      "desktops": [
+        "DLT35MHGTH2D"
+      ],
       "devices": [
         "1LYSSFD074BB",
         "7VP16KHV88LM",
@@ -305,6 +308,18 @@
           "DSYPSES7SKBB"
         ]
       },
+      "hostnames": {
+        "1LYSSFD074BB": "acme-macbook-2",
+        "7VP16KHV88LM": "acme-macbook-1",
+        "8NM23J95R5I6": "acme-thinkpad-8",
+        "9MXJVZ1I0DKA": "acme-thinkpad-10",
+        "DLT35MHGTH2D": "acme-mac-5",
+        "DSYPSES7SKBB": "acme-macbook-3",
+        "M4XVHUV1MEPZ": "acme-dell-9",
+        "MT7PJB7N5LRE": "acme-macbook-4",
+        "Q3VUITEGQ400": "acme-macbook-7",
+        "XSU9UUDGU6AC": "acme-macbook-6"
+      },
       "laptops": [
         "1LYSSFD074BB",
         "7VP16KHV88LM",
@@ -321,6 +336,9 @@
           "8NM23J95R5I6",
           "MT7PJB7N5LRE"
         ],
+        "lowest_hostnames": [
+          "acme-macbook-4"
+        ],
         "population": 10
       },
       "macos_below_15": {
@@ -329,6 +347,9 @@
           "7VP16KHV88LM",
           "MT7PJB7N5LRE",
           "XSU9UUDGU6AC"
+        ],
+        "oldest_hostnames": [
+          "acme-macbook-1"
         ],
         "out_of_scope": [
           "8NM23J95R5I6",
@@ -556,6 +577,7 @@
           }
         }
       },
+      "desktops": [],
       "devices": [
         "4SEFDLPTKXAM",
         "CUXW0BQSV1B7",
@@ -617,6 +639,16 @@
           "JRZSGXVMKE6M"
         ]
       },
+      "hostnames": {
+        "4SEFDLPTKXAM": "globex-macbook-3",
+        "CUXW0BQSV1B7": "globex-thinkpad-6",
+        "DXUCJ272DCYX": "globex-macbook-1",
+        "E4V0SB5I0MYU": "globex-dell-7",
+        "IZ6K51CBZR8F": "globex-macbook-2",
+        "JRZSGXVMKE6M": "globex-thinkpad-8",
+        "Q1AFVLH3YV33": "globex-macbook-4",
+        "QPZSXKINA7GP": "globex-macbook-5"
+      },
       "laptops": [
         "4SEFDLPTKXAM",
         "CUXW0BQSV1B7",
@@ -632,12 +664,18 @@
           "E4V0SB5I0MYU",
           "JRZSGXVMKE6M"
         ],
+        "lowest_hostnames": [
+          "globex-thinkpad-8"
+        ],
         "population": 8
       },
       "macos_below_15": {
         "devices": [
           "4SEFDLPTKXAM",
           "QPZSXKINA7GP"
+        ],
+        "oldest_hostnames": [
+          "globex-macbook-3"
         ],
         "out_of_scope": [
           "CUXW0BQSV1B7",
@@ -830,6 +868,10 @@
           }
         }
       },
+      "desktops": [
+        "I3JLKILKQTAC",
+        "RLD7WV7J82SH"
+      ],
       "devices": [
         "2MAN6T4DJD95",
         "DARFCP0BQM2G",
@@ -898,6 +940,15 @@
           "XZYK11QTPWEC"
         ]
       },
+      "hostnames": {
+        "2MAN6T4DJD95": "initech-dell-5",
+        "DARFCP0BQM2G": "initech-macbook-6",
+        "I3JLKILKQTAC": "initech-mac-3",
+        "RLD7WV7J82SH": "initech-mac-4",
+        "SPKRRDF0L786": "initech-macbook-2",
+        "W2656QDAE2ZJ": "initech-dell-1",
+        "XZYK11QTPWEC": "initech-macbook-7"
+      },
       "laptops": [
         "2MAN6T4DJD95",
         "DARFCP0BQM2G",
@@ -910,6 +961,10 @@
           "DARFCP0BQM2G",
           "RLD7WV7J82SH"
         ],
+        "lowest_hostnames": [
+          "initech-macbook-6",
+          "initech-mac-4"
+        ],
         "population": 7
       },
       "macos_below_15": {
@@ -918,6 +973,10 @@
           "RLD7WV7J82SH",
           "SPKRRDF0L786",
           "XZYK11QTPWEC"
+        ],
+        "oldest_hostnames": [
+          "initech-macbook-2",
+          "initech-macbook-7"
         ],
         "out_of_scope": [
           "2MAN6T4DJD95",

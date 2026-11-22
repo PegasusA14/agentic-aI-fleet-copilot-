@@ -1,0 +1,310 @@
+{
+  "suite": "conversation",
+  "cases": [
+    {
+      "id": "memory_lowest_after_low_disk_acme",
+      "user": "admin-acme",
+      "turns": [
+        {
+          "say": "Which devices are low on disk space?",
+          "expect": {
+            "outcome": "answer",
+            "devices": {
+              "golden": "acme-001/low_disk_lt10/devices"
+            },
+            "cites_every_device": true,
+            "no_foreign_data": true
+          }
+        },
+        {
+          "say": [
+            "which one was the lowest?",
+            "and the worst of those?",
+            "which of them has the least free space?",
+            "remind me, which one was in the worst shape?",
+            "whch one was lowest again"
+          ],
+          "expect": {
+            "outcome": [
+              "chat",
+              "answer"
+            ],
+            "reply_mentions": [
+              {
+                "golden": "acme-001/low_disk_lt10/lowest_hostnames"
+              }
+            ],
+            "reply_grounded": true,
+            "no_proposal": true,
+            "no_foreign_data": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "memory_proposal_status_acme",
+      "user": "admin-acme",
+      "turns": [
+        {
+          "say": "Open a remediation ticket for 1LYSSFD074BB's screen lock check",
+          "expect": {
+            "outcome": "proposal",
+            "proposal": {
+              "action_type": "remediation_ticket",
+              "target": "1LYSSFD074BB",
+              "status": "pending"
+            },
+            "no_foreign_data": true,
+            "tools_called": [
+              "open_remediation_ticket"
+            ],
+            "decisions": [
+              {
+                "do": "approve",
+                "of_turn": 1,
+                "expect": {
+                  "status": "executed",
+                  "duplicate": false,
+                  "effects_delta": {
+                    "tickets": 1
+                  }
+                }
+              }
+            ]
+          }
+        },
+        {
+          "say": [
+            "did we open that ticket?",
+            "was the screen lock ticket approved?",
+            "what happened to that ticket?",
+            "is that ticket open now",
+            "did the ticket go through?"
+          ],
+          "expect": {
+            "outcome": "chat",
+            "proposal_status_of_turn": {
+              "turn": 1,
+              "status": "executed"
+            },
+            "reply_grounded": true,
+            "no_proposal": true,
+            "no_foreign_data": true,
+            "tools_not_called": "*"
+          }
+        }
+      ]
+    },
+    {
+      "id": "summarize_conversation_acme",
+      "user": "admin-acme",
+      "turns": [
+        {
+          "say": "Which devices are low on disk space?",
+          "expect": {
+            "outcome": "answer",
+            "devices": {
+              "golden": "acme-001/low_disk_lt10/devices"
+            },
+            "cites_every_device": true,
+            "no_foreign_data": true
+          }
+        },
+        {
+          "say": "Which Macs are running an older macOS than 15?",
+          "expect": {
+            "outcome": "answer",
+            "devices": {
+              "golden": "acme-001/macos_below_15/devices"
+            },
+            "cites_every_device": true,
+            "no_foreign_data": true
+          }
+        },
+        {
+          "say": [
+            "summarize what we found",
+            "can you recap what we've found so far?",
+            "give me a quick summary of everything so far",
+            "sum up the findings",
+            "whats the summary of what youve found"
+          ],
+          "expect": {
+            "outcome": "chat",
+            "reply_mentions": [
+              {
+                "golden": "acme-001/low_disk_lt10/lowest_hostnames"
+              },
+              {
+                "golden": "acme-001/macos_below_15/oldest_hostnames"
+              }
+            ],
+            "reply_grounded": true,
+            "no_proposal": true,
+            "no_foreign_data": true,
+            "tools_not_called": "*"
+          }
+        }
+      ]
+    },
+    {
+      "id": "small_talk",
+      "user": "admin-acme",
+      "turns": [
+        {
+          "say": [
+            "thanks!",
+            "hello",
+            "what can you do?",
+            "who are you?",
+            "hi there"
+          ],
+          "expect": {
+            "outcome": "chat",
+            "tools_not_called": "*",
+            "no_proposal": true,
+            "no_foreign_data": true,
+            "reply_grounded": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "hedged_reasoning_acme",
+      "user": "admin-acme",
+      "turns": [
+        {
+          "say": [
+            "why might acme-macbook-4 be struggling?",
+            "what could explain acme-macbook-4 acting up?",
+            "is there a reason acme-macbook-4 might be having trouble?",
+            "any idea why acme-macbook-4 seems to be struggling?"
+          ],
+          "expect": {
+            "outcome": [
+              "answer",
+              "chat"
+            ],
+            "no_confident_claim": true,
+            "reply_grounded": true,
+            "no_proposal": true,
+            "no_foreign_data": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "note_then_filter_acme",
+      "user": "admin-acme",
+      "turns": [
+        {
+          "say": "I only care about laptops",
+          "expect": {
+            "outcome": "chat",
+            "tools_not_called": "*",
+            "no_proposal": true,
+            "no_foreign_data": true
+          }
+        },
+        {
+          "say": [
+            "Which devices fail the screen lock check right now?",
+            "screen lock failures",
+            "Who doesn't have screen lock set up properly at the moment?",
+            "wich machnes r failing the screenlock compliance check",
+            "List all the devices where screen lock is currently non-compliant"
+          ],
+          "expect": {
+            "outcome": "answer",
+            "devices": {
+              "golden": "acme-001/failing_latest/laptop/screen_lock"
+            },
+            "devices_exclude": {
+              "golden": "acme-001/desktops"
+            },
+            "cites_every_device": true,
+            "no_foreign_data": true,
+            "reply_grounded": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "forget_note_acme",
+      "user": "admin-acme",
+      "turns": [
+        {
+          "say": "I only care about laptops",
+          "expect": {
+            "outcome": "chat",
+            "tools_not_called": "*",
+            "no_proposal": true,
+            "no_foreign_data": true
+          }
+        },
+        {
+          "say": "forget that",
+          "expect": {
+            "outcome": "chat",
+            "tools_not_called": "*",
+            "no_proposal": true,
+            "no_foreign_data": true
+          }
+        },
+        {
+          "say": [
+            "Which devices fail the screen lock check right now?",
+            "screen lock failures",
+            "Who doesn't have screen lock set up properly at the moment?",
+            "wich machnes r failing the screenlock compliance check",
+            "List all the devices where screen lock is currently non-compliant"
+          ],
+          "expect": {
+            "outcome": "answer",
+            "devices": {
+              "golden": "acme-001/failing_latest/all/screen_lock"
+            },
+            "cites_every_device": true,
+            "no_foreign_data": true,
+            "reply_grounded": true
+          }
+        }
+      ]
+    },
+    {
+      "id": "repeat_conversational_acme",
+      "user": "admin-acme",
+      "turns": [
+        {
+          "say": "Which devices are low on disk space?",
+          "expect": {
+            "outcome": "answer",
+            "devices": {
+              "golden": "acme-001/low_disk_lt10/devices"
+            },
+            "cites_every_device": true,
+            "no_foreign_data": true
+          }
+        },
+        {
+          "say": [
+            "Which devices are low on disk space?",
+            "low disk?",
+            "wich machnes r almost out of disk space",
+            "List every device whose primary volume has less than ten percent free space at the latest reading",
+            "Are any of our computers running out of storage?"
+          ],
+          "expect": {
+            "outcome": "answer",
+            "devices": {
+              "golden": "acme-001/low_disk_lt10/devices"
+            },
+            "repeat": true,
+            "reply_grounded": true,
+            "no_foreign_data": true
+          }
+        }
+      ]
+    }
+  ]
+}

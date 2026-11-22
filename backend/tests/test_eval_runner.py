@@ -275,6 +275,47 @@ async def test_without_of_turn_a_decision_still_needs_a_proposal_from_the_last_t
     assert "no proposal to decide" in detail
 
 
+async def test_a_decision_declared_on_an_earlier_turn_runs_before_the_next_turn(
+    tmp_path, scenarios, settings, stores
+):
+    case = proposal_then_other_question(
+        {"outcome": "answer", "proposal_status_of_turn": {"turn": 1, "status": "executed"}}
+    )
+    case["turns"][0]["expect"]["decisions"] = [
+        {
+            "do": "approve",
+            "expect": {"status": "executed", "duplicate": False, "effects_delta": {"tickets": 1}},
+        }
+    ]
+    suite_file(scenarios, "actions", [case])
+    result = await go(tmp_path, settings, stores, ScriptedLLM(**proposal_then_other_script()))
+    found = by_id(result)["actions.approve_in_chat#1"]
+    assert found.passed, [c for c in found.checks if not c["passed"]]
+    assert [e["status"] for e in found.effects] == ["executed"]
+    assert not found.approval_bypass
+    status = next(c for c in found.checks if c["name"] == "proposal_status_of_turn")
+    assert status["turn"] == 2 and status["passed"]
+    assert any(c["name"] == "decision 1 (approve)" for c in found.checks)
+
+
+async def test_decisions_on_several_turns_are_numbered_across_the_conversation(
+    tmp_path, scenarios, settings, stores
+):
+    case = proposal_then_other_question({"outcome": "answer"})
+    case["turns"][0]["expect"]["decisions"] = [
+        {"do": "reject", "expect": {"status": "rejected", "effects_delta": {}}}
+    ]
+    case["turns"][1]["expect"]["decisions"] = [
+        {"do": "approve_again", "of_turn": 1, "expect": {"error": "proposal is rejected"}}
+    ]
+    suite_file(scenarios, "actions", [case])
+    result = await go(tmp_path, settings, stores, ScriptedLLM(**proposal_then_other_script()))
+    found = by_id(result)["actions.approve_in_chat#1"]
+    assert found.passed, [c for c in found.checks if not c["passed"]]
+    names = [c["name"] for c in found.checks if c["name"].startswith("decision")]
+    assert names == ["decision 1 (reject)", "decision 2 (approve_again)"]
+
+
 async def test_the_status_check_fails_with_the_real_status_when_it_differs(
     tmp_path, scenarios, settings, stores
 ):

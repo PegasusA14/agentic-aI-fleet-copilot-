@@ -255,14 +255,23 @@ def test_malformed_decisions_are_rejected(tmp_path, decisions):
         load_suites(tmp_path)
 
 
-def test_decisions_belong_on_the_last_turn(tmp_path):
+def test_decisions_may_be_declared_on_any_turn_and_run_after_that_turn(tmp_path):
     turns = [
-        {"say": "a", "expect": {"decisions": GOOD_DECISIONS[:1]}},
-        {"say": "b", "expect": {"outcome": "answer"}},
+        {
+            "say": "Open a ticket",
+            "expect": {
+                "outcome": "proposal",
+                "proposal": PROPOSAL,
+                "decisions": GOOD_DECISIONS[:1],
+            },
+        },
+        {"say": "b", "expect": {"outcome": "answer", "decisions": GOOD_DECISIONS[:1]}},
     ]
     write_suite(tmp_path, suite="actions", cases=[case(turns=turns)])
-    with pytest.raises(ScenarioError, match="last turn"):
-        load_suites(tmp_path)
+    (scenario,) = load_suites(tmp_path)
+    (instance,) = expand(scenario.cases[0])
+    assert [at for at, _ in instance.decision_steps] == [1, 2]
+    assert len(instance.decisions) == 2
 
 
 def test_an_instance_without_decisions_has_none(tmp_path):
@@ -601,6 +610,46 @@ def test_reply_keys_load(tmp_path):
     }
     write_suite(tmp_path, suite="conversation", cases=[two_turn_case(second=expect)])
     assert load_suites(tmp_path)
+
+
+def test_reply_mentions_accepts_golden_references_next_to_hostnames(tmp_path):
+    expect = {
+        "outcome": "answer",
+        "reply_mentions": [{"golden": "acme-001/low_disk_lt10/lowest_hostnames"}, "acme-mac-5"],
+    }
+    write_suite(tmp_path, suite="conversation", cases=[two_turn_case(second=expect)])
+    assert load_suites(tmp_path)
+
+
+def test_a_malformed_reply_mentions_reference_is_rejected(tmp_path):
+    expect = {"outcome": "answer", "reply_mentions": [{"golden": "no-slash"}]}
+    write_suite(tmp_path, suite="conversation", cases=[two_turn_case(second=expect)])
+    with pytest.raises(ScenarioError, match="reply_mentions.*golden"):
+        load_suites(tmp_path)
+
+
+def test_resolve_expect_turns_reply_mentions_references_into_hostnames():
+    golden = {"tenants": {"acme-001": {"low": {"lowest": ["host-1"]}}}}
+    resolved = resolve_expect(
+        {"reply_mentions": [{"golden": "acme-001/low/lowest"}, "host-2", "host-1"]}, golden
+    )
+    assert resolved["reply_mentions"] == ["host-1", "host-2"]
+
+
+def test_repeat_is_a_switch(tmp_path):
+    write_suite(
+        tmp_path,
+        suite="conversation",
+        cases=[two_turn_case(second={"outcome": "answer", "repeat": True})],
+    )
+    assert load_suites(tmp_path)
+    write_suite(
+        tmp_path,
+        suite="conversation",
+        cases=[two_turn_case(second={"outcome": "answer", "repeat": "yes"})],
+    )
+    with pytest.raises(ScenarioError, match="repeat.*true or false"):
+        load_suites(tmp_path)
 
 
 @pytest.mark.parametrize(

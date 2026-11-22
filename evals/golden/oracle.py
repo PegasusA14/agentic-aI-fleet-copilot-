@@ -234,11 +234,20 @@ def tenant_facts(company, series, as_of):
         since = as_of - timedelta(days=days)
         return [r for r in rows[device] if ts(r["collected_at"]) >= since]
 
-    facts = {"devices": devices, "laptops": laptops}
+    facts = {
+        "devices": devices,
+        "laptops": laptops,
+        "desktops": [d for d in devices if d not in laptops],
+        "hostnames": {d: latest[d]["os"]["hostname"] for d in devices},
+    }
 
+    low = [d for d in devices if free_percent(latest[d]) < 10.0]
+    least = min((free_percent(latest[d]) for d in low), default=None)
     facts["low_disk_lt10"] = {
         "population": len(devices),
-        "devices": [d for d in devices if free_percent(latest[d]) < 10.0],
+        "devices": low,
+        # The device(s) with the least free space among the low ones, by hostname.
+        "lowest_hostnames": [latest[d]["os"]["hostname"] for d in low if free_percent(latest[d]) == least],
     }
 
     mac = [d for d in devices if latest[d]["os"]["product_name"] == "macOS"]
@@ -249,9 +258,15 @@ def tenant_facts(company, series, as_of):
             unknown.append(d)
         elif int(parts[0]) < 15:
             older.append(d)
+    def version_key(device):
+        return tuple(int(p) for p in latest[device]["os"]["product_version"].split("."))
+
+    oldest = min((version_key(d) for d in older), default=None)
     facts["macos_below_15"] = {
         "population": len(mac),
         "devices": older,
+        # The device(s) on the oldest macOS among the ones below 15, by hostname.
+        "oldest_hostnames": [latest[d]["os"]["hostname"] for d in older if version_key(d) == oldest],
         "unknown_version": unknown,
         "out_of_scope": [d for d in devices if d not in mac],
     }

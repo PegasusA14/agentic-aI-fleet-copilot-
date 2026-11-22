@@ -31,6 +31,7 @@ _BOOLEAN_KEYS = (
     "prose_no_causal",
     "reply_grounded",
     "no_confident_claim",
+    "repeat",
     "no_proposal",
     "no_effects",
 )
@@ -116,8 +117,17 @@ class Instance:
 
     @property
     def decisions(self) -> tuple[dict[str, Any], ...]:
-        """Human approval steps to run after the last turn (declared in the last turn's expect)."""
-        return tuple(self.turns[-1].expect.get("decisions", ()))
+        """Every human approval step of the conversation, in the order they run."""
+        return tuple(step for _, step in self.decision_steps)
+
+    @property
+    def decision_steps(self) -> tuple[tuple[int, dict[str, Any]], ...]:
+        """(turn number, step) for each human step; a step runs right after the turn that declares it."""
+        return tuple(
+            (number, step)
+            for number, turn in enumerate(self.turns, 1)
+            for step in turn.expect.get("decisions", ())
+        )
 
 
 def expand(case: Case) -> list[Instance]:
@@ -196,14 +206,14 @@ def _load_case(suite: str, item: Any) -> Case:
     raw_turns = item.get("turns")
     if not isinstance(raw_turns, list) or not raw_turns:
         raise ScenarioError("turns must be a non-empty list")
-    turns = tuple(_load_turn(n, t, last=n == len(raw_turns)) for n, t in enumerate(raw_turns, 1))
+    turns = tuple(_load_turn(n, t) for n, t in enumerate(raw_turns, 1))
     if sum(1 for t in turns if not isinstance(t.say, str)) > 1:
         raise ScenarioError("at most one turn may list several phrasings in 'say'")
     _check_turn_references(turns)
     return Case(suite=suite, id=case_id, user=user, turns=turns)
 
 
-def _load_turn(number: int, raw: Any, *, last: bool) -> CaseTurn:
+def _load_turn(number: int, raw: Any) -> CaseTurn:
     where = f"turn {number}"
     if not isinstance(raw, dict):
         raise ScenarioError(f"{where}: a turn must be an object")
@@ -222,7 +232,7 @@ def _load_turn(number: int, raw: Any, *, last: bool) -> CaseTurn:
         raise ScenarioError(f"{where}: say must be a string or a list of strings")
     expect = raw.get("expect", {})
     try:
-        _check_expect(expect, last=last)
+        _check_expect(expect)
     except ScenarioError as exc:
         raise ScenarioError(f"{where}: {exc}") from None
     return CaseTurn(say=parsed, expect=expect)
@@ -246,7 +256,7 @@ def _device_set(key: str, value: Any) -> None:
         raise ScenarioError(f"expect.{key} must be a list of device ids or a golden reference")
 
 
-def _check_expect(expect: Any, *, last: bool) -> None:
+def _check_expect(expect: Any) -> None:
     if not isinstance(expect, dict):
         raise ScenarioError("expect must be an object")
     unknown = sorted(set(expect) - _EXPECT_KEYS)
@@ -297,18 +307,22 @@ def _check_expect(expect: Any, *, last: bool) -> None:
     if "proposal_status_of_turn" in expect:
         _check_status_of_turn(expect["proposal_status_of_turn"])
     if "decisions" in expect:
-        if not last:
-            raise ScenarioError("decisions belong on the last turn of the case")
         _check_decisions(expect["decisions"])
 
 
 def _check_hostnames(value: Any) -> None:
-    """`reply_mentions` is a non-empty list of distinct hostnames the shown reply must name."""
+    """`reply_mentions` is a non-empty list of distinct hostnames the shown reply must name; an item may
+    also be a golden reference to a list of hostnames."""
     if not isinstance(value, list) or not value:
         raise ScenarioError("expect.reply_mentions must be a non-empty list of hostnames")
-    if not all(isinstance(h, str) and h.strip() for h in value):
+    names = [h for h in value if not isinstance(h, dict)]
+    for ref in (h for h in value if isinstance(h, dict)):
+        problem = validate_ref(ref)
+        if problem is not None:
+            raise ScenarioError(f"expect.reply_mentions: {problem}")
+    if not all(isinstance(h, str) and h.strip() for h in names):
         raise ScenarioError("expect.reply_mentions must hold hostnames (non-empty text)")
-    if len({h.lower() for h in value}) != len(value):
+    if len({h.lower() for h in names}) != len(names):
         raise ScenarioError("expect.reply_mentions lists the same hostname twice")
 
 

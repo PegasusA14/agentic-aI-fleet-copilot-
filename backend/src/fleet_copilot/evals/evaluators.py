@@ -341,6 +341,13 @@ def check_reply_mentions(expected: Any, envelope: AnswerEnvelope) -> Check:
     return Check("reply_mentions", True, f"the reply names {_ids(wanted)}")
 
 
+def check_repeat(envelope: AnswerEnvelope) -> Check:
+    """The turn gave the same result as an earlier one, and the answer says so (`repeat_of` is set)."""
+    if envelope.repeat_of is None:
+        return Check("repeat", False, "expected the answer to point at an earlier identical result")
+    return Check("repeat", True, "the answer points at the earlier turn it repeats")
+
+
 def check_prose_no_causal(envelope: AnswerEnvelope) -> Check:
     """The shown text makes no causal, predictive or performance claim: the code headline none at all, the
     model's reply none that is not hedged."""
@@ -499,6 +506,7 @@ _KEYS = (
     "reply_grounded",
     "no_confident_claim",
     "reply_mentions",
+    "repeat",
     "tools_planned",
     "tools_called",
     "tools_not_called",
@@ -598,6 +606,8 @@ def check_turn(
                 checks.append(check_reply_grounded(trace))
             elif key == "no_confident_claim":
                 checks.append(check_no_confident_claim(envelope))
+            elif key == "repeat":
+                checks.append(check_repeat(envelope))
             elif key == "no_proposal":
                 checks.append(check_no_proposal(envelope, proposals_created))
             elif key == "no_effects":

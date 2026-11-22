@@ -299,19 +299,24 @@ def _judge(
 
 def _decisions(
     inst: Instance,
+    turn_number: int,
     cards: dict[int, ProposalCard],
     actions: ActionService,
     identity: Identity,
+    *,
+    first: int = 1,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """Run each human step on the proposal of the turn it names (`of_turn`), else of the last turn."""
+    """Run the human steps a turn declares, right after that turn. Each acts on the proposal of the turn it
+    names (`of_turn`), else of the turn that declares it. `first` numbers the steps across the conversation."""
     checks: list[dict[str, Any]] = []
     ledger: list[dict[str, Any]] = []
-    for number, step in enumerate(inst.decisions, 1):
+    steps = [step for at, step in inst.decision_steps if at == turn_number]
+    for number, step in enumerate(steps, first):
         name = f"decision {number} ({step['do']})"
-        turn = step.get("of_turn", len(inst.turns))
+        turn = step.get("of_turn", turn_number)
         card = cards.get(turn)
         if card is None:
-            which = f"turn {turn}" if "of_turn" in step else "the last turn"
+            which = f"turn {turn}" if "of_turn" in step else "that turn"
             checks.append(
                 _check_dict(Check(name, False, f"{which} gave no proposal to decide"), None)
             )
@@ -449,6 +454,8 @@ async def _play(inst: Instance, env: _Env, folder: Path) -> CaseResult:
     planned: list[list[str]] = []
     answered: list[bool] = []
     replies: list[dict[str, Any]] = []
+    decision_checks: list[dict[str, Any]] = []  # the human steps' checks, in the order they ran
+    ledger: list[dict[str, Any]] = []  # what each human step did to the effects ledger
     baseline = _effect_totals(actions)
     async with AgentService.open(
         db_path=env.settings.db_path,
@@ -499,12 +506,16 @@ async def _play(inst: Instance, env: _Env, folder: Path) -> CaseResult:
                 effects_so_far=_delta(baseline, _effect_totals(actions)),
             )
             checks.extend(_check_dict(c, number) for c in found)
-    decided, ledger = _decisions(inst, cards, actions, identity)
+            decided, steps = _decisions(
+                inst, number, cards, actions, identity, first=len(decision_checks) + 1
+            )
+            decision_checks.extend(decided)
+            ledger.extend(steps)
     executed = len(actions.list(identity, "executed"))
     bypass = approval_bypass(inst.decisions, executed=executed)
     return _result(
         inst,
-        [*checks, *decided],
+        [*checks, *decision_checks],
         questions,
         trace_ids,
         ledger,

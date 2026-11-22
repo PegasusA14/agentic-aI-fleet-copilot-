@@ -9,6 +9,8 @@ Forms (all are JSON objects):
 - `{"golden": ..., "pluck": "<field>"}` is that field of each item of a list of objects (sorted, unique).
 - `{"devices": [...], "source": "<why>"}` is a literal, for facts the golden file lacks; the note is required.
 
+`reply_mentions` is a list whose items are hostnames or references to a list of hostnames.
+
 Nothing here imports product code: the expected values must stay independent of what is being tested.
 """
 
@@ -144,6 +146,15 @@ def _suggestion_pairs(items: list[dict[str, Any]], golden: dict[str, Any]) -> li
     return pairs
 
 
+def _hostnames(items: list[Any], golden: dict[str, Any]) -> list[str]:
+    """The hostnames a `reply_mentions` list names: literal names, and references that resolve to names."""
+    names: list[str] = []
+    for item in items:
+        value = resolve(item, golden) if is_ref(item) else item
+        names.extend([value] if isinstance(value, str) else value)
+    return list(dict.fromkeys(names))
+
+
 def resolve_expect(expect: dict[str, Any], golden: dict[str, Any]) -> dict[str, Any]:
     """A copy of a turn's `expect` with every reference replaced by its value, ready for `check_turn`."""
     resolved: dict[str, Any] = {}
@@ -160,6 +171,8 @@ def resolve_expect(expect: dict[str, Any], golden: dict[str, Any]) -> dict[str, 
             resolved[key] = card
         elif key == "suggestions_include":
             resolved[key] = _suggestion_pairs(value, golden)
+        elif key == "reply_mentions":
+            resolved[key] = _hostnames(value, golden)
         elif is_ref(value):
             resolved[key] = resolve(value, golden)
         else:

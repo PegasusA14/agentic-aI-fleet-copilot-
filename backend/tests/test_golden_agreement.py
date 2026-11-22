@@ -187,3 +187,33 @@ def test_fleet_health_agrees_with_the_oracle(real_conn, tenant):
     assert sorted(d for d, level in worst.items() if level == "act_soon") == want["act_soon"]
     assert sorted(d for d, level in worst.items() if level == "watch") == want["watch"]
     assert len(worst) == want["devices_needing_attention"]
+
+
+@pytest.mark.parametrize("tenant", TENANTS)
+def test_hostnames_and_desktops_match_the_product(real_conn, tenant):
+    want = GOLDEN["tenants"][tenant]
+    devices = repo_for(real_conn, tenant).list_devices()
+    assert {d.device_id: d.hostname for d in devices} == want["hostnames"]
+    assert [d.device_id for d in devices if d.form_factor != "laptop"] == want["desktops"]
+
+
+@pytest.mark.parametrize("tenant", TENANTS)
+def test_the_lowest_disk_hostnames_are_the_least_free_space_of_the_product(real_conn, tenant):
+    want = GOLDEN["tenants"][tenant]["low_disk_lt10"]["lowest_hostnames"]
+    got = q.low_disk(repo_for(real_conn, tenant), dataset_as_of(real_conn), 10.0)
+    least = min(f.values["free_pct"] for f in got.findings)
+    assert sorted(f.hostname for f in got.findings if f.values["free_pct"] == least) == sorted(want)
+
+
+@pytest.mark.parametrize("tenant", TENANTS)
+def test_the_oldest_macos_hostnames_are_the_product_s_oldest_finding(real_conn, tenant):
+    want = GOLDEN["tenants"][tenant]["macos_below_15"]
+    got = q.macos_below(repo_for(real_conn, tenant), dataset_as_of(real_conn), "15")
+
+    def version(finding):
+        return tuple(int(p) for p in finding.values["os_version"].split("."))
+
+    oldest = min(version(f) for f in got.findings)
+    assert sorted(f.hostname for f in got.findings if version(f) == oldest) == sorted(
+        want["oldest_hostnames"]
+    )

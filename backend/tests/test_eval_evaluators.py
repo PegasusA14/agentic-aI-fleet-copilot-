@@ -835,6 +835,15 @@ def test_reply_mentions_wants_every_hostname_in_the_shown_reply():
     assert not none.passed and "no reply" in none.detail
 
 
+def test_repeat_wants_the_answer_to_point_at_the_earlier_result():
+    again = run({"repeat": True}, answer(repeat_of="trace-1"))[0]
+    assert again.name == "repeat" and again.passed
+    fresh = run({"repeat": True}, answer())[0]
+    assert not fresh.passed and "earlier" in fresh.detail
+    assert run({"repeat": True}, refusal())[0].passed is False
+    assert run({"repeat": False}, answer()) == []  # a switch set to false makes no check
+
+
 def test_reply_stats_read_the_trace_and_the_shown_reply():
     stats = evaluators.reply_stats(
         answer(reply="One two."), [verify_event("reply:predictive@1", "reply:dropped=1")]

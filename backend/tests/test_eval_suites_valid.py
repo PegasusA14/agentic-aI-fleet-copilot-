@@ -1,4 +1,4 @@
-"""The four committed scenario suites are well-formed and tied to the independent golden file.
+"""The committed scenario suites are well-formed and tied to the independent golden file.
 
 Nothing here runs a model: it loads `evals/scenarios/*.json`, expands the paraphrase sets and checks the
 shape (phrasings, users, decisions, ids) and that every golden reference resolves to a real fact for the
@@ -17,7 +17,7 @@ from fleet_copilot.evals.golden_ref import is_ref, load_golden, resolve
 from fleet_copilot.evals.scenarios import Case, expand, load_suites
 
 SUITES = load_suites(REPO_ROOT / "evals" / "scenarios")
-SUITE_NAMES = {"grounding", "trends", "actions", "guardrails"}
+SUITE_NAMES = {"grounding", "trends", "actions", "guardrails", "conversation"}
 CASES = [case for suite in SUITES for case in suite.cases]
 INSTANCES = [instance for case in CASES for instance in expand(case)]
 EFFECT_TABLES = {"tickets", "replacement_flags", "upgrade_orders", "employee_notifications"}
@@ -38,13 +38,17 @@ def refs_in(expect: dict):
             for item in value:
                 if is_ref(item["device"]):
                     yield "suggestions_include.device", item["device"]
+        elif key == "reply_mentions":
+            for item in value:
+                if is_ref(item):
+                    yield key, item
         elif is_ref(value):
             yield key, value
 
 
-def test_all_four_suites_load_and_nothing_else():
+def test_all_suites_load_and_nothing_else():
     assert {s.suite for s in SUITES} == SUITE_NAMES
-    assert len(SUITES) == 4
+    assert len(SUITES) == 5
     for suite in SUITES:
         assert suite.path.name == f"{suite.suite}.json"
 
@@ -105,6 +109,8 @@ def test_every_golden_reference_resolves_to_a_fact_for_the_asking_company(case):
             assert value not in ([], {}, None, ""), f"{where} resolves to nothing"
             if key in ("devices", "devices_include", "devices_exclude"):
                 assert isinstance(value, list) and all(isinstance(d, str) for d in value)
+            if key == "reply_mentions":
+                assert isinstance(value, list) and all(isinstance(h, str) for h in value)
             if key == "population":
                 assert isinstance(value, int) and value > 0
             if key == "proposal.target":
@@ -132,9 +138,7 @@ def test_listed_devices_belong_to_the_asking_company(case):
 
 @pytest.mark.parametrize("case", CASES, ids=case_id)
 def test_action_decision_steps_are_well_formed(case):
-    for turn in case.turns[:-1]:
-        assert "decisions" not in turn.expect
-    steps = case.turns[-1].expect.get("decisions", [])
+    steps = [step for turn in case.turns for step in turn.expect.get("decisions", [])]
     if not steps:
         return
     # The human decides something that exists: some turn of the case proposes it (and every case that
@@ -308,3 +312,71 @@ def test_the_suites_cover_what_the_plan_requires():
     assert classes["CUXW0BQSV1B7"] == "intermittent"
     assert "CUXW0BQSV1B7" in resolve(counterexample.turns[0].expect["devices"], GOLDEN)
     assert "CUXW0BQSV1B7" not in resolve(counterexample.turns[0].expect["devices_include"], GOLDEN)
+
+
+def conversation_cases():
+    return {c.id: c for c in CASES if c.suite == "conversation"}
+
+
+def test_the_conversation_suite_has_the_planned_cases():
+    assert set(conversation_cases()) == {
+        "memory_lowest_after_low_disk_acme",
+        "memory_proposal_status_acme",
+        "summarize_conversation_acme",
+        "small_talk",
+        "hedged_reasoning_acme",
+        "note_then_filter_acme",
+        "forget_note_acme",
+        "repeat_conversational_acme",
+    }
+
+
+def test_the_memory_cases_name_the_hostnames_the_golden_file_gives():
+    cases = conversation_cases()
+    lowest = cases["memory_lowest_after_low_disk_acme"].turns[-1].expect
+    assert resolve(lowest["reply_mentions"][0], GOLDEN) == ["acme-macbook-4"]
+    summary = cases["summarize_conversation_acme"].turns[-1].expect
+    assert [resolve(ref, GOLDEN) for ref in summary["reply_mentions"]] == [
+        ["acme-macbook-4"],
+        ["acme-macbook-1"],
+    ]
+
+
+def test_chat_turns_make_no_proposal_and_small_talk_runs_no_tool():
+    for case in conversation_cases().values():
+        for turn in case.turns:
+            if turn.expect.get("outcome") == "chat":
+                assert turn.expect["no_foreign_data"] is True, case.id
+                assert turn.expect["tools_not_called"] == "*", case.id
+                assert (
+                    turn.expect.get("no_proposal") is True
+                    or "proposal_status_of_turn" in turn.expect
+                )
+    talk = conversation_cases()["small_talk"].turns[0]
+    assert len(talk.phrasings) >= 4 and talk.expect["reply_grounded"] is True
+
+
+def test_the_proposal_status_case_decides_between_the_turns():
+    case = conversation_cases()["memory_proposal_status_acme"]
+    (instance, *_) = expand(case)
+    assert [at for at, _ in instance.decision_steps] == [1]
+    assert instance.turns[-1].expect["proposal_status_of_turn"] == {"turn": 1, "status": "executed"}
+
+
+def test_the_note_cases_tell_laptops_from_desktops_by_the_golden_file():
+    cases = conversation_cases()
+    acme = GOLDEN["tenants"]["acme-001"]
+    filtered = cases["note_then_filter_acme"].turns[-1].expect
+    wanted = set(resolve(filtered["devices"], GOLDEN))
+    desktops = set(resolve(filtered["devices_exclude"], GOLDEN))
+    assert desktops and wanted and not wanted & desktops
+    # the unfiltered question does list a desktop, so the note changes the answer
+    everyone = set(resolve(cases["forget_note_acme"].turns[-1].expect["devices"], GOLDEN))
+    assert desktops <= everyone and wanted == everyone - desktops
+    assert set(acme["desktops"]) | set(acme["laptops"]) == set(acme["devices"])
+
+
+def test_the_repeat_case_repeats_the_first_question():
+    case = conversation_cases()["repeat_conversational_acme"]
+    assert case.turns[-1].expect["repeat"] is True
+    assert case.turns[0].expect["devices"] == case.turns[-1].expect["devices"]
