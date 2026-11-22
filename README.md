@@ -131,7 +131,7 @@ make eval-live      # call the model provider and record any answer the cassette
 make eval-results   # replay and write evals/RESULTS.md
 ```
 
-`make eval` runs four suites of scenarios against the real agent and the real approval path, and scores every
+`make eval` runs five suites of scenarios against the real agent and the real approval path, and scores every
 check in code. No model judges another model.
 
 | Suite | What it checks |
@@ -140,10 +140,11 @@ check in code. No model judges another model.
 | `trends` | Sustained, onset, intermittent and transition findings for memory, disk, compliance, battery and new software match the golden classes, including follow-ups; battery estimates and the fleet health ranking match the golden severities |
 | `actions` | A request creates one pending proposal for the right device and action; approval executes it once; a duplicate, a wrong hash or a rejection changes nothing; ineligible requests are refused; advice suggests the actions the data supports |
 | `guardrails` | Cross-company questions leak nothing; prompt injection, off-topic questions, missing data, "approve it" in chat and bulk requests are refused; another company's admin cannot approve; the audit log is complete |
+| `conversation` | Later turns use the conversation's memory: "which one was the lowest?" names the right device, "did we open that ticket?" reports the real proposal status, "summarize what we found" covers earlier lists. Small talk runs no tool and makes no proposal; reasoning about a cause is hedged; a stated preference ("I only care about laptops") narrows the next answer until "forget that"; a repeated question is recognised. Every reply must pass the facts-only check |
 
 Every case is asked in at least four phrasings (short, long, misspelled, reworded), and each one must pass. The
 run prints a pass rate per suite and these metrics: tenant leaks, approval bypasses, citation precision,
-refusal accuracy, latency and token use. Exit code 0 means every case passed, 1 means a gate failed, 2 means the
+refusal accuracy, reply kept rate, sentences dropped per reply, reply length, latency and token use. Exit code 0 means every case passed, 1 means a gate failed, 2 means the
 run could not start. `--fail-under RATE` sets a minimum pass rate, but a tenant leak or an approval bypass
 always fails the run.
 
@@ -163,7 +164,7 @@ flowchart LR
     UI["Browser<br/>React app"] -- "POST /api/chat<br/>session cookie, streamed reply" --> API["FastAPI<br/>origin guard, session to identity,<br/>tenant-scoped routes"]
     API --> SVC["AgentService<br/>one turn per conversation at a time,<br/>turn timeout, trace recorder"]
     SVC --> G["LangGraph StateGraph<br/>SQLite checkpoints per<br/>company, admin and conversation"]
-    G -- "plan, act, explain" --> LLM["Model gateway<br/>Azure OpenAI, OpenAI, OpenRouter or cassette replay"]
+    G -- "plan, act, talk" --> LLM["Model gateway<br/>Azure OpenAI, OpenAI, OpenRouter or cassette replay"]
     G -- "read tools" --> REPO[("Fleet DB<br/>read-only, tenant-scoped")]
     G -- "proposal tools" --> ACT[("actions.db<br/>pending proposals")]
     UI -- "POST /api/proposals/{id}/approve" --> API
@@ -176,6 +177,7 @@ The agent loop:
 flowchart TD
     BEGIN(("start")) --> scope --> plan
     plan -- "clarify, refuse, unsupported<br/>(fixed text)" --> respond
+    plan -- "chat, or a refusal<br/>declined for lack of data" --> talk
     plan -- "follow-up reference<br/>or advice" --> reference
     plan -- otherwise --> act
     reference -- "unresolved or ambiguous" --> respond
@@ -185,9 +187,8 @@ flowchart TD
     collect -- "next round<br/>(at most 6)" --> act
     act -- "done, or round limit" --> compose
     compose -- "refused or failed" --> respond
-    compose -- "repeated question" --> verify
-    compose -- otherwise --> explain
-    explain --> verify --> respond
+    compose -- otherwise --> talk
+    talk --> verify --> respond
     respond --> DONE(("end"))
 ```
 
@@ -197,21 +198,37 @@ nodes and edges.
 | Node | What it does |
 | --- | --- |
 | `scope` | Starts the turn for the signed-in company and clears per-turn state |
-| `plan` | The model returns a structured plan: intent (`answer`, `clarify`, `refuse`, `unsupported`, `propose`, `advise`), time window, follow-up reference, and the tools it expects to need. It never writes the answer. An invalid plan is retried once, then declined |
+| `plan` | The model returns a structured plan: intent (`answer`, `clarify`, `refuse`, `unsupported`, `propose`, `advise`, `chat`), time window, follow-up reference, the tools it expects to need, and any note to remember or forget. `chat` covers greetings, thanks, "what can you do?" and questions about the conversation itself; it runs no tool. The plan never writes the answer. An invalid plan is retried once, then declined |
 | `reference` | Code resolves "those", "the first one" or a named device against the lists shown earlier |
 | `act` | The model picks read tools with typed arguments and sees short summaries of their results; it can call more tools in the next round |
 | `tools`, `collect` | Run the calls (one retry on a transient error), replace any device ids with the ones code resolved, and store typed records |
 | `compose` | Code builds the answer from the records: headline, table, scope line, claims, evidence, excluded devices, next steps |
-| `explain` | The model may add one or two sentences of context in plain words |
+| `talk` | The model writes the conversational reply (at most 6 sentences and 900 characters) from this turn's facts and the conversation's memory. It may reason, but only with hedges ("could", "might"). It never runs for security refusals, off-topic questions or clarifications |
 | `verify` | Re-checks every cited reading against the company's data and checks the model's wording; anything that fails is replaced by code-written text |
 | `respond` | Returns the typed answer and saves the lists shown, for follow-ups |
 
 Limits (in `backend/src/fleet_copilot/policy.py`): 6 tool rounds and 4 calls per round per turn, a 30 s
-timeout and 3 attempts per model call, a 120 s turn timeout, 2000 characters per question, and the last 6 turns
-of history.
+timeout and 3 attempts per model call, a 120 s turn timeout, 2000 characters per question, 30 remembered turns
+and 10 notes per conversation.
 
-Every turn records a trace (plan, tool calls, results, compose, explain, verify, respond) in `var/traces.db`, with
+Every turn records a trace (plan, tool calls, results, compose, talk, verify, respond) in `var/traces.db`, with
 counts and tool names, not raw telemetry. The operator console shows it.
+
+### Conversation memory
+
+Each conversation keeps its own memory in the saved agent state, so reopening a conversation restores it.
+
+- **What is remembered.** For each turn: the question, the outcome, the headline, the key devices with their main
+  values and evidence references, insight findings, proposals (with their current status, refreshed from the
+  action service at the start of each turn) and the lists shown. The planner sees the last 8 turns in detail and
+  older ones in one line each.
+- **Notes.** When you state a preference or some context ("I only care about laptops"), it is kept as a note,
+  at most 200 characters. Notes are shown to the model as "you said", never as evidence, and never become a
+  tool argument or a citation.
+- **Scope.** Memory belongs to one conversation of one administrator. Nothing carries over between
+  conversations or companies.
+- **Removing notes.** Say "forget that" to remove the last note, or list and remove any note through
+  `GET /api/conversations/{id}/notes` and `DELETE /api/conversations/{id}/notes/{index}`.
 
 ## Tool catalog
 
@@ -244,18 +261,24 @@ device ids. The full records go to the code that composes the answer.
 ## Grounding
 
 - **Code writes the facts.** Every count, table cell, claim and evidence item is built by code from typed tool
-  results. The model plans, picks tools and may add a sentence of context. It never supplies a number, a device
+  results. The model plans, picks tools and writes the reply around them. It never supplies a number, a device
   id or a citation.
 - **Every fact cites a reading.** References look like `<company>/<device>@<collected_at>#<field>`, for example
   `acme-001/MT7PJB7N5LRE@2026-06-12T08:39:00Z#disk`. Each one opens the exact reading through `GET /api/evidence`.
 - **The verify step checks every answer.**
   - Each reference must belong to the signed-in company, exist, and match the stated value. Otherwise the whole
     answer becomes an error.
-  - The model's wording may only use numbers, devices and dates that appear in the facts.
-  - It may not contain markup, links, causes ("because"), predictions ("will fail") or performance claims
-    ("slow").
-  - It may not name device serials, and it is limited to two sentences.
-  - Wording that fails a check is dropped and the code-written headline is shown instead.
+  - The model's reply may only use numbers, hostnames and dates that appear in this turn's facts or in the
+    conversation's memory facts (code-written, with their references). Your notes count as what you said, not
+    as facts.
+  - It may not contain markup, links, device serials or blanket reassurance ("all devices are fine").
+  - Reasoning is allowed only with a hedge. A sentence about a cause, an experience ("feels slow") or a
+    possibility needs a word such as "could", "might", "may" or "worth checking"; a prediction ("will fail")
+    is never allowed unless it repeats an estimate that code wrote.
+  - The check works sentence by sentence. A failing sentence is dropped and the others are kept as long as the
+    first sentence stands; otherwise the code-written headline and summary are shown. The trace records which
+    rule dropped which sentence, never the text.
+  - The reply is limited to 6 sentences and 900 characters.
 - **Scope is stated.** Each list answer says how many devices were checked, how many matched, which ones were not
   checked and why, for which company, and as of which snapshot.
 - **Thresholds are disclosed.** Low disk is under 10% free, memory pressure is 85% used or more, and
