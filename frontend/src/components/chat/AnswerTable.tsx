@@ -161,11 +161,13 @@ export function AnswerTable({ table, sort, onSort, numbered, onSource, scope, re
     <div className="atable">
       <table className="atable__table" aria-labelledby={titleId}>
         <caption className="atable__caption">
-          <span className="atable__title" id={titleId}>
-            {table.title}
-          </span>
-          <span className="atable__count">{countPill(table)}</span>
-          <SortMenu choices={choices} sort={sort} onSort={onSort} />
+          <div className="atable__bar">
+            <span className="atable__title" id={titleId}>
+              {table.title}
+            </span>
+            <span className="atable__count">{countPill(table)}</span>
+            <SortMenu choices={choices} sort={sort} onSort={onSort} />
+          </div>
         </caption>
         <thead>
           <tr>
