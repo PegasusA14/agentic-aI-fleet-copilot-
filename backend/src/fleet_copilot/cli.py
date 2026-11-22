@@ -9,14 +9,16 @@ import argparse
 import asyncio
 import os
 import sys
+from dataclasses import replace
 from pathlib import Path
 
 from langchain_core.messages import HumanMessage
 
 from fleet_copilot import policy
-from fleet_copilot.agent.azure import ModelUnavailable
+from fleet_copilot.agent.chat_gateway import ModelUnavailable
 from fleet_copilot.agent.gateways import build_gateway
 from fleet_copilot.agent.identity import DEMO_IDENTITIES, new_conversation_id
+from fleet_copilot.agent.providers import ADAPTERS, provider_from_env
 from fleet_copilot.agent.service import (
     AgentService,
     DatasetUnavailable,
@@ -26,13 +28,6 @@ from fleet_copilot.agent.service import (
 from fleet_copilot.config import ConfigError, ModelSettings, Settings, load_env
 from fleet_copilot.data.loader import SCHEMA_VERSION, connect, stored_schema_version
 from fleet_copilot.observability.store import TraceStore
-
-_AZURE_VARS = (
-    "AZURE_OPENAI_API_KEY",
-    "AZURE_OPENAI_ENDPOINT",
-    "AZURE_OPENAI_API_VERSION",
-    "AZURE_OPENAI_DEPLOYMENT",
-)
 
 
 def render(result: TurnResult, *, show_trace: bool) -> str:
@@ -97,14 +92,8 @@ async def _ask(args: argparse.Namespace) -> int:
 async def _probe(models: ModelSettings) -> str:
     try:
         gateway = build_gateway(
-            ModelSettings(
-                mode=models.mode,
-                azure=models.azure,
-                cassette_path=models.cassette_path,
-                record=False,  # a probe must never write a cassette
-                call_timeout_s=models.call_timeout_s,
-            )
-        )
+            replace(models, record=False)
+        )  # a probe must never write a cassette
         await gateway.explain([HumanMessage("Reply with a one-word headline.")])
     except ModelUnavailable as exc:
         return f"failed (ModelUnavailable: {exc.reason})"  # reason is an exception type name
@@ -133,11 +122,21 @@ def _doctor(args: argparse.Namespace) -> int:
     healthy = True
     raw_mode = (os.environ.get("FLEET_MODEL_MODE") or "replay").strip().lower()
     print(f"mode: {raw_mode if raw_mode in ('replay', 'live') else 'invalid'}")
-    for name in _AZURE_VARS:
+    try:
+        provider = provider_from_env(os.environ)
+    except ConfigError as exc:
+        print("provider: invalid")
+        print(f"settings: {exc}")
+        return 1
+    print(f"provider: {provider}")
+    for name in ADAPTERS[provider].required_vars:
         present = bool((os.environ.get(name) or "").strip())
         print(f"{name}: {'set' if present else 'missing'}")
         if raw_mode == "live" and not present:
             healthy = False
+    for name in ADAPTERS[provider].optional_vars:
+        present = bool((os.environ.get(name) or "").strip())
+        print(f"{name}: {'set' if present else 'not set (optional)'}")
     try:
         models = ModelSettings.from_env()
     except ConfigError as exc:

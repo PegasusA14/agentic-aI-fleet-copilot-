@@ -5,9 +5,12 @@ import secrets
 from collections.abc import Mapping
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Literal
+from typing import TYPE_CHECKING, Literal
 
 from pydantic import SecretStr
+
+if TYPE_CHECKING:
+    from fleet_copilot.agent.providers import ProviderSettings
 
 # backend/src/fleet_copilot/config.py -> repository root is three levels above the package dir.
 REPO_ROOT = Path(__file__).resolve().parents[3]
@@ -16,12 +19,6 @@ EXPECTED_DATASET_SHA256 = "fb0ee31ffeeb731b919fc4d5124098c9c5b68cf3fba35eed5092a
 PINNED_AS_OF = "2026-06-12T11:00:00Z"
 
 ModelMode = Literal["replay", "live"]
-_AZURE_VARS = (
-    "AZURE_OPENAI_API_KEY",
-    "AZURE_OPENAI_ENDPOINT",
-    "AZURE_OPENAI_API_VERSION",
-    "AZURE_OPENAI_DEPLOYMENT",
-)
 
 
 class ConfigError(ValueError):
@@ -80,24 +77,16 @@ def _temperature(raw: str | None) -> float:
 
 
 @dataclass(frozen=True)
-class AzureSettings:
-    api_key: SecretStr
-    endpoint: str = field(repr=False)
-    api_version: str
-    deployment: str = field(repr=False)
-    temperature: float = 0.0
-
-
-@dataclass(frozen=True)
 class ModelSettings:
     mode: ModelMode
-    azure: AzureSettings | None
     cassette_path: Path
     record: bool
     call_timeout_s: float
     temperature: float = 0.0
-    # A label for the model behind the deployment, recorded with eval runs. It never picks the deployment.
+    # A label for the model behind the provider, recorded with eval runs. It never picks the model.
     model_name: str | None = field(default=None, repr=False)
+    provider: str = "azure"  # a key of `agent.providers.ADAPTERS`
+    provider_settings: ProviderSettings | None = None  # set in live mode, validated by the adapter
 
     @classmethod
     def from_env(cls, env: Mapping[str, str] | None = None) -> ModelSettings:
@@ -107,37 +96,26 @@ class ModelSettings:
             raise ConfigError("FLEET_MODEL_MODE must be 'replay' or 'live'")
         from fleet_copilot import (
             policy,
-        )  # local import: policy has no dependencies, keep config light
+        )  # local imports: policy has no dependencies and the providers import this module
+        from fleet_copilot.agent.providers import ADAPTERS, provider_from_env
 
         temperature = _temperature(env.get("FLEET_MODEL_TEMPERATURE"))
         label = (env.get("FLEET_MODEL_NAME") or "").strip() or None
-        azure: AzureSettings | None = None
-        if raw_mode == "live":
-            values = {name: (env.get(name) or "").strip() for name in _AZURE_VARS}
-            missing = [name for name, value in values.items() if not value]
-            if missing:
-                raise ConfigError("live mode needs these variables in .env: " + ", ".join(missing))
-            if not values["AZURE_OPENAI_ENDPOINT"].startswith("https://"):
-                raise ConfigError("AZURE_OPENAI_ENDPOINT must start with https://")
-            azure = AzureSettings(
-                api_key=SecretStr(values["AZURE_OPENAI_API_KEY"]),
-                endpoint=values["AZURE_OPENAI_ENDPOINT"],
-                api_version=values["AZURE_OPENAI_API_VERSION"],
-                deployment=values["AZURE_OPENAI_DEPLOYMENT"],
-                temperature=temperature,
-            )
+        provider = provider_from_env(env)
+        credentials = ADAPTERS[provider].settings_from_env(env) if raw_mode == "live" else None
         cassette = env.get("FLEET_CASSETTE_PATH") or str(
             REPO_ROOT / "var" / "cassettes" / "live.jsonl"
         )
         record = (env.get("FLEET_CASSETTE_RECORD") or "").strip().lower() in ("1", "true", "yes")
         return cls(
             mode=raw_mode,  # type: ignore[arg-type]
-            azure=azure,
             cassette_path=Path(cassette),
             record=record,
             call_timeout_s=policy.MODEL_CALL_TIMEOUT_S,
             temperature=temperature,
-            model_name=label or (azure.deployment if azure else None),
+            model_name=label or (credentials.label if credentials else None),
+            provider=provider,
+            provider_settings=credentials,
         )
 
 

@@ -1,7 +1,8 @@
 """`python -m fleet_copilot.evals run [--live] [--refresh] [--suite NAME] [--fail-under RATE] [--write-results PATH]`
 
 Replay (the default) needs no network and no key: model answers come from the committed cassette, and a
-question nobody recorded is a failed case reported as "not recorded". `--live` calls Azure and records every
+question nobody recorded is a failed case reported as "not recorded". `--live` calls the configured provider
+(`FLEET_MODEL_PROVIDER`) and records every
 miss into the same cassette; `--refresh` (live only) deletes the cassette first so every answer is new.
 Only this entry point reads `.env`.
 
@@ -19,8 +20,8 @@ import sys
 from datetime import UTC, datetime
 from pathlib import Path
 
-from fleet_copilot.agent.azure import ChatGateway, build_azure_model
 from fleet_copilot.agent.cassette import CassetteGateway
+from fleet_copilot.agent.gateways import build_live_gateway
 from fleet_copilot.agent.llm import LLMGateway
 from fleet_copilot.config import REPO_ROOT, ConfigError, ModelSettings, Settings, load_env
 from fleet_copilot.evals import results, runner
@@ -47,7 +48,9 @@ def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="python -m fleet_copilot.evals")
     commands = parser.add_subparsers(dest="command", required=True)
     run = commands.add_parser("run", help="run the evaluation suites")
-    run.add_argument("--live", action="store_true", help="call Azure and record misses")
+    run.add_argument(
+        "--live", action="store_true", help="call the configured provider and record misses"
+    )
     run.add_argument(
         "--refresh", action="store_true", help="with --live: delete the cassette first"
     )
@@ -75,14 +78,9 @@ def _gateway(live: bool, refresh: bool) -> LLMGateway:
     if not live:
         return CassetteGateway(CASSETTE)
     models = _live_models()
-    assert models.azure is not None  # live mode without Azure settings raises ConfigError
     if refresh:
         CASSETTE.unlink(missing_ok=True)
-    inner = ChatGateway(
-        build_azure_model(models.azure, models.call_timeout_s),
-        call_timeout_s=models.call_timeout_s,
-    )
-    return CassetteGateway(CASSETTE, inner=inner)
+    return CassetteGateway(CASSETTE, inner=build_live_gateway(models))
 
 
 async def _run(args: argparse.Namespace) -> int:
@@ -92,7 +90,7 @@ async def _run(args: argparse.Namespace) -> int:
     suites = load_suites(SCENARIOS)
     models = (
         _live_models() if args.live else None
-    )  # the label and temperature recorded with the run
+    )  # the provider, label and temperature recorded with the run
     result = await runner.run(
         suites,
         gateway=_gateway(args.live, args.refresh),
@@ -102,6 +100,7 @@ async def _run(args: argparse.Namespace) -> int:
         run_id=datetime.now(UTC).strftime("%Y%m%dT%H%M%SZ"),
         only_suite=args.suite,
         model_mode=mode,
+        provider=models.provider if models else None,
         model_name=models.model_name if models else None,
         temperature=models.temperature if models else None,
     )

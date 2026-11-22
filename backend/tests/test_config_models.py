@@ -3,13 +3,12 @@ from pydantic import SecretStr
 
 from fleet_copilot import policy
 from fleet_copilot.agent.identity import DEMO_IDENTITIES, OPERATOR_IDENTITY
-from fleet_copilot.config import (
-    ApiSettings,
+from fleet_copilot.agent.providers import (
+    DEFAULT_PROVIDER,
     AzureSettings,
-    ConfigError,
-    ModelSettings,
-    Settings,
+    OpenAICompatibleSettings,
 )
+from fleet_copilot.config import ApiSettings, ConfigError, ModelSettings, Settings
 
 AZURE = {
     "AZURE_OPENAI_API_KEY": "sk-not-a-real-key",
@@ -21,14 +20,15 @@ AZURE = {
 
 def test_replay_is_the_default_and_needs_no_azure_settings():
     settings = ModelSettings.from_env({})
-    assert settings.mode == "replay" and settings.azure is None and settings.record is False
+    assert settings.mode == "replay" and settings.provider_settings is None
+    assert settings.record is False
 
 
 def test_live_mode_builds_azure_settings():
     settings = ModelSettings.from_env({"FLEET_MODEL_MODE": "live", **AZURE})
-    assert isinstance(settings.azure, AzureSettings)
-    assert settings.azure.deployment == "gpt-4o"
-    assert settings.azure.api_key.get_secret_value() == AZURE["AZURE_OPENAI_API_KEY"]
+    assert isinstance(settings.provider_settings, AzureSettings)
+    assert settings.provider_settings.deployment == "gpt-4o"
+    assert settings.provider_settings.api_key.get_secret_value() == AZURE["AZURE_OPENAI_API_KEY"]
 
 
 def test_live_mode_names_the_missing_variables_but_never_values():
@@ -126,7 +126,7 @@ def test_the_temperature_defaults_to_zero_and_the_name_to_the_deployment():
     replay = ModelSettings.from_env({})
     assert replay.temperature == 0.0 and replay.model_name is None
     live = ModelSettings.from_env({"FLEET_MODEL_MODE": "live", **AZURE})
-    assert live.temperature == 0.0 and live.azure.temperature == 0.0
+    assert live.temperature == 0.0
     assert live.model_name == "gpt-4o"
 
 
@@ -134,7 +134,7 @@ def test_the_temperature_defaults_to_zero_and_the_name_to_the_deployment():
 def test_a_valid_temperature_is_read(raw, expected):
     env = {"FLEET_MODEL_MODE": "live", **AZURE, "FLEET_MODEL_TEMPERATURE": raw}
     settings = ModelSettings.from_env(env)
-    assert settings.temperature == expected and settings.azure.temperature == expected
+    assert settings.temperature == expected
 
 
 @pytest.mark.parametrize("raw", ["hot", "1.5", "-0.1", "nan", "inf", "7.25"])
@@ -149,5 +149,155 @@ def test_the_model_name_is_a_label_that_leaves_the_deployment_alone():
     env = {"FLEET_MODEL_MODE": "live", **AZURE, "FLEET_MODEL_NAME": " gpt-4o-2024-11-20 "}
     settings = ModelSettings.from_env(env)
     assert settings.model_name == "gpt-4o-2024-11-20"
-    assert settings.azure.deployment == "gpt-4o"
+    assert settings.provider_settings.deployment == "gpt-4o"
     assert ModelSettings.from_env({"FLEET_MODEL_NAME": "label"}).model_name == "label"
+
+
+OPENAI = {"OPENAI_API_KEY": "sk-openai-not-real", "OPENAI_MODEL": "gpt-4o-mini"}
+OPENROUTER = {
+    "OPENROUTER_API_KEY": "sk-or-not-real",
+    "OPENROUTER_MODEL": "openai/gpt-4o-mini",
+}
+
+
+def live(provider, extra):
+    return ModelSettings.from_env(
+        {"FLEET_MODEL_MODE": "live", "FLEET_MODEL_PROVIDER": provider, **extra}
+    )
+
+
+def test_the_provider_defaults_to_azure():
+    assert ModelSettings.from_env({}).provider == "azure" == DEFAULT_PROVIDER
+    settings = ModelSettings.from_env({"FLEET_MODEL_MODE": "live", **AZURE})
+    assert settings.provider == "azure"
+    assert isinstance(settings.provider_settings, AzureSettings)
+    blank = ModelSettings.from_env(
+        {"FLEET_MODEL_MODE": "live", "FLEET_MODEL_PROVIDER": " ", **AZURE}
+    )
+    assert blank.provider == "azure"
+
+
+@pytest.mark.parametrize("raw", ["gemini", "azure-openai", "sk-pasted-in-the-wrong-place"])
+def test_an_unknown_provider_names_the_variable_but_not_the_value(raw):
+    with pytest.raises(ConfigError) as err:
+        ModelSettings.from_env({"FLEET_MODEL_PROVIDER": raw})
+    assert "FLEET_MODEL_PROVIDER" in str(err.value) and raw not in str(err.value)
+
+
+def test_the_provider_is_case_insensitive():
+    assert live("OpenRouter", OPENROUTER).provider == "openrouter"
+
+
+def test_openai_settings():
+    settings = live("openai", OPENAI)
+    creds = settings.provider_settings
+    assert settings.provider == "openai" and isinstance(creds, OpenAICompatibleSettings)
+    assert creds.api_key.get_secret_value() == OPENAI["OPENAI_API_KEY"]
+    assert creds.model == "gpt-4o-mini" and creds.base_url == "https://api.openai.com/v1"
+    assert dict(creds.headers) == {}
+    assert settings.model_name == "gpt-4o-mini"
+
+
+def test_openai_takes_an_optional_https_base_url():
+    settings = live("openai", {**OPENAI, "OPENAI_BASE_URL": " https://llm.example.net/v1 "})
+    assert settings.provider_settings.base_url == "https://llm.example.net/v1"
+
+
+@pytest.mark.parametrize("url", ["http://llm.example.net/v1", "https://", "ftp://llm.example.net"])
+def test_openai_base_url_must_be_https(url):
+    with pytest.raises(ConfigError) as err:
+        live("openai", {**OPENAI, "OPENAI_BASE_URL": url})
+    assert "OPENAI_BASE_URL" in str(err.value) and "llm.example.net" not in str(err.value)
+
+
+def test_openrouter_settings_and_defaults():
+    settings = live("openrouter", OPENROUTER)
+    creds = settings.provider_settings
+    assert settings.provider == "openrouter" and isinstance(creds, OpenAICompatibleSettings)
+    assert creds.api_key.get_secret_value() == OPENROUTER["OPENROUTER_API_KEY"]
+    assert creds.model == "openai/gpt-4o-mini"
+    assert creds.base_url == "https://openrouter.ai/api/v1"
+    assert dict(creds.headers) == {"X-Title": "Fleet Copilot"}
+    assert settings.model_name == "openai/gpt-4o-mini"
+
+
+def test_the_openrouter_endpoint_cannot_be_changed():
+    settings = live(
+        "openrouter", {**OPENROUTER, "OPENROUTER_BASE_URL": "https://elsewhere.example.net"}
+    )
+    assert settings.provider_settings.base_url == "https://openrouter.ai/api/v1"
+
+
+def test_openrouter_app_name_is_configurable():
+    settings = live("openrouter", {**OPENROUTER, "OPENROUTER_APP_NAME": " Fleet Lab "})
+    assert dict(settings.provider_settings.headers) == {"X-Title": "Fleet Lab"}
+    with pytest.raises(ConfigError) as err:
+        live("openrouter", {**OPENROUTER, "OPENROUTER_APP_NAME": "two\nlines"})
+    assert "OPENROUTER_APP_NAME" in str(err.value)
+
+
+@pytest.mark.parametrize(
+    ("provider", "good", "missing"),
+    [
+        ("openai", OPENAI, ["OPENAI_API_KEY", "OPENAI_MODEL"]),
+        ("openrouter", OPENROUTER, ["OPENROUTER_API_KEY", "OPENROUTER_MODEL"]),
+    ],
+)
+def test_a_provider_names_its_missing_variables_never_values(provider, good, missing):
+    for name in missing:
+        with pytest.raises(ConfigError) as err:
+            live(provider, {**good, name: " "})
+        text = str(err.value)
+        assert name in text and provider in text
+        assert all(value not in text for value in good.values())
+    with pytest.raises(ConfigError) as err:
+        live(provider, {})
+    assert all(name in str(err.value) for name in missing)
+
+
+def test_only_the_selected_providers_variables_are_checked():
+    assert live("openai", {**OPENAI, **AZURE}).provider_settings.model == "gpt-4o-mini"
+    assert live("openrouter", {**OPENROUTER, **OPENAI}).provider_settings.model == (
+        "openai/gpt-4o-mini"
+    )
+    with pytest.raises(ConfigError) as err:
+        live("openai", {**OPENROUTER, **AZURE})
+    assert "AZURE_OPENAI" not in str(err.value) and "OPENROUTER" not in str(err.value)
+    with pytest.raises(ConfigError) as err:
+        ModelSettings.from_env({"FLEET_MODEL_MODE": "live", **OPENAI})  # provider azure
+    assert "AZURE_OPENAI_API_KEY" in str(err.value) and "OPENAI_MODEL" not in str(err.value)
+
+
+def test_replay_needs_no_provider_variables():
+    for provider in ("azure", "openai", "openrouter"):
+        settings = ModelSettings.from_env({"FLEET_MODEL_PROVIDER": provider})
+        assert settings.provider == provider and settings.model_name is None
+        assert settings.provider_settings is None
+
+
+@pytest.mark.parametrize(
+    ("provider", "env", "hidden"),
+    [
+        (
+            "openai",
+            {**OPENAI, "OPENAI_BASE_URL": "https://llm.example.net/v1"},
+            ["sk-openai-not-real", "llm.example.net", "gpt-4o-mini"],
+        ),
+        ("openrouter", OPENROUTER, ["sk-or-not-real", "openai/gpt-4o-mini"]),
+        ("azure", AZURE, ["sk-not-a-real-key", "example.openai.azure.com", "gpt-4o"]),
+    ],
+)
+def test_keys_and_endpoints_stay_out_of_repr_and_str(provider, env, hidden):
+    settings = live(provider, env)
+    shown = repr(settings) + str(settings) + repr(settings.provider_settings)
+    shown += str(settings.provider_settings)
+    for text in hidden:
+        assert text not in shown
+
+
+def test_temperature_and_the_label_apply_to_every_provider():
+    extra = {"FLEET_MODEL_TEMPERATURE": "0.3", "FLEET_MODEL_NAME": "label"}
+    one = live("openai", {**OPENAI, **extra})
+    two = live("openrouter", {**OPENROUTER, **extra})
+    assert one.temperature == two.temperature == 0.3
+    assert one.model_name == two.model_name == "label"

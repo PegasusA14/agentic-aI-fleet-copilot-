@@ -1,6 +1,6 @@
 """A short end-to-end check of the agent against whatever gateway the service holds.
 
-It is not a test suite: with Azure it spends real model calls, and its job is to show that the live
+It is not a test suite: with a live provider it spends real model calls, and its job is to show that the live
 model plans, calls tools and words answers well enough for the demo. Expected entity sets come from the
 independent golden file, never from the product's own code. `make live-check` records a cassette so the
 same cases replay offline (see `tests/test_live_replay.py`).
@@ -13,7 +13,7 @@ import asyncio
 import json
 import sys
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 from pathlib import Path
 
 from fleet_copilot.agent.identity import DEMO_IDENTITIES, Identity, new_conversation_id
@@ -226,12 +226,10 @@ async def _main_async(only: set[str] | None, cassette: Path | None) -> int:
 
     settings, models = Settings.from_env(), ModelSettings.from_env()
     if cassette is not None:
-        models = ModelSettings(
-            mode=models.mode,
-            azure=models.azure,
+        models = replace(
+            models,
             cassette_path=cassette,
             record=True if models.mode == "live" else models.record,
-            call_timeout_s=models.call_timeout_s,
         )
     async with AgentService.open(
         db_path=settings.db_path,

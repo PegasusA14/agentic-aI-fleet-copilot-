@@ -31,10 +31,19 @@ class UsageCollector(BaseCallbackHandler):
         self.prompt = 0
         self.completion = 0
         self.seen = False
+        self.filtered = False  # the provider cut the answer off with finish_reason "content_filter"
 
     def on_llm_end(self, response: LLMResult, **kwargs: Any) -> None:
         for generations in response.generations:
             for generation in generations:
+                message = getattr(generation, "message", None)
+                info = getattr(generation, "generation_info", None)
+                reasons = (
+                    (info or {}).get("finish_reason"),
+                    (getattr(message, "response_metadata", None) or {}).get("finish_reason"),
+                )
+                if "content_filter" in reasons:
+                    self.filtered = True
                 meta = getattr(getattr(generation, "message", None), "usage_metadata", None)
                 if isinstance(meta, dict) and meta:
                     self.prompt += _count(meta.get("input_tokens"))

@@ -1,3 +1,4 @@
+import asyncio
 import json
 from pathlib import Path
 
@@ -5,10 +6,11 @@ from graph_support import answer_plan, explanation
 from pydantic import SecretStr
 
 from fleet_copilot import cli
-from fleet_copilot.agent.azure import ModelUnavailable
 from fleet_copilot.agent.cassette import CassetteGateway
+from fleet_copilot.agent.chat_gateway import ModelUnavailable
 from fleet_copilot.agent.llm import ScriptedLLM, final_message, tool_calls_message
-from fleet_copilot.config import AzureSettings, ModelSettings, Settings
+from fleet_copilot.agent.providers import AzureSettings
+from fleet_copilot.config import ModelSettings, Settings
 from fleet_copilot.data.cli import main as load_data_main
 
 
@@ -76,6 +78,85 @@ def test_doctor_reports_names_and_never_values(monkeypatch, tmp_path, real_db_pa
     assert "sk-super-secret-value" not in out and "hidden-resource" not in out
 
 
+def test_doctor_names_the_provider_and_its_variables(monkeypatch, tmp_path, real_db_path, capsys):
+    monkeypatch.setenv("AZURE_OPENAI_API_KEY", "sk-super-secret-value")
+    run(["doctor"], monkeypatch, tmp_path, real_db_path)
+    out = capsys.readouterr().out
+    assert "provider: azure" in out and "AZURE_OPENAI_API_KEY: set" in out
+    assert "OPENAI_MODEL" not in out and "OPENROUTER" not in out
+    assert "sk-super-secret-value" not in out
+
+
+def test_doctor_for_openai_lists_only_its_variables(monkeypatch, tmp_path, real_db_path, capsys):
+    monkeypatch.setenv("FLEET_MODEL_MODE", "live")
+    monkeypatch.setenv("FLEET_MODEL_PROVIDER", "openai")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-openai-secret-value")
+    monkeypatch.setenv("OPENAI_MODEL", "gpt-secret-model")
+    monkeypatch.setenv("OPENAI_BASE_URL", "https://hidden-gateway.example.net/v1")
+    monkeypatch.setenv("AZURE_OPENAI_API_KEY", "sk-azure-leftover")
+    code = run(["doctor"], monkeypatch, tmp_path, real_db_path)
+    out = capsys.readouterr().out
+    assert code == 0
+    assert "provider: openai" in out
+    assert "OPENAI_API_KEY: set" in out and "OPENAI_MODEL: set" in out
+    assert "OPENAI_BASE_URL: set" in out
+    assert "AZURE" not in out and "OPENROUTER" not in out
+    for value in ("sk-openai-secret-value", "gpt-secret-model", "hidden-gateway", "sk-azure"):
+        assert value not in out
+
+
+def test_doctor_for_openrouter_reports_missing_and_optional_variables(
+    monkeypatch, tmp_path, real_db_path, capsys
+):
+    monkeypatch.setenv("FLEET_MODEL_MODE", "live")
+    monkeypatch.setenv("FLEET_MODEL_PROVIDER", "openrouter")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-secret-value")
+    code = run(["doctor"], monkeypatch, tmp_path, real_db_path)
+    out = capsys.readouterr().out
+    assert code == 1  # the model is missing
+    assert "provider: openrouter" in out and "OPENROUTER_API_KEY: set" in out
+    assert "OPENROUTER_MODEL: missing" in out
+    assert "OPENROUTER_APP_NAME: not set (optional)" in out
+    assert "sk-or-secret-value" not in out
+
+
+def test_doctor_refuses_an_unknown_provider_without_echoing_it(
+    monkeypatch, tmp_path, real_db_path, capsys
+):
+    monkeypatch.setenv("FLEET_MODEL_PROVIDER", "sk-pasted-into-the-wrong-variable")
+    code = run(["doctor"], monkeypatch, tmp_path, real_db_path)
+    out = capsys.readouterr().out
+    assert code == 1
+    assert "provider: invalid" in out and "FLEET_MODEL_PROVIDER" in out and "sk-pasted" not in out
+
+
+def test_the_probe_keeps_the_selected_provider(monkeypatch):
+    from fleet_copilot.agent.providers import OpenAICompatibleSettings
+
+    seen = []
+
+    def fake_build(settings):
+        seen.append(settings)
+        return ScriptedLLM(explains=[explanation()])
+
+    monkeypatch.setattr(cli, "build_gateway", fake_build)
+    models = ModelSettings(
+        mode="live",
+        cassette_path=Path("unused.jsonl"),
+        record=True,
+        call_timeout_s=5.0,
+        provider="openrouter",
+        provider_settings=OpenAICompatibleSettings(
+            api_key=SecretStr("sk-x"), model="m", base_url="https://openrouter.ai/api/v1"
+        ),
+    )
+    assert asyncio.run(cli._probe(models)) == "ok"
+    assert (
+        seen[0].provider == "openrouter" and seen[0].provider_settings is models.provider_settings
+    )
+    assert seen[0].record is False
+
+
 def test_doctor_in_replay_mode_is_healthy(monkeypatch, tmp_path, real_db_path, capsys):
     monkeypatch.setenv("FLEET_CASSETTE_PATH", str(tmp_path / "c.jsonl"))
     assert run(["doctor"], monkeypatch, tmp_path, real_db_path) == 0
@@ -114,7 +195,7 @@ def test_doctor_does_not_echo_an_invalid_mode(monkeypatch, tmp_path, real_db_pat
 def azure_models():
     return ModelSettings(
         mode="live",
-        azure=AzureSettings(
+        provider_settings=AzureSettings(
             api_key=SecretStr("sk-probe-secret"),
             endpoint="https://hidden-resource.openai.azure.com/",
             api_version="2024-01-01",

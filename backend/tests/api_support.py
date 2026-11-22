@@ -34,7 +34,6 @@ async def client_for(
     )
     models = ModelSettings(
         mode="replay",
-        azure=None,
         cassette_path=state_dir / "c.jsonl",
         record=False,
         call_timeout_s=5.0,

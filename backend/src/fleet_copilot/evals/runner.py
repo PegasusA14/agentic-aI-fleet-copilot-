@@ -122,6 +122,7 @@ class RunResult:
     policy: dict[str, Any]
     cases: list[CaseResult] = field(default_factory=list)
     tokens: dict[str, int] | None = None  # what the model calls of this run cost, when recorded
+    provider: str | None = None  # the model provider of a live run
     model_name: str | None = None  # a label for the model behind a live run
     temperature: float | None = None  # the sampling temperature of a live run
 
@@ -145,6 +146,7 @@ class RunResult:
             "run_id": self.run_id,
             "started_at": self.started_at,
             "model_mode": self.model_mode,
+            "provider": self.provider,
             "model_name": self.model_name,
             "temperature": self.temperature,
             "dataset_sha256": self.dataset_sha256,
@@ -578,6 +580,7 @@ async def run(
     run_id: str,
     only_suite: str | None = None,
     model_mode: str = "eval-replay",
+    provider: str | None = None,
     model_name: str | None = None,
     temperature: float | None = None,
     now: datetime | None = None,
@@ -591,6 +594,7 @@ async def run(
         run_id=run_id,
         started_at=iso_z(now or datetime.now(UTC)),
         model_mode=model_mode,
+        provider=provider,
         model_name=model_name,
         temperature=temperature,
         dataset_sha256=sha,

@@ -5,12 +5,10 @@ import openai
 import pytest
 from langchain_core.messages import AIMessage, HumanMessage
 from model_support import FakeChatModel
-from pydantic import SecretStr
 
-from fleet_copilot.agent.azure import ChatGateway, ModelUnavailable, build_azure_model
+from fleet_copilot.agent.chat_gateway import ChatGateway, ModelUnavailable
 from fleet_copilot.agent.llm import Explanation, Plan, PlanRejected
 from fleet_copilot.agent.tools import TOOLS
-from fleet_copilot.config import AzureSettings
 
 MESSAGES = [HumanMessage("hi")]
 PLAN = Plan(intent="answer", summary="look it up")
@@ -93,8 +91,9 @@ async def test_gives_up_after_the_attempt_limit_with_only_a_type_name():
 async def test_an_authentication_error_is_not_retried():
     model = FakeChatModel([auth_failed(), PLAN])
     gw, slept = gateway(model)
-    with pytest.raises(openai.AuthenticationError):
+    with pytest.raises(ModelUnavailable) as err:
         await gw.plan(MESSAGES)
+    assert err.value.reason == "AuthenticationError" and "bad key" not in str(err.value)
     assert slept == [] and len(model.script) == 1
 
 
@@ -117,56 +116,6 @@ async def test_a_wrong_result_type_is_refused():
     with pytest.raises(ModelUnavailable) as err:
         await gw.explain(MESSAGES)
     assert err.value.reason == "bad_structured_output"
-
-
-def test_the_real_azure_model_builds_offline_and_binds_the_tools():
-    settings = AzureSettings(
-        api_key=SecretStr("sk-not-a-real-key"),
-        endpoint="https://example.openai.azure.com/",
-        api_version="2024-10-21",
-        deployment="gpt-4o",
-    )
-    model = build_azure_model(settings, call_timeout_s=5.0)
-    assert model.temperature == 0
-    ChatGateway(model)  # builds the structured-output runnables without a network call
-    bound = model.bind_tools(TOOLS)
-    names = [t["function"]["name"] for t in bound.kwargs["tools"]]
-    assert names == [t.name for t in TOOLS]
-    assert "sk-not-a-real-key" not in repr(model)
-
-
-def test_the_azure_model_gets_the_configured_temperature():
-    settings = AzureSettings(
-        api_key=SecretStr("sk-not-a-real-key"),
-        endpoint="https://example.openai.azure.com/",
-        api_version="2024-10-21",
-        deployment="gpt-4o",
-        temperature=0.3,
-    )
-    assert build_azure_model(settings, call_timeout_s=5.0).temperature == 0.3
-
-
-def test_the_gateway_builder_passes_the_temperature_from_the_environment(monkeypatch):
-    seen = {}
-
-    def fake_build(azure, timeout):
-        seen["temperature"] = azure.temperature
-        return FakeChatModel([])
-
-    monkeypatch.setattr("fleet_copilot.agent.gateways.build_azure_model", fake_build)
-    env = {
-        "FLEET_MODEL_MODE": "live",
-        "AZURE_OPENAI_API_KEY": "sk-not-a-real-key",
-        "AZURE_OPENAI_ENDPOINT": "https://example.openai.azure.com/",
-        "AZURE_OPENAI_API_VERSION": "2024-10-21",
-        "AZURE_OPENAI_DEPLOYMENT": "gpt-4o",
-        "FLEET_MODEL_TEMPERATURE": "0.4",
-    }
-    from fleet_copilot.agent.gateways import build_gateway
-    from fleet_copilot.config import ModelSettings
-
-    build_gateway(ModelSettings.from_env(env))
-    assert seen["temperature"] == 0.4
 
 
 def content_filtered(jailbreak: bool) -> openai.BadRequestError:
@@ -206,8 +155,9 @@ async def test_other_bad_requests_are_not_mistaken_for_the_content_filter():
         "bad", response=httpx.Response(400, request=request), body={"code": "invalid_value"}
     )
     gw, _ = gateway(FakeChatModel([plain]))
-    with pytest.raises(openai.BadRequestError):
+    with pytest.raises(ModelUnavailable) as err:
         await gw.plan(MESSAGES)
+    assert err.value.reason == "BadRequestError"
 
 
 # ---- token usage -------------------------------------------------------------------------------------

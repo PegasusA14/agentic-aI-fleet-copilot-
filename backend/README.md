@@ -32,22 +32,26 @@ The agent talks to a model through a gateway chosen by `FLEET_MODEL_MODE`:
 - `replay` (the default) answers from a recorded cassette and needs no credentials. It reads
   `FLEET_CASSETTE_PATH` (default `var/cassettes/live.jsonl`). A question nobody recorded gets the fixed
   tool-error text, not a made-up answer.
-- `live` calls an Azure OpenAI deployment. It needs `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`,
-  `AZURE_OPENAI_API_VERSION` and `AZURE_OPENAI_DEPLOYMENT` in the git-ignored `.env`. Set
-  `FLEET_CASSETTE_RECORD=1` to also record each response to the cassette.
+- `live` calls the provider named by `FLEET_MODEL_PROVIDER`: `azure` (default), `openai` or `openrouter`.
+  Its variables go in the git-ignored `.env` (the root README lists them). Set `FLEET_CASSETTE_RECORD=1` to
+  also record each response to the cassette. The cassette key does not include the provider.
+
+Each provider is an adapter in `agent/providers.py`: its variables, its settings, its LangChain model and how
+its errors are sorted. To add a provider, add an adapter to `ADAPTERS`; the gateway, `doctor` and the
+evaluation metadata pick it up without any other change.
 
 Keep LangSmith tracing (`LANGSMITH_*`, `LANGCHAIN_*`) off: it exports prompts and answers off-box and must
 never be on for tenant data.
 
 Optional model parameters: `FLEET_MODEL_TEMPERATURE` (0 to 1, default 0) and `FLEET_MODEL_NAME` (a label
-recorded with eval runs, default the deployment name; it does not change which deployment is called).
+recorded with eval runs, default the deployment or model name; it does not change which model is called).
 
 Other variables: `FLEET_DATA_PATH`, `FLEET_DB_PATH`, `FLEET_STATE_DIR`, `FLEET_PORT`, `FLEET_ALLOWED_ORIGINS`,
 `FLEET_SESSION_SECRET`, `FLEET_OPERATOR_PASSCODE`.
 
-Run `make doctor` first. It prints which variables are set or missing (never their values), the mode, the
+Run `make doctor` first. It prints the provider and which of its variables are set or missing (never their values), the mode, the
 number of recorded cassette responses, whether the dataset database exists, and, in live mode, makes one
-tiny real model call that proves the deployment name and API version. `make ask Q="Which devices are low on
+tiny real model call that proves the provider settings work. `make ask Q="Which devices are low on
 disk space?"` asks one question from the terminal and prints the trace.
 
 `make api` serves on `127.0.0.1:$FLEET_PORT` (default 8000) only; the host is not configurable. Sign in with a demo key
@@ -97,14 +101,17 @@ move all of them.
 ### Limits
 
 30 s per model call, 3 attempts per call (rate limits, timeouts, connection and 5xx errors only), and 120 s
-per turn.
+per turn. Other 4xx errors (a wrong key or model name) are not retried and report only the error type; a
+content-policy refusal from any provider becomes the fixed refusal.
 
 ### Troubleshooting
 
-- `401` from Azure: the key or the endpoint is wrong.
-- `404 DeploymentNotFound`: the deployment name (`AZURE_OPENAI_DEPLOYMENT`) is wrong.
-- `400` that mentions `api-version`: the API version is wrong.
-- A rejection of `temperature`: the deployment is a reasoning model. Use a non-reasoning deployment.
+- `AuthenticationError`: the key (or, for Azure, the endpoint) is wrong.
+- `NotFoundError` with OpenAI or OpenRouter: the model name is wrong.
+- A rejection of tools or structured output with OpenRouter: pick a model that supports tool calling.
+- Azure `404 DeploymentNotFound`: the deployment name (`AZURE_OPENAI_DEPLOYMENT`) is wrong.
+- Azure `400` that mentions `api-version`: the API version is wrong.
+- A rejection of `temperature`: the model is a reasoning model. Use a non-reasoning one.
 
 ## Actions, approval and audit
 
@@ -371,7 +378,7 @@ needs no network and no key: the model's answers are replayed from the cassette 
 ```bash
 make eval        # offline replay; exit code 0 only if every case passed and none was "not recorded"
 make eval-results  # the same, and writes evals/RESULTS.md
-make eval-live   # calls Azure and records every answer the cassette lacks (needs the .env model settings)
+make eval-live   # calls the model provider and records every answer the cassette lacks (needs the .env model settings)
 ```
 
 `python -m fleet_copilot.evals run --suite <name>` (from `backend/`, through `uv run`) runs one suite. Output is a
@@ -409,7 +416,7 @@ provider's message before the structured-output wrapper parses it away (`agent/u
 and outside the key, so existing lines and keys are unchanged; a line without `usage` replays exactly as before and
 contributes no tokens. A cassette recorded before this existed prints `tokens: n/a (cassette has no usage)`; one
 recorded after it prints the total, and says "recorded for N of M calls" while it is still a mix. Gap: the usage is
-only as complete as the provider's response. If Azure omits it for a call, that call has none and is counted in
+only as complete as the provider's response. If the provider omits it for a call, that call has none and is counted in
 "of M".
 
 ### Trajectory checks
@@ -531,8 +538,8 @@ the check `recorded: not recorded` (the trace shows a `CassetteMiss`); it is not
 remaining turns are skipped. The summary counts these per suite, and `make eval` exits `1` while any exist. With no
 cassette at all every case is "not recorded".
 
-- Record: `make eval-live`. It replays what the cassette already has, calls Azure for each miss and appends the
-  response. It needs `AZURE_OPENAI_*` in `.env` and spends model calls.
+- Record: `make eval-live`. It replays what the cassette already has, calls the model provider for each miss and appends the
+  response. It needs the provider's variables in `.env` and spends model calls.
 - After a change to a prompt, a tool description or tool output, the old keys no longer match and the affected cases
   become "not recorded"; `make eval-live` records the new ones and leaves the dead entries in the file.
 - To rebuild the file from scratch (after a prompt change you want a clean cassette for, or a different deployment or

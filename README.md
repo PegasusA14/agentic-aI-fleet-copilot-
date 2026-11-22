@@ -5,7 +5,7 @@ in plain language, backs every answer with cited telemetry readings, spots trend
 disks that stay full, recommends what to do next, and turns a request like "open a ticket for that one" into a
 proposal that only a person can approve.
 
-- **Backend:** Python 3.14, LangGraph (an explicit agent graph), FastAPI, Azure OpenAI, SQLite.
+- **Backend:** Python 3.14, LangGraph (an explicit agent graph), FastAPI, Azure OpenAI, OpenAI or OpenRouter, SQLite.
 - **Frontend:** React, Vite and TypeScript.
 - **Data:** `data/device-telemetry-dataset.ndjson`, 750 daily snapshots of 25 devices across 3 companies.
 
@@ -22,7 +22,7 @@ Requirements: [`uv`](https://docs.astral.sh/uv/) (it installs Python 3.14) and N
 make setup              # backend dependencies
 make load-data          # validate the dataset into var/fleet.db
 make frontend-install   # frontend dependencies
-cp .env.example .env    # then fill in the Azure OpenAI settings (see Configuration)
+cp .env.example .env    # then fill in one model provider (see Configuration)
 make demo               # build the web app and serve it with the API at http://127.0.0.1:8000
 ```
 
@@ -53,13 +53,30 @@ Settings are read from a git-ignored `.env`; `.env.example` lists every variable
 
 | Group | Variables |
 | --- | --- |
-| Model mode | `FLEET_MODEL_MODE`: `replay` (default, answers from a recorded cassette, no credentials) or `live` (calls Azure OpenAI) |
-| Azure OpenAI (live mode) | `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT`, `AZURE_OPENAI_API_VERSION`, `AZURE_OPENAI_DEPLOYMENT` |
-| Model parameters (optional) | `FLEET_MODEL_TEMPERATURE` (0 to 1, default 0), `FLEET_MODEL_NAME` (a label recorded with evaluation runs) |
+| Model mode | `FLEET_MODEL_MODE`: `replay` (default, answers from a recorded cassette, no credentials) or `live` (calls the provider you pick) |
+| Model provider (live mode) | `FLEET_MODEL_PROVIDER`: `azure` (default), `openai` or `openrouter`; see "Pick one provider" below |
+| Model parameters (optional) | `FLEET_MODEL_TEMPERATURE` (0 to 1, default 0), `FLEET_MODEL_NAME` (a label recorded with evaluation runs, default the deployment or model name) |
 | API server | `FLEET_PORT`, `FLEET_SESSION_SECRET`, `FLEET_OPERATOR_PASSCODE`, `FLEET_ALLOWED_ORIGINS` |
 | Recording and state | `FLEET_CASSETTE_PATH`, `FLEET_CASSETTE_RECORD`, `FLEET_STATE_DIR` |
 | Paths (optional) | `FLEET_DATA_PATH`, `FLEET_DB_PATH`, `FLEET_STATIC_DIR` |
 | LangSmith (optional, keep off) | `LANGSMITH_TRACING`, `LANGSMITH_API_KEY` |
+
+### Pick one provider
+
+Live mode needs only the variables of the provider named in `FLEET_MODEL_PROVIDER`.
+
+| Provider | Required | Optional |
+| --- | --- | --- |
+| `azure` (default) | `AZURE_OPENAI_API_KEY`, `AZURE_OPENAI_ENDPOINT` (https), `AZURE_OPENAI_API_VERSION`, `AZURE_OPENAI_DEPLOYMENT` | |
+| `openai` | `OPENAI_API_KEY`, `OPENAI_MODEL` (recommended: `gpt-4o-mini`) | `OPENAI_BASE_URL` (https) for a compatible endpoint |
+| `openrouter` | `OPENROUTER_API_KEY`, `OPENROUTER_MODEL` (recommended: `openai/gpt-4o-mini`) | `OPENROUTER_APP_NAME`, sent as the `X-Title` header (default `Fleet Copilot`) |
+
+There is no default model for `openai` or `openrouter`, so you always know which model you pay for. OpenRouter
+needs a model that supports tool calling and structured output; `openai/gpt-4o-mini` does. In live mode your
+questions and the fleet data they touch are sent to the provider you chose.
+
+A cassette does not depend on the provider: one recorded with any provider replays with any other. Record
+again after you change provider or model, because the answers may differ.
 
 In replay mode a question that was never recorded gets a fixed error reply rather than a made-up answer. Use
 `live` to ask your own questions. Keep LangSmith tracing off for real tenant data, because it sends prompts and
@@ -109,7 +126,7 @@ The API endpoints, where state is stored, limits and troubleshooting are describ
 
 ```bash
 make eval           # replay the recorded cassette offline; no network or key needed
-make eval-live      # call Azure and record any answer the cassette lacks
+make eval-live      # call the model provider and record any answer the cassette lacks
 make eval-results   # replay and write evals/RESULTS.md
 ```
 
@@ -145,7 +162,7 @@ flowchart LR
     UI["Browser<br/>React app"] -- "POST /api/chat<br/>session cookie, streamed reply" --> API["FastAPI<br/>origin guard, session to identity,<br/>tenant-scoped routes"]
     API --> SVC["AgentService<br/>one turn per conversation at a time,<br/>turn timeout, trace recorder"]
     SVC --> G["LangGraph StateGraph<br/>SQLite checkpoints per<br/>company, admin and conversation"]
-    G -- "plan, act, explain" --> LLM["Model gateway<br/>Azure OpenAI or cassette replay"]
+    G -- "plan, act, explain" --> LLM["Model gateway<br/>Azure OpenAI, OpenAI, OpenRouter or cassette replay"]
     G -- "read tools" --> REPO[("Fleet DB<br/>read-only, tenant-scoped")]
     G -- "proposal tools" --> ACT[("actions.db<br/>pending proposals")]
     UI -- "POST /api/proposals/{id}/approve" --> API

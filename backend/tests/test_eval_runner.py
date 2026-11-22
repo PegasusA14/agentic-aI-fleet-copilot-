@@ -406,7 +406,7 @@ async def test_the_report_is_written_as_json(tmp_path, scenarios, settings, stor
     assert report["cases"][0]["instance_id"] == "grounding.right#1"
 
 
-async def test_the_report_records_the_model_label_and_temperature(
+async def test_the_report_records_the_provider_model_label_and_temperature(
     tmp_path, scenarios, settings, stores
 ):
     suite_file(scenarios, "grounding", [low_disk_case("right", {"outcome": "answer"})])
@@ -415,11 +415,13 @@ async def test_the_report_records_the_model_label_and_temperature(
         settings,
         stores,
         ScriptedLLM(**low_disk_script()),
+        provider="openrouter",
         model_name="gpt-4o-2024-11-20",
         temperature=0.2,
     )
     report = result.to_dict()
     assert report["model_name"] == "gpt-4o-2024-11-20" and report["temperature"] == 0.2
+    assert report["provider"] == "openrouter"
 
 
 async def test_exit_code_is_zero_only_when_everything_passed_and_was_recorded(
@@ -578,6 +580,31 @@ def test_refresh_without_live_is_refused_and_an_unknown_suite_is_a_clean_error(
         cli.main(["run", "--refresh"])
     assert cli.main(["run", "--suite", "nonsense"]) == 2
     assert "no such suite" in capsys.readouterr().err
+
+
+def test_a_live_run_records_the_provider_and_model_in_its_report(
+    tmp_path, scenarios, real_db_path, monkeypatch
+):
+    suite_file(scenarios, "grounding", [low_disk_case("right", {"outcome": "answer"})])
+    cli = cli_setup(monkeypatch, tmp_path, real_db_path, scenarios)
+    monkeypatch.setattr(cli, "build_live_gateway", lambda models: ScriptedLLM())
+    monkeypatch.setenv("FLEET_MODEL_PROVIDER", "openrouter")
+    monkeypatch.setenv("OPENROUTER_API_KEY", "sk-or-not-real")
+    monkeypatch.setenv("OPENROUTER_MODEL", "openai/gpt-4o-mini")
+    monkeypatch.setenv("FLEET_MODEL_TEMPERATURE", "0.1")
+    cli.main(["run", "--live"])
+    report = json.loads(next((tmp_path / "reports").glob("*.json")).read_text())
+    assert report["provider"] == "openrouter" and report["model_name"] == "openai/gpt-4o-mini"
+    assert report["temperature"] == 0.1 and report["model_mode"] == "eval-live"
+    assert "sk-or-not-real" not in json.dumps(report)
+
+
+def test_a_replay_run_records_no_provider(tmp_path, scenarios, real_db_path, monkeypatch):
+    suite_file(scenarios, "grounding", [low_disk_case("right", {"outcome": "answer"})])
+    cli = cli_setup(monkeypatch, tmp_path, real_db_path, scenarios)
+    cli.main(["run"])
+    report = json.loads(next((tmp_path / "reports").glob("*.json")).read_text())
+    assert report["provider"] is None and report["model_name"] is None
 
 
 async def test_a_stale_dataset_stops_the_run_before_any_case(tmp_path, scenarios, stores):
