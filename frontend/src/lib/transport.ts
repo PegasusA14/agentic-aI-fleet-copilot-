@@ -419,6 +419,10 @@ export function fixtureTransport(stepMs = 380): Transport {
   /** Most recently active first, like the server's list. */
   const chats: FixtureConversation[] = [];
   const traces = new Map<string, TraceEvent[]>();
+  /** Which stored answers each conversation has been given, so a second identical question reads as a repeat. */
+  const answered = new Map<string, string[]>();
+  /** What a replayed repeat's trace id adds to the stored answer's. */
+  const REPEAT_MARK = "~again";
   const effects: EffectCounts = Object.fromEntries(
     Object.values(EFFECT_TABLE).map((table) => [table, {}]),
   );
@@ -595,7 +599,18 @@ export function fixtureTransport(stepMs = 380): Transport {
         if (event.kind !== "respond") await wait(stepMs);
         onTrace(event);
       }
-      const envelope = fixture.envelope;
+      let envelope = fixture.envelope;
+      // The live agent notices the same question answered again with nothing new; the replay does the same by trace id.
+      const before = answered.get(conversationId) ?? [];
+      if (before.includes(envelope.trace_id) && !envelope.proposal) {
+        envelope = {
+          ...envelope,
+          trace_id: `${envelope.trace_id}${REPEAT_MARK}${before.length}`,
+          repeat_of: envelope.trace_id,
+          explanation: null,
+        };
+      }
+      answered.set(conversationId, [...before, fixture.envelope.trace_id]);
       traces.set(envelope.trace_id, fixture.trace);
       turns.unshift({
         trace_id: envelope.trace_id,
@@ -624,8 +639,9 @@ export function fixtureTransport(stepMs = 380): Transport {
     },
     async trace(traceId) {
       const { session } = who("admin");
+      const stored = traceId.split(REPEAT_MARK)[0];
       for (const fixture of [...fixturesFor(session.company_id), ...adviseFixtures(session.company_id)]) {
-        if (fixture.envelope.trace_id === traceId) {
+        if (fixture.envelope.trace_id === stored) {
           return { trace_id: traceId, events: fixture.trace };
         }
       }

@@ -10,6 +10,13 @@ const FIXTURE = getFixture("acme-001", "low_disk");
 const ENVELOPE = FIXTURE.envelope;
 const STEPS = FIXTURE.trace.filter((event) => event.kind !== "respond");
 const REFS = ENVELOPE.evidence.map((item) => item.ref);
+/** An answer with no table keeps its readings in the drawer, behind Details; a list answer shows them inline. */
+const PLAIN = { ...ENVELOPE, table: null, scope_line: null };
+const askPlain = () =>
+  vi.fn(async (_id: string, _q: string, onTrace: (e: (typeof STEPS)[number]) => void) => {
+    for (const event of FIXTURE.trace) onTrace(event);
+    return PLAIN;
+  });
 
 const USERS: DemoUser[] = [
   { user: "admin-acme", display_name: "Acme admin (demo)", company_id: "acme-001" },
@@ -348,7 +355,7 @@ describe("streamed chat", () => {
 
 describe("evidence from the API", () => {
   it("fetches each cited reading once and renders the raw value as plain key/value text", async () => {
-    const transport = fake();
+    const transport = fake({ ask: askPlain() });
     const user = await signedInApp(transport);
     await ask(user, "Which devices are low on disk space?");
     await user.click(await screen.findByRole("button", { name: "Details" }));
@@ -367,6 +374,7 @@ describe("evidence from the API", () => {
 
   it("never renders a reading as markup", async () => {
     const transport = fake({
+      ask: askPlain(),
       evidence: vi.fn(async (ref: string) => ({ ref, collected_at: "", value: "<img src=x onerror=alert(1)>" })),
     });
     const user = await signedInApp(transport);
@@ -382,7 +390,7 @@ describe("evidence from the API", () => {
     const transport = fake();
     const user = await signedInApp(transport);
     await ask(user, "Which devices are low on disk space?");
-    await user.click(await screen.findByRole("button", { name: "Details" }));
+    await user.click(await screen.findByRole("button", { name: "How I got this" }));
     await user.click(await screen.findByRole("button", { name: "Show work" }));
     const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByRole("list", { name: "Steps taken" })).toBeInTheDocument();

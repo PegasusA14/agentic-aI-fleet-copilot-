@@ -69,26 +69,29 @@ describe("the working thread", () => {
     const reply = headline.closest("article") as HTMLElement;
     expect(within(reply).queryByText("Answer")).not.toBeInTheDocument();
     expect(within(reply).queryByText(/Evaluated/)).not.toBeInTheDocument();
-    expect(within(reply).getByRole("button", { name: "Details" })).toHaveAttribute("aria-expanded", "false");
-    expect(within(reply).getByRole("list", { name: /low disk/i })).toBeInTheDocument();
-    await user.click(within(reply).getByRole("button", { name: "Details" }));
-    expect(within(reply).getByText("Evaluated")).toBeInTheDocument();
+    // A list answer is a table with its scope line and three folded disclosures, not a sentence and chips.
+    expect(within(reply).getByRole("table", { name: "Low disk (<10% free)" })).toBeInTheDocument();
+    expect(within(reply).getByText("10 devices checked · 8 healthy")).toBeInTheDocument();
+    expect(within(reply).queryByRole("button", { name: "Details" })).not.toBeInTheDocument();
+    expect(within(reply).getByRole("button", { name: /^Evidence 2 records$/ })).toHaveAttribute("aria-expanded", "false");
+    expect(within(reply).queryByText(/MT7PJB7N5LRE \(acme-macbook-4;/)).not.toBeInTheDocument();
     expect(screen.getByRole("navigation", { name: "Conversation history" })).toBeInTheDocument();
   });
 
-  it("opens the cited readings for a claim and the trace of the work", async () => {
+  it("opens the cited readings inline and the trace of the work in the drawer", async () => {
     const user = await signInAs("Acme");
     await ask(user, "Which devices are low on disk space?");
-    await user.click(await screen.findByRole("button", { name: "Details" }));
-    // The claim cites two readings; the suggested actions add the readings they rest on.
-    const cited = getFixture("acme-001", "low_disk").envelope.evidence.length;
-    expect(cited).toBeGreaterThan(2);
-    await user.click(await screen.findByRole("button", { name: `Evidence (${cited})` }));
-    const dialog = await screen.findByRole("dialog");
-    const readings = within(dialog).getByRole("list", { name: "Cited readings" });
+    // The two rows cite two readings; the readings the suggested actions rest on are not part of this answer's evidence.
+    const cited = 2;
+    expect(getFixture("acme-001", "low_disk").envelope.evidence.length).toBeGreaterThan(cited);
+    await user.click(await screen.findByRole("button", { name: `Evidence ${cited} records` }));
+    const readings = screen.getByRole("list", { name: "Readings behind this answer" });
     expect(within(readings).getAllByRole("listitem")).toHaveLength(cited);
-    expect(within(readings).getByText("acme-001/MT7PJB7N5LRE@2026-06-12T08:39:00Z#disk")).toBeInTheDocument();
-    await user.click(within(dialog).getByRole("tab", { name: /trace/i }));
+    expect(within(readings).getAllByText("acme-macbook-4").length).toBeGreaterThan(0);
+    expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: "How I got this" }));
+    await user.click(screen.getByRole("button", { name: "Show work" }));
+    const dialog = await screen.findByRole("dialog");
     expect(within(dialog).getByRole("list", { name: "Steps taken" })).toBeInTheDocument();
     expect(within(dialog).getByText("Calling low_disk_devices")).toBeInTheDocument();
     await user.keyboard("{Escape}");
@@ -472,9 +475,24 @@ describe("outcome states", () => {
     expect(new Set(seen.values()).size).toBe(7);
   });
 
-  it("discloses coverage, under Details, on every answer that has one", async () => {
+  it("discloses what was not checked, with a reason for each device, under a list answer", async () => {
     const fixture = getFixture("acme-001", "macos_older_than_15");
     render(<AssistantMessage envelope={fixture.envelope} busy={false} onOpenEvidence={noop} onOpenTrace={noop} onAsk={noop} />);
+    const excluded = fixture.envelope.coverage?.excluded_devices ?? [];
+    expect(excluded.length).toBeGreaterThan(0);
+    await userEvent.click(screen.getByRole("button", { name: new RegExp(`^Not checked ${excluded.length} devices$`) }));
+    const rows = within(screen.getByRole("list", { name: "Devices this check did not cover" })).getAllByRole("listitem");
+    expect(rows).toHaveLength(excluded.length);
+    for (const [index, device] of excluded.entries()) {
+      expect(rows[index]).toHaveTextContent(device.label);
+      expect(rows[index]).toHaveTextContent(device.reason_text);
+    }
+  });
+
+  it("discloses coverage, under Details, on every answer that has no table", async () => {
+    const fixture = getFixture("acme-001", "macos_older_than_15");
+    const plain = { ...fixture.envelope, table: null, scope_line: null };
+    render(<AssistantMessage envelope={plain} busy={false} onOpenEvidence={noop} onOpenTrace={noop} onAsk={noop} />);
     await userEvent.click(screen.getByRole("button", { name: "Details" }));
     expect(screen.getByText("Evaluated")).toBeInTheDocument();
     expect(screen.getByText("7 devices")).toBeInTheDocument();

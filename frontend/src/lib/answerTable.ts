@@ -109,7 +109,8 @@ function labelParts(label: string): string[] {
 
 /**
  * The evidence as a numbered list. The rows' own sources come first, in the order the answer gave its rows, so
- * the numbers on a Source column run 1, 2, 3 down the default order; anything else cited follows.
+ * the numbers on a Source column run 1, 2, 3 down the default order; readings only a claim cites follow. Readings that
+ * only a suggested action rests on are that action's, not the answer's, and are left out.
  */
 export function numberEvidence(envelope: AnswerEnvelope): NumberedEvidence[] {
   const byRef = new Map(envelope.evidence.map((item) => [item.ref, item]));
@@ -118,7 +119,8 @@ export function numberEvidence(envelope: AnswerEnvelope): NumberedEvidence[] {
     if (byRef.has(ref) && !refs.includes(ref)) refs.push(ref);
   };
   for (const row of envelope.table?.rows ?? []) row.refs.forEach(take);
-  envelope.evidence.forEach((item) => take(item.ref));
+  for (const claim of envelope.claims) claim.refs.forEach(take);
+  if (refs.length === 0) envelope.evidence.forEach((item) => take(item.ref));
 
   const names = new Map<string, string>();
   for (const row of envelope.table?.rows ?? []) names.set(row.device_id, row.label);

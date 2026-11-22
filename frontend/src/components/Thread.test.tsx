@@ -42,7 +42,7 @@ describe("Thread", () => {
     expect(container.querySelector(".dotmatrix")).toBeNull();
   });
 
-  it("announces 'Reply ready.' and the first sentence once, when a running turn finishes", () => {
+  it("announces 'Reply ready.' and the headline once, when a running turn finishes", () => {
     const handlers = { onAsk: vi.fn(), onOpenEvidence: vi.fn(), onOpenTrace: vi.fn() };
     const { rerender, container } = render(
       <Thread turns={[turn({ id: "1", status: "working", envelope: undefined, fresh: true })]} {...handlers} />,
@@ -53,7 +53,7 @@ describe("Thread", () => {
     act(() => {
       rerender(<Thread turns={[turn({ id: "1", envelope: explained, fresh: true })]} {...handlers} />);
     });
-    expect(region).toHaveTextContent("Reply ready. Two laptops are nearly full.");
+    expect(region).toHaveTextContent(`Reply ready. ${LOW.envelope.headline}`);
     expect(region).not.toHaveTextContent("Both need");
     expect(region).toHaveAttribute("aria-live", "polite");
     expect(region).toHaveClass("sr-only");
@@ -110,9 +110,57 @@ describe("Thread", () => {
   it("renders reopened turns, which have no streamed events, through the same components", async () => {
     const { user, onOpenTrace } = setup([turn({ id: "1", events: [] }), turn({ id: "2", question: "Q2", events: [] })]);
     expect(screen.getAllByRole("article")).toHaveLength(2);
-    await user.click(screen.getAllByRole("button", { name: "Details" })[0]);
+    await user.click(screen.getAllByRole("button", { name: "How I got this" })[0]);
     await user.click(screen.getByRole("button", { name: "Show work" }));
     expect(onOpenTrace).toHaveBeenCalledWith(expect.objectContaining({ id: "1" }));
+  });
+
+  it("retries by asking the turn's own question again", async () => {
+    const { user, onAsk } = setup([turn({ id: "1", question: "Which disks are full?" })]);
+    await user.click(screen.getByRole("button", { name: "Retry" }));
+    expect(onAsk).toHaveBeenCalledWith("Which disks are full?");
+  });
+});
+
+describe("Thread repeats", () => {
+  const original = Element.prototype.scrollIntoView;
+  afterEach(() => {
+    Element.prototype.scrollIntoView = original;
+  });
+  const again: TurnData = turn({
+    id: "2",
+    envelope: { ...LOW.envelope, trace_id: "second-trace", repeat_of: LOW.envelope.trace_id },
+  });
+
+  it("collapses the repeat to a card and announces it", () => {
+    const handlers = { onAsk: vi.fn(), onOpenEvidence: vi.fn(), onOpenTrace: vi.fn() };
+    const { rerender, container } = render(
+      <Thread turns={[turn({ id: "1" }), turn({ ...again, status: "working", envelope: undefined, fresh: true })]} {...handlers} />,
+    );
+    act(() => {
+      rerender(<Thread turns={[turn({ id: "1" }), { ...again, fresh: true }]} {...handlers} />);
+    });
+    expect(screen.getByText(/Same answer as above\. Nothing has changed since 2026-06-12 11:00 UTC\./)).toBeInTheDocument();
+    const regions = container.querySelectorAll(".turn > .sr-only[role='status']");
+    expect(regions[1]).toHaveTextContent("Reply ready. Same answer as above.");
+    expect(screen.getAllByRole("table")).toHaveLength(1);
+  });
+
+  it("jumps to the earlier turn by its trace id", async () => {
+    const scroll = vi.fn();
+    Element.prototype.scrollIntoView = scroll;
+    const { user } = setup([turn({ id: "1" }), again]);
+    scroll.mockClear();
+    await user.click(screen.getByRole("button", { name: "Jump to it" }));
+    expect(scroll).toHaveBeenCalledTimes(1);
+    expect(scroll.mock.instances[0]).toBe(document.getElementById("turn-1"));
+    expect(document.getElementById("turn-1")).toHaveFocus();
+  });
+
+  it("offers no jump when the earlier answer is not in the thread", () => {
+    setup([again]);
+    expect(screen.queryByRole("button", { name: "Jump to it" })).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Show again" })).toBeInTheDocument();
   });
 });
 

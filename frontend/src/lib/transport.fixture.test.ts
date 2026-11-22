@@ -297,3 +297,36 @@ describe("fixtureTransport.fleetSummary", () => {
     expect((await rejection(t.fleetSummary())).status).toBe(403);
   });
 });
+
+describe("fixtureTransport repeats", () => {
+  const LOW = "Which devices are low on disk space?";
+
+  it("marks the same question asked again in one conversation as a repeat of the first answer, with its own trace id", async () => {
+    const t = await signedIn();
+    const { conversation_id } = await t.newConversation();
+    const first = await t.ask(conversation_id, LOW, () => {});
+    const again = await t.ask(conversation_id, LOW, () => {});
+    expect(first.repeat_of).toBeNull();
+    expect(again.repeat_of).toBe(first.trace_id);
+    expect(again.trace_id).not.toBe(first.trace_id);
+    expect(again.headline).toBe(first.headline);
+    expect(again.explanation).toBeNull();
+  });
+
+  it("does not call a different question, or another conversation's, a repeat", async () => {
+    const t = await signedIn();
+    const a = (await t.newConversation()).conversation_id;
+    const b = (await t.newConversation()).conversation_id;
+    await t.ask(a, LOW, () => {});
+    expect((await t.ask(a, "Which laptops show battery wear?", () => {})).repeat_of).toBeNull();
+    expect((await t.ask(b, LOW, () => {})).repeat_of).toBeNull();
+  });
+
+  it("still serves the trace of a repeat", async () => {
+    const t = await signedIn();
+    const { conversation_id } = await t.newConversation();
+    await t.ask(conversation_id, LOW, () => {});
+    const again = await t.ask(conversation_id, LOW, () => {});
+    expect((await t.trace(again.trace_id)).events.length).toBeGreaterThan(0);
+  });
+});

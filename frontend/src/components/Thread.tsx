@@ -5,6 +5,7 @@ import { firstSentence, replyOf } from "../lib/reply";
 import { revealDelta } from "../lib/reveal";
 import type { AnswerEnvelope, ProposalCard, TraceEvent } from "../lib/types";
 import { AssistantMessage } from "./chat/AssistantMessage";
+import { repeatText } from "./chat/RepeatCard";
 import { UserMessage } from "./chat/UserMessage";
 import { WorkingLine } from "./chat/WorkingLine";
 import type { Decide } from "./ProposalView";
@@ -27,6 +28,8 @@ export interface TurnData {
 
 interface TurnViewProps {
   turn: TurnData;
+  /** The earlier turn this reply repeats, when it is in this thread: where "Jump to it" goes. */
+  earlier?: TurnData;
   /** The newest turn in the thread: where a reopened conversation lands. */
   last: boolean;
   /** A turn is running somewhere in the thread; chips in every reply wait. */
@@ -74,7 +77,15 @@ function scrollBehavior(): ScrollBehavior {
   return typeof window.matchMedia === "function" && window.matchMedia(REDUCED_MOTION).matches ? "auto" : "smooth";
 }
 
-function TurnView({ turn, last, busy, onOpenEvidence, onOpenTrace, onAsk, decide, onDecided, onSessionEnded }: TurnViewProps) {
+/** Brings an earlier turn to the top of the thread, and hands it focus so a keyboard reader lands there too. */
+function jumpTo(turnId: string) {
+  const target = document.getElementById(`turn-${turnId}`);
+  if (!target) return;
+  target.scrollIntoView?.({ block: "start", behavior: scrollBehavior() });
+  target.focus({ preventScroll: true });
+}
+
+function TurnView({ turn, earlier, last, busy, onOpenEvidence, onOpenTrace, onAsk, decide, onDecided, onSessionEnded }: TurnViewProps) {
   const root = useRef<HTMLElement>(null);
   const previous = useRef(turn.status);
   /** What a screen reader hears when the reply lands. The region stays mounted so the change is announced. */
@@ -117,7 +128,13 @@ function TurnView({ turn, last, busy, onOpenEvidence, onOpenTrace, onAsk, decide
 
   useEffect(() => {
     if (previous.current === "working" && turn.status !== "working") {
-      const words = turn.status === "done" && turn.envelope ? replyOf(turn.envelope).lead : (turn.failure ?? "");
+      const envelope = turn.envelope;
+      const words =
+        turn.status === "done" && envelope
+          ? envelope.repeat_of && !envelope.proposal
+            ? repeatText(envelope.scope_line?.as_of ?? envelope.scope.as_of)
+            : replyOf(envelope).lead
+          : (turn.failure ?? "");
       setAnnouncement(`Reply ready. ${firstSentence(words)}`.trim());
     }
     previous.current = turn.status;
@@ -128,6 +145,7 @@ function TurnView({ turn, last, busy, onOpenEvidence, onOpenTrace, onAsk, decide
       className="turn"
       id={`turn-${turn.id}`}
       ref={root}
+      tabIndex={-1}
       data-fresh={turn.fresh || undefined}
       aria-label={`Question: ${turn.question}`}
     >
@@ -143,6 +161,8 @@ function TurnView({ turn, last, busy, onOpenEvidence, onOpenTrace, onAsk, decide
             onOpenEvidence={(refs) => onOpenEvidence(turn, refs)}
             onOpenTrace={() => onOpenTrace(turn)}
             onAsk={onAsk}
+            question={turn.question}
+            onJump={earlier ? () => jumpTo(earlier.id) : undefined}
             decide={decide}
             reopened={!turn.fresh}
             onArrive={turn.fresh ? reveal : undefined}
@@ -170,9 +190,12 @@ export function Thread({ turns, ...rest }: ThreadProps) {
   const busy = turns.some((turn) => turn.status === "working");
   return (
     <div className="thread">
-      {turns.map((turn, index) => (
-        <TurnView key={turn.id} turn={turn} last={index === turns.length - 1} busy={busy} {...rest} />
-      ))}
+      {turns.map((turn, index) => {
+        const of = turn.envelope?.repeat_of;
+        // The turn a repeat points at is found by trace id, among the turns before it.
+        const earlier = of ? turns.slice(0, index).find((t) => t.envelope?.trace_id === of) : undefined;
+        return <TurnView key={turn.id} turn={turn} earlier={earlier} last={index === turns.length - 1} busy={busy} {...rest} />;
+      })}
     </div>
   );
 }

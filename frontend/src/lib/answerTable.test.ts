@@ -93,11 +93,18 @@ describe("numberEvidence", () => {
     expect(table.rows.map((row) => sourceNumber(row, numbered))).toEqual([1, 2, 3, 4]);
   });
 
-  it("appends readings no row cites, after the rows' own", () => {
+  it("appends readings only a claim cites, after the rows' own", () => {
     const extra = { ref: "initech-003/ZZZ@2026-06-12T10:00:00Z#os", label: "OS version · zed · 2026-06-12 10:00Z", value: "macOS 12" };
-    const withExtra = numberEvidence({ ...MACOS, evidence: [extra, ...MACOS.evidence] });
+    const claim = { ...MACOS.claims[0], refs: [...MACOS.claims[0].refs, extra.ref] as [string, ...string[]] };
+    const withExtra = numberEvidence({ ...MACOS, claims: [claim], evidence: [extra, ...MACOS.evidence] });
     expect(withExtra).toHaveLength(5);
     expect(withExtra[4].ref).toBe(extra.ref);
+  });
+
+  it("leaves out readings that only a suggested action rests on", () => {
+    expect(MACOS.evidence.length).toBeGreaterThan(numbered.length);
+    expect(numbered).toHaveLength(4);
+    expect(numbered.every((item) => item.ref.endsWith("#os"))).toBe(true);
   });
 });
 

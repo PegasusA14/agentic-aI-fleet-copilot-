@@ -9,7 +9,10 @@ import { setReducedMotion } from "../../test/motion";
 import { AssistantMessage } from "./AssistantMessage";
 
 const envelopeOf = (scenario: string): AnswerEnvelope => getFixture("acme-001", scenario).envelope;
-const LOW_DISK = envelopeOf("low_disk");
+/** A list answer as the composer writes it today: a table, a scope line, disclosures. */
+const LIST = envelopeOf("low_disk");
+/** The same answer with no table: the shape of every answer before lists became tables, and of any answer that has none. */
+const LOW_DISK: AnswerEnvelope = { ...LIST, table: null, scope_line: null, suggested_actions: [] };
 const PROPOSAL = envelopeOf("proposal");
 const CARD = PROPOSAL.proposal as ProposalCard;
 
@@ -40,14 +43,27 @@ describe("an answer", () => {
     expect(chips[1]).toHaveTextContent("acme-thinkpad-8");
   });
 
-  it("shows the verified explanation instead of the headline and claims, which move into Details", async () => {
-    const explained = { ...LOW_DISK, explanation: "Two laptops are nearly out of disk space and need attention." };
+  it("always leads with the headline; a verified explanation adds only its first sentence, the rest and the claims waiting under Details", async () => {
+    const explained: AnswerEnvelope = {
+      ...LOW_DISK,
+      summary: "",
+      explanation: "Two laptops are nearly out of disk space. They need attention soon.",
+    };
     const { user } = setup(explained);
-    expect(screen.getByText(explained.explanation as string)).toBeInTheDocument();
-    expect(screen.queryByText(LOW_DISK.headline)).not.toBeInTheDocument();
+    expect(screen.getByText(explained.headline)).toBeInTheDocument();
+    expect(screen.getByText("Two laptops are nearly out of disk space.")).toHaveClass("msg__support");
+    expect(screen.queryByText(/They need attention soon/)).not.toBeInTheDocument();
     expect(screen.queryByText(LOW_DISK.claims[0].text)).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: "Details" }));
     expect(screen.getByText(LOW_DISK.claims[0].text)).toBeInTheDocument();
+    expect(screen.getByText("Two laptops are nearly out of disk space. They need attention soon.")).toBeInTheDocument();
+  });
+
+  it("puts the composer's one supporting sentence under the headline", () => {
+    setup(LOW_DISK);
+    expect(document.querySelector(".msg__lead")).toHaveAttribute("data-headline");
+    expect(document.querySelector(".msg__lead")).toHaveTextContent(LOW_DISK.headline);
+    expect(screen.getByText(LOW_DISK.summary)).toHaveClass("msg__support");
   });
 
   it("reads one claim as a paragraph, not a one-bullet list", () => {
@@ -120,12 +136,9 @@ describe("an answer", () => {
 
   it("opens and closes Details from the keyboard", async () => {
     const { user } = setup(LOW_DISK);
-    // The suggested actions come first in the tab order; Details follows the last of them.
-    expect(LOW_DISK.suggested_actions.length).toBeGreaterThan(0);
-    for (let i = 0; i < LOW_DISK.suggested_actions.length; i += 1) await user.tab();
-    expect(document.activeElement).toHaveClass("chip--action");
-    await user.tab();
     const toggle = screen.getByRole("button", { name: "Details" });
+    // Tab reaches it in the page's reading order, after the next-step chips.
+    for (let step = 0; step < 12 && document.activeElement !== toggle; step += 1) await user.tab();
     expect(toggle).toHaveFocus();
     await user.keyboard("{Enter}");
     expect(toggle).toHaveAttribute("aria-expanded", "true");
@@ -140,7 +153,7 @@ describe("an answer", () => {
   });
 
   it("renders model text as plain text, never as markup", () => {
-    setup({ ...LOW_DISK, explanation: "<b>bold</b> <img src=x onerror=alert(1)>" });
+    setup({ ...LOW_DISK, summary: "", explanation: "<b>bold</b> <img src=x onerror=alert(1)>" });
     expect(document.querySelector("b, img")).toBeNull();
     expect(screen.getByText(/<b>bold<\/b>/)).toBeInTheDocument();
   });
@@ -340,7 +353,7 @@ describe("suggested actions", () => {
     expect(chips[0].querySelector(".sr-only")).toHaveTextContent("(asked)");
     expect(chips[0].querySelector(".chip__label svg")).not.toBeNull();
     expect(chips[1]).not.toHaveAccessibleName(/\(asked\)/);
-    expect(chips[1].querySelector("svg")).toBeNull();
+    expect(chips[1].querySelector(".chip__label svg")).toBeNull();
     chips[0].focus();
     expect(chips[0]).toHaveFocus();
     expect(chips[0]).toBeEnabled();
@@ -485,11 +498,19 @@ describe("a reply's motion and ticking numbers", () => {
   });
 
   it("never parses the model's explanation for a count", () => {
-    const explained = { ...LOW_DISK, explanation: "2 of 10 laptops are nearly full." };
+    const explained = { ...LOW_DISK, summary: "", explanation: "2 of 10 laptops are nearly full." };
     const { container } = setup(explained);
+    const support = container.querySelector(".msg__support") as HTMLElement;
+    expect(support.textContent).toBe("2 of 10 laptops are nearly full.");
+    expect(support.querySelector(".sr-only")).toBeNull();
+    expect(container.querySelector(".msg__lead .sr-only")).toHaveTextContent(LOW_DISK.headline);
+  });
+
+  it("ticks the numbers of a '4 of your 5 …' headline, and only those", () => {
+    const { container } = setup({ ...LOW_DISK, headline: "4 of your 5 Macs are behind macOS 15." });
     const lead = container.querySelector(".msg__lead") as HTMLElement;
-    expect(lead.textContent).toBe("2 of 10 laptops are nearly full.");
-    expect(lead.querySelector(".sr-only")).toBeNull();
+    expect(lead.querySelector(".sr-only")).toHaveTextContent("4 of your 5 Macs are behind macOS 15.");
+    expect(lead.textContent).toContain("4 of your 5 Macs are behind macOS 15.");
   });
 
   it("never parses a clarifying question for a count", () => {
