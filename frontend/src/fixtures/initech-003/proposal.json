@@ -36,7 +36,7 @@
       "payload_hash": "60f1423f7179cc62e8a07f92781b8a091dced3050fa2e1550aa18a11d42c52e7",
       "proposal_id": "prop-replay-initech-003-proposal",
       "rationale": "screen_lock reports fail with medium severity at the latest reading (2026-06-12); the first failing reading in the last 30 days is 2026-06-05.",
-      "risk": "Affects only initech-dell-5 in initech-003. Simulated: nothing leaves this system. The decision is recorded in Audit.",
+      "risk": "Affects only initech-dell-5 in Initech. Simulated: nothing leaves this system. The decision is recorded in Audit.",
       "scope": {
         "check_id": "screen_lock",
         "device": "2MAN6T4DJD95",

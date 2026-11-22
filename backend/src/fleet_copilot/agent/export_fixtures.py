@@ -389,7 +389,9 @@ async def live_proposal(
         actions_db_path=actions_db,
     )
     actor = f"admin-{tenant.split('-')[0]}"
-    identity = Identity(tenant, actor, f"{tenant} admin (replay)")
+    identity = Identity(
+        tenant, actor, f"{tenant} admin (replay)", company_name=_COMPANY_NAMES.get(tenant, "")
+    )
     result = await service.run_turn(identity, "replay", scenario.question)
     envelope = result.envelope
     if envelope.outcome != "proposal" or envelope.proposal is None:
