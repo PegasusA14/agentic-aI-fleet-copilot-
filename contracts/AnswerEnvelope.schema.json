@@ -179,6 +179,14 @@
     "Clarification": {
       "additionalProperties": false,
       "properties": {
+        "choices": {
+          "items": {
+            "$ref": "#/$defs/Alternative"
+          },
+          "maxItems": 6,
+          "title": "Choices",
+          "type": "array"
+        },
         "options": {
           "items": {
             "type": "string"
@@ -193,7 +201,8 @@
       },
       "required": [
         "question",
-        "options"
+        "options",
+        "choices"
       ],
       "title": "Clarification",
       "type": "object"
@@ -840,12 +849,27 @@
       "title": "Headline",
       "type": "string"
     },
+    "needs": {
+      "items": {
+        "maxLength": 120,
+        "minLength": 1,
+        "type": "string"
+      },
+      "maxItems": 4,
+      "title": "Needs",
+      "type": "array"
+    },
     "notes": {
       "items": {
         "type": "string"
       },
       "title": "Notes",
       "type": "array"
+    },
+    "offer_switch_company": {
+      "default": false,
+      "title": "Offer Switch Company",
+      "type": "boolean"
     },
     "outcome": {
       "enum": [
@@ -888,7 +912,8 @@
             "insufficient_evidence",
             "already_done",
             "too_many_pending",
-            "data_unavailable"
+            "data_unavailable",
+            "other_company"
           ],
           "type": "string"
         },
@@ -971,6 +996,8 @@
     "reason_code",
     "explanation",
     "alternatives",
+    "needs",
+    "offer_switch_company",
     "table",
     "summary",
     "scope_line",

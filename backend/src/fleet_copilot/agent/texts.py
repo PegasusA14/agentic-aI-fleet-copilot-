@@ -33,6 +33,21 @@ UNSUPPORTED_ACTION = (
     "I can't do that, but I can recommend actions for devices you're looking at "
     "(ask 'what should I do?'), or propose one action for one device."
 )
+OTHER_COMPANY_NOTE = (
+    "I can't read or act on another company's devices from this session. "
+    "To look at a different company, switch to it first."
+)
+OTHER_COMPANY_NO_NAME = "You're working in this company, so I can only see this company."
+
+
+def other_company_headline(own_company_name: str) -> str:
+    """The reply to a general question about another company. It names only the user's own company."""
+    name = own_company_name.strip()
+    if not name:
+        return OTHER_COMPANY_NO_NAME
+    return f"You're working in {name}, so I can only see {name}."
+
+
 ACTION_NOT_ELIGIBLE = (
     "That action is not supported by the current evidence, so no proposal was made."
 )
@@ -98,6 +113,21 @@ def no_qualifying_note(action_type: str) -> str:
     """Why advice shows other actions than the one asked for: nothing qualifies for that one."""
     noun = _ACTION_NOUNS[action_type]
     return f"None of these devices qualifies for {noun}; here is what the evidence supports."
+
+
+def device_choice_question(phrase: str | None, count: int) -> str:
+    """Ask which of `count` devices is meant; `phrase` is quoted only when it is short plain text."""
+    if phrase is None:
+        return f"That matches {count} devices. Which one do you mean?"
+    return f"'{phrase}' matches {count} devices. Which one do you mean?"
+
+
+def company_typo_question(own_company_name: str) -> str:
+    return f"Did you mean {own_company_name}?"
+
+
+def company_typo_label(own_company_name: str) -> str:
+    return f"Yes, {own_company_name}"
 
 
 def entry_out_of_range(n: int) -> str:

@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from typing import Any, Literal
+from typing import Annotated, Any, Literal
 
 from pydantic import AwareDatetime, BaseModel, ConfigDict, Field, model_validator
 
@@ -49,6 +49,7 @@ ReasonCode = Literal[
     "already_done",
     "too_many_pending",
     "data_unavailable",
+    "other_company",
 ]
 # The only keys a query may put in `excluded` (and so the only keys `Coverage.excluded` accepts).
 ExcludedReason = Literal[
@@ -68,6 +69,7 @@ _VALID_REASONS: dict[str, frozenset[str]] = {
             "insufficient_evidence",
             "already_done",
             "too_many_pending",
+            "other_company",
         }
     ),
     "unsupported": frozenset({"off_topic", "unsupported_action", "data_unavailable"}),
@@ -171,9 +173,30 @@ class ScopeInfo(_Model):
     calculation: str | None = None
 
 
+MAX_CHOICES = 6
+MAX_NEEDS = 4
+MAX_NEED_CHARS = 120
+
+
+class Alternative(_Model):
+    """A question the copilot can answer, offered after a refusal. Code-written; `request` is sent as the next message."""
+
+    label: str = Field(min_length=1, max_length=60)
+    request: str = Field(min_length=1, max_length=160)
+
+
 class Clarification(_Model):
     question: str
+    # The labels of `choices`, kept so a reader that only knows plain options still works.
     options: list[str] = Field(default_factory=list)
+    # Code-built answers to the question: each carries the full request to send, not just its label.
+    choices: list[Alternative] = Field(default_factory=list, max_length=MAX_CHOICES)
+
+    @model_validator(mode="after")
+    def _options_are_the_choice_labels(self) -> Clarification:
+        if self.choices and self.options != [choice.label for choice in self.choices]:
+            raise ValueError("options must be the labels of choices, in order")
+        return self
 
 
 class ProposalCard(_Model):
@@ -206,13 +229,6 @@ class SuggestedAction(_Model):
     reason: str = Field(min_length=1)
     request: str = Field(min_length=1)
     refs: list[str] = Field(min_length=1)
-
-
-class Alternative(_Model):
-    """A question the copilot can answer, offered after a refusal. Code-written; `request` is sent as the next message."""
-
-    label: str = Field(min_length=1, max_length=60)
-    request: str = Field(min_length=1, max_length=160)
 
 
 class Column(_Model):
@@ -310,6 +326,12 @@ class AnswerEnvelope(_Model):
     reason_code: ReasonCode | None = None
     explanation: str | None = None
     alternatives: list[Alternative] = Field(default_factory=list, max_length=4)
+    # What would make a refused action possible, one line each, written by code from the eligibility rules.
+    needs: list[Annotated[str, Field(min_length=1, max_length=MAX_NEED_CHARS)]] = Field(
+        default_factory=list, max_length=MAX_NEEDS
+    )
+    # True only on the `other_company` refusal: the UI may offer to switch to a different company.
+    offer_switch_company: bool = False
     # Presentation of a list answer. All code-written and optional, so older envelopes still validate.
     table: AnswerTable | None = None
     summary: str = Field(default="", max_length=MAX_SUMMARY_CHARS)
@@ -395,6 +417,8 @@ class AnswerEnvelope(_Model):
             raise ValueError(
                 f"reason_code {self.reason_code} is not valid for a {self.outcome} outcome"
             )
+        if self.offer_switch_company and self.reason_code != "other_company":
+            raise ValueError("only an other_company refusal may offer to switch company")
         if self.outcome in _NO_FREE_TEXT and self.explanation is not None:
             raise ValueError(f"{self.outcome} outcome must not carry an explanation")
         list_ids = [entity_list.list_id for entity_list in self.entity_lists]

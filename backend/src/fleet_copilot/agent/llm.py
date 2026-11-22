@@ -22,7 +22,12 @@ from fleet_copilot import policy
 from fleet_copilot.contracts import ActionType
 
 RefusalReason = Literal[
-    "cross_tenant", "prompt_injection", "off_topic", "unsupported_action", "data_unavailable"
+    "cross_tenant",
+    "other_company",
+    "prompt_injection",
+    "off_topic",
+    "unsupported_action",
+    "data_unavailable",
 ]
 # Data the telemetry does not hold, so a question about it is answered with a fixed sentence (texts.py).
 MissingTopic = Literal[
@@ -34,7 +39,7 @@ _INTENTS = ("answer", "clarify", "refuse", "unsupported", "propose", "advise")
 _MAX_SUMMARY = 300
 _MAX_OPTIONS = 6
 _MAX_OPTION_LENGTH = 80
-_SECURITY_REASONS = ("cross_tenant", "prompt_injection")
+_SECURITY_REASONS = ("cross_tenant", "other_company", "prompt_injection")
 
 
 class Reference(BaseModel):
@@ -85,6 +90,12 @@ class Plan(BaseModel):
     refusal_reason: RefusalReason | None = None
     # Set for a question about data the telemetry does not contain; code writes the reply for it.
     missing_topic: MissingTopic | None = None
+    # The words the user used for a device that could be several ("macbook"), exactly as written. Code finds
+    # the matching devices and writes the question and the options; the model never lists them.
+    device_phrase: str | None = Field(default=None, max_length=40)
+    # A company the question names as the owner of the devices, exactly as written (a misspelling of the
+    # user's own company included). Code compares it with the Company line; the model never decides.
+    named_company: str | None = Field(default=None, max_length=60)
 
     @model_validator(mode="before")
     @classmethod
@@ -141,6 +152,11 @@ class Plan(BaseModel):
                 if isinstance(o, str) and o.strip() and len(o) <= _MAX_OPTION_LENGTH
             ]
             repaired["clarification_options"] = kept[:_MAX_OPTIONS]
+        for name, limit in (("device_phrase", 40), ("named_company", 60)):
+            text = repaired.get(name)
+            # Blank, non-text or over-long values are not a usable phrase: read as unset, never an error.
+            usable = isinstance(text, str) and text.strip() and len(text.strip()) <= limit
+            repaired[name] = text.strip() if usable else None
         question = repaired.get("clarification_question")
         if intent == "clarify" and (question is None or not str(question).strip()):
             repaired["clarification_question"] = None
@@ -155,7 +171,9 @@ class Plan(BaseModel):
     @model_validator(mode="after")
     def _consistent(self) -> Plan:
         if self.intent == "refuse" and self.refusal_reason not in _SECURITY_REASONS:
-            raise ValueError("a refuse plan needs refusal_reason cross_tenant or prompt_injection")
+            raise ValueError(
+                "a refuse plan needs refusal_reason cross_tenant, other_company or prompt_injection"
+            )
         if self.intent == "unsupported" and self.refusal_reason not in (
             "off_topic",
             "unsupported_action",

@@ -6,6 +6,7 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 from fleet_copilot import policy
+from fleet_copilot.actions import guidance
 from fleet_copilot.actions.eligibility import display_hostname
 from fleet_copilot.agent import texts
 from fleet_copilot.agent.format import fmt_bytes, fmt_day, fmt_pct, fmt_signed_pct, fmt_ts, noun
@@ -98,6 +99,9 @@ class Composition:
     summary: str = ""
     scope_parts: ScopeParts | None = None
     follow_ups: list[Alternative] = field(default_factory=list)
+    # A refused action: what would make it possible, and what to look at instead.
+    needs: list[str] = field(default_factory=list)
+    alternatives: list[Alternative] = field(default_factory=list)
 
     def facts(self) -> dict:
         """Everything the model may read when asked to explain: code-written text only."""
@@ -175,6 +179,8 @@ class Composition:
             summary=self.summary,
             scope_line=scope_line,
             follow_ups=self.follow_ups,
+            needs=self.needs,
+            alternatives=self.alternatives,
         )
 
 
@@ -825,8 +831,17 @@ def _scaffolding(usable: Sequence[ToolRecord]) -> set[int]:
     return hidden
 
 
-def compose(records: Sequence[ToolRecord], *, resolve: Resolver) -> Composition:
-    """Turn tool records into claims, evidence, coverage and entity lists. No model involved."""
+def compose(
+    records: Sequence[ToolRecord],
+    *,
+    resolve: Resolver,
+    device_label: Callable[[str], str] | None = None,
+) -> Composition:
+    """Turn tool records into claims, evidence, coverage and entity lists. No model involved.
+
+    `device_label` names a device by its display hostname for the next-step questions that follow a refused
+    action; without it the device id is used.
+    """
     if any(r.error == "tool_error" for r in records):
         return Composition("tool_error", "tool_failure", fallback_headline=texts.TOOL_FAILED)
     if any(r.tool in PROPOSAL_TOOLS and r.error == "not_found" for r in records):
@@ -847,11 +862,25 @@ def compose(records: Sequence[ToolRecord], *, resolve: Resolver) -> Composition:
     refused = next((r for r in records if r.action_refusal is not None), None)
     if refused is not None:
         reason = refused.action_refusal["reason"]  # type: ignore[index]
+        action_type = refused.args.get("action_type")
+        device_id = str(refused.args.get("device_id") or "")
+        named = {k: refused.args.get(k) for k in ("check_id", "component", "topic")}
         return Composition(
             "denied",
             reason,  # type: ignore[arg-type]
             notes=[refused.action_refusal["detail"]],  # type: ignore[index]
             fallback_headline=texts.ACTION_REFUSAL_HEADLINES[reason],  # type: ignore[index]
+            needs=guidance.needs_for(action_type, reason, **named) if action_type else [],
+            alternatives=(
+                guidance.alternatives_for(
+                    action_type,
+                    (device_label(device_id) if device_label else None) or device_id,
+                    component=named["component"],
+                    topic=named["topic"],
+                )
+                if action_type and device_id
+                else []
+            ),
         )
     if records and all(r.error == "not_found" for r in records):
         return Composition("denied", "not_found", fallback_headline=texts.NOT_FOUND)

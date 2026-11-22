@@ -232,7 +232,7 @@ async def test_a_search_cut_short_without_evidence_is_a_step_limit_not_a_no_matc
 async def test_a_composer_failure_is_a_tool_error_not_a_crash(real_db_path, monkeypatch):
     import fleet_copilot.agent.graph as graph_module
 
-    def broken(records, *, resolve):
+    def broken(records, *, resolve, device_label=None):
         raise KeyError("malformed device id /secret/path")
 
     monkeypatch.setattr(graph_module, "compose", broken)

@@ -367,7 +367,13 @@ def test_an_entity_device_may_be_mentioned_by_any_one_of_several_claims():
 
 
 ALLOWED_PAIRS = {
-    "denied": ["not_found", "prompt_injection", "not_eligible", "insufficient_evidence"],
+    "denied": [
+        "not_found",
+        "prompt_injection",
+        "not_eligible",
+        "insufficient_evidence",
+        "other_company",
+    ],
     "unsupported": ["off_topic", "unsupported_action", "data_unavailable"],
     "tool_error": ["tool_failure"],
     "insufficient_data": ["insufficient_history", "step_limit"],
@@ -385,6 +391,7 @@ ALL_REASONS = [
     "not_eligible",
     "insufficient_evidence",
     "data_unavailable",
+    "other_company",
 ]
 
 

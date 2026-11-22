@@ -26,9 +26,17 @@ from langgraph.prebuilt.tool_node import ToolCallRequest
 from langgraph.runtime import Runtime
 
 from fleet_copilot import policy
+from fleet_copilot.actions.eligibility import display_hostname
 from fleet_copilot.agent import outcomes, texts
 from fleet_copilot.agent.compose import Resolver, compose, suggestion_evidence
 from fleet_copilot.agent.context import AgentContext
+from fleet_copilot.agent.disambiguation import (
+    company_typo_clarification,
+    device_clarification,
+    is_company_typo,
+    is_own_company,
+    names_specific_identifier,
+)
 from fleet_copilot.agent.focus import (
     NeedsClarification,
     NotFoundRef,
@@ -76,7 +84,7 @@ from fleet_copilot.agent.verify import (
 )
 from fleet_copilot.contracts import AnswerEnvelope, EntityList, EvidenceItem, SuggestedAction
 from fleet_copilot.data.loader import connect
-from fleet_copilot.repository import FleetRepository, TenantContext
+from fleet_copilot.repository import FleetRepository, NotFound, TenantContext
 
 # A turn is at most MAX_TOOL_ROUNDS x (act, tools, collect) plus the fixed nodes; leave headroom.
 RECURSION_LIMIT = 4 * policy.MAX_TOOL_ROUNDS + 20
@@ -108,6 +116,18 @@ def _repo(ctx: AgentContext):
         yield FleetRepository(conn, TenantContext(ctx.company_id, ctx.actor_id))
     finally:
         conn.close()
+
+
+def _label_lookup(repo: FleetRepository) -> Callable[[str], str]:
+    """Name a device by its display hostname, or by its id when the repository has no such device."""
+
+    def label(device_id: str) -> str:
+        try:
+            return display_hostname(repo.get_device(device_id).hostname, device_id)
+        except NotFound:
+            return device_id
+
+    return label
 
 
 def _ms(started: float) -> int:
@@ -237,6 +257,66 @@ def _result_status(result: Any, record: ToolRecord) -> str:
     if record.action_refusal is not None:
         return "refused"
     return record.error or "ok"
+
+
+def _company_scope_envelope(plan: Plan, question: str, ctx: AgentContext) -> AnswerEnvelope | None:
+    """The reply when the question is about a company other than the user's own, or None to carry on.
+
+    A general question about another company ("devices at another company", "low disk at Globex") gets the
+    `other_company` card, which names only the user's own company. A question that names one particular
+    device id, hostname or employee id is always the uniform "not found" instead, so it cannot be told
+    apart from an id that does not exist. A near miss of the user's own company name (a typo) is asked about.
+    """
+    kwargs = {
+        "company_id": ctx.company_id,
+        "as_of": ctx.as_of,
+        "trace_id": ctx.trace_id,
+        "company_name": ctx.company_name,
+    }
+    written = (plan.named_company or "").strip()
+    own = ctx.company_name
+    named = bool(written and own and written.lower() in question.lower())
+    specific = names_specific_identifier(question)
+    if (
+        named
+        and not specific
+        and plan.intent != "unsupported"
+        and plan.refusal_reason not in ("prompt_injection", "cross_tenant")
+        and is_company_typo(written, own)
+    ):
+        typo = company_typo_clarification(question, written, own)
+        if typo is not None:
+            return outcomes.clarification(
+                typo.question,
+                [],
+                choices=typo.choices,
+                company_id=ctx.company_id,
+                as_of=ctx.as_of,
+                trace_id=ctx.trace_id,
+            )
+    if plan.intent == "refuse" and plan.refusal_reason == "other_company":
+        return outcomes.refusal("cross_tenant" if specific else "other_company", **kwargs)
+    if not named or plan.intent in ("refuse", "unsupported") or is_own_company(written, own):
+        return None
+    return outcomes.refusal("cross_tenant" if specific else "other_company", **kwargs)
+
+
+def _device_choice_envelope(plan: Plan, question: str, ctx: AgentContext) -> AnswerEnvelope | None:
+    """Code-built clarification when the planner says the user's device phrase could be several devices."""
+    if not plan.device_phrase:
+        return None
+    with _repo(ctx) as repo:
+        built = device_clarification(question, plan.device_phrase, repo.list_devices())  # type: ignore[arg-type]
+    if built is None:
+        return None
+    return outcomes.clarification(
+        built.question,
+        [],
+        choices=built.choices,
+        company_id=ctx.company_id,
+        as_of=ctx.as_of,
+        trace_id=ctx.trace_id,
+    )
 
 
 async def _tool_wrapper(
@@ -421,15 +501,27 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
         )
         update: dict[str, Any] = {"plan": plan.model_dump(mode="json")}
         kwargs = {"company_id": ctx.company_id, "as_of": ctx.as_of, "trace_id": ctx.trace_id}
-        if plan.intent == "clarify":
-            checked = verify_clarification(
-                plan.clarification_question or "", list(plan.clarification_options)
-            )
-            question, options = checked if checked else (None, [])
-            update["envelope"] = _dump(outcomes.clarification(question, options, **kwargs))
+        scoped = _company_scope_envelope(plan, state["question"], ctx)
+        if scoped is not None:
+            update["envelope"] = _dump(scoped)
+        elif plan.intent == "clarify":
+            built = _device_choice_envelope(plan, state["question"], ctx)
+            if built is not None:
+                update["envelope"] = _dump(built)
+            else:
+                checked = verify_clarification(
+                    plan.clarification_question or "", list(plan.clarification_options)
+                )
+                question, options = checked if checked else (None, [])
+                update["envelope"] = _dump(outcomes.clarification(question, options, **kwargs))
         elif plan.intent in ("refuse", "unsupported") and plan.refusal_reason:
             update["envelope"] = _dump(
-                outcomes.refusal(plan.refusal_reason, missing_topic=plan.missing_topic, **kwargs)
+                outcomes.refusal(
+                    plan.refusal_reason,
+                    missing_topic=plan.missing_topic,
+                    company_name=ctx.company_name,
+                    **kwargs,
+                )
             )
         return update
 
@@ -616,7 +708,9 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
         extras: dict[str, Any] | None = None
         try:
             with _repo(ctx) as repo:
-                composition = compose(records, resolve=repo.resolve)
+                composition = compose(
+                    records, resolve=repo.resolve, device_label=_label_lookup(repo)
+                )
                 if composition.outcome == "answer" and plan_intent != "advise":
                     extras = _list_suggestions(ctx, composition, records, repo.resolve)
             if state.get("limit_hit"):
