@@ -117,7 +117,7 @@ async def test_macos_older_than_15_reports_what_was_out_of_scope(real_db_path):
     assert sorted(result.envelope.coverage.excluded["out_of_scope"]) == sorted(
         expected["out_of_scope"]
     )
-    assert result.envelope.headline == "Four of 7 macOS devices are older than macOS 15"
+    assert result.envelope.headline == "4 of your 7 Macs are behind macOS 15."
 
 
 async def test_two_lists_make_a_follow_up_ambiguous_until_the_user_names_one(real_db_path):

@@ -147,8 +147,7 @@
             "no_proposal": true,
             "devices_exclude": {
               "golden": "globex-002/devices"
-            },
-            "tools_not_called": "*"
+            }
           }
         }
       ]

@@ -1,7 +1,7 @@
 """The verify gate: nothing a model wrote reaches the user unless code can ground it.
 
 Two checks, both deterministic:
-  * prose (headline, explanation, clarification text): every number, device id and hostname must
+  * prose (the explanation and clarification text): every number, device id and hostname must
     already appear in code-written facts, and the text must be plain and short;
   * evidence: every cited reading must exist for this tenant and read exactly as the data says.
 Prose that fails is replaced by code-written text. Evidence that fails makes the whole answer a
@@ -354,6 +354,12 @@ def check_prose(
     return problems
 
 
+# An informational problem, not a failure: the explanation was over the length cap, was cut to its first
+# sentences and then passed every check. It is recorded so the trace shows the cut.
+EXPLANATION_TRIMMED = "explanation:trimmed"
+_LENGTH_PROBLEMS = frozenset({"too_long", "too_many_sentences"})
+
+
 @dataclass(frozen=True)
 class ProseVerdict:
     """What the graph may show. `problems` are codes only: safe to put in a trace."""
@@ -378,18 +384,39 @@ def shown_serials(comp: Composition) -> set[str]:
     return serials
 
 
+def trimmed_to_caps(text: str) -> str | None:
+    """The first sentences of `text` that fit the explanation caps, or None when not even one does.
+
+    Cut only at a sentence boundary: at most `policy.MAX_EXPLANATION_SENTENCES` sentences and at most
+    `policy.MAX_EXPLANATION_CHARS` characters.
+    """
+    kept: list[str] = []
+    for part in (p.strip() for p in _SENTENCE_END.split(text.strip())):
+        if not part:
+            continue
+        candidate = " ".join([*kept, part])
+        if (
+            len(kept) >= policy.MAX_EXPLANATION_SENTENCES
+            or len(candidate) > policy.MAX_EXPLANATION_CHARS
+        ):
+            break
+        kept.append(part)
+    return " ".join(kept) or None
+
+
 def verify_prose(
     comp: Composition,
     as_of: datetime,
     *,
-    headline: str | None,
     explanation: str | None,
     estimates: Sequence[str] | None = None,
 ) -> ProseVerdict:
-    """Accept the model's headline and explanation only if they ground; else use code-written text.
+    """Accept the model's explanation only if it grounds; the headline is always the code-written one.
 
     `estimates` (default: the composition's `estimates` list, if it has one) are code-written future-facing
     phrases such as a battery estimate; prose may repeat them verbatim and their numbers count as grounded.
+    An explanation that fails only on length is cut to its first sentences (see `trimmed_to_caps`) and shown
+    if the cut text passes every check; the verdict then lists `explanation:trimmed`, which is not a failure.
     """
     if estimates is None:
         estimates = tuple(getattr(comp, "estimates", None) or ())
@@ -399,54 +426,43 @@ def verify_prose(
     days = allowed_month_days(comp, estimates)
     is_answer = comp.outcome == "answer"
     judges_software = is_answer and any("#software[" in item.ref for item in comp.evidence)
-    required = number_tokens(comp.fallback_headline)
-    problems: list[str] = []
-    final_headline = comp.fallback_headline
-    if headline is not None:
+    shown_ids = shown_serials(comp)
+
+    def explanation_problems(text: str) -> list[str]:
         found = check_prose(
-            headline,
-            allowed=allowed,
-            ids=ids,
-            labels=labels,
-            max_chars=policy.MAX_HEADLINE_CHARS,
-        )
-        found += claim_problems(headline, estimates=estimates)
-        found += date_problems(headline, days)
-        if is_answer and _CLAIM_WORD.search(_fold(headline)):
-            found.append("claim_word")
-        if judges_software and _JUDGMENT_WORD.search(_fold(headline)):
-            found.append("judgment_word")
-        # The code headline states the result; the model's may reword it but must keep its numbers.
-        if not required <= number_tokens(headline):
-            found.append("restates_nothing")
-        if found:
-            problems += [f"headline:{_code(p)}" for p in found]
-        else:
-            final_headline = headline.strip()
-    final_explanation: str | None = None
-    if explanation is not None and explanation.strip():
-        found = check_prose(
-            explanation,
+            text,
             allowed=allowed,
             ids=ids,
             labels=labels,
             max_chars=policy.MAX_EXPLANATION_CHARS,
         )
-        found += claim_problems(explanation, estimates=estimates)
-        found += date_problems(explanation, days)
-        if sentence_count(explanation) > policy.MAX_EXPLANATION_SENTENCES:
+        found += claim_problems(text, estimates=estimates)
+        found += date_problems(text, days)
+        if sentence_count(text) > policy.MAX_EXPLANATION_SENTENCES:
             found.append("too_many_sentences")
-        if serials_in(explanation, shown_serials(comp)):
+        if serials_in(text, shown_ids):
             found.append("serial_in_prose")
-        if is_answer and _CLAIM_WORD.search(_fold(explanation)):
+        if is_answer and _CLAIM_WORD.search(_fold(text)):
             found.append("claim_word")
-        if judges_software and _JUDGMENT_WORD.search(_fold(explanation)):
+        if judges_software and _JUDGMENT_WORD.search(_fold(text)):
             found.append("judgment_word")
+        return found
+
+    problems: list[str] = []
+    final_explanation: str | None = None
+    if explanation is not None and explanation.strip():
+        found = explanation_problems(explanation)
+        if found and {_code(p) for p in found} <= _LENGTH_PROBLEMS:
+            cut = trimmed_to_caps(explanation)
+            if cut is not None and not explanation_problems(cut):
+                final_explanation = cut
+                problems.append(EXPLANATION_TRIMMED)
+                found = []
         if found:
             problems += [f"explanation:{_code(p)}" for p in found]
-        else:
+        elif final_explanation is None:
             final_explanation = explanation.strip()
-    return ProseVerdict(final_headline, final_explanation, tuple(dict.fromkeys(problems)))
+    return ProseVerdict(comp.fallback_headline, final_explanation, tuple(dict.fromkeys(problems)))
 
 
 MAX_CLARIFICATION_CHARS = 120

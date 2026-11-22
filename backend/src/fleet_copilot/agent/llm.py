@@ -58,6 +58,12 @@ _MAX_SUMMARY = 300
 _MAX_OPTIONS = 6
 _MAX_OPTION_LENGTH = 80
 _SECURITY_REASONS = ("cross_tenant", "other_company", "prompt_injection")
+# Words a model puts in `refusal_reason` when it means "the telemetry has no such data": a topic name, or a
+# synonym for "data unavailable" (which names no topic). Read as `missing_topic`, never as a bad reason.
+_TOPIC_NAMES = frozenset(get_args(MissingTopic)) - {"other"}
+_NO_DATA_SYNONYMS = frozenset(
+    {"data_unavailable", "missing_data", "not_in_data", "missing_topic", "no_data", "other"}
+)
 
 
 class Reference(BaseModel):
@@ -157,6 +163,10 @@ class Plan(BaseModel):
         topic = _word(repaired.get("missing_topic"))
         if topic is not None and topic not in get_args(MissingTopic):
             topic = "other"
+        if reason in _TOPIC_NAMES or reason in _NO_DATA_SYNONYMS:
+            # The reason field holds a topic name or a "data unavailable" synonym: that is a missing topic.
+            topic = topic or (reason if reason in _TOPIC_NAMES else "other")
+            reason = "data_unavailable"
         if intent in ("off_topic", "offtopic"):
             intent, reason = "unsupported", reason or "off_topic"
         if reason in _SECURITY_REASONS:
@@ -269,7 +279,9 @@ class Explanation(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    headline: str = Field(max_length=300)
+    # Not used: the headline is always the one code writes. The field stays optional so recorded model
+    # responses that carry one still load.
+    headline: str | None = Field(default=None, max_length=300)
     explanation: str | None = Field(default=None, max_length=1500)
 
 

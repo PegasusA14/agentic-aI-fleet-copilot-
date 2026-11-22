@@ -406,7 +406,7 @@
       "kind": "explain",
       "latency_ms": null,
       "seq": 5,
-      "summary": "Model wrote a headline and explanation",
+      "summary": "Model wrote an explanation",
       "tool": null,
       "trace_id": "replay-initech-003-disk_trend"
     },
@@ -414,7 +414,6 @@
       "data": {
         "evidence_ok": true,
         "explanation_shown": false,
-        "headline_from_model": false,
         "model_prose": true,
         "problems": []
       },

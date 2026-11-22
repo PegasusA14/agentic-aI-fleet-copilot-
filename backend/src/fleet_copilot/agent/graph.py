@@ -99,8 +99,31 @@ _ACTION_WORDS = re.compile(
 )
 
 
-def names_an_action(question: str) -> bool:
-    """True when the user's question names a specific action the advice could be limited to."""
+# The stricter set used before an `unsupported_action` plan is believed: any word that asks for something to
+# be done (approve, execute, delete, reboot ...) plus the specific-action words above. Whole words, so the
+# data words "installed", "enabled" and "locked" do not count; the check name "screen lock" is blanked out
+# first because it is a compliance check, not the lock action.
+_CHECK_NAMES = re.compile(
+    r"\bscreen[\s_-]*lock\w*|\bos[\s_-]*up[\s_-]*to[\s_-]*date\b|\bdisk[\s_-]*encrypt\w*",
+    re.IGNORECASE,
+)
+_STRICT_ACTION_WORDS = re.compile(
+    r"\b(?:approv|execut|delet|remov|reboot|restart|deploy|push|proceed|confirm|accept|submit|apply"
+    r"|order|upgrad|ticket|flag|replac|notif|tell|messag|email|remind|send|create)"
+    r"|\b(?:wipe|wiping|install|uninstall\w*|lock|disable|enable)\b"
+    r"|\brun\s+(?:it|them|that|this)\b|\bgo\s+ahead\b|\bdo\s+(?:it|that|this)\b",
+    re.IGNORECASE,
+)
+
+
+def names_an_action(question: str, *, strict: bool = False) -> bool:
+    """True when the user's question names a specific action the advice could be limited to.
+
+    `strict` widens the set to every word that asks for something to be done; it decides whether a plan
+    that calls the question an unsupported action is believed.
+    """
+    if strict:
+        return _STRICT_ACTION_WORDS.search(_CHECK_NAMES.sub(" ", question)) is not None
     return _ACTION_WORDS.search(question) is not None
 
 
@@ -237,6 +260,28 @@ def bound_tools(plan: Plan, widened: bool = False) -> frozenset[str] | None:
     if not reads:
         return None
     return frozenset(reads | LOOKUP_TOOLS)
+
+
+def without_summary_tool(plan: Plan) -> Plan:
+    """The plan without `fleet_health` when it also names an area tool: the summary is for summaries only.
+
+    A question about one area (battery, disk, memory, one check) is answered by that area's tool; the plan
+    that lists both would have the summary list every flagged device. A plan that names only `fleet_health`
+    (and perhaps the lookups) is a real summary question and is kept.
+    """
+    if "fleet_health" not in plan.tools:
+        return plan
+    areas = [t for t in plan.tools if t not in ({"fleet_health"} | PROPOSAL_TOOLS | LOOKUP_TOOLS)]
+    if not areas:
+        return plan
+    return plan.model_copy(update={"tools": [t for t in plan.tools if t != "fleet_health"]})
+
+
+def without_empty_ids(args: ToolCall) -> ToolCall:
+    """The call's arguments without an empty `device_ids` list: no devices named is no filter, not "no such device"."""
+    if args.get("device_ids") == []:
+        return {key: value for key, value in args.items() if key != "device_ids"}
+    return args
 
 
 def _tool_order(names: frozenset[str]) -> list[str]:
@@ -394,7 +439,7 @@ async def _tool_wrapper(
         return ToolMessage(
             content=f"{INVALID_INPUT_PREFIX}: {blocked}", tool_call_id=call["id"], status="error"
         )
-    args = inject_focus(name, call["args"], request.state.get("focus_ids"))
+    args = inject_focus(name, without_empty_ids(call["args"]), request.state.get("focus_ids"))
     if args != call["args"]:
         request = request.override(tool_call={**call, "args": args})
     # Only the tool's own parameter names are traced; the model cannot smuggle text in as a key.
@@ -532,6 +577,23 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
         except Exception as exc:  # model outage or unusable structured output
             emit("error", "Planning failed", data={"error": type(exc).__name__})
             return _failure(ctx)
+        converted = False
+        if (
+            plan.intent == "unsupported"
+            and plan.refusal_reason == "unsupported_action"
+            and not names_an_action(state["question"], strict=True)
+        ):
+            # Nothing in the question asks for anything to be done ("os update failures?", "screen lock
+            # failing"): it is a question about the data. Answer it with every tool on offer.
+            plan = Plan(
+                intent="answer",
+                summary="Answer the question from the fleet data.",
+                window_days=plan.window_days,
+                reference=plan.reference,
+            )
+            converted = True
+        before = plan.tools
+        plan = without_summary_tool(plan)
         emit(
             "plan",
             "Planned the turn",
@@ -548,6 +610,18 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
             },
             latency_ms=_ms(started),
         )
+        if converted:
+            emit(
+                "plan",
+                "The plan called the question an unsupported action but it names no action; answering it",
+                data={"changed": "unsupported_action_to_answer"},
+            )
+        if plan.tools != before:
+            emit(
+                "plan",
+                "The plan named the fleet summary with an area tool; the summary tool was dropped",
+                data={"dropped": "fleet_health"},
+            )
         update: dict[str, Any] = {"plan": plan.model_dump(mode="json")}
         kwargs = {"company_id": ctx.company_id, "as_of": ctx.as_of, "trace_id": ctx.trace_id}
         scoped = _company_scope_envelope(plan, state["question"], ctx)
@@ -737,7 +811,9 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
         records = list(state.get("records") or [])
         unfixed = list(state.get("unfixed_calls") or [])
         for call in ai.tool_calls:
-            args = inject_focus(call["name"], call["args"], state.get("focus_ids"))
+            args = inject_focus(
+                call["name"], without_empty_ids(call["args"]), state.get("focus_ids")
+            )
             reply = replies.get(call["id"])
             # Names only, and never a name the model made up: it is compared, not shown.
             name = call["name"] if call["name"] in _TOOL_NAMES else UNKNOWN_TOOL
@@ -849,7 +925,7 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
             return {"prose": None}
         emit(
             "explain",
-            "Model wrote a headline and explanation",
+            "Model wrote an explanation",
             data={"ok": True},
             latency_ms=_ms(started),
         )
@@ -875,7 +951,6 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
         verdict = verify_prose(
             composition_of(draft),
             ctx.as_of,
-            headline=prose.get("headline"),
             explanation=prose.get("explanation"),
         )
         emit(
@@ -884,7 +959,6 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
             data={
                 "evidence_ok": True,
                 "model_prose": bool(prose),
-                "headline_from_model": bool(prose) and verdict.headline != draft.headline,
                 "explanation_shown": verdict.explanation is not None,
                 "problems": list(verdict.problems),
             },

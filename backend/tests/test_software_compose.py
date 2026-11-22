@@ -276,7 +276,6 @@ def test_prose_that_names_apps_versions_devices_and_dates_from_the_facts_passes(
     got = verdict(
         comp,
         real_conn,
-        headline="2 of your 10 devices got 2 new installs in the last 30 days: uTorrent 3.6 and CleanMyMac X 4.15",
         explanation=(
             "uTorrent 3.6 first appeared on acme-macbook-2 on 2026-05-31, and CleanMyMac X 4.15 on "
             "acme-macbook-1 on 2026-05-25. Neither is in the common set of 1Password, Google Chrome, Slack, "
@@ -294,7 +293,6 @@ def test_prose_that_names_a_shared_app_and_its_version_passes_on_the_inventory(
     got = verdict(
         comp,
         real_conn,
-        headline="10 of your 10 devices reported their installed software.",
         explanation="Google Chrome 126.0, Zoom 6.1.1, 1Password 8.10 and Visual Studio Code 1.90 are shared.",
     )
     assert got.problems == ()
@@ -318,7 +316,7 @@ def test_prose_that_invents_a_version_a_device_or_a_date_is_replaced(
     real_db_path, real_conn, explanation, code
 ):
     comp = composed(real_db_path, real_conn, NEW)
-    got = verdict(comp, real_conn, headline=None, explanation=explanation)
+    got = verdict(comp, real_conn, explanation=explanation)
     assert code in got.problems and got.explanation is None
 
 
@@ -364,19 +362,16 @@ def test_prose_that_invents_a_version_a_device_or_a_date_is_replaced(
 )
 def test_prose_may_not_label_software_as_risky_or_unapproved(real_db_path, real_conn, text):
     comp = composed(real_db_path, real_conn, NEW)
-    for field in ("explanation", "headline"):
-        got = verdict(comp, real_conn, **{"headline": None, "explanation": None, field: text})
-        assert f"{field}:judgment_word" in got.problems, (field, text)
-    assert verdict(comp, real_conn, headline=None, explanation=text).explanation is None
+    got = verdict(comp, real_conn, explanation=text)
+    assert "explanation:judgment_word" in got.problems, text
+    assert got.explanation is None
 
 
 def test_the_judgment_word_check_only_applies_to_answers_about_software(real_db_path, real_conn):
     comp = compose(
         [run(real_db_path, real_conn, "low_disk_devices", {})], resolve=repo_for(real_conn).resolve
     )
-    got = verdict(
-        comp, real_conn, headline=None, explanation="Low disk space puts acme-macbook-4 at risk."
-    )
+    got = verdict(comp, real_conn, explanation="Low disk space puts acme-macbook-4 at risk.")
     assert got.problems == () and got.explanation is not None
 
 
@@ -404,7 +399,6 @@ def test_a_mixed_answer_that_cites_software_still_gets_the_judgment_gate(real_db
     got = verdict(
         comp,
         real_conn,
-        headline=None,
         explanation="acme-macbook-4 is at risk of running out of disk.",
     )
     assert "explanation:judgment_word" in got.problems and got.explanation is None

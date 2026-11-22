@@ -204,7 +204,8 @@ def test_the_explain_prompt_asks_for_a_natural_short_reply_to_the_admin():
     assert "hostname, never by its serial" in explain
     assert "no causes and no predictions" in explain
     assert "addressed to the administrator" in explain
-    assert "headline" in explain and "at most 140 characters" in explain
+    assert "headline is already written" in explain and "at most 140 characters" not in explain
+    assert "suggested_headline" not in explain
     assert "at most three short sentences" not in explain
     # the strict grounding rules are unchanged
     for fragment in ("copied exactly", "do not round", "plain text only", "negations"):

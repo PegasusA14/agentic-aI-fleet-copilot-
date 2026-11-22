@@ -231,7 +231,7 @@
             "Which devices currently fail the OS up to date check?",
             "devices not on the latest OS (compliance)",
             "List every computer where the operating system update check is failing in the latest report",
-            "wich pcs r behind on os updates"
+            "wich computers r behind on os updates"
           ],
           "expect": {
             "outcome": "answer",

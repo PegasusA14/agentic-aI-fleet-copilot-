@@ -201,7 +201,6 @@
       "data": {
         "evidence_ok": true,
         "explanation_shown": false,
-        "headline_from_model": false,
         "model_prose": false,
         "problems": []
       },

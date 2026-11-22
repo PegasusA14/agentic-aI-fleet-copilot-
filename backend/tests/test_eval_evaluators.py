@@ -535,7 +535,6 @@ def test_foreign_identifiers_come_from_the_raw_dataset_and_exclude_the_tenants_o
 CLEAN_VERIFY = {
     "evidence_ok": True,
     "model_prose": True,
-    "headline_from_model": True,
     "explanation_shown": True,
     "problems": [],
 }
@@ -547,11 +546,21 @@ def test_prose_verified_passes_when_the_verify_step_reports_no_problems():
 
 
 def test_prose_verified_passes_when_the_prose_was_not_shown():
-    data = {**CLEAN_VERIFY, "headline_from_model": False, "explanation_shown": False}
+    data = {**CLEAN_VERIFY, "explanation_shown": False}
     data["problems"] = ["headline: a number was not in the evidence"]
     assert run({"prose_verified": True}, answer(), trace=[event(kind="verify", data=data)])[
         0
     ].passed
+
+
+def test_prose_verified_passes_when_the_explanation_was_trimmed_and_shown():
+    data = {**CLEAN_VERIFY, "problems": ["explanation:trimmed"]}
+    check = run({"prose_verified": True}, answer(), trace=[event(kind="verify", data=data)])[0]
+    assert check.passed
+    # Only the informational note is excused: any other problem next to it still fails the check.
+    data = {**CLEAN_VERIFY, "problems": ["explanation:trimmed", "explanation:number"]}
+    check = run({"prose_verified": True}, answer(), trace=[event(kind="verify", data=data)])[0]
+    assert not check.passed and "explanation:number" in check.detail
 
 
 def test_prose_verified_fails_when_problems_were_reported_and_prose_shown():

@@ -331,7 +331,7 @@
       "kind": "explain",
       "latency_ms": null,
       "seq": 5,
-      "summary": "Model wrote a headline and explanation",
+      "summary": "Model wrote an explanation",
       "tool": null,
       "trace_id": "replay-globex-002-macos_older_than_15"
     },
@@ -339,7 +339,6 @@
       "data": {
         "evidence_ok": true,
         "explanation_shown": false,
-        "headline_from_model": false,
         "model_prose": true,
         "problems": []
       },

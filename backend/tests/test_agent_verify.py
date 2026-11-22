@@ -136,13 +136,15 @@ def test_check_prose_rejects_every_hiding_character_with_a_class_code(char):
 
 
 @pytest.mark.parametrize("char", HIDING_CHARS)
-def test_a_headline_with_a_hiding_character_falls_back_to_the_code_headline(low_disk, char):
+def test_an_explanation_with_a_hiding_character_is_dropped_and_the_headline_stays_code_written(
+    low_disk, char
+):
     comp, as_of = low_disk
     text = f"1{char}0 of 1{char}0 devices are low on disk"
-    verdict = verify_prose(comp, as_of, headline=text, explanation=text)
+    verdict = verify_prose(comp, as_of, explanation=text)
     assert verdict.headline == comp.fallback_headline
     assert verdict.explanation is None
-    assert "headline:bad_chars" in verdict.problems and "explanation:bad_chars" in verdict.problems
+    assert "explanation:bad_chars" in verdict.problems
     assert all(char not in p for p in verdict.problems)
 
 
@@ -180,14 +182,8 @@ def test_ordinary_typography_is_not_a_bad_character(low_disk):
     assert check("It\u2019s \u201cfine\u201d \u2014 two of them\u2026") == []
     assert check("Under 10% free, at 2\u00b0 off\ncaf\u00e9 \u00fcber \u65e5\u672c") == []
     # What the user sees is the exact string that passed: no rewriting, only outer whitespace trimmed.
-    verdict = verify_prose(
-        comp,
-        as_of,
-        headline="  Two of 10 devices\u2026 \u201clow\u201d  ",
-        explanation="Two devices\u2014under 10%.",
-    )
+    verdict = verify_prose(comp, as_of, explanation="  Two devices\u2014under 10%.  ")
     assert verdict.problems == ()
-    assert verdict.headline == "Two of 10 devices\u2026 \u201clow\u201d"
     assert verdict.explanation == "Two devices\u2014under 10%."
 
 
@@ -216,49 +212,29 @@ def low_disk(real_db_path, real_conn):
     return comp, dataset_as_of(real_conn)
 
 
-def test_a_grounded_headline_and_explanation_are_accepted(low_disk):
+def test_a_grounded_explanation_is_accepted_and_the_headline_is_the_code_headline(low_disk):
     comp, as_of = low_disk
     verdict = verify_prose(
         comp,
         as_of,
-        headline="Two devices are below the 10% free-space threshold",
         explanation="acme-macbook-4 and acme-thinkpad-8 are the two lowest, at 2.0% and 2.6% free.",
     )
     assert verdict.problems == ()
-    assert verdict.headline == "Two devices are below the 10% free-space threshold"
+    assert verdict.headline == comp.fallback_headline
     assert verdict.explanation is not None and "2.6% free" in verdict.explanation
 
 
-@pytest.mark.parametrize(
-    ("headline", "code"),
-    [
-        ("37 devices are low on disk", "headline:number"),
-        ("About fifty devices are affected", "headline:number"),
-        ("ZZZ9QQQ88XYZ is also low", "headline:unknown_id"),
-        ("See <b>this</b>", "headline:markup"),
-        ("x" * (policy.MAX_HEADLINE_CHARS + 1), "headline:too_long"),
-    ],
-)
-def test_an_ungrounded_headline_is_replaced_by_the_code_headline(low_disk, headline, code):
+def test_an_ungrounded_explanation_is_dropped_but_the_code_headline_stands(low_disk):
     comp, as_of = low_disk
-    verdict = verify_prose(comp, as_of, headline=headline, explanation=None)
+    verdict = verify_prose(comp, as_of, explanation="Fix them by 99 tomorrow.")
     assert verdict.headline == comp.fallback_headline
-    assert code in verdict.problems
-
-
-def test_an_ungrounded_explanation_is_dropped_but_the_headline_can_stand(low_disk):
-    comp, as_of = low_disk
-    verdict = verify_prose(
-        comp, as_of, headline="Two of 10 devices are low", explanation="Fix them by 99 tomorrow."
-    )
-    assert verdict.headline == "Two of 10 devices are low"
     assert verdict.explanation is None
     assert verdict.problems == ("explanation:number",)
 
 
 def test_no_model_prose_means_the_code_headline_and_no_explanation(low_disk):
     comp, as_of = low_disk
-    verdict = verify_prose(comp, as_of, headline=None, explanation=None)
+    verdict = verify_prose(comp, as_of, explanation=None)
     assert (verdict.headline, verdict.explanation, verdict.problems) == (
         comp.fallback_headline,
         None,
@@ -269,52 +245,30 @@ def test_no_model_prose_means_the_code_headline_and_no_explanation(low_disk):
 def test_a_number_written_with_a_thousands_separator_is_accepted_by_value(low_disk):
     comp, as_of = low_disk
     with_cycles = dataclasses.replace(comp, notes=[*comp.notes, "Battery cycles: 1157"])
-    wording = "Up to 1,157 cycles seen on two of 10 devices"
-    verdict = verify_prose(with_cycles, as_of, headline=wording, explanation=None)
+    wording = "Up to 1,157 cycles seen on two of 10 devices."
+    verdict = verify_prose(with_cycles, as_of, explanation=wording)
     assert verdict.problems == ()
-    assert verdict.headline == wording
-    assert verify_prose(comp, as_of, headline=wording, explanation=None).problems == (
-        "headline:number",
-    )
+    assert verdict.explanation == wording
+    assert verify_prose(comp, as_of, explanation=wording).problems == ("explanation:number",)
 
 
-PROBE_HEADLINE = "No devices are low on disk"
 PROBE_EXPLANATION = "Everything is healthy and none of your devices need attention."
 
 
 def test_qualitative_claims_that_contradict_the_answer_are_rejected(low_disk):
     comp, as_of = low_disk  # a real answer: 2 of 10 devices are low on disk
-    verdict = verify_prose(comp, as_of, headline=PROBE_HEADLINE, explanation=PROBE_EXPLANATION)
+    verdict = verify_prose(comp, as_of, explanation=PROBE_EXPLANATION)
     assert verdict.headline == comp.fallback_headline
     assert verdict.explanation is None
-    assert set(verdict.problems) == {
-        "headline:restates_nothing",
-        "headline:claim_word",
-        "explanation:claim_word",
-    }
+    assert set(verdict.problems) == {"explanation:claim_word"}
 
 
-def test_a_headline_must_restate_every_number_of_the_code_headline(low_disk):
+def test_a_model_headline_is_not_a_parameter_the_headline_is_always_the_code_headline(low_disk):
     comp, as_of = low_disk
     assert comp.fallback_headline == "2 of your 10 devices are under 10% free disk space."
-    faithful = verify_prose(
-        comp,
-        as_of,
-        headline="Two of your 10 devices are under 10% free disk space.",
-        explanation=None,
-    )
-    assert faithful.problems == ()
-    assert faithful.headline == "Two of your 10 devices are under 10% free disk space."
-    # Grounded numbers alone are not enough: a headline that drops the count or the population says less
-    # than the answer, and a vague one can be wrong without containing a single wrong number.
-    for vague in (
-        "Two devices are low",
-        "Several devices are low on disk",
-        "10 devices were checked",
-    ):
-        verdict = verify_prose(comp, as_of, headline=vague, explanation=None)
-        assert verdict.headline == comp.fallback_headline
-        assert verdict.problems == ("headline:restates_nothing",), vague
+    with pytest.raises(TypeError):
+        verify_prose(comp, as_of, headline="Two devices are low", explanation=None)  # type: ignore[call-arg]
+    assert verify_prose(comp, as_of, explanation=None).headline == comp.fallback_headline
 
 
 @pytest.mark.parametrize(
@@ -325,39 +279,31 @@ def test_a_headline_must_restate_every_number_of_the_code_headline(low_disk):
 def test_reassurance_and_universal_words_are_rejected_on_an_answer(low_disk, word):
     comp, as_of = low_disk
     explanation = f"Two of 10 devices are low, {word} problem here."
-    verdict = verify_prose(comp, as_of, headline=None, explanation=explanation)
+    verdict = verify_prose(comp, as_of, explanation=explanation)
     assert verdict.explanation is None
     assert verdict.problems == ("explanation:claim_word",)
-    headline = f"{word} - 2 of 10 devices are under 10% free"
-    assert verify_prose(comp, as_of, headline=headline, explanation=None).problems == (
-        "headline:claim_word",
-    )
 
 
 @pytest.mark.parametrize(
-    ("headline", "explanation"),
+    "explanation",
     [
-        (
-            "\uff25\uff56\uff45\uff52\uff59\uff54\uff48\uff49\uff4e\uff47 is ok",
-            "\uff25\uff56\uff45\uff52\uff59\uff54\uff48\uff49\uff4e\uff47 is "
-            "\uff48\uff45\uff41\uff4c\uff54\uff48\uff59 and \uff4e\uff4f\uff4e\uff45 need attention.",
-        ),
-        ("\U0001d40d\U0001d428 devices are low: 2 of 10", "\U0001d40d\U0001d428 devices are low."),
+        "\uff25\uff56\uff45\uff52\uff59\uff54\uff48\uff49\uff4e\uff47 is "
+        "\uff48\uff45\uff41\uff4c\uff54\uff48\uff59 and \uff4e\uff4f\uff4e\uff45 need attention.",
+        "\U0001d40d\U0001d428 devices are low.",
     ],
 )
-def test_the_deny_list_sees_folded_look_alike_letters(low_disk, headline, explanation):
+def test_the_deny_list_sees_folded_look_alike_letters(low_disk, explanation):
     comp, as_of = low_disk
-    verdict = verify_prose(comp, as_of, headline=headline, explanation=explanation)
+    verdict = verify_prose(comp, as_of, explanation=explanation)
     assert verdict.headline == comp.fallback_headline
     assert verdict.explanation is None
-    assert "headline:claim_word" in verdict.problems
     assert "explanation:claim_word" in verdict.problems
 
 
 def test_the_deny_list_matches_whole_words_only(low_disk):
     comp, as_of = low_disk
     text = "Two of 10 devices: a known token, a small install, notes and nodes, allocation, tokens."
-    assert verify_prose(comp, as_of, headline=None, explanation=text).problems == ()
+    assert verify_prose(comp, as_of, explanation=text).problems == ()
     assert set(verify.CLAIM_WORDS) >= {"no", "none", "all", "every", "healthy", "ok", "okay"}
 
 
@@ -370,27 +316,25 @@ def test_the_deny_list_does_not_apply_when_there_is_no_answer(low_disk):
         reason_code="no_matching_records",
         fallback_headline="None of your 10 devices matched.",
     )
-    ok = verify_prose(
-        no_match, as_of, headline="None of the 10 devices matched", explanation="No device is low."
-    )
+    ok = verify_prose(no_match, as_of, explanation="No device is low.")
     assert ok.problems == ()
-    assert (ok.headline, ok.explanation) == ("None of the 10 devices matched", "No device is low.")
-    dropped = verify_prose(no_match, as_of, headline="Nothing matched", explanation=None)
-    assert dropped.problems == ("headline:restates_nothing",)
-    # insufficient_data: a code headline with no numbers imposes no numbers on the model's headline.
+    assert (ok.headline, ok.explanation) == (
+        "None of your 10 devices matched.",
+        "No device is low.",
+    )
     thin = dataclasses.replace(
         comp,
         outcome="insufficient_data",
         reason_code="insufficient_history",
         fallback_headline="There are not enough snapshots in that window to report a trend.",
     )
-    verdict = verify_prose(thin, as_of, headline="No trend is available yet", explanation=None)
-    assert verdict.problems == () and verdict.headline == "No trend is available yet"
+    verdict = verify_prose(thin, as_of, explanation="No trend is available yet.")
+    assert verdict.problems == () and verdict.explanation == "No trend is available yet."
 
 
 def test_trace_problem_codes_never_contain_the_offending_text(low_disk):
     comp, as_of = low_disk
-    verdict = verify_prose(comp, as_of, headline="ZZZ9QQQ88XYZ has 4242 problems", explanation=None)
+    verdict = verify_prose(comp, as_of, explanation="ZZZ9QQQ88XYZ has 4242 problems")
     assert all("4242" not in p and "ZZZ9" not in p for p in verdict.problems)
 
 
@@ -546,7 +490,7 @@ def test_a_claim_citing_a_ref_that_is_not_shown_is_caught(low_disk, real_conn):
 
 def _explain(low_disk, text, **kwargs):
     comp, as_of = low_disk
-    return verify_prose(comp, as_of, headline=None, explanation=text, **kwargs)
+    return verify_prose(comp, as_of, explanation=text, **kwargs)
 
 
 @pytest.mark.parametrize(
@@ -602,23 +546,15 @@ def test_speculation_is_matched_case_insensitively_on_word_boundaries(low_disk):
     assert _explain(low_disk, "Two of 10 devices are low on disk.").problems == ()
 
 
-def test_the_speculation_rules_apply_to_a_model_headline_and_to_every_outcome(low_disk):
+def test_the_speculation_rules_apply_to_every_outcome(low_disk):
     comp, as_of = low_disk
-    verdict = verify_prose(
-        comp,
-        as_of,
-        headline="2 of your 10 devices are under 10% free disk space, probably because of updates",
-        explanation=None,
-    )
-    assert verdict.headline == comp.fallback_headline
-    assert {"headline:causal", "headline:predictive"} <= set(verdict.problems)
     no_match = dataclasses.replace(
         comp, outcome="no_match", fallback_headline="None of your 10 devices matched."
     )
     assert (
         "explanation:causal"
         in verify_prose(
-            no_match, as_of, headline=None, explanation="Nothing matched because of the filter."
+            no_match, as_of, explanation="Nothing matched because of the filter."
         ).problems
     )
 
@@ -652,7 +588,7 @@ def test_a_composition_estimates_list_is_read_when_present(low_disk):
     with_estimates.estimates = ["empty within days"]
     assert (
         verify_prose(
-            with_estimates, as_of, headline=None, explanation="acme-macbook-4 is empty within days."
+            with_estimates, as_of, explanation="acme-macbook-4 is empty within days."
         ).problems
         == ()
     )
@@ -672,12 +608,6 @@ def test_a_device_serial_in_the_explanation_is_rejected_but_a_hostname_is_not(lo
     assert all("MT7P" not in p for p in _explain(low_disk, "MT7PJB7N5LRE.").problems)
 
 
-def test_the_headline_may_still_carry_a_serial_it_is_grounded(low_disk):
-    comp, as_of = low_disk
-    wording = "2 of your 10 devices are under 10% free disk space, led by MT7PJB7N5LRE"
-    assert verify_prose(comp, as_of, headline=wording, explanation=None).problems == ()
-
-
 def test_the_explanation_is_capped_at_two_sentences_and_280_characters(low_disk):
     assert policy.MAX_EXPLANATION_SENTENCES == 2 and policy.MAX_EXPLANATION_CHARS == 280
     assert sentence_count("One. Two!") == 2
@@ -685,9 +615,40 @@ def test_the_explanation_is_capped_at_two_sentences_and_280_characters(low_disk)
     assert sentence_count("A. B. C.") == 3
     two = "acme-macbook-4 is lowest at 2.0% free. acme-thinkpad-8 follows at 2.6% free."
     assert _explain(low_disk, two).problems == ()
-    three = two + " Both are under 10% free."
-    assert _explain(low_disk, three).problems == ("explanation:too_many_sentences",)
     exactly = "Two of 10 devices are low. " + "x" * (policy.MAX_EXPLANATION_CHARS - 27)
     assert len(exactly) == policy.MAX_EXPLANATION_CHARS
-    assert "explanation:too_long" not in _explain(low_disk, exactly).problems
-    assert "explanation:too_long" in _explain(low_disk, exactly + "x").problems
+    assert _explain(low_disk, exactly).problems == ()
+
+
+def test_an_explanation_over_the_cap_is_cut_to_its_first_sentences_and_shown(low_disk):
+    two = "acme-macbook-4 is lowest at 2.0% free. acme-thinkpad-8 follows at 2.6% free."
+    three = two + " Both are under 10% free."
+    verdict = _explain(low_disk, three)
+    assert verdict.explanation == two
+    assert verdict.problems == (verify.EXPLANATION_TRIMMED,) == ("explanation:trimmed",)
+    four = three + " That is 2 of 10 devices."
+    assert _explain(low_disk, four).explanation == two
+
+
+def test_a_long_explanation_is_cut_at_a_sentence_boundary_within_the_character_cap(low_disk):
+    first = "acme-macbook-4 is lowest at 2.0% free."
+    long_second = " acme-thinkpad-8 follows at 2.6% free, " + "and " * 80 + "that is it."
+    verdict = _explain(low_disk, first + long_second)
+    assert verdict.explanation == first
+    assert verdict.problems == ("explanation:trimmed",)
+    assert len(verdict.explanation) <= policy.MAX_EXPLANATION_CHARS
+
+
+def test_a_single_sentence_over_the_character_cap_cannot_be_cut_and_is_dropped(low_disk):
+    text = "Two of 10 devices are low " + "x" * policy.MAX_EXPLANATION_CHARS + "."
+    verdict = _explain(low_disk, text)
+    assert verdict.explanation is None
+    assert verdict.problems == ("explanation:too_long",)
+
+
+def test_an_over_long_explanation_that_also_breaks_another_rule_is_dropped_not_cut(low_disk):
+    # The first two sentences are fine, but the third carries an ungrounded number: nothing is trimmed.
+    text = "acme-macbook-4 is lowest at 2.0% free. acme-thinkpad-8 follows at 2.6% free. That is 37 now."
+    verdict = _explain(low_disk, text)
+    assert verdict.explanation is None
+    assert set(verdict.problems) == {"explanation:too_many_sentences", "explanation:number"}

@@ -474,7 +474,7 @@ def test_prose_may_repeat_a_code_written_estimate_and_nothing_else_looking_forwa
     insight = comp.insights[0]
     phrase = estimate_phrase(insight.projection)
     text = f"{insight.label}'s battery is estimated to reach our service threshold {phrase}."
-    verdict = verify_prose(comp, AS_OF, headline=None, explanation=text)
+    verdict = verify_prose(comp, AS_OF, explanation=text)
     assert verdict.problems == () and verdict.explanation == text
 
 
@@ -482,7 +482,7 @@ def test_a_date_that_the_code_did_not_write_is_rejected(battery_answer):
     comp, _ = battery_answer
     insight = comp.insights[0]
     wrong = f"{insight.label}'s battery is estimated to reach our service threshold between Aug 3 and Aug 9."
-    verdict = verify_prose(comp, AS_OF, headline=None, explanation=wrong)
+    verdict = verify_prose(comp, AS_OF, explanation=wrong)
     assert verdict.explanation is None
     assert any(p.startswith("explanation:") for p in verdict.problems)
 
@@ -493,13 +493,10 @@ def test_the_act_soon_label_may_be_repeated_but_not_a_prediction_with_soon(batte
     ok = verify_prose(
         comp,
         AS_OF,
-        headline="3 of 9 laptops show battery wear signals over the last 30 days",
         explanation="Three of your batteries act soon in our ranking.",
     )
     assert ok.problems == ()
-    bad = verify_prose(
-        comp, AS_OF, headline=None, explanation="Three batteries will run flat soon."
-    )
+    bad = verify_prose(comp, AS_OF, explanation="Three batteries will run flat soon.")
     assert "explanation:predictive" in bad.problems
 
 
@@ -508,14 +505,12 @@ def test_a_stated_date_may_be_named_by_month_and_day_but_no_other(battery_answer
     stated = verify_prose(
         comp,
         AS_OF,
-        headline=None,
         explanation="acme-macbook-1 has had the vendor flag since May 30.",
     )
     assert stated.problems == ()  # the claim states 2026-05-30
     invented = verify_prose(
         comp,
         AS_OF,
-        headline=None,
         explanation="acme-macbook-1 has had the vendor flag since May 20.",
     )
     assert "explanation:date" in invented.problems
@@ -526,7 +521,7 @@ def test_an_unrelated_prediction_is_still_rejected_next_to_an_estimate(battery_a
     insight = comp.insights[0]
     phrase = estimate_phrase(insight.projection)
     text = f"{insight.label} will fail soon, {phrase}."
-    verdict = verify_prose(comp, AS_OF, headline=None, explanation=text)
+    verdict = verify_prose(comp, AS_OF, explanation=text)
     assert "explanation:predictive" in verdict.problems
 
 

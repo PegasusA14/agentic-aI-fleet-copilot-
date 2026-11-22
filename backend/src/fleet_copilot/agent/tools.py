@@ -57,7 +57,8 @@ class ToolInputError(ValueError):
 
 
 def _only(args: dict[str, Any]):
-    return args.get("device_ids")
+    # An empty list names no device: it is no filter, never "no such device".
+    return args.get("device_ids") or None
 
 
 def _run_low_disk(repo: FleetRepository, as_of, a: dict[str, Any]) -> QueryResult:
@@ -212,7 +213,7 @@ def execute(tool_name: str, args: dict[str, Any], ctx: AgentContext) -> ToolReco
     conn = connect(ctx.db_path, read_only=True)
     try:
         repo = FleetRepository(conn, TenantContext(ctx.company_id, ctx.actor_id))
-        requested = args.get("device_ids")
+        requested = args.get("device_ids") or None
         unresolved = 0
         if requested is not None:
             known = {d.device_id for d in repo.list_devices()}
@@ -509,8 +510,10 @@ def fleet_health(
 ) -> tuple[str, dict[str, Any]]:
     """One ranked overview across battery, disk, memory and compliance for the whole fleet: which
     devices need attention, most urgent first, over a trailing window (`window_days`, 1 to 60, default 30).
-    Use it for fleet health, summary or "what needs attention" questions instead of calling each check. The
-    system ranks and words every finding; battery estimates are labelled estimates."""
+    Use it ONLY for an overall summary across several areas ("fleet health", "what needs attention",
+    "overall summary") instead of calling each check. A question about one area (battery, disk, memory, one
+    compliance check) uses that area's tool, for battery `trend` with metric battery. The system ranks and
+    words every finding; battery estimates are labelled estimates."""
     args = {"window_days": window_days, "device_ids": device_ids}
     return _respond("fleet_health", args, runtime)
 

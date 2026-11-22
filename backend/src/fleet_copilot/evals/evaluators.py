@@ -13,7 +13,7 @@ from collections.abc import Callable, Collection, Mapping, Sequence
 from dataclasses import dataclass
 from typing import Any
 
-from fleet_copilot.agent.verify import claim_problems
+from fleet_copilot.agent.verify import EXPLANATION_TRIMMED, claim_problems
 from fleet_copilot.contracts import AnswerEnvelope, TraceEvent
 from fleet_copilot.evals.identifiers import COMPANY_IDS
 from fleet_copilot.evidence import EvidenceRef
@@ -245,10 +245,9 @@ def check_prose_verified(envelope: AnswerEnvelope, trace: Sequence[TraceEvent]) 
         return Check(
             "prose_verified", False, "the answer shows prose but the trace has no verify step"
         )
-    problems = [str(p) for p in verify.data.get("problems", [])]
-    prose_shown = bool(verify.data.get("headline_from_model")) or bool(
-        verify.data.get("explanation_shown")
-    )
+    # A trimmed explanation is shown and passed every check after the cut: it is noted, not a failure.
+    problems = [str(p) for p in verify.data.get("problems", []) if p != EXPLANATION_TRIMMED]
+    prose_shown = bool(verify.data.get("explanation_shown"))
     if not problems:
         return Check("prose_verified", True, "the verify step reported no problems")
     if "evidence_ok" in verify.data and not prose_shown:

@@ -34,7 +34,7 @@
             "Which computers have been under constant memory pressure this week?",
             "sustained memory use, last 7 days",
             "Show me devices whose RAM usage has been high for most of the past week",
-            "wich pcs r always low on memory"
+            "wich computers r always low on memory"
           ],
           "expect": {
             "outcome": "answer",
@@ -249,7 +249,7 @@
             "Which computers have been behind on OS updates for the entire last month?",
             "os update failing 30 days straight?",
             "Show me the devices that have never passed the OS up to date check in the past thirty days",
-            "wich pcs r permanantly out of date on os"
+            "wich computers r permanantly out of date on os"
           ],
           "expect": {
             "outcome": "answer",

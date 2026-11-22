@@ -45,7 +45,9 @@ MODEL_ATTEMPTS = 3  # attempts per model call (rate limit, timeout, connection a
 MODEL_BACKOFF_S = (1.0, 3.0)  # pause before the 2nd and 3rd attempt
 MAX_QUESTION_CHARS = 2000  # longest question a turn accepts
 MAX_HISTORY_TURNS = 6  # earlier turns the planner may see
-MAX_HEADLINE_CHARS = 160  # longest model-written headline that passes verification
+MAX_HEADLINE_CHARS = (
+    160  # longest headline the answer text may have (headlines are written by code)
+)
 MAX_EXPLANATION_CHARS = 280  # longest model-written explanation that passes verification
 MAX_EXPLANATION_SENTENCES = 2  # most sentences a model-written explanation may have
 MAX_SUGGESTIONS = 6  # suggested actions one advise reply offers
