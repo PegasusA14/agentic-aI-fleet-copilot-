@@ -86,10 +86,10 @@ def refusal() -> AnswerEnvelope:
     )
 
 
-def proposal_envelope(status="pending") -> AnswerEnvelope:
+def proposal_envelope(status="pending", proposal_id="prp_abc") -> AnswerEnvelope:
     device = "DEV000000000"
     card = ProposalCard(
-        proposal_id="prp_abc",
+        proposal_id=proposal_id,
         action_type="remediation_ticket",
         company_id="acme-001",
         target_device_id=device,
@@ -295,7 +295,15 @@ def test_notes_come_first_labelled_you_said_and_the_newest_turn_is_in_detail():
 
 def test_render_shows_proposal_status():
     text = mem.render(remembered(proposal_envelope("approved")))
-    assert "Proposal prp_abc: remediation_ticket for acme-laptop-0 (approved)" in text
+    assert "Proposal: remediation_ticket for acme-laptop-0 (approved)" in text
+
+
+def test_render_never_shows_the_proposal_id():
+    # Proposal ids are random per run; in a prompt they would make every later turn unreplayable.
+    first = mem.render(remembered(proposal_envelope(proposal_id="prp_0123456789abcdef")))
+    second = mem.render(remembered(proposal_envelope(proposal_id="prp_fedcba9876543210")))
+    assert "prp_" not in first
+    assert first == second
 
 
 def test_only_the_newest_turns_are_detailed_and_older_ones_take_one_line():

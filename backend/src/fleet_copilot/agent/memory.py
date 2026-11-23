@@ -257,10 +257,8 @@ def _detail(turn: TurnMemory) -> list[str]:
     if turn.key_facts:
         lines.append("  Devices: " + ", ".join(_facts_line(fact) for fact in turn.key_facts))
     for proposal in turn.proposals:
-        lines.append(
-            f"  Proposal {proposal.proposal_id}: {proposal.action_type} for {proposal.label}"
-            f" ({proposal.status})"
-        )
+        # No proposal id: ids are random per run, and a prompt that carries one can never be replayed.
+        lines.append(f"  Proposal: {proposal.action_type} for {proposal.label} ({proposal.status})")
     return lines
 
 

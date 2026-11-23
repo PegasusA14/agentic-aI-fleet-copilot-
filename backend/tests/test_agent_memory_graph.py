@@ -412,3 +412,43 @@ async def test_a_proposal_the_service_does_not_know_reads_as_unknown(real_db_pat
     )
     await ask(service2, "next")
     assert (await held(service2, ACME_ADMIN)).turns[1].proposals[0].status == "unknown"
+
+
+# ---- a turn after a proposal replays: nothing random reaches the model ------------------------------
+
+
+def _proposal_conversation_llm():
+    return ScriptedLLM(
+        plans=[
+            answer_plan(),
+            Plan(intent="propose", summary="ticket", reference=Reference(kind="ordinal", index=1)),
+            Plan(intent="chat"),
+        ],
+        acts=[
+            tool_calls_message(("compliance_failures_now", {"check_id": "screen_lock"})),
+            final_message(),
+            tool_calls_message(
+                ("open_remediation_ticket", {"device_id": "x", "check_id": "screen_lock"})
+            ),
+            final_message(),
+        ],
+        explains=[explanation(), explanation(), explanation()],
+    )
+
+
+async def test_every_model_call_after_a_proposal_is_the_same_in_a_second_run(
+    real_db_path, tmp_path
+):
+    from fleet_copilot.agent.cassette import call_key
+
+    keys = []
+    for run in ("one", "two"):
+        llm = _proposal_conversation_llm()
+        service = make_service(real_db_path, llm, actions_db_path=tmp_path / run / "actions.db")
+        await ask(service, "Which devices fail the screen lock check?")
+        proposed = await ask(service, "Open a remediation ticket for the first one")
+        assert proposed.envelope.proposal is not None
+        await ask(service, "did we open that ticket?")
+        keys.append([call_key(call.kind, call.messages) for call in llm.calls])
+    # The two runs made different proposal ids, yet asked the model exactly the same things.
+    assert keys[0] == keys[1]
