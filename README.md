@@ -190,6 +190,9 @@ refusal accuracy, reply kept rate, sentences dropped per reply, reply length, la
 run could not start. `--fail-under RATE` sets a minimum pass rate, but a tenant leak or an approval bypass
 always fails the run.
 
+The committed result and every failing case are in `evals/RESULTS.md`. `make eval` exits 1 while any case fails,
+and CI gates the replay at a 90% pass rate (`--fail-under 0.9`).
+
 Expected values come from `evals/golden/golden.json`. `evals/golden/oracle.py` writes it from the raw dataset
 using only the Python standard library, so it shares no code with the agent. The latest result and every failing
 case are in [evals/RESULTS.md](evals/RESULTS.md). CI (`.github/workflows/ci.yml`) runs the linters, the tests, the
@@ -369,8 +372,9 @@ Refusals and clarifications are fixed text. A provider content-filter block beco
   | Upgrade order | A sustained memory or disk trend |
   | Notification | A real finding on the employee's device |
 
-  Too few readings or a stale latest reading is refused as "not enough evidence". Every refusal is audited with
-  what was asked.
+  Too few readings or a stale latest reading is refused as "not enough evidence". Every eligibility refusal is
+  audited with what was asked. A request about another company's device is refused as not found before any
+  proposal is attempted, so nothing about it reaches the action log.
 - Approval happens only through the API, by an administrator of the same company, bound to a SHA-256 hash of the
   exact proposal, recipient and note. It is single use and re-checks eligibility before running.
   - If the evidence or the recipient changed, the proposal is invalidated and nothing runs.

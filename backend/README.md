@@ -168,7 +168,8 @@ most four short lines on what would make the action possible for that action typ
 reports 'Service Recommended' in 3 or more consecutive readings"; the numbers are read from `policy.py`), and
 `alternatives`, questions to ask instead, such as "Show the 30-day history of <hostname>". Both are written in
 `actions/guidance.py`. An unknown device, or one that belongs to another company, is the same uniform `not_found`
-as everywhere else. Every refusal is written to the audit log.
+as everywhere else. Every eligibility refusal is written to the audit log. A request about another company's device is
+refused as not found before any proposal is attempted, so nothing about it reaches the action log.
 
 `notify_employee` may be given an `employee_id`, but only as a claim: the recipient is always the employee on the
 company's own device record, and a different id is refused as the same uniform `not_found` (and audited), whatever

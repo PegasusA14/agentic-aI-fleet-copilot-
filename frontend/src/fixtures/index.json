@@ -287,7 +287,7 @@
         "forget it",
         "never mind that"
       ],
-      "note": "A conversational reply; routing and the words need the model.",
+      "note": "The reply is fixed wording written by code; only the routing needs the model.",
       "question": "Forget that",
       "scenario": "chat_forget",
       "synthetic": true,
@@ -594,7 +594,7 @@
         "forget it",
         "never mind that"
       ],
-      "note": "A conversational reply; routing and the words need the model.",
+      "note": "The reply is fixed wording written by code; only the routing needs the model.",
       "question": "Forget that",
       "scenario": "chat_forget",
       "synthetic": true,
@@ -901,7 +901,7 @@
         "forget it",
         "never mind that"
       ],
-      "note": "A conversational reply; routing and the words need the model.",
+      "note": "The reply is fixed wording written by code; only the routing needs the model.",
       "question": "Forget that",
       "scenario": "chat_forget",
       "synthetic": true,

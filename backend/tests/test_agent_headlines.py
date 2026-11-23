@@ -28,8 +28,8 @@ CASES = [
     ("compliance_severity_empty", ACME, ("compliance_failures_now", {"severity": "high", "form_factor": "laptop"}), "None of your 9 laptops fail a high-severity check.", ("9",), 70),
     ("memory", ACME, ("memory_pressure_now", {}), "1 of your 10 devices is using 85% or more memory.", ("1", "10", "85"), 70),
     ("memory_empty", ACME, ("memory_pressure_now", {"threshold_pct": 99}), "None of your 10 devices are using 99% or more memory.", ("10", "99"), 70),
-    ("trend_disk", ACME, ("trend", {"metric": "disk"}), "2 of your 10 devices dipped under 10% free disk in the last 7 days.", ("2", "10", "10", "7"), 70),
-    ("trend_memory", ACME, ("trend", {"metric": "memory"}), "1 of your 10 devices hit 85% or more memory use in the last 7 days.", ("1", "10", "85", "7"), 70),
+    ("trend_disk", ACME, ("trend", {"metric": "disk"}), "2 of your 10 devices have been under 10% free disk for most of the last 7 days.", ("2", "10", "10", "7"), 85),
+    ("trend_memory", ACME, ("trend", {"metric": "memory"}), "1 of your 10 devices has used 85% or more memory for most of the last 7 days.", ("1", "10", "85", "7"), 85),
     ("trend_compliance", ACME, ("trend", {"metric": "compliance", "check_id": "screen_lock"}), "5 of your 10 devices had screen lock failures in the last 30 days.", ("5", "10", "30"), 70),
     ("trend_battery", ACME, ("trend", {"metric": "battery"}), "3 of your 9 laptops show signs of battery wear in the last 30 days.", ("3", "9", "30"), 70),
     ("trend_battery_empty", INITECH, ("trend", {"metric": "battery"}), "None of your 5 laptops show signs of battery wear in the last 30 days.", ("5", "30"), 70),
@@ -198,3 +198,28 @@ def test_a_check_is_named_in_words_and_keeps_its_capitals():
     assert check_title("disk_encryption") == "Disk encryption"
     assert check_title("os_up_to_date") == "OS update"
     assert check_title("firewall_on") == "Firewall on"
+
+
+@pytest.mark.parametrize(
+    ("metric", "expected"),
+    [
+        ("disk", "2 of your 10 devices dipped under 10% free disk in the last 7 days."),
+        ("memory", "2 of your 10 devices hit 85% or more memory use in the last 7 days."),
+    ],
+)
+def test_a_trend_that_is_not_all_sustained_keeps_the_plain_wording(
+    real_db_path, real_conn, metric, expected
+):
+    records = run(real_db_path, real_conn, "trend", {"metric": metric}, ACME)
+    first = records.findings[0]
+    assert first.values["trend"] == "sustained"
+    # one finding in another class, the other sustained, so "most of the window" would be wrong
+    mixed = [
+        first.model_copy(update={"values": {**first.values, "trend": "onset"}}),
+        first.model_copy(update={"device_id": "other-device"}),
+    ]
+    comp = compose(
+        [records.model_copy(update={"findings": mixed})],
+        resolve=repo_for(real_conn, ACME).resolve,
+    )
+    assert comp.fallback_headline == expected

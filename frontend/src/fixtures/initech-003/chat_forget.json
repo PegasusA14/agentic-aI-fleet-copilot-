@@ -6,9 +6,9 @@
     "coverage": null,
     "entity_lists": [],
     "evidence": [],
-    "explanation": "Done.",
+    "explanation": null,
     "follow_ups": [],
-    "headline": "Happy to help with your fleet.",
+    "headline": "There was nothing to forget in this conversation.",
     "insights": [],
     "needs": [],
     "notes": [],
@@ -18,7 +18,7 @@
     "proposal": null,
     "reason_code": null,
     "repeat_of": null,
-    "reply": "Done.",
+    "reply": "",
     "scope": {
       "as_of": "2026-06-12T11:00:00Z",
       "calculation": null,
@@ -38,7 +38,7 @@
       "forget it",
       "never mind that"
     ],
-    "note": "A conversational reply; routing and the words need the model.",
+    "note": "The reply is fixed wording written by code; only the routing needs the model.",
     "question": "Forget that",
     "scenario": "chat_forget",
     "synthetic": true,
@@ -91,36 +91,6 @@
     },
     {
       "data": {
-        "ok": true
-      },
-      "kind": "explain",
-      "latency_ms": null,
-      "seq": 3,
-      "summary": "Model wrote a reply",
-      "tool": null,
-      "trace_id": "replay-initech-003-chat_forget"
-    },
-    {
-      "data": {
-        "evidence_ok": true,
-        "explanation_shown": true,
-        "model_prose": true,
-        "problems": [
-          "reply:claim_word@1",
-          "reply:dropped=1"
-        ],
-        "reply_chars": 5,
-        "reply_dropped": 1
-      },
-      "kind": "verify",
-      "latency_ms": null,
-      "seq": 4,
-      "summary": "Checked the answer against the evidence",
-      "tool": null,
-      "trace_id": "replay-initech-003-chat_forget"
-    },
-    {
-      "data": {
         "claims": 0,
         "evidence": 0,
         "outcome": "chat",
@@ -128,7 +98,7 @@
       },
       "kind": "respond",
       "latency_ms": null,
-      "seq": 5,
+      "seq": 3,
       "summary": "Answer ready",
       "tool": null,
       "trace_id": "replay-initech-003-chat_forget"

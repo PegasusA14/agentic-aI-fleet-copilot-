@@ -340,6 +340,10 @@ def _are(n: int) -> str:
     return "is" if n == 1 else "are"
 
 
+def _have(n: int) -> str:
+    return "has" if n == 1 else "have"
+
+
 def _verb(n: int, plural: str, singular: str) -> str:
     return singular if n == 1 else plural
 
@@ -665,9 +669,17 @@ def _trend_breach(rec: ToolRecord, idx: int, b: _Builder, metric: str) -> None:
         )
         b.entity_list(f"{rec.tool}-{idx}-{cls}", f"{cls} {metric} ({days} d)", group)
     k, n = len(rec.findings), rec.population
-    b.set_headline(
-        f"{k} of your {n} {_devices(n)} {phrase} in the last {days} {noun(days, 'day')}."
-    )
+    window = f"the last {days} {noun(days, 'day')}"
+    if all(f.values["trend"] == "sustained" for f in rec.findings):
+        # "dipped under" reads as a one-off; a sustained trend held for most of the window, so say that
+        held = (
+            f"been under {thr:g}% free disk"
+            if metric == "disk"
+            else f"used {thr:g}% or more memory"
+        )
+        b.set_headline(f"{k} of your {n} {_devices(n)} {_have(k)} {held} for most of {window}.")
+        return
+    b.set_headline(f"{k} of your {n} {_devices(n)} {phrase} in {window}.")
 
 
 def _trend_compliance(rec: ToolRecord, idx: int, b: _Builder) -> None:
