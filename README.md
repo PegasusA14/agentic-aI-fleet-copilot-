@@ -188,10 +188,8 @@ Every case is asked in at least four phrasings (short, long, misspelled, reworde
 run prints a pass rate per suite and these metrics: tenant leaks, approval bypasses, citation precision,
 refusal accuracy, reply kept rate, sentences dropped per reply, reply length, latency and token use. Exit code 0 means every case passed, 1 means a gate failed, 2 means the
 run could not start. `--fail-under RATE` sets a minimum pass rate, but a tenant leak or an approval bypass
-always fails the run.
-
-The committed result and every failing case are in `evals/RESULTS.md`. `make eval` exits 1 while any case fails,
-and CI gates the replay at a 90% pass rate (`--fail-under 0.9`).
+always fails the run. So `make eval` exits 1 while any case fails, and CI gates the replay at a 90% pass rate
+(`--fail-under 0.9`).
 
 Expected values come from `evals/golden/golden.json`. `evals/golden/oracle.py` writes it from the raw dataset
 using only the Python standard library, so it shares no code with the agent. The latest result and every failing
