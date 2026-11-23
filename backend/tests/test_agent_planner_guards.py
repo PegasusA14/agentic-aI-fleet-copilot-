@@ -325,3 +325,52 @@ async def test_a_not_recorded_plan_for_a_bandwidth_question_stays_refused(real_d
     assert result.envelope.reason_code == "data_unavailable"
     assert llm.calls_of("act") == []
     assert not any(e.data.get("changed") == "data_unavailable_to_answer" for e in result.trace)
+
+
+# ---- a question about fleet data is not small talk -----------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "Which devices are low on disk space?",
+        "low disk?",
+        "wich machnes r almost out of disk space",
+    ],
+)
+def test_a_question_naming_fleet_data_and_pointing_at_nothing_asks_fleet_data(question):
+    assert graph.asks_fleet_data(question)
+
+
+@pytest.mark.parametrize(
+    "question",
+    [
+        "which of them has the least free space?",
+        "was the screen lock ticket approved?",
+        "thanks!",
+        "what can you do?",
+        "I only care about laptops",
+        "summarize what we found",
+    ],
+)
+def test_conversation_and_follow_ups_do_not_ask_fleet_data(question):
+    assert not graph.asks_fleet_data(question)
+
+
+async def test_a_chat_plan_for_a_repeated_fleet_question_is_answered_from_the_data(real_db_path):
+    llm = ScriptedLLM(
+        plans=[Plan(intent="chat", summary="Small talk.")],
+        acts=[tool_calls_message(LOW), final_message()],
+        explains=[explanation()],
+    )
+    result = await ask(make_service(real_db_path, llm), "low disk?")
+    assert len(llm.calls_of("act")) == 2
+    assert result.envelope.outcome in ("answer", "no_match")
+    assert any(e.data.get("changed") == "chat_to_answer" for e in result.trace)
+
+
+async def test_a_chat_plan_for_thanks_stays_chat(real_db_path):
+    llm = ScriptedLLM(plans=[Plan(intent="chat", summary="Small talk.")])
+    result = await ask(make_service(real_db_path, llm), "thanks!")
+    assert llm.calls_of("act") == []
+    assert not any(e.data.get("changed") == "chat_to_answer" for e in result.trace)

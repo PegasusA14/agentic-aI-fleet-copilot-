@@ -260,6 +260,19 @@ _PAST_OR_STATUS = re.compile(
 )
 
 
+def asks_fleet_data(question: str) -> bool:
+    """True when the question names fleet data and points at nothing earlier.
+
+    "which devices are low on disk space?" asked again is still a question about the data, whatever the
+    plan called it. "which of them ...", "was the ticket approved?" point back at the conversation.
+    """
+    return bool(
+        _RECORDED_AREA.search(question)
+        and not _BULK_REFERENCE.search(question)
+        and not _PAST_OR_STATUS.search(question)
+    )
+
+
 def suggests_course_of_action(question: str) -> bool:
     """True when the message puts forward an action for devices already discussed.
 
@@ -974,6 +987,22 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
                 reference=plan.reference,
             )
             unavailable_converted = True
+        chat_converted = False
+        if (
+            plan.intent == "chat"
+            and not plan.remember
+            and not plan.forget
+            and asks_fleet_data(state["question"])
+        ):
+            # A repeated fleet question ("low disk?") is not small talk: answers about fleet data come
+            # from the data, not from memory of the last turn.
+            plan = Plan(
+                intent="answer",
+                summary="Answer the question from the fleet data.",
+                window_days=plan.window_days,
+                reference=plan.reference,
+            )
+            chat_converted = True
         before = plan.tools
         plan = without_summary_tool(plan)
         adjusted = adjust_tools(plan, state["question"])
@@ -1013,6 +1042,12 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
                 "The plan said the data lacks this, but the question names data the fleet records; "
                 "answering it",
                 data={"changed": "data_unavailable_to_answer"},
+            )
+        if chat_converted:
+            emit(
+                "plan",
+                "The plan treated a question about fleet data as conversation; answering it from the data",
+                data={"changed": "chat_to_answer"},
             )
         if plan.tools != before:
             emit(

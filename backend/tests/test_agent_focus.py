@@ -219,3 +219,25 @@ def test_a_real_hint_next_to_a_pronoun_still_chooses_the_list():
         DEVICES,
     )
     assert isinstance(result, Resolved)
+
+
+SAME_A = make_list("t2/low-1", "Low disk (<10% free)", ("A", "host-a"), ("B", "host-b"))
+SAME_B = make_list("t2/trend-1", "Low disk all week", ("B", "host-b"), ("A", "host-a"))
+
+
+def test_identical_lists_and_a_hint_that_matches_neither_resolve_to_that_device_set():
+    ref = Reference(kind="all", list_hint="the two devices low on disk space")
+    result = resolve_reference(ref, [SAME_A, SAME_B], DEVICES)
+    assert ids(result) == ["A", "B"]
+
+
+def test_different_lists_and_a_hint_that_matches_neither_still_ask_which():
+    ref = Reference(kind="all", list_hint="the two devices low on disk space")
+    result = resolve_reference(ref, [SCREEN, OS_FAIL], DEVICES)
+    assert isinstance(result, NeedsClarification) and result.question == WHICH_LIST
+
+
+def test_identical_lists_with_an_ordinal_and_an_unmatched_hint_still_ask_which():
+    ref = Reference(kind="ordinal", index=1, list_hint="the two devices low on disk space")
+    result = resolve_reference(ref, [SAME_A, SAME_B], DEVICES)
+    assert isinstance(result, NeedsClarification) and result.question == WHICH_LIST
