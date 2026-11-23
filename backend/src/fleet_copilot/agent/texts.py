@@ -9,7 +9,7 @@ from __future__ import annotations
 NOT_FOUND = "I can't find that in your fleet."
 TOOL_FAILED = "A data lookup failed, so I can't answer reliably. No changes were made."
 MODEL_UNAVAILABLE = (
-    "The language model didn't respond, so I can't answer right now. Try again in a moment. "
+    "The language model didn't give a usable reply, so I can't answer right now. Try again in a moment. "
     "No changes were made."
 )
 NOT_RECORDED = "That question is not in the recorded answers, so replay mode can't answer it. No changes were made."

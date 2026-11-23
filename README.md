@@ -427,7 +427,7 @@ All of these live in `backend/tests/`.
 - **Lexical checks.** Look-alike characters from other scripts and non-digit numerals are not detected.
 - **Replay.** The cassette must be re-recorded after a prompt or tool change. A live run is not exactly
   reproducible.
-- **Replay needs recorded wording.** Without a model provider only the recorded questions (those in `evals/scenarios/`) are answered; any other question gets a fixed "not recorded" reply. Set a provider and `FLEET_MODEL_MODE=live` to ask anything.
+- **Replay needs recorded wording.** Without a model provider only the recorded questions (those in `evals/scenarios/`) are answered; any other question gets a fixed "not recorded" reply. Set a provider and `FLEET_MODEL_MODE=live` to ask anything; [evals/LIVE_WALKTHROUGH.md](evals/LIVE_WALKTHROUGH.md) shows twelve unrecorded questions asked live and how each came out.
 - **Demo sign-in.** There is no real authentication.
 
 ## Repository layout
