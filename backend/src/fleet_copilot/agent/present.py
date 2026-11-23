@@ -259,7 +259,7 @@ def _macos(rec: ToolRecord) -> Presentation:
             checked=rec.population,
             matched=matched,
             ok=None if unknown else max(rec.population - matched, 0),
-            ok_label="" if unknown else "up to date",
+            ok_label="" if unknown else f"on macOS {target} or later",
             not_checked=_excluded_ids(rec, "out_of_scope"),
             basis=_LATEST_SNAPSHOT,
         ),
@@ -302,7 +302,7 @@ def _low_disk(rec: ToolRecord) -> Presentation:
             SortSpec(key="free", direction="asc"),
         ),
         summary=summary,
-        scope=_plain_scope(rec, "healthy"),
+        scope=_plain_scope(rec, f"with {thr:g}% or more free disk"),
         follow_ups=[
             _trend_ask(
                 f"Which devices have had under {thr:g}% free disk space for most of the last "
@@ -350,7 +350,7 @@ def _memory(rec: ToolRecord) -> Presentation:
             SortSpec(key="used", direction="desc"),
         ),
         summary=summary,
-        scope=_plain_scope(rec, "healthy"),
+        scope=_plain_scope(rec, f"under {thr:g}% memory use"),
         follow_ups=[
             _trend_ask(
                 f"Which devices have had memory use at or above {thr:g}% for most of the last "
@@ -468,7 +468,12 @@ def _trend_breach(rec: ToolRecord, metric: str) -> Presentation:
             SortSpec(key="pattern", direction="desc"),
         ),
         summary=summary,
-        scope=_plain_scope(rec, "healthy", basis=f"last {days} days of snapshots", thin=True),
+        scope=_plain_scope(
+            rec,
+            "with no memory-pressure pattern" if metric == "memory" else "with no low-disk pattern",
+            basis=f"last {days} days of snapshots",
+            thin=True,
+        ),
     )
 
 
@@ -946,7 +951,7 @@ def _scope_only(rec: ToolRecord) -> ScopeParts:
             rec.population,
             0,
             None if unknown else rec.population,
-            "" if unknown else "up to date",
+            "" if unknown else f"on macOS {rec.args.get('older_than') or '15'} or later",
             _excluded_ids(rec, "out_of_scope"),
             _LATEST_SNAPSHOT,
         )
@@ -966,9 +971,20 @@ def _scope_only(rec: ToolRecord) -> ScopeParts:
             "compliance": policy.COMPLIANCE_WINDOW_DAYS,
             "battery": policy.BATTERY_WINDOW_DAYS,
         }.get(metric, policy.TREND_WINDOW_DAYS)
-        label = {"compliance": "passing", "battery": "with no wear signal"}.get(metric, "healthy")
+        label = {
+            "compliance": "passing",
+            "battery": "with no wear signal",
+            "memory": "with no memory-pressure pattern",
+            "disk": "with no low-disk pattern",
+        }.get(metric, "not matching")
         return _plain_scope(rec, label, basis=f"last {days} days of snapshots", thin=True)
-    return _plain_scope(rec, "passing" if rec.tool == "compliance_failures_now" else "healthy")
+    if rec.tool == "low_disk_devices":
+        thr = rec.args.get("threshold_pct") or policy.LOW_DISK_FREE_PCT
+        return _plain_scope(rec, f"with {thr:g}% or more free disk")
+    if rec.tool == "memory_pressure_now":
+        thr = rec.args.get("threshold_pct") or policy.MEMORY_USED_PCT
+        return _plain_scope(rec, f"under {thr:g}% memory use")
+    return _plain_scope(rec, "passing" if rec.tool == "compliance_failures_now" else "not matching")
 
 
 def present(rec: ToolRecord) -> Presentation | None:

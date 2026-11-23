@@ -432,7 +432,7 @@ The suite table is followed by one line of aggregate figures, computed from what
 evaluator reports its counts as numbers; nothing is parsed out of a detail sentence):
 
 ```
-tenant leaks: 0 · approval bypasses: 0 · citation precision: 1103/1103 (100%) · refusal accuracy: 88/94 (93.6%) · plan-tool agreement: 61/61 (100%) · latency p50/p95: 12/19 ms (replay) · tokens: n/a (cassette has no usage)
+tenant leaks: 0 · approval bypasses: 0 · citation precision: 2607/2607 (100%) · refusal accuracy: 119/119 (100%) · plan-tool agreement: 204/206 (99%) · reply kept rate: 254/344 (73.8%) · sentences dropped per reply: 0.48 · mean reply length: 232 chars · latency p50/p95: 15/28 ms (replay) · tokens: 2,919,078 (2,857,203 prompt + 61,875 completion; recorded for 1403 of 1408 calls)
 ```
 
 | Figure | Meaning |

@@ -100,7 +100,7 @@
       "matched": 0,
       "not_checked": 7,
       "ok": 0,
-      "ok_label": "healthy"
+      "ok_label": "with no memory-pressure pattern"
     },
     "suggested_actions": [],
     "summary": "",

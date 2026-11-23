@@ -46,7 +46,7 @@ describe("a list answer", () => {
   it("renders the table, the scope line, and no Details toggle", () => {
     setup(MACOS);
     expect(screen.getByRole("table", { name: "Macs behind macOS 15" })).toBeInTheDocument();
-    expect(screen.getByText("5 Macs checked · 1 up to date · 2 not checked")).toBeInTheDocument();
+    expect(screen.getByText("5 Macs checked · 1 on macOS 15 or later · 2 not checked")).toBeInTheDocument();
     expect(screen.getByText("Initech · latest snapshot per device · as of 2026-06-12 11:00 UTC")).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: "Details" })).not.toBeInTheDocument();
   });

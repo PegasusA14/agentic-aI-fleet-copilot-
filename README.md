@@ -191,6 +191,8 @@ run could not start. `--fail-under RATE` sets a minimum pass rate, but a tenant 
 always fails the run. So `make eval` exits 1 while any case fails, and CI gates the replay at a 90% pass rate
 (`--fail-under 0.9`).
 
+The committed run passes 355 of 367 cases. The 12 that fail are listed in [evals/RESULTS.md](evals/RESULTS.md): four ask why one device is struggling and get the fixed "performance is not recorded" reply instead of a hedged answer, three summaries leave out one device, two replies have a sentence dropped by the facts check, one repeated misspelled question is answered as small talk, one reply after a note states an unchecked number, and one "anything new lately?" finds no new software where the 30-day view has some. No failure leaks another company's data or runs an action without approval.
+
 Expected values come from `evals/golden/golden.json`. `evals/golden/oracle.py` writes it from the raw dataset
 using only the Python standard library, so it shares no code with the agent. The latest result and every failing
 case are in [evals/RESULTS.md](evals/RESULTS.md). CI (`.github/workflows/ci.yml`) runs the linters, the tests, the
@@ -425,6 +427,7 @@ All of these live in `backend/tests/`.
 - **Lexical checks.** Look-alike characters from other scripts and non-digit numerals are not detected.
 - **Replay.** The cassette must be re-recorded after a prompt or tool change. A live run is not exactly
   reproducible.
+- **Replay needs recorded wording.** Without a model provider only the recorded questions (those in `evals/scenarios/`) are answered; any other question gets a fixed "not recorded" reply. Set a provider and `FLEET_MODEL_MODE=live` to ask anything.
 - **Demo sign-in.** There is no real authentication.
 
 ## Repository layout

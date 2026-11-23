@@ -156,7 +156,7 @@
       "matched": 2,
       "not_checked": 0,
       "ok": 8,
-      "ok_label": "healthy"
+      "ok_label": "with no low-disk pattern"
     },
     "suggested_actions": [
       {

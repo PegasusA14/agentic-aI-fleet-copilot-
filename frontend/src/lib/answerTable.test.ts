@@ -114,13 +114,13 @@ describe("numberEvidence", () => {
 describe("scopeLineText", () => {
   it("counts Macs for a macOS check and names the company, basis and moment", () => {
     expect(scopeLineText(MACOS.scope_line!, MACOS.table, MACOS.headline)).toEqual({
-      counts: "5 Macs checked · 1 up to date · 2 not checked",
+      counts: "5 Macs checked · 1 on macOS 15 or later · 2 not checked",
       source: "Initech · latest snapshot per device · as of 2026-06-12 11:00 UTC",
     });
   });
 
   it("says devices otherwise and leaves out zero and unknown counts", () => {
-    expect(scopeLineText(LOW_DISK.scope_line!, LOW_DISK.table, LOW_DISK.headline).counts).toBe("10 devices checked · 8 healthy");
+    expect(scopeLineText(LOW_DISK.scope_line!, LOW_DISK.table, LOW_DISK.headline).counts).toBe("10 devices checked · 8 with 10% or more free disk");
     const none = { ...LOW_DISK.scope_line!, ok: null, ok_label: "", not_checked: 0 };
     expect(scopeLineText(none, LOW_DISK.table, LOW_DISK.headline).counts).toBe("10 devices checked");
     expect(scopeLineText({ ...none, ok: 0 }, null, "x").counts).toBe("10 devices checked");

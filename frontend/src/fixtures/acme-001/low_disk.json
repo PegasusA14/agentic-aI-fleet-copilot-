@@ -140,7 +140,7 @@
       "matched": 2,
       "not_checked": 0,
       "ok": 8,
-      "ok_label": "healthy"
+      "ok_label": "with 10% or more free disk"
     },
     "suggested_actions": [
       {

@@ -148,7 +148,7 @@ describe("the answer table", () => {
     const foot = screen.getByRole("table").closest(".atable")?.querySelector(".atable__scope") as HTMLElement;
     const lines = [...foot.querySelectorAll("p")].map((p) => p.textContent);
     expect(lines).toEqual([
-      "5 Macs checked · 1 up to date · 2 not checked",
+      "5 Macs checked · 1 on macOS 15 or later · 2 not checked",
       "Initech · latest snapshot per device · as of 2026-06-12 11:00 UTC",
     ]);
   });

@@ -85,7 +85,7 @@ def test_the_macos_scope_line_counts_checked_matched_ok_and_not_checked(initech_
         5,
         4,
         1,
-        "up to date",
+        "on macOS 15 or later",
         2,
     )
     assert line.company_name == "Initech"
@@ -196,7 +196,7 @@ def test_the_low_disk_table_puts_the_least_free_device_first(real_db_path, real_
         10,
         2,
         8,
-        "healthy",
+        "with 10% or more free disk",
         0,
     )
     assert env.coverage.excluded_devices == []
@@ -210,6 +210,16 @@ def test_the_low_disk_table_puts_the_least_free_device_first(real_db_path, real_
     )
 
 
+def test_the_low_disk_scope_label_names_the_threshold_it_measured(real_db_path, real_conn):
+    env = envelope(composed(real_db_path, real_conn, [("low_disk_devices", {})]), real_conn)
+    assert env.scope_line.ok_label == "with 10% or more free disk"
+    assert "healthy" not in env.scope_line.ok_label
+
+
+def test_the_macos_scope_label_names_the_version_it_measured(initech_macos):
+    assert initech_macos.scope_line.ok_label == "on macOS 15 or later"
+
+
 def test_the_memory_table_puts_the_highest_use_first(real_db_path, real_conn):
     env = envelope(composed(real_db_path, real_conn, [("memory_pressure_now", {})]), real_conn)
     table = env.table
@@ -217,7 +227,7 @@ def test_the_memory_table_puts_the_highest_use_first(real_db_path, real_conn):
     assert used == sorted(used, reverse=True) and len(used) >= 1
     assert column_keys(table) == ["device", "used", "memory"]
     assert table.default_sort.direction == "desc"
-    assert env.scope_line.ok_label == "healthy"
+    assert env.scope_line.ok_label == f"under {policy.MEMORY_USED_PCT:g}% memory use"
 
 
 def test_the_compliance_table_has_one_row_per_device_and_failing_check(real_db_path, real_conn):

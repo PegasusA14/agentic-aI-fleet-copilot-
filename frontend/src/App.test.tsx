@@ -71,7 +71,7 @@ describe("the working thread", () => {
     expect(within(reply).queryByText(/Evaluated/)).not.toBeInTheDocument();
     // A list answer is a table with its scope line and three folded disclosures, not a sentence and chips.
     expect(within(reply).getByRole("table", { name: "Low on disk (under 10% free)" })).toBeInTheDocument();
-    expect(within(reply).getByText("10 devices checked · 8 healthy")).toBeInTheDocument();
+    expect(within(reply).getByText("10 devices checked · 8 with 10% or more free disk")).toBeInTheDocument();
     expect(within(reply).queryByRole("button", { name: "Details" })).not.toBeInTheDocument();
     expect(within(reply).getByRole("button", { name: /^Evidence 2 records$/ })).toHaveAttribute("aria-expanded", "false");
     expect(within(reply).queryByText(/MT7PJB7N5LRE \(acme-macbook-4;/)).not.toBeInTheDocument();

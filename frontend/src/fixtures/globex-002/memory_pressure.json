@@ -115,7 +115,7 @@
       "matched": 2,
       "not_checked": 0,
       "ok": 6,
-      "ok_label": "healthy"
+      "ok_label": "under 85% memory use"
     },
     "suggested_actions": [
       {
