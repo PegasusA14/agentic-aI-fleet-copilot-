@@ -617,8 +617,9 @@ async def test_an_unvalidated_free_text_value_in_a_safe_key_never_reaches_the_tr
     )
     result = await ask(make_service(real_db_path, llm), "what runs this?")
     assert "emp-acme-1003" not in _trace_blob(result) + result.envelope.model_dump_json()
-    call = next(e for e in result.trace if e.kind == "tool_call")
-    assert call.data["args"]["os_name"] == "applied"
+    # A value no known OS word names is not grounded, so the filter is dropped before the call is traced.
+    call = next(e for e in result.trace if e.kind == "tool_call" and "args" in e.data)
+    assert "os_name" not in call.data["args"]
 
 
 async def test_legitimate_enumerated_values_still_show_in_the_trace(real_db_path):
@@ -632,8 +633,8 @@ async def test_legitimate_enumerated_values_still_show_in_the_trace(real_db_path
         ],
         explains=[explanation(headline="Here is what I found")],
     )
-    result = await ask(make_service(real_db_path, llm), "overview?")
-    args = [e.data["args"] for e in result.trace if e.kind == "tool_call"]
+    result = await ask(make_service(real_db_path, llm), "overview of the macOS fleet?")
+    args = [e.data["args"] for e in result.trace if e.kind == "tool_call" and "args" in e.data]
     assert {"os_name": "macOS", "group_by": "model"} in args
     assert {"metric": "compliance", "check_id": "screen_lock"} in args
     assert {"older_than": "14.2"} in args

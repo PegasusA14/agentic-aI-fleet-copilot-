@@ -16,7 +16,7 @@ from __future__ import annotations
 import re
 import time
 import uuid
-from collections.abc import Awaitable, Callable
+from collections.abc import Awaitable, Callable, Mapping
 from contextlib import contextmanager
 from typing import Any
 
@@ -49,6 +49,7 @@ from fleet_copilot.agent.disambiguation import (
     is_own_company,
     names_specific_identifier,
 )
+from fleet_copilot.agent.filters import grounded_args, ungrounded_filters
 from fleet_copilot.agent.focus import (
     NeedsClarification,
     NotFoundRef,
@@ -488,6 +489,24 @@ def without_summary_tool(plan: Plan) -> Plan:
     return plan.model_copy(update={"tools": [t for t in plan.tools if t != "fleet_health"]})
 
 
+def filter_sources(state: Mapping[str, Any]) -> str:
+    """The words a model-chosen filter may come from: this turn's question and the active notes."""
+    notes = memory_module.load(state.get("memory")).notes
+    return "\n".join([str(state.get("question") or ""), *(note.text for note in notes)])
+
+
+def effective_args(name: str, args: ToolCall, state: Mapping[str, Any]) -> ToolCall:
+    """The arguments a call really runs with: ungrounded filters and blank ids gone, resolved ids injected.
+
+    One place for both the executed call and its record, so the record's args always equal the executed args.
+    """
+    return inject_focus(
+        name,
+        without_empty_ids(grounded_args(args, filter_sources(state))),
+        state.get("focus_ids"),
+    )
+
+
 def without_empty_ids(args: ToolCall) -> ToolCall:
     """The call's arguments without blank device ids: no devices named is no filter, not "no such device".
 
@@ -659,7 +678,15 @@ async def _tool_wrapper(
         return ToolMessage(
             content=f"{INVALID_INPUT_PREFIX}: {blocked}", tool_call_id=call["id"], status="error"
         )
-    args = inject_focus(name, without_empty_ids(call["args"]), request.state.get("focus_ids"))
+    dropped = ungrounded_filters(call["args"], filter_sources(request.state))
+    if dropped:
+        emit(
+            "tool_call",
+            "A filter the question never named was dropped",
+            tool=name,
+            data={"dropped_filters": dropped},
+        )
+    args = effective_args(name, call["args"], request.state)
     if args != call["args"]:
         request = request.override(tool_call={**call, "args": args})
     # Only the tool's own parameter names are traced; the model cannot smuggle text in as a key.
@@ -1159,9 +1186,7 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
         records = list(state.get("records") or [])
         unfixed = list(state.get("unfixed_calls") or [])
         for call in ai.tool_calls:
-            args = inject_focus(
-                call["name"], without_empty_ids(call["args"]), state.get("focus_ids")
-            )
+            args = effective_args(call["name"], call["args"], state)
             reply = replies.get(call["id"])
             # Names only, and never a name the model made up: it is compared, not shown.
             name = call["name"] if call["name"] in _TOOL_NAMES else UNKNOWN_TOOL
