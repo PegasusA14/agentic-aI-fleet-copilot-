@@ -351,3 +351,18 @@ def test_a_reply_model_over_several_lines_is_refused_without_its_text():
     with pytest.raises(ConfigError) as err:
         ModelSettings.from_env({"FLEET_REPLY_MODEL": "line1\nsecretline2"})
     assert "FLEET_REPLY_MODEL" in str(err.value) and "secretline2" not in str(err.value)
+
+
+def test_replay_reads_the_committed_evaluation_cassette_by_default():
+    from fleet_copilot.config import REPO_ROOT
+
+    settings = ModelSettings.from_env({})
+    assert settings.mode == "replay"
+    assert settings.cassette_path == REPO_ROOT / "evals" / "cassettes" / "eval.jsonl"
+
+
+def test_recording_never_writes_into_the_committed_cassette_by_default():
+    from fleet_copilot.config import REPO_ROOT
+
+    settings = ModelSettings.from_env({"FLEET_CASSETTE_RECORD": "1"})
+    assert settings.cassette_path == REPO_ROOT / "var" / "cassettes" / "live.jsonl"

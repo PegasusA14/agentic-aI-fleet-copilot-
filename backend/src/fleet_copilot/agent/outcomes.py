@@ -85,6 +85,18 @@ def tool_failure(*, company_id: str, as_of: datetime, trace_id: str) -> AnswerEn
     )
 
 
+def not_recorded(*, company_id: str, as_of: datetime, trace_id: str) -> AnswerEnvelope:
+    """Replay mode met a model call nobody recorded: say that, not that a data lookup failed."""
+    return AnswerEnvelope(
+        outcome="tool_error",
+        trace_id=trace_id,
+        headline=texts.NOT_RECORDED,
+        scope=_scope(company_id, as_of),
+        reason_code="tool_failure",
+        notes=[texts.NOT_RECORDED_NOTE],
+    )
+
+
 def step_limit(*, company_id: str, as_of: datetime, trace_id: str) -> AnswerEnvelope:
     return AnswerEnvelope(
         outcome="insufficient_data",

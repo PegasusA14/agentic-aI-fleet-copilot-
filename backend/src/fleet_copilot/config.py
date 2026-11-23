@@ -128,10 +128,15 @@ class ModelSettings:
         label = (env.get("FLEET_MODEL_NAME") or "").strip() or None
         provider = provider_from_env(env)
         credentials = ADAPTERS[provider].settings_from_env(env) if raw_mode == "live" else None
-        cassette = env.get("FLEET_CASSETTE_PATH") or str(
-            REPO_ROOT / "var" / "cassettes" / "live.jsonl"
-        )
         record = (env.get("FLEET_CASSETTE_RECORD") or "").strip().lower() in ("1", "true", "yes")
+        # Replay reads the committed evaluation cassette, so a checkout answers its recorded questions with
+        # no key. Live mode and recording default to a git-ignored file, never the committed one.
+        default = (
+            REPO_ROOT / "evals" / "cassettes" / "eval.jsonl"
+            if raw_mode == "replay" and not record
+            else REPO_ROOT / "var" / "cassettes" / "live.jsonl"
+        )
+        cassette = env.get("FLEET_CASSETTE_PATH") or str(default)
         return cls(
             mode=raw_mode,  # type: ignore[arg-type]
             cassette_path=Path(cassette),

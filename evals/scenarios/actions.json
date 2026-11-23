@@ -506,6 +506,58 @@
           }
         }
       ]
+    },
+    {
+      "id": "walkthrough_low_disk_week_advice_acme",
+      "user": "admin-acme",
+      "turns": [
+        {
+          "say": "Which devices are low on disk space?",
+          "expect": {
+            "outcome": "answer",
+            "devices": {
+              "golden": "acme-001/low_disk_lt10/devices"
+            },
+            "cites_every_device": true,
+            "no_foreign_data": true
+          }
+        },
+        {
+          "say": "Which of those have been low all week?",
+          "expect": {
+            "outcome": "answer",
+            "devices": {
+              "golden": "acme-001/disk_trend_lt10/7",
+              "keys_where": "sustained"
+            },
+            "cites_every_device": true,
+            "no_foreign_data": true
+          }
+        },
+        {
+          "say": [
+            "So what should I do?",
+            "what do you recommend for them?",
+            "how shuld I fix those",
+            "What would you suggest I do about the devices that stayed low all week?"
+          ],
+          "expect": {
+            "outcome": "answer",
+            "suggestions_include": [
+              {
+                "action_type": "upgrade_order",
+                "device": {
+                  "golden": "acme-001/disk_trend_lt10/7",
+                  "keys_where": "sustained"
+                }
+              }
+            ],
+            "cites_every_device": true,
+            "no_foreign_data": true,
+            "no_proposal": true
+          }
+        }
+      ]
     }
   ]
 }

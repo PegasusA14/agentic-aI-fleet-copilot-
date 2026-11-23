@@ -247,3 +247,20 @@ async def test_a_new_reply_is_recorded_as_text_and_replays(tmp_path):
     assert (await CassetteGateway(path, inner=inner).reply(MESSAGES)).text == "Hello there."
     assert json.loads(path.read_text().splitlines()[0])["response"] == {"text": "Hello there."}
     assert (await CassetteGateway(path).reply(MESSAGES)).text == "Hello there."
+
+
+async def test_a_question_nobody_recorded_says_so_instead_of_blaming_a_data_lookup(
+    real_db_path, tmp_path
+):
+    from graph_support import make_service
+
+    from fleet_copilot.agent import texts
+    from fleet_copilot.agent.identity import DEMO_IDENTITIES
+
+    service = make_service(real_db_path, CassetteGateway(tmp_path / "empty.jsonl"))
+    outcome = await service.run_turn(DEMO_IDENTITIES["admin-acme"], "c1", "anything at all?")
+    assert outcome.envelope.outcome == "tool_error"
+    assert outcome.envelope.headline == texts.NOT_RECORDED
+    assert outcome.envelope.headline != texts.TOOL_FAILED
+    errors = [e.data.get("error") for e in outcome.trace if e.kind == "error"]
+    assert errors == ["CassetteMiss"]  # what the evaluation counts as "not recorded"

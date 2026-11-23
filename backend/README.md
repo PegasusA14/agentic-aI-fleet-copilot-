@@ -37,8 +37,10 @@ of truth.
 The agent talks to a model through a gateway chosen by `FLEET_MODEL_MODE`:
 
 - `replay` (the default) answers from a recorded cassette and needs no credentials. It reads
-  `FLEET_CASSETTE_PATH` (default `var/cassettes/live.jsonl`). A question nobody recorded gets the fixed
-  tool-error text, not a made-up answer.
+  `FLEET_CASSETTE_PATH`, by default the committed `evals/cassettes/eval.jsonl`. A question nobody recorded
+  gets a fixed reply saying it is not in the recorded answers, not a made-up answer (the trace records a
+  `CassetteMiss` error). Live mode and recording (`FLEET_CASSETTE_RECORD=1`) default to the git-ignored
+  `var/cassettes/live.jsonl`, so nothing writes into the committed cassette unless you point it there.
 - `live` calls the provider named by `FLEET_MODEL_PROVIDER`: `azure` (default), `openai` or `openrouter`.
   Its variables go in the git-ignored `.env` (the root README lists them). Set `FLEET_CASSETTE_RECORD=1` to
   also record each response to the cassette. The cassette key does not include the provider.
@@ -407,7 +409,7 @@ be in the answer's evidence and in the company. The `trend` tool (battery) and t
 
 `make eval` runs five evaluation suites against the real agent and the real approval path, scores every case with
 code (no model judges anything), prints a pass rate per suite and stores the run for the operator console. It
-needs no network and no key: the model's answers are replayed from the cassette `evals/cassettes/eval.jsonl`, once it has been recorded with `make eval-live` (the file is not in the repository until then).
+needs no network and no key: the model's answers are replayed from the committed cassette `evals/cassettes/eval.jsonl`, recorded with `make eval-live`.
 
 ```bash
 make eval        # offline replay; exit code 0 only if every case passed and none was "not recorded"

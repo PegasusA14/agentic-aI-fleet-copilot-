@@ -33,6 +33,7 @@ from fleet_copilot.actions.service import ActionService, ProposalNotFound
 from fleet_copilot.actions.store import ActionStore
 from fleet_copilot.agent import memory as memory_module
 from fleet_copilot.agent import outcomes, texts
+from fleet_copilot.agent.cassette import CassetteMiss
 from fleet_copilot.agent.compose import (
     Resolver,
     compose,
@@ -337,11 +338,10 @@ def _dump(envelope: AnswerEnvelope) -> dict[str, Any]:
     return envelope.model_dump(mode="json")
 
 
-def _failure(ctx: AgentContext) -> dict[str, Any]:
+def _failure(ctx: AgentContext, exc: BaseException | None = None) -> dict[str, Any]:
+    build = outcomes.not_recorded if isinstance(exc, CassetteMiss) else outcomes.tool_failure
     return {
-        "envelope": _dump(
-            outcomes.tool_failure(company_id=ctx.company_id, as_of=ctx.as_of, trace_id=ctx.trace_id)
-        )
+        "envelope": _dump(build(company_id=ctx.company_id, as_of=ctx.as_of, trace_id=ctx.trace_id))
     }
 
 
@@ -893,7 +893,7 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
             return _provider_refused(ctx, exc, "plan")
         except Exception as exc:  # model outage or unusable structured output
             emit("error", "Planning failed", data={"error": type(exc).__name__})
-            return _failure(ctx)
+            return _failure(ctx, exc)
         guarded = _guard_plan(plan, state["question"], focus)
         if guarded is not None:
             plan = guarded[0]
@@ -1103,7 +1103,7 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
             return _provider_refused(ctx, exc, "act")
         except Exception as exc:
             emit("error", "Gathering evidence failed", data={"error": type(exc).__name__})
-            return _failure(ctx)
+            return _failure(ctx, exc)
         calls = list(message.tool_calls)
         grown: dict[str, Any] = {"widened": True} if widened else {}
         if not calls:

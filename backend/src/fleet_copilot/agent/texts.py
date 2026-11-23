@@ -8,6 +8,11 @@ from __future__ import annotations
 
 NOT_FOUND = "I can't find that in your fleet."
 TOOL_FAILED = "A data lookup failed, so I can't answer reliably. No changes were made."
+NOT_RECORDED = "That question is not in the recorded answers, so replay mode can't answer it. No changes were made."
+NOT_RECORDED_NOTE = (
+    "Replay mode answers only questions that were recorded, worded as they were recorded. Set "
+    "FLEET_MODEL_MODE=live with a model provider to ask anything."
+)
 OFF_TOPIC = "I can only answer questions about this company's managed devices."
 CAPABILITY_NOTE = (
     "I can answer from hardware, OS, memory, disk, battery, installed software and compliance data."
