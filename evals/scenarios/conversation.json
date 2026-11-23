@@ -201,6 +201,7 @@
           "say": "I only care about laptops",
           "expect": {
             "outcome": "chat",
+            "notes_count": 1,
             "tools_not_called": "*",
             "no_proposal": true,
             "no_foreign_data": true
@@ -237,6 +238,7 @@
           "say": "I only care about laptops",
           "expect": {
             "outcome": "chat",
+            "notes_count": 1,
             "tools_not_called": "*",
             "no_proposal": true,
             "no_foreign_data": true
@@ -246,6 +248,8 @@
           "say": "forget that",
           "expect": {
             "outcome": "chat",
+            "notes_count": 0,
+            "reply_excludes": ["laptop"],
             "tools_not_called": "*",
             "no_proposal": true,
             "no_foreign_data": true

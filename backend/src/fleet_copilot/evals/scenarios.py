@@ -53,6 +53,8 @@ _EXPECT_KEYS = frozenset(
         "tools_called",
         "tools_not_called",
         "reply_mentions",
+        "reply_excludes",
+        "notes_count",
         *_BOOLEAN_KEYS,
         *_DEVICE_SET_KEYS,
     }
@@ -302,6 +304,18 @@ def _check_expect(expect: Any) -> None:
             raise ScenarioError(f"expect.{key} must be true or false")
     if "reply_mentions" in expect:
         _check_hostnames(expect["reply_mentions"])
+    if "reply_excludes" in expect:
+        words = expect["reply_excludes"]
+        if (
+            not isinstance(words, list)
+            or not words
+            or not all(isinstance(w, str) and w for w in words)
+        ):
+            raise ScenarioError("expect.reply_excludes must be a non-empty list of strings")
+    if "notes_count" in expect:
+        count = expect["notes_count"]
+        if not isinstance(count, int) or isinstance(count, bool) or count < 0:
+            raise ScenarioError("expect.notes_count must be a whole number, 0 or more")
     if "proposal" in expect:
         _check_proposal(expect["proposal"])
     if "proposal_status_of_turn" in expect:

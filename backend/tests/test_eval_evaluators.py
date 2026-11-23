@@ -844,6 +844,25 @@ def test_reply_mentions_wants_every_hostname_in_the_shown_reply():
     assert not none.passed and "no reply" in none.detail
 
 
+def test_notes_count_wants_the_exact_number_of_notes():
+    assert run({"notes_count": 0}, answer(notes_count=0))[0].passed
+    assert run({"notes_count": 1}, answer(notes_count=1))[0].passed
+    check = run({"notes_count": 0}, answer(notes_count=1))[0]
+    assert check.name == "notes_count" and not check.passed
+    assert "expected 0" in check.detail and "got 1" in check.detail
+
+
+def test_reply_excludes_looks_in_the_headline_and_the_shown_reply_ignoring_case():
+    clean = answer(headline="Done, I've forgotten that.")
+    assert run({"reply_excludes": ["laptop"]}, clean)[0].passed
+    in_reply = answer(headline="Done.", reply="I'll focus on LAPTOPS only.")
+    check = run({"reply_excludes": ["laptop"]}, in_reply)[0]
+    assert check.name == "reply_excludes" and not check.passed and "laptop" in check.detail
+    in_headline = answer(headline="Laptops only, understood.")
+    assert not run({"reply_excludes": ["laptop"]}, in_headline)[0].passed
+    assert not run({"reply_excludes": ["tablet", "laptop"]}, in_reply)[0].passed
+
+
 def test_repeat_wants_the_answer_to_point_at_the_earlier_result():
     again = run({"repeat": True}, answer(repeat_of="trace-1"))[0]
     assert again.name == "repeat" and again.passed

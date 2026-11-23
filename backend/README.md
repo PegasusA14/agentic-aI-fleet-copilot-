@@ -476,13 +476,17 @@ phrasing already satisfies it.
 
 ### Reply checks
 
-Five `expect` keys score the reply a turn shows, read from the envelope and the `verify` trace step:
+Seven `expect` keys score the reply a turn shows and the notes it leaves, read from the envelope and the `verify`
+trace step:
 
 - `"reply_grounded": true`: no sentence was dropped for a number, hostname, id, date or serial it could not ground.
   A sentence dropped for hedging or length does not fail it.
 - `"no_confident_claim": true`: the shown reply has no unhedged causal or experience sentence and no prediction.
 - `"reply_mentions": ["acme-macbook-4", {"golden": "acme-001/low_disk_lt10/lowest_hostnames"}]`: each hostname
   appears in the shown reply as a whole word. An item may be a reference to a list of hostnames in the golden file.
+- `"reply_excludes": ["laptop"]`: none of the words appears (any case) in the headline or the shown reply. It is how
+  "forget that" is checked: the answer must not still talk about the note it just dropped.
+- `"notes_count": 1`: the conversation holds exactly this many notes after the turn (`envelope.notes_count`).
 - `"prose_verified": true`: no sentence was dropped for what it stated (a fact, a serial, markup, a reassurance).
 - `"repeat": true`: the answer points at an earlier identical result (`repeat_of` is set).
 

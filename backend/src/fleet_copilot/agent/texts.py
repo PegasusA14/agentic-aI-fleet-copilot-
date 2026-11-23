@@ -35,6 +35,10 @@ CAPABILITY_CARD = (
 )
 # What a chat turn shows as its headline; the reply the model wrote goes under it.
 CHAT_HEADLINE = "Happy to help with your fleet."
+# "Forget that" is answered by code, so the words never claim a note is still held: the model's reply
+# to it used to say "Understood, I'll focus on laptops only" right after the note was dropped.
+NOTE_FORGOTTEN = "Done, I've forgotten that. Later answers won't use it."
+NO_NOTE_TO_FORGET = "There was nothing to forget in this conversation."
 _NOT_RECORDED = "aren't something the fleet data records."
 # Fixed wording for a question about data the telemetry does not contain, by the planner's `missing_topic`.
 MISSING_TOPIC_TEXT = {

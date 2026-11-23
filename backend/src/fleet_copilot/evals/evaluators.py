@@ -344,6 +344,23 @@ def check_reply_mentions(expected: Any, envelope: AnswerEnvelope) -> Check:
     return Check("reply_mentions", True, f"the reply names {_ids(wanted)}")
 
 
+def check_notes_count(expected: Any, envelope: AnswerEnvelope) -> Check:
+    """The conversation holds exactly this many notes after the turn."""
+    got = envelope.notes_count
+    if got == expected:
+        return Check("notes_count", True, f"the conversation holds {got} note(s)")
+    return Check("notes_count", False, f"expected {expected} note(s), got {got}")
+
+
+def check_reply_excludes(expected: Any, envelope: AnswerEnvelope) -> Check:
+    """None of the words appears (any case) in the headline or the shown reply."""
+    shown = f"{envelope.headline}\n{shown_reply(envelope)}".lower()
+    found = [word for word in _many(expected) if word.lower() in shown]
+    if found:
+        return Check("reply_excludes", False, f"the answer still says {_ids(found)}")
+    return Check("reply_excludes", True, f"the answer does not say {_ids(_many(expected))}")
+
+
 def check_repeat(envelope: AnswerEnvelope) -> Check:
     """The turn gave the same result as an earlier one, and the answer says so (`repeat_of` is set)."""
     if envelope.repeat_of is None:
@@ -509,6 +526,8 @@ _KEYS = (
     "reply_grounded",
     "no_confident_claim",
     "reply_mentions",
+    "reply_excludes",
+    "notes_count",
     "repeat",
     "tools_planned",
     "tools_called",
@@ -592,6 +611,10 @@ def check_turn(
             checks.append(check_tools_not_called(value, trace))
         elif key == "reply_mentions":
             checks.append(check_reply_mentions(value, envelope))
+        elif key == "reply_excludes":
+            checks.append(check_reply_excludes(value, envelope))
+        elif key == "notes_count":
+            checks.append(check_notes_count(value, envelope))
         elif key == "proposal":
             checks.append(check_proposal(value, envelope, proposals_created))
         elif key == "proposal_status_of_turn":

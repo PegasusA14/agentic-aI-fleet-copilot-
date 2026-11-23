@@ -15,6 +15,7 @@ from graph_support import (
 from fleet_copilot.actions.service import ActionService
 from fleet_copilot.actions.store import ActionStore
 from fleet_copilot.agent import memory as mem
+from fleet_copilot.agent import texts
 from fleet_copilot.agent.graph import _planner_memory
 from fleet_copilot.agent.identity import Identity, thread_id
 from fleet_copilot.agent.llm import (
@@ -239,6 +240,31 @@ async def test_forget_removes_the_last_note_and_the_planner_stops_seeing_it(real
     third_plan, fourth_plan = (planner_body(llm, 2), planner_body(llm, 3))
     assert SECOND_NOTE in third_plan  # still held when the forget request is planned
     assert SECOND_NOTE not in fourth_plan and NOTE in fourth_plan
+
+
+async def test_forget_that_is_answered_by_code_and_the_reply_step_never_runs(real_db_path):
+    llm = ScriptedLLM(
+        plans=[Plan(intent="chat", remember=NOTE), Plan(intent="chat", forget=True)],
+        explains=[explanation(text="Understood, I will focus on laptops only.")],
+    )
+    service = make_service(real_db_path, llm)
+    await ask(service, NOTE)
+    result = await ask(service, "forget that")
+    envelope = result.envelope
+    assert (envelope.outcome, envelope.reason_code) == ("chat", None)
+    assert envelope.headline == texts.NOTE_FORGOTTEN
+    assert not envelope.reply and envelope.notes_count == 0
+    assert len(llm.calls_of("explain")) == 1  # the first turn's reply only
+    assert (await held(service, ACME_ADMIN)).notes == []
+    assert [t.question for t in (await held(service, ACME_ADMIN)).turns][-1] == "forget that"
+
+
+async def test_forget_that_with_no_note_says_there_was_nothing_to_forget(real_db_path):
+    llm = ScriptedLLM(plans=[Plan(intent="chat", forget=True)])
+    service = make_service(real_db_path, llm)
+    envelope = (await ask(service, "forget that")).envelope
+    assert envelope.outcome == "chat" and envelope.headline == texts.NO_NOTE_TO_FORGET
+    assert envelope.notes_count == 0 and llm.calls_of("explain") == []
 
 
 async def test_forget_and_remember_in_one_plan_replace_the_last_note(real_db_path):

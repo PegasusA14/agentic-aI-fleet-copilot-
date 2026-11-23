@@ -328,9 +328,8 @@ SCENARIOS: tuple[Scenario, ...] = (
         "turn",
         "A request to drop the last remembered note: confirm it, with no lookup.",
         synthetic=True,
-        note="A conversational reply; routing and the words need the model.",
+        note="The reply is fixed wording written by code; only the routing needs the model.",
         plan_fields=(("intent", "chat"), ("forget", True)),
-        reply="Done. I've dropped that note, so I'll list every kind of device again.",
     ),
     Scenario(
         "tool_error",

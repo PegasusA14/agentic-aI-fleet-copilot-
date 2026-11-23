@@ -164,3 +164,14 @@ def chat(*, company_id: str, as_of: datetime, trace_id: str) -> AnswerEnvelope:
         headline=texts.CHAT_HEADLINE,
         scope=_scope(company_id, as_of),
     )
+
+
+def forgot(removed: bool, *, company_id: str, as_of: datetime, trace_id: str) -> AnswerEnvelope:
+    """The final reply to "forget that". Code writes it (no reply step), so it can only say what happened:
+    a note was dropped, or there was none to drop."""
+    return AnswerEnvelope(
+        outcome="chat",
+        trace_id=trace_id,
+        headline=texts.NOTE_FORGOTTEN if removed else texts.NO_NOTE_TO_FORGET,
+        scope=_scope(company_id, as_of),
+    )

@@ -1005,6 +1005,11 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
                 )
                 question, options = checked if checked else (None, [])
                 update["envelope"] = _dump(outcomes.clarification(question, options, **kwargs))
+        elif plan.intent == "chat" and plan.forget and not plan.remember:
+            # The notes update above already dropped the note. The words are code-written and final: the
+            # talk step has no say, so it cannot answer as if the note still held.
+            removed = bool(memory_module.load(state.get("memory")).notes)
+            update["envelope"] = _dump(outcomes.forgot(removed, **kwargs))
         elif plan.intent == "chat":
             # No tools and no lookup: the talk step answers from the conversation's memory and the
             # capability card. Any note the message carried has already been kept.

@@ -193,6 +193,29 @@ def test_malformed_cases_are_rejected_naming_the_file_and_the_case(tmp_path, mut
     assert needle in message
 
 
+@pytest.mark.parametrize(
+    "expect, needle",
+    [
+        ({"notes_count": -1}, "notes_count"),
+        ({"notes_count": True}, "notes_count"),
+        ({"notes_count": "1"}, "notes_count"),
+        ({"reply_excludes": "laptop"}, "reply_excludes"),
+        ({"reply_excludes": []}, "reply_excludes"),
+        ({"reply_excludes": [""]}, "reply_excludes"),
+    ],
+)
+def test_the_notes_and_reply_excludes_keys_are_validated(tmp_path, expect, needle):
+    write_suite(tmp_path, cases=[case(turns=[{"say": "hi", "expect": expect}])])
+    with pytest.raises(ScenarioError, match=needle):
+        load_suites(tmp_path)
+
+
+def test_the_notes_and_reply_excludes_keys_load(tmp_path):
+    expect = {"notes_count": 0, "reply_excludes": ["laptop"]}
+    write_suite(tmp_path, cases=[case(turns=[{"say": "hi", "expect": expect}])])
+    assert load_suites(tmp_path)
+
+
 def test_duplicate_case_ids_in_a_suite_are_rejected(tmp_path):
     write_suite(tmp_path, cases=[case(), case()])
     with pytest.raises(ScenarioError, match="duplicate"):
