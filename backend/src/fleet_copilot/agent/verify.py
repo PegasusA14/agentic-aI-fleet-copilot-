@@ -99,6 +99,32 @@ CLAIM_WORDS = (
 )  # fmt: skip
 _CLAIM_WORD = re.compile(r"\b(" + "|".join(CLAIM_WORDS) + r")\b", re.IGNORECASE)
 
+# Wording that says something about the rest of the fleet: "the only device", "the sole laptop", "no other
+# machine", "there aren't multiple computers". It is backed only when this turn checked more than one device
+# (a code-written "N of M" claim with M of 2 or more); after one device's history it is a guess about the
+# others. "Only" as a quantity ("only 2.0% free") is not matched.
+_DEVICE_NOUN = (
+    r"(?:one|ones|devices?|computers?|machines?|laptops?|desktops?|macs?|pcs?|notebooks?)"
+)
+_EXCLUSIVE = re.compile(
+    rf"\b(?:the\s+)?(?:only|sole|single)\s+(?:\w+\s+)?{_DEVICE_NOUN}\b"
+    rf"|\bno\s+other\b|\b(?:nothing|nobody|no\s+one|none)\s+else\b"
+    r"|\b(?:aren|isn|weren|wasn)['\u2019]?t\s+(?:any\s+)?(?:other|multiple|more|several|many)\b"
+    r"|\b(?:are|is|were|was)\s+not\s+(?:any\s+)?(?:other|multiple|more|several|many)\b",
+    re.IGNORECASE,
+)
+_POPULATION_CLAIM = re.compile(r"\b\d+\s+of\s+(\d+)\b")
+
+
+def checks_several_devices(comp: Composition) -> bool:
+    """True when a code-written claim counts over two or more devices ("2 of 10 devices")."""
+    return any(
+        int(m.group(1)) >= 2
+        for claim in comp.claims
+        for m in _POPULATION_CLAIM.finditer(claim.text)
+    )
+
+
 # The telemetry carries no approval, licence or risk label for installed software, so prose about software
 # may not add one. This is checked only on answers that cite software readings, on the folded text. Every
 # stem takes a `\w*` suffix so inflections are caught ("malwares", "suspiciously", "illegally"), and the
@@ -531,6 +557,8 @@ class Grounding:
     actions: frozenset[tuple[str, str]] | None = None
     # A chat turn may describe what the four actions are; it may not tie one to a device without backing.
     describes_capabilities: bool = False
+    # Whether a claim about the rest of the fleet ("the only device") is backed. None switches the check off.
+    exclusive_backed: bool | None = None
 
 
 # On a chat turn "no" and "none" are ordinary answers ("no, nothing was approved"); the words that vouch for
@@ -618,6 +646,7 @@ def grounding_for(
         claim_words=_CLAIM_WORD if is_answer else None,
         judges_software=is_answer and any("#software[" in item.ref for item in comp.evidence),
         actions=actions,
+        exclusive_backed=checks_several_devices(comp) if is_answer else None,
     )
 
 
@@ -648,6 +677,8 @@ def sentence_problems(sentence: str, grounding: Grounding) -> list[str]:
         found.append("claim_word")
     if grounding.judges_software and _JUDGMENT_WORD.search(folded):
         found.append("judgment_word")
+    if grounding.exclusive_backed is False and _EXCLUSIVE.search(folded):
+        found.append("exclusive_claim")
     found += [f"unhedged_{c}" for c in unhedged_claims(sentence, estimates=grounding.estimates)]
     if is_predictive(sentence, estimates=grounding.estimates):
         found.append("predictive")

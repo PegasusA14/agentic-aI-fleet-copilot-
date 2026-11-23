@@ -315,6 +315,8 @@ device ids. The full records go to the code that composes the answer.
     conversation's memory facts (code-written, with their references). Your notes count as what you said, not
     as facts.
   - It may not contain markup, links, device serials or blanket reassurance ("all devices are fine").
+  - A claim about the rest of the fleet ("the only device", "no other machine") stands only when the answer
+    checked more than one device; after one device's history it is dropped.
   - Reasoning is allowed only with a hedge. A sentence about a cause, an experience ("feels slow") or a
     possibility needs a word such as "could", "might", "may" or "worth checking"; a prediction ("will fail")
     is never allowed unless it repeats an estimate that code wrote.

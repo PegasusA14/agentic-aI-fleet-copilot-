@@ -10,7 +10,9 @@ checks the reply one sentence at a time: numbers, hostnames, device ids and date
 this turn's code-written facts or in the conversation's remembered facts (never in a user note); links and
 markup, and characters that hide or imitate text, are rejected, never stripped; a device serial may not be
 named (hostnames are fine); and, on an answer, a deny-list of negation, universal and reassurance words
-(`CLAIM_WORDS`) applies. A chat turn may use only remembered facts, the numbers in the capability card and
+(`CLAIM_WORDS`) applies. A claim about the rest of the fleet ("the only device", "no other machine", "there
+aren't multiple computers") is kept only when the answer checked more than one device (a code-written "N of
+M" claim with M of 2 or more); after one device's history it is dropped (`exclusive_claim`). A chat turn may use only remembered facts, the numbers in the capability card and
 the disclosed policy numbers.
 
 Speculation the telemetry cannot show is allowed only when hedged. A causal phrase ("because", "the reason",

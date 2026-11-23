@@ -891,3 +891,47 @@ def test_dropping_a_sentence_can_make_room_so_nothing_is_trimmed(low_disk):
     verdict = _explain(low_disk, six_and_a_bad)
     assert sentence_count(verdict.explanation) == 6
     assert verdict.problems == ("reply:predictive@6", "reply:dropped=1")
+
+
+# ---- exclusivity: "the only device", "no other", "aren't multiple" ------------------------------------------
+
+
+@pytest.fixture
+def one_device_history(real_db_path, real_conn):
+    args = {"device_id": "MT7PJB7N5LRE", "metric": "disk_free_pct", "window_days": 7}
+    comp = compose(
+        [run(real_db_path, real_conn, "device_history", args)],
+        resolve=repo_for(real_conn).resolve,
+    )
+    return comp, dataset_as_of(real_conn)
+
+
+@pytest.mark.parametrize(
+    "sentence",
+    [
+        "acme-macbook-4 is the only device in the data this week.",
+        "acme-macbook-4 is the only one short on space.",
+        "There aren't multiple computers showing constant disk pressure here.",
+        "No other machine is this low.",
+        "acme-macbook-4 is the sole laptop with a problem.",
+        "There are not any other devices like it.",
+    ],
+)
+def test_an_exclusive_claim_needs_a_check_of_the_whole_fleet(one_device_history, sentence):
+    # One device's history says nothing about the others, so a claim about the rest of the fleet is unbacked.
+    comp, as_of = one_device_history
+    verdict = verify_prose(comp, as_of, explanation=sentence)
+    assert verdict.explanation is None
+    assert "reply:exclusive_claim@0" in verdict.problems
+
+
+def test_an_exclusive_claim_after_a_check_of_the_whole_fleet_stands(low_disk):
+    comp, as_of = low_disk  # "2 of 10 devices": every device was checked
+    text = "acme-macbook-4 is the only device at 2.0% free."
+    assert verify_prose(comp, as_of, explanation=text).problems == ()
+
+
+def test_only_as_a_quantity_is_not_an_exclusive_claim(one_device_history):
+    comp, as_of = one_device_history
+    text = "acme-macbook-4 has only 2.0% free now."
+    assert verify_prose(comp, as_of, explanation=text).problems == ()
