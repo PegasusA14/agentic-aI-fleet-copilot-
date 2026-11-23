@@ -276,3 +276,52 @@ def test_the_planner_prompt_names_the_inventory_and_service_examples():
     text = " ".join(prompts.PLAN_SYSTEM.split())
     assert "hw modle breakdwn pls" in text and "inventory by model" in text
     assert "needs service" in text and "never fleet_health" in text
+
+
+# ---- (f) "not recorded" for a question that names recorded data is answered ---------------------------------
+
+
+HIGH_SEV = "wich laptops fail a high sev compliance rule"
+BANDWIDTH = "what's the network bandwidth on our machines?"
+
+
+@pytest.mark.parametrize(
+    ("question", "matches"),
+    [
+        (HIGH_SEV, True),
+        ("which laptops are out of space?", True),
+        (BANDWIDTH, False),
+        ("Which devices have a weak Wi-Fi signal?", False),
+        ("What is the weather in Paris today?", False),
+    ],
+)
+def test_the_recorded_area_words_match_only_questions_about_recorded_data(question, matches):
+    assert bool(graph._RECORDED_AREA.search(question)) is matches
+
+
+def not_recorded_plan() -> Plan:
+    return Plan(intent="unsupported", refusal_reason="data_unavailable", missing_topic="other")
+
+
+async def test_a_not_recorded_plan_for_a_compliance_question_is_answered(real_db_path):
+    llm = ScriptedLLM(
+        plans=[not_recorded_plan()],
+        acts=[
+            tool_calls_message(("compliance_failures_now", {"severity": "high"})),
+            final_message(),
+        ],
+        explains=[explanation()],
+    )
+    result = await ask(make_service(real_db_path, llm), HIGH_SEV)
+    assert len(llm.calls_of("act")) == 2
+    assert result.envelope.outcome in ("answer", "no_match")
+    assert any(e.data.get("changed") == "data_unavailable_to_answer" for e in result.trace)
+
+
+async def test_a_not_recorded_plan_for_a_bandwidth_question_stays_refused(real_db_path):
+    llm = ScriptedLLM(plans=[not_recorded_plan()])
+    result = await ask(make_service(real_db_path, llm), BANDWIDTH)
+    assert result.envelope.outcome == "unsupported"
+    assert result.envelope.reason_code == "data_unavailable"
+    assert llm.calls_of("act") == []
+    assert not any(e.data.get("changed") == "data_unavailable_to_answer" for e in result.trace)

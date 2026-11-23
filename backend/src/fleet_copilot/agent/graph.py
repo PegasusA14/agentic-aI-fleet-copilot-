@@ -232,6 +232,15 @@ _SUMMARY_WORDS = re.compile(
     r"fleet[\s_-]*health|overall|summar|needs?\s+attention|across|everything", re.IGNORECASE
 )
 _BATTERY_WORDS = re.compile(r"\bbat\w{0,3}r(?:y|ies)\b", re.IGNORECASE)
+# Words for what the telemetry does record. A plan that says "the data lacks this" with no named topic is
+# not believed when the question uses one of them ("wich laptops fail a high sev compliance rule").
+_RECORDED_AREA = re.compile(
+    r"complian\w*|\bdisk\w*|\bstorage\b|\bdrives?\b|\bfree\s+space\b|\bout\s+of\s+space\b"
+    r"|\bbat+e?r(?:y|ies)\b|\bmemory\b|\bram\b|\bmac\s*os\b|\bos\s+(?:version|update)s?\b"
+    r"|\bsoftware\b|\bapps?\b|\binstall\w*|\bencrypt\w*|\bscreen[\s_-]*lock\w*|\bseverity\b"
+    r"|\bsev\b|\bup[\s_-]*to[\s_-]*date\b",
+    re.IGNORECASE,
+)
 
 
 # A message that puts forward a course of action for the devices already discussed: "can't we ask the users",
@@ -949,6 +958,22 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
                 reference=plan.reference,
             )
             converted = True
+        unavailable_converted = False
+        if (
+            plan.intent == "unsupported"
+            and plan.refusal_reason == "data_unavailable"
+            and plan.missing_topic == "other"
+            and _RECORDED_AREA.search(state["question"])
+        ):
+            # "Not recorded" with no named topic, for a question that uses a word for recorded data: the
+            # planner guessed. Answer it from the data; the named topics stay refused.
+            plan = Plan(
+                intent="answer",
+                summary="Answer the question from the fleet data.",
+                window_days=plan.window_days,
+                reference=plan.reference,
+            )
+            unavailable_converted = True
         before = plan.tools
         plan = without_summary_tool(plan)
         adjusted = adjust_tools(plan, state["question"])
@@ -981,6 +1006,13 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
                 "plan",
                 "The plan called the question an unsupported action but it names no action; answering it",
                 data={"changed": "unsupported_action_to_answer"},
+            )
+        if unavailable_converted:
+            emit(
+                "plan",
+                "The plan said the data lacks this, but the question names data the fleet records; "
+                "answering it",
+                data={"changed": "data_unavailable_to_answer"},
             )
         if plan.tools != before:
             emit(
