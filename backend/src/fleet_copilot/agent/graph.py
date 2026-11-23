@@ -34,6 +34,7 @@ from fleet_copilot.actions.store import ActionStore
 from fleet_copilot.agent import memory as memory_module
 from fleet_copilot.agent import outcomes, texts
 from fleet_copilot.agent.cassette import CassetteMiss
+from fleet_copilot.agent.chat_gateway import ModelUnavailable
 from fleet_copilot.agent.compose import (
     Resolver,
     compose,
@@ -362,7 +363,11 @@ def _dump(envelope: AnswerEnvelope) -> dict[str, Any]:
 
 
 def _failure(ctx: AgentContext, exc: BaseException | None = None) -> dict[str, Any]:
-    build = outcomes.not_recorded if isinstance(exc, CassetteMiss) else outcomes.tool_failure
+    build = outcomes.tool_failure
+    if isinstance(exc, CassetteMiss):
+        build = outcomes.not_recorded
+    elif isinstance(exc, ModelUnavailable):
+        build = outcomes.model_unavailable
     return {
         "envelope": _dump(build(company_id=ctx.company_id, as_of=ctx.as_of, trace_id=ctx.trace_id))
     }

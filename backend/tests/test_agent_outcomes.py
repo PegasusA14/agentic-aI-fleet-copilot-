@@ -44,6 +44,9 @@ def test_tool_failure_and_step_limit():
     failure = outcomes.tool_failure(**KW)
     assert (failure.outcome, failure.reason_code) == ("tool_error", "tool_failure")
     assert failure.headline == texts.TOOL_FAILED
+    outage = outcomes.model_unavailable(**KW)
+    assert (outage.outcome, outage.reason_code) == ("tool_error", "tool_failure")
+    assert outage.headline == texts.MODEL_UNAVAILABLE
     limit = outcomes.step_limit(**KW)
     assert (limit.outcome, limit.reason_code) == ("insufficient_data", "step_limit")
     assert limit.headline == texts.STEP_LIMIT and not limit.claims

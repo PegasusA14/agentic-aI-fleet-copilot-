@@ -5,6 +5,7 @@ from graph_support import ACME_ADMIN, answer_plan, explanation, kinds, make_serv
 from pydantic import ValidationError
 
 from fleet_copilot.agent import texts
+from fleet_copilot.agent.chat_gateway import ModelUnavailable
 from fleet_copilot.agent.llm import (
     ContentFiltered,
     Plan,
@@ -141,3 +142,35 @@ async def test_the_model_cannot_word_a_missing_topic_refusal(real_db_path):
     )
     result = await ask(make_service(real_db_path, ScriptedLLM(plans=[plan])), "wifi?")
     assert "healthy" not in result.envelope.model_dump_json()
+
+
+async def test_a_model_outage_at_planning_says_the_model_did_not_respond(real_db_path):
+    llm = ScriptedLLM(plans=[ModelUnavailable("Timeout")])
+    result = await ask(make_service(real_db_path, llm), "which devices are low on disk?")
+    envelope = result.envelope
+    assert (envelope.outcome, envelope.reason_code) == ("tool_error", "tool_failure")
+    assert envelope.headline == texts.MODEL_UNAVAILABLE
+    assert envelope.headline != texts.TOOL_FAILED
+    assert [e.data.get("error") for e in result.trace if e.kind == "error"] == ["ModelUnavailable"]
+
+
+async def test_a_model_outage_while_gathering_says_the_model_did_not_respond(real_db_path):
+    llm = ScriptedLLM(plans=[answer_plan()], acts=[ModelUnavailable("Timeout")])
+    result = await ask(make_service(real_db_path, llm), "which devices are low on disk?")
+    envelope = result.envelope
+    assert (envelope.outcome, envelope.reason_code) == ("tool_error", "tool_failure")
+    assert envelope.headline == texts.MODEL_UNAVAILABLE
+    assert [e.data.get("error") for e in result.trace if e.kind == "error"] == ["ModelUnavailable"]
+
+
+async def test_any_other_failure_while_gathering_is_still_a_failed_lookup(real_db_path):
+    llm = ScriptedLLM(plans=[answer_plan()], acts=[RuntimeError("boom")])
+    result = await ask(make_service(real_db_path, llm), "which devices are low on disk?")
+    assert (result.envelope.outcome, result.envelope.reason_code) == ("tool_error", "tool_failure")
+    assert result.envelope.headline == texts.TOOL_FAILED
+
+
+async def test_a_generic_planning_failure_is_still_a_failed_lookup(real_db_path):
+    llm = ScriptedLLM(plans=[RuntimeError("endpoint down")])
+    result = await ask(make_service(real_db_path, llm), "anything")
+    assert result.envelope.headline == texts.TOOL_FAILED
