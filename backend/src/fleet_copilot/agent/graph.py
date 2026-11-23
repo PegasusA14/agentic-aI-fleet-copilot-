@@ -489,10 +489,19 @@ def without_summary_tool(plan: Plan) -> Plan:
 
 
 def without_empty_ids(args: ToolCall) -> ToolCall:
-    """The call's arguments without an empty `device_ids` list: no devices named is no filter, not "no such device"."""
-    if args.get("device_ids") == []:
-        return {key: value for key, value in args.items() if key != "device_ids"}
-    return args
+    """The call's arguments without blank device ids: no devices named is no filter, not "no such device".
+
+    The model sometimes sends `[""]` for a fleet-wide question; read as an id, that is a uniform "not found".
+    Blank entries go, and with none left the filter goes. Real ids stay, whoever's they are.
+    """
+    ids = args.get("device_ids")
+    if not isinstance(ids, list):
+        return args
+    kept = [i for i in ids if not (isinstance(i, str) and not i.strip())]
+    if len(kept) == len(ids) and kept:
+        return args
+    rest = {key: value for key, value in args.items() if key != "device_ids"}
+    return {**rest, "device_ids": kept} if kept else rest
 
 
 def _tool_order(names: frozenset[str]) -> list[str]:
