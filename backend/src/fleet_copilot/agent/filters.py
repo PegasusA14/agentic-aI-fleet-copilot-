@@ -23,7 +23,10 @@ FORM_FACTOR_WORDS = {
     ),
 }
 OS_WORDS = {
-    "macos": re.compile(r"\bmac\w*|\bapple\b|\bos\s*x\b", re.IGNORECASE),
+    "macos": re.compile(
+        r"\b(?:macs?|macos|macintosh|macbooks?|imacs?)\b|\bmac\s*(?:mini|studio|os)\b|\bapple\b|\bos\s*x\b",
+        re.IGNORECASE,
+    ),
     "windows": re.compile(r"\bwindows\b|\bwin\s*1[01]\b|\bwin\b|\bmicrosoft\b", re.IGNORECASE),
 }
 # Model names are free-form; any one distinctive word of the name is enough. These are too common to count.
@@ -45,7 +48,7 @@ def _model_grounded(value: Any, sources: str) -> bool:
         return False
     for token in re.split(r"[\s._-]+", value.lower()):
         if len(token) >= MODEL_MIN_TOKEN and token not in MODEL_STOP_WORDS:
-            if re.search(rf"\b{re.escape(token)}\b", sources, re.IGNORECASE):
+            if re.search(rf"\b{re.escape(token)}\w*", sources, re.IGNORECASE):
                 return True
     return False
 
