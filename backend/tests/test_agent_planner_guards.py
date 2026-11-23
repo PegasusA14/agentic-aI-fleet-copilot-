@@ -374,3 +374,23 @@ async def test_a_chat_plan_for_thanks_stays_chat(real_db_path):
     result = await ask(make_service(real_db_path, llm), "thanks!")
     assert llm.calls_of("act") == []
     assert not any(e.data.get("changed") == "chat_to_answer" for e in result.trace)
+
+
+async def test_a_converted_chat_plan_drops_its_old_reference_and_looks_up_the_whole_fleet(
+    real_db_path,
+):
+    chat_with_reference = Plan(
+        intent="chat", summary="Small talk.", reference=Reference(kind="all")
+    )
+    llm = ScriptedLLM(
+        plans=[answer_plan(), chat_with_reference],
+        acts=[tool_calls_message(LOW), final_message(), tool_calls_message(LOW), final_message()],
+        explains=[explanation(), explanation()],
+    )
+    service = make_service(real_db_path, llm)
+    await ask(service, "which devices are low on disk?")
+    result = await ask(service, "low disk?")
+    assert any(e.data.get("changed") == "chat_to_answer" for e in result.trace)
+    assert not any(e.kind == "reference" for e in result.trace)
+    call = next(e for e in result.trace if e.kind == "tool_call" and "args" in e.data)
+    assert call.tool == "low_disk_devices" and "device_ids" not in call.data["args"]

@@ -1000,7 +1000,8 @@ def build_graph(llm: LLMGateway, checkpointer: Any):
                 intent="answer",
                 summary="Answer the question from the fleet data.",
                 window_days=plan.window_days,
-                reference=plan.reference,
+                # The question points at nothing earlier, so an old reference must not narrow it.
+                reference=None,
             )
             chat_converted = True
         before = plan.tools

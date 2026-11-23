@@ -114,13 +114,13 @@ def resolve_reference(
         if not hinted and reference.kind == "all" and len(focus) == 1:
             # "All of those laptops" after one list: the words describe the devices, they do not pick a list.
             hinted = list(focus)
-        if (
-            not hinted
-            and reference.kind == "all"
-            and len({frozenset(item.device_id for item in el.items) for el in focus}) == 1
-        ):
-            # Asking which of two lists that hold the same devices is a question with no answer.
-            hinted = list(focus)
+        if not hinted and reference.kind == "all":
+            # Asking which of several lists that hold the same devices, or whose devices all sit in one
+            # of them, is a question with no answer: that one list is what "those" means.
+            shown = {item.device_id for el in focus for item in el.items}
+            hinted = next(
+                ([el] for el in focus if {item.device_id for item in el.items} == shown), []
+            )
         if not hinted:
             return NeedsClarification(
                 texts.WHICH_LIST, tuple(el.title for el in focus)[:_MAX_OPTIONS]

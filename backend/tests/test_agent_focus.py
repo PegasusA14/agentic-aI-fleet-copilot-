@@ -231,6 +231,24 @@ def test_identical_lists_and_a_hint_that_matches_neither_resolve_to_that_device_
     assert ids(result) == ["A", "B"]
 
 
+def test_one_list_holding_every_device_shown_is_what_those_means():
+    ref = Reference(kind="all", list_hint="the low disk devices")
+    focus = [SAME_A, make_list("t2/hist-a", "History of A", ("A", "host-a"))]
+    focus.append(make_list("t2/hist-b", "History of B", ("B", "host-b")))
+    result = resolve_reference(ref, focus, DEVICES)
+    assert ids(result) == ["A", "B"] and result.list_id == "t2/low-1"
+
+
+def test_two_one_device_lists_have_no_list_holding_both_so_it_still_asks():
+    ref = Reference(kind="all", list_hint="the low disk devices")
+    focus = [
+        make_list("x1", "History of A", ("A", "host-a")),
+        make_list("x2", "History of B", ("B", "host-b")),
+    ]
+    result = resolve_reference(ref, focus, DEVICES)
+    assert isinstance(result, NeedsClarification) and result.question == WHICH_LIST
+
+
 def test_different_lists_and_a_hint_that_matches_neither_still_ask_which():
     ref = Reference(kind="all", list_hint="the two devices low on disk space")
     result = resolve_reference(ref, [SCREEN, OS_FAIL], DEVICES)
